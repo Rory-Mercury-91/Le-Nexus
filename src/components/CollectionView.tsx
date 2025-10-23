@@ -299,7 +299,7 @@ export default function CollectionView<T extends { id: number | string }>({
                   maxWidth: '280px',
                   flexShrink: 0,
                   transformStyle: 'preserve-3d',
-                  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, filter 0.4s ease',
+                  transition: 'transform 0.15s ease-out, opacity 0.15s ease-out, filter 0.15s ease-out',
                   willChange: 'transform, opacity, filter',
                   scrollSnapAlign: 'center',
                   scrollSnapStop: 'always'
