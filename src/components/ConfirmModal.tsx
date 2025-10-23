@@ -1,4 +1,5 @@
 import { AlertTriangle, X } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface ConfirmModalProps {
   title: string;
@@ -19,6 +20,18 @@ export default function ConfirmModal({
   cancelText = 'Annuler',
   isDanger = false
 }: ConfirmModalProps) {
+  // Fermer le modal avec la touche Échap (= Annuler)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div 

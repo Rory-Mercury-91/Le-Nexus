@@ -34,6 +34,18 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
     });
   }, []);
 
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
+
   // Pré-remplir avec les valeurs du dernier tome
   useEffect(() => {
     if (lastTome) {

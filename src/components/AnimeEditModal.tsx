@@ -1,5 +1,5 @@
 import { Plus, Trash2, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimeSerie } from '../types';
 import CoverImage from './CoverImage';
 
@@ -29,6 +29,18 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
   const [studios, setStudios] = useState(anime.studios || '');
   const [saisons, setSaisons] = useState<AnimeSaison[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
 
   // Charger les saisons au montage
   useState(() => {

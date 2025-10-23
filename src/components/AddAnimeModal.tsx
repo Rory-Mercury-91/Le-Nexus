@@ -1,5 +1,5 @@
 import { Loader2, Search, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimeSearchResult } from '../types';
 import CoverImage from './CoverImage';
 
@@ -30,6 +30,18 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
   });
 
   const [saving, setSaving] = useState(false);
+
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

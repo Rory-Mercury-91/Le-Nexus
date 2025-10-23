@@ -27,6 +27,18 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
     window.electronAPI.getAllUsers().then(setUsers);
   }, []);
 
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
+
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
     if (couvertureUrl && couvertureUrl.startsWith('covers/')) {

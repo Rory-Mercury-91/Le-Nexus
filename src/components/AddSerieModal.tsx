@@ -1,5 +1,5 @@
 import { ExternalLink, Loader, Search, Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MangaDexResult } from '../types';
 import CoverImage from './CoverImage';
 
@@ -26,6 +26,18 @@ export default function AddSerieModal({ onClose, onSuccess }: AddSerieModalProps
   const [searching, setSearching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
 
   const handleSearchMangadex = async () => {
     if (!titre.trim()) return;

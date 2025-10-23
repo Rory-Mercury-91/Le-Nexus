@@ -1,5 +1,5 @@
 import { Upload, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Serie } from '../types';
 import CoverImage from './CoverImage';
 
@@ -24,6 +24,18 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
   const [editeur, setEditeur] = useState(serie.editeur || '');
   const [rating, setRating] = useState(serie.rating || '');
   const [saving, setSaving] = useState(false);
+
+  // Fermer le modal avec la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, saving]);
 
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
