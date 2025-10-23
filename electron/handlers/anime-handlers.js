@@ -1,3 +1,6 @@
+const { fetchAniListCover } = require('../apis/anilist');
+const Groq = require('groq-sdk');
+
 /**
  * Enregistre tous les handlers IPC pour les animes
  * @param {IpcMain} ipcMain - Module ipcMain d'Electron
@@ -12,6 +15,40 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
     const sendProgress = (progress) => {
       event.sender.send('anime-import-progress', progress);
     };
+    
+    // Fonction helper pour traduire un texte avec Groq AI
+    const translateWithGroq = async (text) => {
+      const groqApiKey = store.get('groqApiKey', '');
+      if (!groqApiKey || !text || text.length < 10) {
+        return null; // Pas de clé ou texte trop court
+      }
+      
+      try {
+        const groq = new Groq({ apiKey: groqApiKey });
+        const response = await groq.chat.completions.create({
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un traducteur professionnel spécialisé en anime et manga. Traduis le texte suivant en français. Ne renvoie QUE la traduction, sans commentaires, sans notes, sans explications.'
+            },
+            {
+              role: 'user',
+              content: text
+            }
+          ],
+          model: 'llama-3.3-70b-versatile',
+          temperature: 0.3,
+          max_tokens: 2000
+        });
+        
+        const translated = response.choices[0]?.message?.content?.trim();
+        return translated || null;
+      } catch (error) {
+        console.warn(`⚠️ Erreur traduction Groq (texte ignoré):`, error.message);
+        return null;
+      }
+    };
+    
     try {
       const db = getDb();
       if (!db) {
@@ -153,7 +190,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             errors: results.errors.length
           });
 
-          // Récupérer les infos complètes depuis Jikan (API MAL) avec retry
+          // Récupérer les infos complètes depuis Jikan (API MAL) et AniList en parallèle
           let response;
           let retries = 3;
           
@@ -192,6 +229,23 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
           const jikanData = await response.json();
           const anime = jikanData.data;
+          
+          // Récupérer la cover HD depuis AniList (en parallèle, ne pas bloquer)
+          const anilistCover = await fetchAniListCover(malId);
+          const coverUrl = anilistCover?.coverImage?.extraLarge || 
+                          anilistCover?.coverImage?.large || 
+                          anime.images?.jpg?.large_image_url || 
+                          anime.images?.jpg?.image_url || 
+                          '';
+          
+          // Traduire le synopsis avec Groq AI si disponible
+          let description = anime.synopsis || '';
+          if (description) {
+            const translated = await translateWithGroq(description);
+            if (translated) {
+              description = translated;
+            }
+          }
 
           // Vérifier si l'anime existe déjà
           const existingAnime = db.prepare('SELECT id FROM anime_series WHERE mal_id = ?').get(malId);
@@ -224,8 +278,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               titreBase, // Utiliser le titre de base du groupe (ex: "Dr. Stone")
               anime.title_english || titreBase,
               anime.title_japanese || '',
-              anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '',
-              anime.synopsis || '',
+              coverUrl, // Cover AniList HD ou Jikan
+              description, // Synopsis traduit ou original
               statutFr,
               anime.type || type,
               anime.genres?.map(g => g.name).join(', ') || '',
@@ -250,8 +304,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               titreBase, // Utiliser le titre de base du groupe (ex: "Dr. Stone")
               anime.title_english || titreBase,
               anime.title_japanese || '',
-              anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '',
-              anime.synopsis || '',
+              coverUrl, // Cover AniList HD ou Jikan
+              description, // Synopsis traduit ou original
               statutFr,
               anime.type || type,
               anime.genres?.map(g => g.name).join(', ') || '',
@@ -306,6 +360,14 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               }
             }
             
+            // Récupérer la cover HD depuis AniList pour cette saison
+            const saisonAnilistCover = await fetchAniListCover(entryMalId);
+            const saisonCoverUrl = saisonAnilistCover?.coverImage?.extraLarge || 
+                                   saisonAnilistCover?.coverImage?.large || 
+                                   saisonAnime?.images?.jpg?.large_image_url || 
+                                   saisonAnime?.images?.jpg?.image_url || 
+                                   '';
+            
             const numeroSaison = saisonIndex + 1;
             const existingSaison = db.prepare('SELECT id FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?').get(serieId, numeroSaison);
             
@@ -324,7 +386,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
                 saisonAnime?.title || entryTitre,
                 nbEpisodesReel,
                 saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
-                saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || '',
+                saisonCoverUrl, // Cover AniList HD ou Jikan pour la saison
                 saisonId
               );
             } else {
@@ -339,7 +401,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
                 saisonAnime?.title || entryTitre,
                 nbEpisodesReel,
                 saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
-                saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || ''
+                saisonCoverUrl // Cover AniList HD ou Jikan pour la saison
               );
               
               saisonId = saisonResult.lastInsertRowid;
