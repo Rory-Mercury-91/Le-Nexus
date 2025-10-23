@@ -55,7 +55,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       // Récupérer l'utilisateur créé
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
       
-      console.log(`✅ Utilisateur créé: ${name}`);
+
       return { success: true, user };
     } catch (error) {
       console.error('Erreur lors de la création de l\'utilisateur:', error);
@@ -91,7 +91,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       
       // Si le nom a changé, migrer les données
       if (oldUser.name !== name) {
-        console.log(`📝 Migration des données de "${oldUser.name}" vers "${name}"...`);
+
         
         // Migrer les données de lecture de tomes
         db.prepare('UPDATE lecture_tomes SET utilisateur = ? WHERE utilisateur = ?')
@@ -117,13 +117,13 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
         db.prepare('UPDATE anime_series SET utilisateur_ajout = ? WHERE utilisateur_ajout = ?')
           .run(name, oldUser.name);
         
-        console.log(`✅ Migration terminée pour ${name}`);
+
       }
       
       // Récupérer l'utilisateur mis à jour
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
       
-      console.log(`✅ Utilisateur mis à jour: ${name}`);
+
       return { success: true, user };
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
@@ -150,7 +150,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
         return { success: false, error: 'Impossible de supprimer le dernier utilisateur' };
       }
       
-      console.log(`🗑️ Suppression de l'utilisateur "${user.name}"...`);
+
       
       // Supprimer les données de l'utilisateur
       db.prepare('DELETE FROM lecture_tomes WHERE utilisateur = ?').run(user.name);
@@ -165,7 +165,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       if (user.avatar_path && fs.existsSync(user.avatar_path)) {
         try {
           fs.unlinkSync(user.avatar_path);
-          console.log(`🗑️ Avatar supprimé: ${user.avatar_path}`);
+
         } catch (error) {
           console.warn(`⚠️ Impossible de supprimer l'avatar: ${error.message}`);
         }
@@ -174,7 +174,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       // Supprimer l'utilisateur de la table
       db.prepare('DELETE FROM users WHERE id = ?').run(userId);
       
-      console.log(`✅ Utilisateur supprimé: ${user.name}`);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'utilisateur:', error);
@@ -242,7 +242,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       db.prepare('UPDATE users SET avatar_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run(destPath, userId);
       
-      console.log(`✅ Avatar défini pour ${user.name}: ${destPath}`);
+
       return { success: true, path: destPath };
     } catch (error) {
       console.error('Erreur lors de la définition de l\'avatar:', error);
@@ -299,7 +299,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       db.prepare('UPDATE users SET avatar_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run(destPath, userId);
       
-      console.log(`✅ Avatar défini pour ${user.name}: ${destPath}`);
+
       return { success: true, path: destPath };
     } catch (error) {
       console.error('Erreur lors de la définition de l\'avatar:', error);
@@ -322,7 +322,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       if (user.avatar_path && fs.existsSync(user.avatar_path)) {
         try {
           fs.unlinkSync(user.avatar_path);
-          console.log(`🗑️ Avatar supprimé: ${user.avatar_path}`);
+
         } catch (error) {
           console.warn(`⚠️ Impossible de supprimer l'avatar: ${error.message}`);
         }
@@ -332,7 +332,7 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
       db.prepare('UPDATE users SET avatar_path = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run(userId);
       
-      console.log(`✅ Avatar supprimé pour ${user.name}`);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'avatar:', error);

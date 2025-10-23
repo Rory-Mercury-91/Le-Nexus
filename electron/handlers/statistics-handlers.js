@@ -206,7 +206,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         DO UPDATE SET lu = ?, date_lecture = ?
       `).run(tomeId, currentUser, lu ? 1 : 0, dateLecture, lu ? 1 : 0, dateLecture);
 
-      console.log(`Tome ${tomeId} marqué comme ${lu ? 'lu' : 'non lu'} pour ${currentUser}`);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur toggle-tome-lu:', error);
@@ -298,7 +298,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         stmt.run(tome.id, currentUser, dateLectureStr, dateLectureStr);
       });
 
-      console.log(`Série ${serieId} (${tomes.length} tomes) marquée comme lue pour ${currentUser}`);
+
       return { success: true, tomesMarques: tomes.length };
     } catch (error) {
       console.error('Erreur marquer-serie-lue:', error);

@@ -70,7 +70,7 @@ function createTray() {
     }
   });
 
-  console.log('📌 Icône ajoutée dans la zone de notification');
+
 }
 
 /**
@@ -106,7 +106,7 @@ function createWindow() {
             iconType: 'info'
           });
         } catch (error) {
-          console.log('ℹ️ Notification tray non disponible');
+
         }
         store.set('trayNotificationShown', true);
       }
@@ -134,7 +134,7 @@ async function getBaseDirectory() {
   if (storedPath && fs.existsSync(storedPath)) {
     const tempManager = new PathManager(storedPath);
     if (tempManager.isValidStructure()) {
-      console.log(`✅ Ma Mangathèque trouvée: ${storedPath}`);
+
       return storedPath;
     }
   }
@@ -143,7 +143,7 @@ async function getBaseDirectory() {
   // L'utilisateur choisira l'emplacement définitif dans l'OnboardingWizard
   const defaultPath = path.join(userDataPath, 'Ma Mangatheque');
   store.set('baseDirectory', defaultPath);
-  console.log(`📁 Création automatique dans l'emplacement par défaut: ${defaultPath}`);
+
   return defaultPath;
 }
 
@@ -176,11 +176,11 @@ app.whenReady().then(async () => {
   registerMangaProtocol();
 
   // Logs de démarrage
-  console.log('='.repeat(50));
-  console.log('🚀 Ma Mangathèque - Démarrage');
-  console.log('📁 Chemin userData:', userDataPath);
-  console.log('🔧 Mode:', isDev ? 'Développement' : 'Production');
-  console.log('='.repeat(50));
+
+
+
+
+
 
   // Créer l'icône dans la zone de notification
   createTray();
@@ -191,7 +191,7 @@ app.whenReady().then(async () => {
   const getDb = () => db;
 
   // Enregistrer tous les handlers IPC AVANT de créer la fenêtre
-  console.log('🔌 Enregistrement des handlers IPC...');
+
   
   registerMangaHandlers(ipcMain, getDb, getPathManager, store);
   registerAnimeHandlers(ipcMain, getDb, store);
@@ -203,7 +203,7 @@ app.whenReady().then(async () => {
   registerSearchHandlers(ipcMain, shell);
   registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager);
   
-  console.log('✅ Handlers IPC enregistrés');
+
 
   // Créer la fenêtre principale (nécessaire pour les dialogs)
   createWindow();
@@ -220,13 +220,13 @@ app.whenReady().then(async () => {
   // Récupérer les chemins
   const paths = pathManager.getPaths();
   
-  console.log('📂 Ma Mangathèque:', paths.base);
-  console.log('📦 Base de données:', paths.database);
+
+
 
   // Initialiser la base de données
-  console.log('📦 Initialisation de la base de données...');
+
   db = initDatabase(paths.database);
-  console.log('✅ Base de données initialisée');
+
 
   // Démarrer le serveur d'import (pour le script Tampermonkey)
   const IMPORT_PORT = 51234;
@@ -240,7 +240,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('minimize-to-tray', () => {
     if (mainWindow) {
       mainWindow.hide();
-      console.log('🔽 Fenêtre minimisée dans le tray');
+
     }
   });
 
@@ -256,7 +256,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   // Ne pas quitter l'application, elle continue en arrière-plan dans le tray
   // L'utilisateur peut quitter via le menu contextuel du tray
-  console.log('🔄 Fenêtre fermée, application en arrière-plan');
+
 });
 
 // Sauvegarder la base de données avant de quitter
@@ -265,20 +265,20 @@ app.on('before-quit', (event) => {
     // Fermer le serveur d'import
     if (importServer) {
       importServer.close(() => {
-        console.log('🌐 Serveur d\'import arrêté');
+
       });
     }
     
     const currentUser = store.get('currentUser', '');
     if (currentUser && db && pathManager) {
-      console.log('💾 Sauvegarde finale de la base de données...');
+
       
       const paths = pathManager.getPaths();
       const userDbPath = path.join(paths.databases, `${currentUser.toLowerCase()}.db`);
       
       fs.copyFileSync(paths.database, userDbPath);
       
-      console.log('✅ Sauvegarde terminée');
+
     }
   } catch (error) {
     console.error('Erreur lors de la sauvegarde finale:', error);

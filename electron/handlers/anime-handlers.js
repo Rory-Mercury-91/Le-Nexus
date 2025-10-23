@@ -23,7 +23,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      console.log('🎬 Début de l\'import anime XML...');
+
       
       // Parser XML simple (sans dépendance externe)
       const animeMatches = [...xmlContent.matchAll(/<anime>([\s\S]*?)<\/anime>/g)];
@@ -42,12 +42,12 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         batches.push(animeMatches.slice(i, i + BATCH_SIZE));
       }
 
-      console.log(`📦 Import divisé en ${batches.length} lots de max ${BATCH_SIZE} animes`);
+
 
       // Traiter chaque lot avec une pause entre les lots
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         const batch = batches[batchIndex];
-        console.log(`📦 Traitement du lot ${batchIndex + 1}/${batches.length} (${batch.length} animes)...`);
+
         
         // Envoyer la progression du lot
         sendProgress({
@@ -77,7 +77,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             continue;
           }
 
-          console.log(`📺 Traitement: ${titre} (MAL ID: ${malId})`);
+
           
           // Envoyer la progression de l'anime en cours
           const currentIndex = batchIndex * BATCH_SIZE + batch.indexOf(match) + 1;
@@ -176,7 +176,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             );
 
             results.updated++;
-            console.log(`   ↻ Mis à jour`);
+
           } else {
             // Créer la série anime
             const insertSerie = db.prepare(`
@@ -204,7 +204,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
             serieId = result.lastInsertRowid;
             results.imported++;
-            console.log(`   ✓ Importé`);
+
           }
 
           // Créer ou mettre à jour la saison 1 (par défaut)
@@ -262,7 +262,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
       // Pause de 30 secondes entre chaque lot (sauf pour le dernier)
       if (batchIndex < batches.length - 1) {
-        console.log(`⏸️ Pause de 30 secondes avant le prochain lot...`);
+
         
         // Compte à rebours de la pause
         for (let remainingSec = 30; remainingSec > 0; remainingSec--) {
@@ -282,7 +282,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       }
     }
 
-      console.log(`✅ Import terminé: ${results.imported} importés, ${results.updated} mis à jour, ${results.errors.length} erreurs`);
+
       
       // Envoyer la progression finale
       sendProgress({
@@ -314,8 +314,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      console.log('🎬 Création d\'un anime:', animeData.titre);
-      console.log('📊 Données reçues:', JSON.stringify(animeData, null, 2));
+
+
 
       // Insérer l'anime dans la base de données
       const stmt = db.prepare(`
@@ -351,7 +351,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         stmtSaison.run(animeId, 1, 'Saison 1', animeData.nb_episodes, animeData.annee || null);
       }
 
-      console.log(`✅ Anime créé avec l'ID ${animeId}`);
+
       return { success: true, id: animeId };
 
     } catch (error) {
@@ -526,7 +526,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             INSERT OR REPLACE INTO anime_statut_utilisateur (serie_id, utilisateur, statut_visionnage, date_modification)
             VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
           `).run(saison.serie_id, currentUser);
-          console.log(`✅ Anime ${saison.serie_id} automatiquement marqué comme "Terminé"`);
+
         }
       }
 
@@ -589,7 +589,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           INSERT OR REPLACE INTO anime_statut_utilisateur (serie_id, utilisateur, statut_visionnage, date_modification)
           VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
         `).run(saisonInfo.serie_id, currentUser);
-        console.log(`✅ Anime ${saisonInfo.serie_id} automatiquement marqué comme "Terminé"`);
+
       }
 
       return { success: true };
@@ -608,7 +608,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       }
 
       db.prepare('DELETE FROM anime_series WHERE id = ?').run(serieId);
-      console.log(`Anime ${serieId} supprimé`);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur delete-anime:', error);
@@ -641,7 +641,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `).run(serieId, currentUser, statutVisionnage);
 
-      console.log(`📺 Anime ${serieId} marqué comme "${statutVisionnage}" pour ${currentUser}`);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur set-anime-statut-visionnage:', error);
@@ -683,7 +683,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
         `).run(serieId, currentUser);
 
-        console.log(`✅ Anime ${serieId} automatiquement marqué comme "Terminé" (${stats.nb_episodes_vus}/${stats.nb_episodes_total} épisodes vus)`);
+
       }
 
       return { success: true, isComplete };
@@ -701,7 +701,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      console.log(`📝 Mise à jour de l'anime ${id}:`, animeData.titre);
+
 
       // Vérifier que l'anime existe
       const anime = db.prepare('SELECT * FROM anime_series WHERE id = ?').get(id);
@@ -729,7 +729,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         id
       );
 
-      console.log(`✅ Anime "${animeData.titre}" mis à jour`);
+
 
       // Mettre à jour les saisons si fournies
       if (animeData.saisons && Array.isArray(animeData.saisons)) {
@@ -747,7 +747,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               saison.annee || animeData.annee,
               saison.id
             );
-            console.log(`✅ Saison ${saison.numero_saison} mise à jour`);
+
           } else {
             // Création d'une nouvelle saison
             db.prepare(`
@@ -760,7 +760,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               saison.nb_episodes,
               saison.annee || animeData.annee
             );
-            console.log(`✅ Saison ${saison.numero_saison} créée`);
+
           }
         }
       }

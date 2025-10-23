@@ -238,7 +238,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
               
               if (fs.existsSync(oldFolderPath) && !fs.existsSync(newFolderPath)) {
                 fs.renameSync(oldFolderPath, newFolderPath);
-                console.log(`Dossier renommé lors de la création: ${oldSlug} → ${newSlug}`);
+
                 
                 // Mettre à jour le chemin de la couverture
                 finalCouvertureUrl = finalCouvertureUrl.replace(`covers/${oldSlug}/`, `covers/${newSlug}/`);
@@ -272,7 +272,6 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         serie.rating || null
       );
       
-      console.log(`Série créée avec ID ${result.lastInsertRowid}, couverture: ${finalCouvertureUrl}`);
       return result.lastInsertRowid;
     } catch (error) {
       console.error('Erreur create-serie:', error);
@@ -398,13 +397,13 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         return true;
       }
 
-      console.log(`🗑️ Suppression de la série "${serie.titre}" (ID: ${id}) pour l'utilisateur ${currentUser}`);
+
 
       // Récupérer tous les tome_id de cette série depuis manga.db
       const tomeIds = db.prepare('SELECT id FROM tomes WHERE serie_id = ?').all(id).map(t => t.id);
       
       if (tomeIds.length === 0) {
-        console.log('⚠️ Aucun tome trouvé pour cette série');
+
       }
 
       // Vérifier si d'autres utilisateurs ont cette série
@@ -438,7 +437,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
 
             if (hasLecture && hasLecture.count > 0) {
               otherUsersHaveSerie = true;
-              console.log(`📚 L'utilisateur "${userName}" possède aussi cette série`);
+
               break;
             }
           } catch (err) {
@@ -449,7 +448,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
 
       if (otherUsersHaveSerie) {
         // D'autres utilisateurs ont cette série → supprimer SEULEMENT les données de lecture de l'utilisateur actuel
-        console.log(`🔒 Suppression partielle : conservation de la série et des images (utilisée par d'autres)`);
+
         
         // Supprimer les données de lecture de l'utilisateur actuel pour tous les tomes de cette série
         db.prepare(`
@@ -457,12 +456,12 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
           WHERE tome_id IN (SELECT id FROM tomes WHERE serie_id = ?) 
           AND utilisateur = ?
         `).run(id, currentUser);
-        console.log(`✅ Données de lecture supprimées pour ${currentUser}`);
+
         
         return { success: true, partial: true, message: 'Série retirée de votre collection (conservée pour les autres utilisateurs)' };
       } else {
         // Aucun autre utilisateur n'a cette série → suppression complète
-        console.log(`🗑️ Suppression complète : série, images et données de lecture`);
+
         
         // 1. Supprimer les images (dossier complet)
         const slug = createSlug(serie.titre);
@@ -493,11 +492,11 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
                 
                 deleteFolderRecursive(serieFolderPath);
                 deleted = true;
-                console.log(`✅ Dossier de la série supprimé : ${serieFolderPath}`);
+
               } catch (err) {
                 retries--;
                 if (retries > 0) {
-                  console.log(`⏳ Retry suppression (${3 - retries}/3)...`);
+
                   // Attendre un peu avant de réessayer (pour Proton Drive)
                   await new Promise(resolve => setTimeout(resolve, 500));
                 } else {
@@ -507,7 +506,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
             }
           } catch (err) {
             console.warn(`⚠️ Impossible de supprimer complètement le dossier (peut-être verrouillé par Proton Drive) : ${err.message}`);
-            console.log(`💡 Vous pouvez supprimer manuellement : ${serieFolderPath}`);
+
             // Ne pas throw, continuer la suppression en BDD
           }
         }
@@ -517,7 +516,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         
         // 3. Supprimer la série de manga.db (cascade supprime aussi les tomes)
         db.prepare('DELETE FROM series WHERE id = ?').run(id);
-        console.log(`✅ Série ${id} supprimée complètement de manga.db`);
+
         
         return { success: true, partial: false, message: 'Série supprimée complètement' };
       }
@@ -540,7 +539,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      console.log(`👁️ Masquage de la série ${serieId} pour ${currentUser}`);
+
 
       // 1. Supprimer les données de lecture de l'utilisateur
       db.prepare(`
@@ -555,7 +554,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         VALUES (?, ?)
       `).run(serieId, currentUser);
 
-      console.log(`✅ Série ${serieId} masquée pour ${currentUser}`);
+
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur masquer-serie:', error);
@@ -576,7 +575,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      console.log(`👁️ Démasquage de la série ${serieId} pour ${currentUser}`);
+
 
       // Retirer de la table series_masquees
       db.prepare(`
@@ -584,7 +583,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         WHERE serie_id = ? AND utilisateur = ?
       `).run(serieId, currentUser);
 
-      console.log(`✅ Série ${serieId} démasquée pour ${currentUser}`);
+
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur demasquer-serie:', error);
@@ -643,12 +642,12 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         if (!finalCouvertureUrl && serie.couverture_url) {
           // Le tome 1 n'a pas de couverture, mais la série oui : copier celle de la série
           finalCouvertureUrl = serie.couverture_url;
-          console.log(`Tome 1 : couverture copiée depuis la série (${finalCouvertureUrl})`);
+
         } else if (finalCouvertureUrl && !serie.couverture_url) {
           // Le tome 1 a une couverture, mais pas la série : mettre à jour la série
           db.prepare('UPDATE series SET couverture_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run(finalCouvertureUrl, tome.serie_id);
-          console.log(`Série : couverture copiée depuis le tome 1 (${finalCouvertureUrl})`);
+
         }
       }
       
@@ -676,7 +675,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         tome.proprietaireIds.forEach(userId => {
           insertProprietaire.run(tomeId, userId);
         });
-        console.log(`Tome ${tomeId} : ${tome.proprietaireIds.length} propriétaire(s) ajouté(s)`);
+
       } else {
         // Si aucun propriétaire n'est spécifié, ajouter l'utilisateur connecté par défaut
         const currentUser = store.get('currentUser', '');
@@ -686,12 +685,12 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
             db.prepare(`
               INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
             `).run(tomeId, user.id);
-            console.log(`Tome ${tomeId} : Propriétaire par défaut → ${currentUser} (ID: ${user.id})`);
+
           }
         }
       }
       
-      console.log(`Tome créé avec ID ${tomeId}, couverture: ${finalCouvertureUrl}`);
+
       return tomeId;
     } catch (error) {
       console.error('Erreur create-tome:', error);
@@ -779,7 +778,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
           tome.proprietaireIds.forEach(userId => {
             insertProprietaire.run(id, userId);
           });
-          console.log(`Tome ${id} : ${tome.proprietaireIds.length} propriétaire(s) mis à jour`);
+
         }
       }
       
@@ -791,7 +790,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
           // La série n'a pas de couverture, copier celle du tome 1
           db.prepare('UPDATE series SET couverture_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run(finalCouvertureUrl, currentTome.serie_id);
-          console.log(`Série : couverture mise à jour depuis le tome 1 (${finalCouvertureUrl})`);
+
         }
       }
       
@@ -809,7 +808,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         const propagationResult = db.prepare(propagationQuery).run(tome.prix, currentTome.serie_id, id);
         
         if (propagationResult.changes > 0) {
-          console.log(`📦 Propagation prix depuis tome 1 : ${propagationResult.changes} tome(s) mis à jour`);
+
         }
       }
       
@@ -836,11 +835,11 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
             });
           });
           
-          console.log(`📦 Propagation propriétaires depuis tome 1 : ${tomesWithoutOwners.length} tome(s) mis à jour`);
+
         }
       }
       
-      console.log(`Tome ${id} mis à jour, couverture: ${finalCouvertureUrl}`);
+
       return true;
     } catch (error) {
       console.error('Erreur update-tome:', error);
@@ -871,7 +870,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         
         if (fs.existsSync(tomeImagePath)) {
           fs.unlinkSync(tomeImagePath);
-          console.log(`✅ Image du tome supprimée : ${tomeImagePath}`);
+
         } else {
           console.warn(`⚠️ Image du tome introuvable : ${tomeImagePath}`);
         }
@@ -879,7 +878,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       
       // Supprimer le tome de la base de données
       db.prepare('DELETE FROM tomes WHERE id = ?').run(id);
-      console.log(`✅ Tome ${id} supprimé de la base de données`);
+
       return true;
     } catch (error) {
       console.error('❌ Erreur delete-tome:', error);
@@ -897,8 +896,6 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      console.log(`🏷️ set-serie-tag pour série ${serieId}, user ${userId}, tag: ${tag}`);
-      
       if (tag && !['a_lire', 'abandonne'].includes(tag)) {
         throw new Error(`Tag invalide: ${tag}`);
       }
@@ -910,12 +907,12 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         // Mettre à jour le tag existant
         db.prepare('UPDATE serie_tags SET tag = ?, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
           .run(tag, serieId, userId);
-        console.log(`✅ Tag mis à jour : ${tag}`);
+
       } else {
         // Créer une nouvelle entrée
         db.prepare('INSERT INTO serie_tags (serie_id, user_id, tag, is_favorite) VALUES (?, ?, ?, 0)')
           .run(serieId, userId, tag);
-        console.log(`✅ Tag créé : ${tag}`);
+
       }
       
       return { success: true, tag };
@@ -933,7 +930,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      console.log(`⭐ toggle-serie-favorite pour série ${serieId}, user ${userId}`);
+
       
       // Vérifier si une entrée existe déjà
       const existing = db.prepare('SELECT id, is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
@@ -943,13 +940,13 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         const newFavorite = existing.is_favorite ? 0 : 1;
         db.prepare('UPDATE serie_tags SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
           .run(newFavorite, serieId, userId);
-        console.log(`✅ Favori ${newFavorite ? 'activé' : 'désactivé'}`);
+
         return { success: true, is_favorite: newFavorite === 1 };
       } else {
         // Créer une nouvelle entrée avec favori activé
         db.prepare('INSERT INTO serie_tags (serie_id, user_id, tag, is_favorite) VALUES (?, ?, NULL, 1)')
           .run(serieId, userId);
-        console.log(`✅ Favori activé`);
+
         return { success: true, is_favorite: true };
       }
     } catch (error) {
@@ -980,7 +977,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      console.log(`🗑️ remove-serie-tag pour série ${serieId}, user ${userId}`);
+
       
       // Vérifier si c'est un favori
       const existing = db.prepare('SELECT is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
@@ -989,11 +986,11 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         // Si c'est un favori, on garde l'entrée mais on supprime juste le tag
         db.prepare('UPDATE serie_tags SET tag = NULL, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
           .run(serieId, userId);
-        console.log(`✅ Tag supprimé (favori conservé)`);
+
       } else {
         // Sinon on supprime l'entrée complète
         db.prepare('DELETE FROM serie_tags WHERE serie_id = ? AND user_id = ?').run(serieId, userId);
-        console.log(`✅ Tag supprimé`);
+
       }
       
       return { success: true };

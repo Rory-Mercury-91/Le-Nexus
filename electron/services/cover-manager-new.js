@@ -24,7 +24,7 @@ function renameSerieFolder(db, pathManager, oldTitre, newTitre, serieId) {
     // Vérifier que le nouveau dossier n'existe pas déjà
     if (!fs.existsSync(newFolderPath)) {
       fs.renameSync(oldFolderPath, newFolderPath);
-      console.log(`Dossier renommé: ${oldSlug} → ${newSlug}`);
+
 
       // Mettre à jour les chemins dans la base de données
       db.prepare(`
@@ -39,7 +39,7 @@ function renameSerieFolder(db, pathManager, oldTitre, newTitre, serieId) {
         WHERE serie_id = ? AND couverture_url IS NOT NULL
       `).run(`series/${oldSlug}/`, `series/${newSlug}/`, serieId);
 
-      console.log(`Chemins mis à jour en base de données pour la série ${serieId}`);
+
     }
   }
 }
@@ -75,7 +75,7 @@ function renameTomeCover(pathManager, couvertureUrl, numero, serieTitre) {
       fs.unlinkSync(newFilePath);
     }
     fs.renameSync(oldFilePath, newFilePath);
-    console.log(`Image tome renommée: ${oldFileName} → ${newFileName}`);
+
     return `series/${slug}/tomes/${newFileName}`;
   }
 
@@ -111,7 +111,7 @@ function renameSerieCover(pathManager, couvertureUrl, serieTitre) {
       fs.unlinkSync(newFilePath);
     }
     fs.renameSync(oldFilePath, newFilePath);
-    console.log(`Image série renommée: ${oldFileName} → ${newFileName}`);
+
     return `series/${slug}/${newFileName}`;
   }
 
@@ -148,7 +148,7 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie') 
 
     const buffer = await response.arrayBuffer();
     fs.writeFileSync(fullPath, Buffer.from(buffer));
-    console.log(`Image téléchargée: ${relativePath}`);
+
     return { success: true, url: relativePath };
   } catch (error) {
     console.error('Erreur lors du téléchargement de la couverture:', error);
@@ -218,7 +218,7 @@ async function saveCoverFromPath(pathManager, sourcePath, serieTitre, type = 'se
     const relativePath = type === 'tome' ? `series/${slug}/tomes/${fileName}` : `series/${slug}/${fileName}`;
 
     fs.copyFileSync(sourcePath, fullPath);
-    console.log(`Image copiée: ${relativePath}`);
+
     return { success: true, localPath: relativePath };
   } catch (error) {
     console.error('Erreur save-cover-from-path:', error);

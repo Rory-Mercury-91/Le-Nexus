@@ -69,10 +69,10 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       const destDb = path.join(newBasePath, 'manga.db');
       if (fs.existsSync(srcDb)) {
         fs.copyFileSync(srcDb, destDb);
-        console.log(`📦 Base de données copiée: ${destDb}`);
+
       }
 
-      console.log(`📦 Ma Mangathèque copiée vers: ${newBasePath}`);
+
       return { success: true, path: newBasePath };
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
@@ -185,7 +185,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   ipcMain.handle('clean-empty-folders', () => {
     try {
       const count = cleanEmptyFolders(getPaths().series, getPaths().series);
-      console.log(`🧹 ${count} dossier(s) vide(s) supprimé(s)`);
+
       
       return { success: true, count };
     } catch (error) {
@@ -201,16 +201,16 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     try {
       const db = getDb();
       if (!db) {
-        console.log('❌ get-user-profile-image: DB non initialisée');
+
         return null;
       }
       
       // Récupérer l'avatar depuis la BDD
       const user = db.prepare('SELECT avatar_path FROM users WHERE name = ?').get(userName);
-      console.log(`🔍 get-user-profile-image pour "${userName}":`, user);
+
       
       if (!user || !user.avatar_path) {
-        console.log(`⚠️  Aucun avatar trouvé pour "${userName}"`);
+
         return null;
       }
       
@@ -221,22 +221,22 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       if (!path.isAbsolute(user.avatar_path)) {
         const pm = getPathManager();
         if (!pm || !pm.profilesDir) {
-          console.log('❌ PathManager ou profilesDir non disponible');
+
           return null;
         }
         fullPath = path.join(pm.profilesDir, user.avatar_path);
       }
       
-      console.log(`📁 Chemin avatar: ${fullPath}`);
+
       
       // Vérifier que le fichier existe
       if (fs.existsSync(fullPath)) {
         const result = `manga://${fullPath.replace(/\\/g, '/')}`;
-        console.log(`✅ Avatar trouvé: ${result}`);
+
         return result;
       }
       
-      console.log(`❌ Fichier avatar introuvable: ${fullPath}`);
+
       return null;
     } catch (error) {
       console.error('Erreur get-user-profile-image:', error);
@@ -279,7 +279,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
 
       fs.copyFileSync(sourcePath, destPath);
 
-      console.log(`Image de profil définie pour ${userName}: ${fileName}`);
+
       return { success: true, path: `manga://${destPath.replace(/\\/g, '/')}` };
     } catch (error) {
       console.error('Erreur set-user-profile-image:', error);
@@ -294,17 +294,17 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     try {
       const dbFolder = getPaths().databases;
       if (!fs.existsSync(dbFolder)) {
-        console.log('Aucune base utilisateur à fusionner');
+
         return { merged: false, seriesCount: 0, tomesCount: 0 };
       }
 
       const files = fs.readdirSync(dbFolder).filter(f => f.endsWith('.db'));
       if (files.length === 0) {
-        console.log('Aucune base utilisateur à fusionner');
+
         return { merged: false, seriesCount: 0, tomesCount: 0 };
       }
 
-      console.log(`🔄 Fusion de ${files.length} base(s) utilisateur...`);
+
       
       let seriesCount = 0;
       let tomesCount = 0;
@@ -351,7 +351,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         }
       });
 
-      console.log(`✅ Fusion terminée: ${seriesCount} séries, ${tomesCount} tomes`);
+
       return { merged: true, seriesCount, tomesCount };
     } catch (error) {
       console.error('Erreur merge-database:', error);
@@ -362,7 +362,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   // Définir l'utilisateur actuel
   ipcMain.handle('set-current-user', (event, userName) => {
     store.set('currentUser', userName);
-    console.log(`👤 Utilisateur actuel: ${userName}`);
+
   });
 
   // Sauvegarder la base de données pour l'utilisateur actuel
@@ -384,7 +384,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       // Copier la base actuelle vers la base utilisateur
       fs.copyFileSync(getPaths().database, userDbPath);
       
-      console.log(`Base sauvegardée: ${userDbPath}`);
+
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
     }
@@ -450,7 +450,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         return { success: false, error: 'Base de données non initialisée' };
       }
 
-      console.log(`🗑️ Suppression des données de lecture de ${userName}...`);
+
 
       // Supprimer les données de lecture pour cet utilisateur
       const deleteLectureTomes = db.prepare('DELETE FROM lecture_tomes WHERE utilisateur = ?');
@@ -459,15 +459,15 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       const deleteLectureEpisodes = db.prepare('DELETE FROM lecture_episodes WHERE utilisateur = ?');
       const resultEpisodes = deleteLectureEpisodes.run(userName);
 
-      console.log(`✅ ${resultTomes.changes} lecture(s) de tomes supprimée(s)`);
-      console.log(`✅ ${resultEpisodes.changes} lecture(s) d'épisodes supprimée(s)`);
+
+
 
       // Supprimer aussi la base utilisateur si elle existe
       const dbFolder = getPaths().databases;
       const userDbPath = path.join(dbFolder, `${userName.toLowerCase()}.db`);
       if (fs.existsSync(userDbPath)) {
         fs.unlinkSync(userDbPath);
-        console.log(`✅ Base utilisateur supprimée: ${userDbPath}`);
+
       }
 
       return { success: true };
@@ -485,12 +485,12 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         return { success: false, error: 'Base de données non initialisée' };
       }
 
-      console.log('🗑️ SUPPRESSION TOTALE DES DONNÉES...');
+
 
       // Fermer la base de données avant de supprimer les fichiers
       try {
         db.close();
-        console.log('✅ Base de données fermée');
+
       } catch (err) {
         console.warn('⚠️ Erreur lors de la fermeture de la DB:', err.message);
       }
@@ -499,29 +499,29 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       const configsDir = getPaths().configs;
       if (fs.existsSync(configsDir)) {
         fs.rmSync(configsDir, { recursive: true, force: true });
-        console.log(`✅ Dossier configs/ supprimé: ${configsDir}`);
+
       }
 
       // 2. Supprimer TOUT le dossier covers/ 
       const coversDir = getPaths().covers;
       if (fs.existsSync(coversDir)) {
         fs.rmSync(coversDir, { recursive: true, force: true });
-        console.log(`✅ Dossier covers/ supprimé: ${coversDir}`);
+
       }
 
       // 3. Garder le dossier profiles/ (images utilisateurs)
-      console.log('✅ Dossier profiles/ conservé (images utilisateurs)');
+
 
       // 4. Supprimer le fichier config.json dans AppData
       const configPath = store.path;
-      console.log(`🔍 Config path: ${configPath}`);
+
       
       if (fs.existsSync(configPath)) {
         fs.unlinkSync(configPath);
-        console.log(`✅ Fichier config.json supprimé: ${configPath}`);
+
       }
 
-      console.log('🎊 Réinitialisation complète terminée !');
+
 
       return { success: true };
     } catch (error) {
@@ -544,7 +544,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
 
         const userDbPath = path.join(dbFolder, `${currentUser.toLowerCase()}.db`);
         fs.copyFileSync(getPaths().database, userDbPath);
-        console.log(`✅ Base sauvegardée avant fermeture: ${userDbPath}`);
+
       }
       
       // Redémarrer ou quitter l'application après la sauvegarde
@@ -552,11 +552,11 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         const { app } = require('electron');
         
         if (shouldRelaunch) {
-          console.log('🔄 Redémarrage de l\'application...');
+
           app.relaunch();
           app.exit(0);
         } else {
-          console.log('👋 Fermeture de l\'application...');
+
           app.exit(0);
         }
       }, 500);
@@ -578,7 +578,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   // Définir le thème
   ipcMain.handle('set-theme', (event, theme) => {
     store.set('theme', theme);
-    console.log(`🎨 Thème changé : ${theme}`);
+
     return { success: true };
   });
 }

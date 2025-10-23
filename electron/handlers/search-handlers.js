@@ -8,7 +8,7 @@ function registerSearchHandlers(ipcMain, shell) {
   // Recherche de mangas (multi-sources: MangaDex, AniList, Kitsu, MAL, MangaUpdates)
   ipcMain.handle('search-manga', async (event, titre) => {
     try {
-      console.log(`🔍 Recherche manga: "${titre}"`);
+
       
       const allResults = [];
 
@@ -170,7 +170,7 @@ function registerSearchHandlers(ipcMain, shell) {
         console.error('Erreur MangaUpdates:', error);
       }
 
-      console.log(`✅ ${allResults.length} résultat(s) trouvé(s)`);
+
       return allResults;
     } catch (error) {
       console.error('Erreur search-manga:', error);
@@ -181,7 +181,7 @@ function registerSearchHandlers(ipcMain, shell) {
   // Recherche d'animes (AniList, Kitsu)
   ipcMain.handle('search-anime', async (event, titre) => {
     try {
-      console.log(`🔍 Recherche anime: "${titre}"`);
+
       
       const allResults = [];
 
@@ -263,7 +263,7 @@ function registerSearchHandlers(ipcMain, shell) {
         console.error('Erreur Kitsu:', error);
       }
 
-      console.log(`✅ ${allResults.length} résultat(s) trouvé(s)`);
+
       return allResults;
     } catch (error) {
       console.error('Erreur search-anime:', error);
