@@ -213,64 +213,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </span>
         </div>
 
-        {/* Bandeau diagonal pour les tags En cours / Lu / Abandonné */}
-        {(() => {
-          // Afficher pour "en_cours", "lu" et "abandonne"
-          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
-          
-          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
-          const totalTomes = serie.tomes?.length || 0;
-          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
-          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
-          const isAbandoned = serie.tag === 'abandonne';
-          
-          if (!isComplete && !isInProgress && !isAbandoned) return null;
-          
-          let backgroundColor = '#f59e0b'; // En cours (orange)
-          let label = 'En cours';
-          
-          if (isComplete) {
-            backgroundColor = '#10b981'; // Lu (vert)
-            label = 'Lu';
-          } else if (isAbandoned) {
-            backgroundColor = '#6b7280'; // Abandonné (gris)
-            label = 'Abandonné';
-          }
-          
-          return (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '120px',
-              height: '120px',
-              overflow: 'hidden',
-              zIndex: 3
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                width: '180px',
-                height: '32px',
-                background: backgroundColor,
-                transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
-                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
-              }}>
-                {label}
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Bouton tag dropdown */}
         <button
@@ -390,6 +332,38 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
                 </button>
               );
             })}
+
+            <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
+
+            {/* Option Masquer/Démasquer */}
+            <button
+              onClick={handleToggleMasquer}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                background: isMasquee ? 'rgba(251, 146, 60, 0.15)' : 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: isMasquee ? '#fb923c' : 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: isMasquee ? '600' : '400',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isMasquee ? 'rgba(251, 146, 60, 0.15)' : 'transparent';
+              }}
+            >
+              {isMasquee ? <Eye size={16} /> : <EyeOff size={16} />}
+              {isMasquee ? 'Démasquer' : 'Masquer'}
+            </button>
             
             {serie.tag && MANUAL_TAGS.includes(serie.tag) && (
               <>
@@ -514,6 +488,49 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             </button>
           )}
         </div>
+
+        {/* Badge de statut sous le titre */}
+        {(() => {
+          // Afficher pour "en_cours", "lu" et "abandonne"
+          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
+          
+          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
+          const totalTomes = serie.tomes?.length || 0;
+          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
+          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
+          const isAbandoned = serie.tag === 'abandonne';
+          
+          if (!isComplete && !isInProgress && !isAbandoned) return null;
+          
+          let backgroundColor = '#f59e0b'; // En cours (orange)
+          let label = 'En cours';
+          
+          if (isComplete) {
+            backgroundColor = '#10b981'; // Lu (vert)
+            label = 'Lu';
+          } else if (isAbandoned) {
+            backgroundColor = '#6b7280'; // Abandonné (gris)
+            label = 'Abandonné';
+          }
+          
+          return (
+            <div style={{
+              display: 'inline-block',
+              padding: '4px 10px',
+              background: backgroundColor,
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              borderRadius: '4px',
+              marginBottom: '8px',
+              width: 'fit-content'
+            }}>
+              {label}
+            </div>
+          );
+        })()}
         
         <div style={{
           display: 'flex',
@@ -528,11 +545,11 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             {serie.type_volume}
           </span>
           <span style={{ 
-            fontSize: '12px', 
+            fontSize: '11px', 
             fontWeight: '600',
             color: 'var(--primary)',
             background: 'rgba(99, 102, 241, 0.1)',
-            padding: '4px 8px',
+            padding: '3px 7px',
             borderRadius: '6px'
           }}>
             {serie.tomes?.length || 0} tome{(serie.tomes?.length || 0) > 1 ? 's' : ''}
