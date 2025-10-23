@@ -67,8 +67,8 @@ export default function CollectionView<T extends { id: number | string }>({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // Multiplier par 3 pour un scroll plus rapide et réactif
-      carousel.scrollBy({ left: e.deltaY * 3, behavior: 'smooth' });
+      // Multiplier par 1.5 pour un scroll modéré et fluide
+      carousel.scrollBy({ left: e.deltaY * 1.5, behavior: 'smooth' });
     };
 
     // Effet 3D sur les cartes lors du scroll avec requestAnimationFrame pour fluidité
