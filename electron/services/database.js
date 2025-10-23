@@ -34,7 +34,6 @@ function initDatabase(dbPath) {
       serie_id INTEGER NOT NULL,
       numero INTEGER NOT NULL,
       prix REAL NOT NULL DEFAULT 0,
-      proprietaire TEXT,
       date_sortie DATE,
       date_achat DATE,
       couverture_url TEXT,
@@ -151,7 +150,6 @@ function initDatabase(dbPath) {
 
     CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
     CREATE INDEX IF NOT EXISTS idx_series_statut ON series(statut);
-    CREATE INDEX IF NOT EXISTS idx_tomes_proprietaire ON tomes(proprietaire);
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_tome ON tomes_proprietaires(tome_id);
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_user ON tomes_proprietaires(user_id);
     CREATE INDEX IF NOT EXISTS idx_lecture_tomes_utilisateur ON lecture_tomes(utilisateur);
@@ -167,153 +165,8 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_serie_tags_tag ON serie_tags(tag);
   `);
 
-  // Migration : Ajouter les colonnes manquantes si elles n'existent pas
-  try {
-    // Migration pour la table series
-    const seriesColumns = db.prepare("PRAGMA table_info(series)").all();
-    const seriesColumnNames = seriesColumns.map(col => col.name);
-    
-    const newSeriesColumns = [
-      { name: 'description', type: 'TEXT' },
-      { name: 'statut_publication', type: 'TEXT' },
-      { name: 'annee_publication', type: 'INTEGER' },
-      { name: 'genres', type: 'TEXT' },
-      { name: 'nb_chapitres', type: 'INTEGER' },
-      { name: 'langue_originale', type: 'TEXT' },
-      { name: 'demographie', type: 'TEXT' },
-      { name: 'rating', type: 'TEXT' }
-    ];
-
-    newSeriesColumns.forEach(col => {
-      if (!seriesColumnNames.includes(col.name)) {
-        console.log(`Migration series : Ajout de la colonne ${col.name}`);
-        db.exec(`ALTER TABLE series ADD COLUMN ${col.name} ${col.type}`);
-      }
-    });
-
-    // Migration pour la table tomes
-    const tomesColumns = db.prepare("PRAGMA table_info(tomes)").all();
-    const tomesColumnNames = tomesColumns.map(col => col.name);
-    
-    if (!tomesColumnNames.includes('couverture_url')) {
-      console.log('Migration tomes : Ajout de la colonne couverture_url');
-      db.exec('ALTER TABLE tomes ADD COLUMN couverture_url TEXT');
-    }
-    
-    // Migration : Rendre la colonne proprietaire nullable
-    const proprietaireColumn = tomesColumns.find(col => col.name === 'proprietaire');
-    if (proprietaireColumn && proprietaireColumn.notnull === 1) {
-      console.log('🔄 Migration tomes : Suppression de la contrainte NOT NULL sur proprietaire...');
-      
-      db.exec(`
-        BEGIN TRANSACTION;
-        
-        CREATE TABLE tomes_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          serie_id INTEGER NOT NULL,
-          numero INTEGER NOT NULL,
-          prix REAL NOT NULL DEFAULT 0,
-          proprietaire TEXT,
-          date_sortie DATE,
-          date_achat DATE,
-          couverture_url TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE
-        );
-        
-        INSERT INTO tomes_new SELECT * FROM tomes;
-        DROP TABLE tomes;
-        ALTER TABLE tomes_new RENAME TO tomes;
-        
-        CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
-        CREATE INDEX IF NOT EXISTS idx_tomes_proprietaire ON tomes(proprietaire);
-        
-        COMMIT;
-      `);
-      
-      console.log('✅ Migration terminée : tomes.proprietaire est maintenant nullable');
-    }
-    
-    // Migration pour la table anime_series (source_import & api_source)
-    const animeColumns = db.prepare("PRAGMA table_info(anime_series)").all();
-    const animeColumnNames = animeColumns.map(col => col.name);
-    
-    if (!animeColumnNames.includes('source_import')) {
-      console.log('Migration anime_series : Ajout de la colonne source_import');
-      db.exec('ALTER TABLE anime_series ADD COLUMN source_import TEXT');
-    }
-    
-    if (!animeColumnNames.includes('api_source')) {
-      console.log('Migration anime_series : Ajout de la colonne api_source');
-      db.exec('ALTER TABLE anime_series ADD COLUMN api_source TEXT');
-    }
-    
-    // Migration pour la table serie_tags (is_favorite et tag nullable)
-    const serieTagsColumns = db.prepare("PRAGMA table_info(serie_tags)").all();
-    const serieTagsColumnNames = serieTagsColumns.map(col => col.name);
-    const tagColumn = serieTagsColumns.find(col => col.name === 'tag');
-    
-    // Vérifier si on doit migrer la table (tag NOT NULL ou is_favorite manquant)
-    const needsMigration = !serieTagsColumnNames.includes('is_favorite') || 
-                          (tagColumn && tagColumn.notnull === 1);
-    
-    if (needsMigration) {
-      console.log('🔄 Migration serie_tags : Recréation de la table avec le nouveau schéma');
-      
-      db.exec(`
-        BEGIN TRANSACTION;
-        
-        -- Créer la nouvelle table avec le bon schéma
-        CREATE TABLE serie_tags_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          serie_id INTEGER NOT NULL,
-          user_id INTEGER NOT NULL,
-          tag TEXT,
-          is_favorite INTEGER NOT NULL DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          UNIQUE(serie_id, user_id),
-          CHECK (tag IS NULL OR tag IN ('a_lire', 'abandonne'))
-        );
-        
-        -- Copier les données en convertissant les anciens tags
-        INSERT INTO serie_tags_new (id, serie_id, user_id, tag, is_favorite, created_at, updated_at)
-        SELECT 
-          id,
-          serie_id,
-          user_id,
-          CASE 
-            WHEN tag = 'favori' THEN NULL
-            WHEN tag = 'lu' THEN NULL
-            ELSE tag
-          END,
-          CASE WHEN tag = 'favori' THEN 1 ELSE 0 END,
-          created_at,
-          updated_at
-        FROM serie_tags;
-        
-        -- Supprimer l'ancienne table
-        DROP TABLE serie_tags;
-        
-        -- Renommer la nouvelle table
-        ALTER TABLE serie_tags_new RENAME TO serie_tags;
-        
-        -- Recréer les index
-        CREATE INDEX idx_serie_tags_serie ON serie_tags(serie_id);
-        CREATE INDEX idx_serie_tags_user ON serie_tags(user_id);
-        CREATE INDEX idx_serie_tags_tag ON serie_tags(tag);
-        
-        COMMIT;
-      `);
-      
-      console.log('✅ Migration serie_tags : Table recréée avec succès');
-    }
-  } catch (error) {
-    console.error('Erreur lors de la migration:', error);
-  }
-
+  console.log('✅ Schéma de base de données créé/vérifié');
+  
   return db;
 }
 
