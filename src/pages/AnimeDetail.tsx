@@ -162,46 +162,59 @@ export default function AnimeDetail() {
 
               {/* Informations en dessous */}
               <div style={{ flex: 1 }}>
-              {/* Titre et badges */}
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-                    {anime.titre}
-                  </h1>
-                  <div style={{
-                    background: getStatusColor(anime.statut),
-                    color: 'white',
-                    padding: '4px 12px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: '600'
-                  }}>
-                    {getStatusLabel(anime.statut)}
-                  </div>
-                  {anime.source_import && (
+              {/* Titre, badges et boutons d'action */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+                      {anime.titre}
+                    </h1>
                     <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      height: '28px',
+                      background: getStatusColor(anime.statut),
+                      color: 'white',
+                      padding: '4px 12px',
                       borderRadius: '6px',
-                      overflow: 'hidden',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      background: anime.source_import === 'adn' ? '#1E3A8A' : 
-                                 anime.source_import === 'adkami' ? '#8B5CF6' : 
-                                 '#F47521',
-                      padding: '0 8px'
+                      fontSize: '13px',
+                      fontWeight: '600'
                     }}>
-                      <PlatformLogo platform={anime.source_import} height={24} />
+                      {getStatusLabel(anime.statut)}
                     </div>
+                    {anime.source_import && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '28px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: anime.source_import === 'adn' ? '#1E3A8A' : 
+                                   anime.source_import === 'adkami' ? '#8B5CF6' : 
+                                   '#F47521',
+                        padding: '0 8px'
+                      }}>
+                        <PlatformLogo platform={anime.source_import} height={24} />
+                      </div>
+                    )}
+                  </div>
+
+                  {anime.titre_en && anime.titre_en !== anime.titre && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic' }}>
+                      {anime.titre_en}
+                    </p>
                   )}
                 </div>
 
-                {anime.titre_en && anime.titre_en !== anime.titre && (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic' }}>
-                    {anime.titre_en}
-                  </p>
-                )}
+                {/* Boutons d'action en haut à droite */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => setShowEditModal(true)} className="btn btn-primary">
+                    <Edit size={18} />
+                    Modifier
+                  </button>
+                  <button onClick={() => setShowDeleteModal(true)} className="btn btn-danger">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
 
               {/* Statistiques */}
@@ -323,31 +336,6 @@ export default function AnimeDetail() {
                 </div>
               )}
 
-              {/* Boutons d'action */}
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="btn btn-primary"
-                  style={{ fontSize: '14px' }}
-                >
-                  <Edit size={18} />
-                  Modifier l'anime
-                </button>
-
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="btn btn-outline"
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    borderColor: 'rgba(239, 68, 68, 0.3)',
-                    color: '#ef4444',
-                    fontSize: '14px'
-                  }}
-                >
-                  <Trash2 size={18} />
-                  Supprimer l'anime
-                </button>
-              </div>
             </div>
             </div>
           ) : (
@@ -396,46 +384,59 @@ export default function AnimeDetail() {
 
               {/* Informations à droite */}
               <div style={{ flex: 1, minWidth: '300px' }}>
-              {/* Titre et badges */}
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
-                    {anime.titre}
-                  </h1>
-                  <div style={{
-                    background: getStatusColor(anime.statut),
-                    color: 'white',
-                    padding: '4px 12px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: '600'
-                  }}>
-                    {getStatusLabel(anime.statut)}
-                  </div>
-                  {anime.source_import && (
+              {/* Titre, badges et boutons d'action */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>
+                      {anime.titre}
+                    </h1>
                     <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      height: '28px',
+                      background: getStatusColor(anime.statut),
+                      color: 'white',
+                      padding: '4px 12px',
                       borderRadius: '6px',
-                      overflow: 'hidden',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      background: anime.source_import === 'adn' ? '#1E3A8A' : 
-                                 anime.source_import === 'adkami' ? '#8B5CF6' : 
-                                 '#F47521',
-                      padding: '0 8px'
+                      fontSize: '13px',
+                      fontWeight: '600'
                     }}>
-                      <PlatformLogo platform={anime.source_import} height={24} />
+                      {getStatusLabel(anime.statut)}
                     </div>
+                    {anime.source_import && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '28px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        background: anime.source_import === 'adn' ? '#1E3A8A' : 
+                                   anime.source_import === 'adkami' ? '#8B5CF6' : 
+                                   '#F47521',
+                        padding: '0 8px'
+                      }}>
+                        <PlatformLogo platform={anime.source_import} height={24} />
+                      </div>
+                    )}
+                  </div>
+
+                  {anime.titre_en && anime.titre_en !== anime.titre && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic' }}>
+                      {anime.titre_en}
+                    </p>
                   )}
                 </div>
 
-                {anime.titre_en && anime.titre_en !== anime.titre && (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontStyle: 'italic' }}>
-                    {anime.titre_en}
-                  </p>
-                )}
+                {/* Boutons d'action en haut à droite */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => setShowEditModal(true)} className="btn btn-primary">
+                    <Edit size={18} />
+                    Modifier
+                  </button>
+                  <button onClick={() => setShowDeleteModal(true)} className="btn btn-danger">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
 
               {/* Statistiques */}
@@ -557,31 +558,6 @@ export default function AnimeDetail() {
                 </div>
               )}
 
-              {/* Boutons d'action */}
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="btn btn-primary"
-                  style={{ fontSize: '14px' }}
-                >
-                  <Edit size={18} />
-                  Modifier l'anime
-                </button>
-
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="btn btn-outline"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  borderColor: 'rgba(239, 68, 68, 0.3)',
-                    color: '#ef4444',
-                    fontSize: '14px'
-                }}
-              >
-                <Trash2 size={18} />
-                Supprimer l'anime
-              </button>
-            </div>
           </div>
             </div>
           )}
