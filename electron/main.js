@@ -138,6 +138,18 @@ function createWindow() {
   mainWindow.on('enter-full-screen', saveWindowState);
   mainWindow.on('leave-full-screen', saveWindowState);
 
+  // Raccourci F12 pour ouvrir/fermer la console de développement
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12') {
+      if (mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.closeDevTools();
+      } else {
+        mainWindow.webContents.openDevTools();
+      }
+      event.preventDefault();
+    }
+  });
+
   // Intercepter la fermeture pour minimiser dans le tray au lieu de quitter
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
