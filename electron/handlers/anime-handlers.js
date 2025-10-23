@@ -28,7 +28,27 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       // Parser XML simple (sans dépendance externe)
       const animeMatches = [...xmlContent.matchAll(/<anime>([\s\S]*?)<\/anime>/g)];
       
-      // Étape 1 : Grouper les entrées par série (series_adk_id ou titre)
+      // Fonction helper pour extraire le titre de base (avant : ou patterns de saison)
+      const extractBaseTitre = (fullTitre) => {
+        // Retirer les patterns courants de saisons/parties
+        let baseTitre = fullTitre
+          .replace(/:\s*(Season|Saison|Part|Partie|Cour)\s*\d+/gi, '')
+          .replace(/:\s*(2nd|3rd|4th|5th)\s*(Season|Saison)?/gi, '')
+          .replace(/\s*-\s*(Season|Saison|Part|Partie)\s*\d+/gi, '')
+          .replace(/\s+(II|III|IV|V|2|3|4|5)$/gi, '')
+          .trim();
+        
+        // Si le titre contient ":", prendre seulement la partie avant (pour Dr. Stone: New World, etc.)
+        // SAUF si c'est un titre court (moins de 15 caractères) pour éviter de couper des titres normaux
+        const colonIndex = baseTitre.indexOf(':');
+        if (colonIndex > 15) {
+          baseTitre = baseTitre.substring(0, colonIndex).trim();
+        }
+        
+        return baseTitre || fullTitre;
+      };
+      
+      // Étape 1 : Grouper les entrées par série (series_adk_id, ou titre de base)
       const groupedAnimes = new Map();
       
       for (const match of animeMatches) {
@@ -39,12 +59,13 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         
         if (!malId || !titre) continue;
         
-        // Utiliser series_adk_id comme clé de groupe, sinon le titre
-        const groupKey = adkId || titre;
+        // Utiliser series_adk_id comme clé de groupe si disponible
+        // Sinon, extraire le titre de base pour grouper les saisons ensemble
+        const groupKey = adkId || extractBaseTitre(titre);
         
         if (!groupedAnimes.has(groupKey)) {
           groupedAnimes.set(groupKey, {
-            titre: titre,
+            titre: groupKey, // Utiliser le titre de base pour le groupe
             adkId: adkId,
             entries: []
           });
@@ -52,6 +73,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         
         groupedAnimes.get(groupKey).entries.push({
           malId: malId,
+          titre: titre, // Garder le titre complet pour chaque entrée
           xml: animeXml
         });
       }
@@ -98,7 +120,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
         // Traiter chaque groupe (série avec ses saisons)
         for (const group of batch) {
-        const titre = group.titre;
+        const titreBase = group.titre;
         const entries = group.entries;
         
         try {
@@ -106,6 +128,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           const firstEntry = entries[0];
           const animeXml = firstEntry.xml;
           const malId = firstEntry.malId;
+          const titre = firstEntry.titre; // Titre complet de la première entrée
           
           const type = animeXml.match(/<series_type>(.*?)<\/series_type>/)?.[1] || 'TV';
           const statut = animeXml.match(/<my_status>(.*?)<\/my_status>/)?.[1] || 'Watching';
@@ -122,7 +145,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             phase: 'anime',
             currentBatch: batchIndex + 1,
             totalBatches: batches.length,
-            currentAnime: `${titre} (${entries.length} saison${entries.length > 1 ? 's' : ''})`,
+            currentAnime: `${titreBase} (${entries.length} saison${entries.length > 1 ? 's' : ''})`,
             currentIndex: currentIndex,
             total: totalSeries,
             imported: results.imported,
@@ -198,8 +221,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             `);
 
             updateSerie.run(
-              anime.title || titre,
-              anime.title_english || titre,
+              titreBase, // Utiliser le titre de base du groupe (ex: "Dr. Stone")
+              anime.title_english || titreBase,
               anime.title_japanese || '',
               anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '',
               anime.synopsis || '',
@@ -224,8 +247,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             `);
 
             const result = insertSerie.run(
-              anime.title || titre,
-              anime.title_english || titre,
+              titreBase, // Utiliser le titre de base du groupe (ex: "Dr. Stone")
+              anime.title_english || titreBase,
               anime.title_japanese || '',
               anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '',
               anime.synopsis || '',
@@ -249,6 +272,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             const entry = entries[saisonIndex];
             const entryXml = entry.xml;
             const entryMalId = entry.malId;
+            const entryTitre = entry.titre; // Titre complet de cette entrée (ex: "Dr. Stone: New World")
             
             const nbEpisodes = parseInt(entryXml.match(/<series_episodes>(\d+)<\/series_episodes>/)?.[1]) || 0;
             const episodesVus = parseInt(entryXml.match(/<my_watched_episodes>(\d+)<\/my_watched_episodes>/)?.[1]) || 0;
@@ -297,7 +321,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
                 SET titre = ?, nb_episodes = ?, annee = ?, couverture_url = COALESCE(NULLIF(?, ''), couverture_url)
                 WHERE id = ?
               `).run(
-                saisonAnime?.title || `Saison ${numeroSaison}`,
+                saisonAnime?.title || entryTitre,
                 nbEpisodesReel,
                 saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
                 saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || '',
@@ -312,7 +336,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               `).run(
                 serieId,
                 numeroSaison,
-                saisonAnime?.title || `Saison ${numeroSaison}`,
+                saisonAnime?.title || entryTitre,
                 nbEpisodesReel,
                 saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
                 saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || ''
