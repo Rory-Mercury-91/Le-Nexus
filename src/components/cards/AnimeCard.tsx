@@ -1,5 +1,5 @@
 import { BookOpen, Eye, Heart, Tv } from 'lucide-react';
-import { AnimeSerie, AnimeTag } from '../types';
+import { AnimeSerie, AnimeTag } from '../../types';
 import CoverImage from '../common/CoverImage';
 import PlatformLogo from '../common/PlatformLogo';
 

@@ -1,8 +1,8 @@
 import { BookOpen, ChevronLeft, ChevronRight, Home, LogOut, Minimize2, Settings, Tv, User } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useConfirm } from '../hooks/useConfirm';
-import SavingModal from './SavingModal';
+import { useConfirm } from '../../hooks/useConfirm';
+import SavingModal from '../modals/common/SavingModal';
 
 interface LayoutProps {
   children: ReactNode;

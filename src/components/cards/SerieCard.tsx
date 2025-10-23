@@ -1,8 +1,8 @@
 import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, Tag } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useConfirm } from '../hooks/useConfirm';
-import { Serie, SerieTag } from '../types';
+import { useConfirm } from '../../hooks/useConfirm';
+import { Serie, SerieTag } from '../../types';
 import CoverImage from '../common/CoverImage';
 
 interface SerieCardProps {

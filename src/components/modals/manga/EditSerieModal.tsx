@@ -1,6 +1,6 @@
 import { Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Serie } from '../types';
+import { Serie } from '../../../types';
 import CoverImage from '../../common/CoverImage';
 
 interface EditSerieModalProps {

@@ -1,6 +1,6 @@
 import { Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Tome, User } from '../types';
+import { Tome, User } from '../../../types';
 import CoverImage from '../../common/CoverImage';
 import MultiSelectDropdown from '../../common/MultiSelectDropdown';
 

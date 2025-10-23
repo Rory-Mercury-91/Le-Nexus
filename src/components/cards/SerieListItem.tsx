@@ -1,6 +1,6 @@
 import { BookOpen, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Serie } from '../types';
+import { Serie } from '../../types';
 import CoverImage from '../common/CoverImage';
 
 const TAG_CONFIG = {

@@ -1,6 +1,6 @@
 import { BookOpen, Eye, Heart, Tv } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { AnimeSerie, AnimeTag } from '../types';
+import { AnimeSerie, AnimeTag } from '../../types';
 import CoverImage from '../common/CoverImage';
 
 const TAG_CONFIG = {
