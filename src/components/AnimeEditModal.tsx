@@ -126,7 +126,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '1000px', maxHeight: '90vh', overflow: 'auto' }}>
+      <div className="modal" style={{ maxWidth: '1000px' }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -371,7 +371,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                           border: '1px solid var(--border)'
                         }}
                       >
-                        <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 120px 100px auto', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 90px 60px', gap: '16px', alignItems: 'center' }}>
                           <div>
                             <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: '600' }}>
                               Saison
@@ -427,15 +427,17 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                             />
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSaison(index)}
-                            className="btn btn-danger"
-                            style={{ fontSize: '14px', padding: '6px 12px' }}
-                            title="Supprimer cette saison"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', height: '100%', paddingBottom: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSaison(index)}
+                              className="btn btn-danger"
+                              style={{ fontSize: '14px', padding: '8px', minWidth: '40px' }}
+                              title="Supprimer cette saison"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -449,13 +451,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
             display: 'flex', 
             gap: '12px', 
             justifyContent: 'flex-end', 
-            marginTop: '32px',
-            paddingTop: '24px',
-            borderTop: '1px solid var(--border)',
-            position: 'sticky',
-            bottom: 0,
-            background: 'var(--card-bg)',
-            zIndex: 10
+            marginTop: '24px'
           }}>
             <button
               type="button"
