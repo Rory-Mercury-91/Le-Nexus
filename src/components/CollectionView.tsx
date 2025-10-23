@@ -84,19 +84,21 @@ export default function CollectionView<T extends { id: number | string }>({
         // Distance du centre du conteneur (-1 à gauche, 0 au centre, +1 à droite)
         const distanceFromCenter = (cardCenter - containerCenter) / (containerRect.width / 2);
         
-        // Calculer la rotation et l'échelle en fonction de la distance
-        const rotateY = distanceFromCenter * 25; // Rotation max ±25deg
-        const scale = 1 - Math.abs(distanceFromCenter) * 0.15; // Scale 0.85 à 1
-        const translateZ = -Math.abs(distanceFromCenter) * 50; // Profondeur
-        const opacity = 1 - Math.abs(distanceFromCenter) * 0.3; // Fade léger
+        // Effet 3D plus prononcé et fluide
+        const rotateY = distanceFromCenter * 45; // Rotation augmentée à ±45deg
+        const scale = 1 - Math.abs(distanceFromCenter) * 0.25; // Scale réduit à 0.75
+        const translateZ = -Math.abs(distanceFromCenter) * 150; // Plus de profondeur
+        const translateX = distanceFromCenter * 30; // Décalage horizontal
+        const opacity = 1 - Math.abs(distanceFromCenter) * 0.5; // Fade plus marqué
         
         (card as HTMLElement).style.transform = `
-          perspective(1000px)
           rotateY(${rotateY}deg)
-          scale(${Math.max(scale, 0.85)})
+          scale(${Math.max(scale, 0.75)})
           translateZ(${translateZ}px)
+          translateX(${translateX}px)
         `;
-        (card as HTMLElement).style.opacity = `${Math.max(opacity, 0.7)}`;
+        (card as HTMLElement).style.opacity = `${Math.max(opacity, 0.5)}`;
+        (card as HTMLElement).style.filter = `blur(${Math.abs(distanceFromCenter) * 2}px)`;
       });
     };
 
@@ -197,7 +199,7 @@ export default function CollectionView<T extends { id: number | string }>({
           <button
             onClick={() => {
               const container = document.getElementById('carousel-container');
-              if (container) container.scrollBy({ left: -300, behavior: 'smooth' });
+              if (container) container.scrollBy({ left: -320, behavior: 'smooth' }); // 280px carte + 40px gap
             }}
             style={{
               position: 'absolute',
@@ -236,7 +238,7 @@ export default function CollectionView<T extends { id: number | string }>({
           <button
             onClick={() => {
               const container = document.getElementById('carousel-container');
-              if (container) container.scrollBy({ left: 300, behavior: 'smooth' });
+              if (container) container.scrollBy({ left: 320, behavior: 'smooth' }); // 280px carte + 40px gap
             }}
             style={{
               position: 'absolute',
@@ -276,14 +278,16 @@ export default function CollectionView<T extends { id: number | string }>({
             ref={carouselRef}
             style={{
               display: 'flex',
-              gap: '20px',
+              gap: '40px',
               overflowX: 'auto',
               overflowY: 'hidden',
-              padding: '8px 40px 24px 40px',
+              padding: '40px calc(50% - 140px) 60px',
               scrollbarWidth: 'thin',
               scrollbarColor: 'var(--primary) var(--surface)',
-              perspective: '1000px',
-              perspectiveOrigin: 'center center'
+              perspective: '1200px',
+              perspectiveOrigin: 'center center',
+              scrollSnapType: 'x mandatory',
+              scrollBehavior: 'smooth'
             }}
           >
             {items.map((item) => (
@@ -295,8 +299,10 @@ export default function CollectionView<T extends { id: number | string }>({
                   maxWidth: '280px',
                   flexShrink: 0,
                   transformStyle: 'preserve-3d',
-                  transition: 'transform 0.3s ease, opacity 0.3s ease',
-                  willChange: 'transform, opacity'
+                  transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease, filter 0.4s ease',
+                  willChange: 'transform, opacity, filter',
+                  scrollSnapAlign: 'center',
+                  scrollSnapStop: 'always'
                 }}
               >
                 {renderCard(item, onUpdate)}
