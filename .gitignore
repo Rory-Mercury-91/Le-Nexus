@@ -8,6 +8,9 @@ build/
 # Electron
 out/
 
+# Documentation personnelle
+docs_perso/
+
 # Database
 *.db
 *.db-shm

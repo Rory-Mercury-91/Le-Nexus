@@ -19,7 +19,7 @@ Application de gestion de collection de mangas et animes développée avec Elect
 - Progression de visionnage
 
 ### 👥 Multi-utilisateurs
-- Gestion multi-propriétaires (Céline, Sébastien, Alexandre, Commun)
+- Gestion multi-propriétaires (configuration personnalisable)
 - Données de lecture individuelles par utilisateur
 - Masquage de séries par utilisateur
 - Images de profil personnalisées
@@ -96,7 +96,7 @@ Le fichier .exe sera disponible dans le dossier `dist/`.
 
 ### Première utilisation
 
-1. **Sélection de l'utilisateur** : Choisir votre prénom (Céline, Sébastien, Alexandre)
+1. **Sélection de l'utilisateur** : Choisir votre prénom parmi ceux configurés
 2. **Emplacement de stockage** : Sélectionner un dossier (de préférence synchronisé)
 3. **Image de profil** (optionnel) : Ajouter votre photo dans Paramètres
 
@@ -109,9 +109,9 @@ Ma mangathèque/
 ├── configs/
 │   ├── manga.db              ← Base fusionnée (toutes données)
 │   └── databases/
-│       ├── alexandre.db      ← Données de lecture d'Alexandre
-│       ├── céline.db         ← Données de lecture de Céline
-│       └── sébastien.db      ← Données de lecture de Sébastien
+│       ├── utilisateur1.db   ← Données de lecture Utilisateur 1
+│       ├── utilisateur2.db   ← Données de lecture Utilisateur 2
+│       └── utilisateur3.db   ← Données de lecture Utilisateur 3
 ├── covers/
 │   └── series/
 │       ├── one-piece/
@@ -122,9 +122,9 @@ Ma mangathèque/
 │       │       └── ...
 │       └── ...
 └── profiles/
-    ├── alexandre.jpg         ← Image de profil
-    ├── céline.jpg
-    └── sébastien.jpg
+    ├── utilisateur1.jpg      ← Image de profil
+    ├── utilisateur2.jpg
+    └── utilisateur3.jpg
 ```
 
 ### Dossier de stockage partagé
@@ -190,7 +190,7 @@ Permet de masquer une série de votre vue sans la supprimer pour les autres util
 3. Les séries masquées apparaissent avec un bouton **bleu** (👁️)
 4. Cliquer pour démasquer
 
-**Important** : Le masquage est **personnel**. Si Céline masque une série, Alexandre la voit toujours.
+**Important** : Le masquage est **personnel**. Si un utilisateur masque une série, les autres utilisateurs la voient toujours.
 
 ## 🗑️ Suppression intelligente
 
@@ -243,7 +243,7 @@ Permet de masquer une série de votre vue sans la supprimer pour les autres util
 
 **Fonctionnement automatique :**
 1. **Au démarrage**, l'application scanne le dossier
-2. **Détecte** les bases utilisateur (`alexandre.db`, `celine.db`, etc.)
+2. **Détecte** les bases utilisateur (`utilisateur1.db`, `utilisateur2.db`, etc.)
 3. **Fusionne automatiquement** dans `manga.db`
 4. **Dédoublonne** les séries par titre
 5. **Conserve tous les tomes** avec leurs propriétaires respectifs
