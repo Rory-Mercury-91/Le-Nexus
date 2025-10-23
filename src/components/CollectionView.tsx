@@ -1,5 +1,5 @@
-import { Grid3x3, List, Maximize2, LayoutGrid } from 'lucide-react';
-import { useState, useEffect, useRef, cloneElement, isValidElement } from 'react';
+import { Grid3x3, LayoutGrid, List, Maximize2 } from 'lucide-react';
+import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 
 type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
 
@@ -309,4 +309,3 @@ export default function CollectionView<T extends { id: number | string }>({
     </div>
   );
 }
-

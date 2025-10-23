@@ -6,6 +6,8 @@ import SerieListItem from '../components/SerieListItem';
 import CollectionView from '../components/CollectionView';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
+type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
+
 export default function Collection() {
   const [series, setSeries] = useState<Serie[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,6 +16,21 @@ export default function Collection() {
   const [searchTerm, setSearchTerm] = useState('');
   const [scrollPosition, setScrollPosition] = useState<number | null>(null);
   const [lectureStats, setLectureStats] = useState<LectureStatistics | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Charger le mode de vue depuis localStorage au montage
+  useEffect(() => {
+    const savedMode = localStorage.getItem('collectionViewMode') as ViewMode;
+    if (savedMode) {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  // Sauvegarder le mode de vue dans localStorage quand il change
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('collectionViewMode', mode);
+  };
 
   useEffect(() => {
     loadSeries();
@@ -224,6 +241,8 @@ export default function Collection() {
         <CollectionView
           items={series}
           loading={loading}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
           renderCard={(serie) => (
             <SerieCard 
               key={serie.id} 
