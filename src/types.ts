@@ -173,6 +173,10 @@ export interface AnimeSerie {
   saisons?: AnimeSaison[];
   created_at?: string;
   updated_at?: string;
+  // Tags utilisateur
+  tag?: AnimeTag | null;
+  manual_tag?: AnimeTag | null;
+  is_favorite?: boolean;
 }
 
 export interface AnimeSaison {

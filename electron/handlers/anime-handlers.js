@@ -370,6 +370,10 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
       const currentUser = store.get('currentUser', '');
       
+      // Récupérer l'ID de l'utilisateur actuel
+      const user = currentUser ? db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser) : null;
+      const userId = user ? user.id : null;
+      
       let query = `
         SELECT 
           a.*,
@@ -381,12 +385,15 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             JOIN anime_saisons s ON ev.saison_id = s.id 
             WHERE s.serie_id = a.id AND ev.utilisateur = ? AND ev.vu = 1
           ) as nb_episodes_vus,
-          COALESCE(asu.statut_visionnage, 'En cours') as statut_visionnage
+          COALESCE(asu.statut_visionnage, 'En cours') as statut_visionnage,
+          at.tag as manual_tag,
+          at.is_favorite as is_favorite
         FROM anime_series a
         LEFT JOIN anime_statut_utilisateur asu ON asu.serie_id = a.id AND asu.utilisateur = ?
+        LEFT JOIN anime_tags at ON a.id = at.anime_id AND at.user_id = ?
         WHERE 1=1
       `;
-      const params = [currentUser, currentUser];
+      const params = [currentUser, currentUser, userId];
 
       // Filtre par utilisateur (optionnel)
       if (filters.mesAnimes && currentUser) {
@@ -406,10 +413,56 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         params.push(filters.type);
       }
 
+      // Filtre par tag
+      if (filters.tag) {
+        if (filters.tag === 'favori') {
+          query += ' AND at.is_favorite = 1';
+        } else if (filters.tag === 'en_cours' || filters.tag === 'termine') {
+          // Pour les tags automatiques, on filtre après la requête
+        } else {
+          query += ' AND at.tag = ?';
+          params.push(filters.tag);
+        }
+      }
+
       query += ` ORDER BY a.titre ASC`;
 
       const stmt = db.prepare(query);
-      return stmt.all(...params);
+      const animes = stmt.all(...params);
+      
+      // Calculer le tag effectif pour chaque anime en fonction de la progression
+      let animesWithTags = animes.map(anime => {
+        let effectiveTag = anime.manual_tag || null;
+        
+        // Si pas de tag manuel (a_regarder ou abandonne), calculer automatiquement
+        if (!anime.manual_tag || anime.manual_tag === null) {
+          if (currentUser && anime.nb_episodes_total > 0) {
+            const episodesVus = anime.nb_episodes_vus || 0;
+            const episodesTotal = anime.nb_episodes_total;
+            
+            if (episodesVus === episodesTotal && episodesVus > 0) {
+              effectiveTag = 'termine';
+            } else if (episodesVus > 0) {
+              effectiveTag = 'en_cours';
+            }
+          }
+        }
+        
+        return {
+          ...anime,
+          tag: effectiveTag,
+          is_favorite: anime.is_favorite ? true : false
+        };
+      });
+      
+      // Filtrer par tag automatique si nécessaire
+      if (filters.tag === 'en_cours') {
+        animesWithTags = animesWithTags.filter(a => a.tag === 'en_cours');
+      } else if (filters.tag === 'termine') {
+        animesWithTags = animesWithTags.filter(a => a.tag === 'termine');
+      }
+      
+      return animesWithTags;
     } catch (error) {
       console.error('Erreur get-anime-series:', error);
       throw error;

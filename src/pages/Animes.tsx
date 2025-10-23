@@ -3,7 +3,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AddAnimeModal from '../components/AddAnimeModal';
 import AnimeCard from '../components/AnimeCard';
+import AnimeListItem from '../components/AnimeListItem';
+import CollectionView from '../components/CollectionView';
 import { AnimeFilters, AnimeSerie } from '../types';
+
+type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
 
 export default function Animes() {
   const navigate = useNavigate();
@@ -12,6 +16,21 @@ export default function Animes() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  // Charger le mode de vue depuis localStorage au montage
+  useEffect(() => {
+    const savedMode = localStorage.getItem('animesViewMode') as ViewMode;
+    if (savedMode) {
+      setViewMode(savedMode);
+    }
+  }, []);
+
+  // Sauvegarder le mode de vue dans localStorage quand il change
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem('animesViewMode', mode);
+  };
 
   useEffect(() => {
     loadAnimes();
@@ -235,58 +254,25 @@ export default function Animes() {
           );
         })()}
 
-        {/* Liste des animes */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <div className="loading" style={{ margin: '0 auto' }} />
-            <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>
-              Chargement des animes...
-            </p>
-          </div>
-        ) : filteredAnimes.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '80px 20px',
-            background: 'var(--surface)',
-            borderRadius: '12px',
-            border: '2px dashed rgba(139, 92, 246, 0.3)'
-          }}>
-            <Tv size={64} style={{ color: 'var(--text-secondary)', opacity: 0.3, margin: '0 auto 20px' }} />
-            <h3 style={{ fontSize: '20px', marginBottom: '8px' }}>
-              {animes.length === 0 ? 'Aucun anime dans votre collection' : 'Aucun anime trouvé'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              {animes.length === 0 
-                ? 'Commencez par ajouter votre premier anime !' 
-                : 'Essayez de modifier vos filtres'}
-            </p>
-            {animes.length === 0 && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="btn btn-primary"
-                style={{ fontSize: '16px', padding: '14px 28px' }}
-              >
-                <Plus size={24} />
-                Ajouter un anime
-              </button>
-            )}
-          </div>
-        ) : (
-          <div style={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))',
-            gap: '20px',
-            justifyContent: 'center'
-          }}>
-            {filteredAnimes.map(anime => (
-              <AnimeCard 
-                key={anime.id} 
-                anime={anime}
-                onClick={() => navigate(`/animes/${anime.id}`)}
-              />
-            ))}
-          </div>
-        )}
+        {/* Collection avec vues multiples */}
+        <CollectionView
+          items={filteredAnimes}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          renderCard={(anime) => (
+            <AnimeCard 
+              anime={anime} 
+              onClick={() => navigate(`/animes/${anime.id}`)}
+            />
+          )}
+          renderListItem={(anime) => (
+            <AnimeListItem anime={anime} onUpdate={loadAnimes} />
+          )}
+          onUpdate={loadAnimes}
+          loading={loading}
+          emptyMessage={animes.length === 0 ? 'Aucun anime dans votre collection' : 'Aucun anime trouvé'}
+          emptyIcon={<Tv size={64} style={{ color: 'var(--text-secondary)', opacity: 0.3 }} />}
+        />
       </div>
 
       {/* Modale d'ajout d'anime */}
