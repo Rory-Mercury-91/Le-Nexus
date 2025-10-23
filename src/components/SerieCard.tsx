@@ -117,6 +117,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     }
     
     onUpdate();
+    setShowTagDropdown(false); // Fermer le dropdown après l'action
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -202,17 +203,64 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </div>
         )}
         
-        {/* Badge statut */}
-        <div style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px'
-        }}>
-          <span className={`badge ${getStatutBadgeClass(serie.statut)}`}>
-            {serie.statut}
-          </span>
-        </div>
-
+        {/* Bannières diagonales pour les tags En cours / Lu / Abandonné */}
+        {(() => {
+          // Afficher pour "en_cours", "lu" et "abandonne"
+          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
+          
+          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
+          const totalTomes = serie.tomes?.length || 0;
+          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
+          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
+          const isAbandoned = serie.tag === 'abandonne';
+          
+          if (!isComplete && !isInProgress && !isAbandoned) return null;
+          
+          let backgroundColor = '#f59e0b'; // En cours (orange)
+          let label = 'En cours';
+          
+          if (isComplete) {
+            backgroundColor = '#10b981'; // Lu (vert)
+            label = 'Lu';
+          } else if (isAbandoned) {
+            backgroundColor = '#6b7280'; // Abandonné (gris)
+            label = 'Abandonné';
+          }
+          
+          return (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '120px',
+              height: '120px',
+              overflow: 'hidden',
+              zIndex: 3
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '180px',
+                height: '32px',
+                background: backgroundColor,
+                transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '9px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.8px',
+                boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+              }}>
+                {label}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Bouton tag dropdown */}
         <button
@@ -489,48 +537,15 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           )}
         </div>
 
-        {/* Badge de statut sous le titre */}
-        {(() => {
-          // Afficher pour "en_cours", "lu" et "abandonne"
-          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
-          
-          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
-          const totalTomes = serie.tomes?.length || 0;
-          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
-          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
-          const isAbandoned = serie.tag === 'abandonne';
-          
-          if (!isComplete && !isInProgress && !isAbandoned) return null;
-          
-          let backgroundColor = '#f59e0b'; // En cours (orange)
-          let label = 'En cours';
-          
-          if (isComplete) {
-            backgroundColor = '#10b981'; // Lu (vert)
-            label = 'Lu';
-          } else if (isAbandoned) {
-            backgroundColor = '#6b7280'; // Abandonné (gris)
-            label = 'Abandonné';
-          }
-          
-          return (
-            <div style={{
-              display: 'inline-block',
-              padding: '4px 10px',
-              background: backgroundColor,
-              color: 'white',
-              fontSize: '11px',
-              fontWeight: '700',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              borderRadius: '4px',
-              marginBottom: '8px',
-              width: 'fit-content'
-            }}>
-              {label}
-            </div>
-          );
-        })()}
+        {/* Badge de statut de publication (Nautiljon) sous le titre */}
+        <div style={{ marginBottom: '8px' }}>
+          <span 
+            className={`badge ${getStatutBadgeClass(serie.statut)}`}
+            style={{ fontSize: '11px', padding: '3px 8px' }}
+          >
+            {serie.statut}
+          </span>
+        </div>
         
         <div style={{
           display: 'flex',

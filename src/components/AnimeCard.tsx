@@ -163,7 +163,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Bandeau diagonal pour les tags En cours / Terminé / Abandonné */}
+        {/* Bannières diagonales pour les tags En cours / Terminé / Abandonné */}
         {(() => {
           // Afficher pour "en_cours", "termine" et "abandonne"
           if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
@@ -209,10 +209,10 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'white',
-                fontSize: '11px',
+                fontSize: '9px',
                 fontWeight: '700',
                 textTransform: 'uppercase',
-                letterSpacing: '1px',
+                letterSpacing: '0.8px',
                 boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)'
               }}>
@@ -221,6 +221,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
             </div>
           );
         })()}
+
       </div>
 
       {/* Contenu */}
@@ -265,6 +266,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
             </div>
           )}
         </div>
+
 
         {/* Informations */}
         <div style={{
