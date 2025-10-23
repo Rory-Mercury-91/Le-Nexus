@@ -213,71 +213,89 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </span>
         </div>
 
-        {/* Badges en haut à gauche (icônes seulement) */}
-        <div style={{
-          position: 'absolute',
-          top: '8px',
-          left: '8px',
-          display: 'flex',
-          flexDirection: 'row',
-          gap: '6px',
-          flexWrap: 'wrap'
-        }}>
-          {/* Badge favori */}
-          {serie.is_favorite && (
-            <button
-              onClick={handleToggleFavorite}
-              title="Favori"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                color: '#ef4444',
-                background: 'rgba(239, 68, 68, 0.25)',
-                backdropFilter: 'blur(10px)',
-                border: '2px solid #ef4444',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.3)';
-              }}
-            >
-              <Heart size={18} fill="#ef4444" strokeWidth={2.5} />
-            </button>
-          )}
+        {/* Badge favori uniquement (en haut à gauche) */}
+        {serie.is_favorite && (
+          <button
+            onClick={handleToggleFavorite}
+            title="Favori"
+            style={{
+              position: 'absolute',
+              top: '8px',
+              left: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              color: '#ef4444',
+              background: 'rgba(239, 68, 68, 0.25)',
+              backdropFilter: 'blur(10px)',
+              border: '2px solid #ef4444',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+              zIndex: 10
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.3)';
+            }}
+          >
+            <Heart size={18} fill="#ef4444" strokeWidth={2.5} />
+          </button>
+        )}
+
+        {/* Bandeau diagonal pour les tags En cours / Lu */}
+        {(() => {
+          // Afficher uniquement pour "en_cours" et "lu"
+          if (serie.tag !== 'en_cours' && serie.tag !== 'lu') return null;
           
-          {/* Badge tag */}
-          {serie.tag && TAG_CONFIG[serie.tag] && (
-            <div 
-              title={TAG_CONFIG[serie.tag].label}
-              style={{
+          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
+          const totalTomes = serie.tomes?.length || 0;
+          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
+          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
+          
+          if (!isComplete && !isInProgress) return null;
+          
+          return (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '120px',
+              height: '120px',
+              overflow: 'hidden',
+              zIndex: 3
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '180px',
+                height: '32px',
+                background: isComplete ? '#10b981' : '#f59e0b',
+                transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                color: TAG_CONFIG[serie.tag].color,
-                background: TAG_CONFIG[serie.tag].bg,
-                backdropFilter: 'blur(10px)',
-                border: `2px solid ${TAG_CONFIG[serie.tag].color}`,
-                boxShadow: `0 2px 6px rgba(0, 0, 0, 0.3)`
-              }}
-            >
-              {React.createElement(TAG_CONFIG[serie.tag].icon, { size: 18, strokeWidth: 2.5 })}
+                color: 'white',
+                fontSize: '11px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+              }}>
+                {isComplete ? 'Lu' : 'En cours'}
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Bouton tag dropdown */}
         <button

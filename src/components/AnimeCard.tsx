@@ -75,62 +75,36 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
         position: 'relative'
       }}
     >
-      {/* Badges tags (favori + tag) */}
-      <div style={{
-        position: 'absolute',
-        top: '8px',
-        left: '8px',
-        display: 'flex',
-        flexDirection: 'row',
-        gap: '6px',
-        zIndex: 10
-      }}>
-        {/* Badge Favori */}
-        {anime.is_favorite && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            title="Favori"
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: '#ef4444',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              transition: 'transform 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            <Heart size={16} fill="#fff" color="#fff" />
-          </button>
-        )}
-
-        {/* Badge Tag */}
-        {TagIcon && tagColor && (
-          <div
-            title={tagLabel || ''}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: tagColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-          >
-            <TagIcon size={16} color="#fff" />
-          </div>
-        )}
-      </div>
+      {/* Badge favori uniquement (en haut à gauche) */}
+      {anime.is_favorite && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          title="Favori"
+          style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            background: '#ef4444',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            transition: 'transform 0.2s',
+            zIndex: 10
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <Heart size={16} fill="#fff" color="#fff" />
+        </button>
+      )}
 
       {/* Image de couverture */}
       <div style={{
@@ -219,15 +193,15 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Bandeau diagonal pour progression de visionnage */}
+        {/* Bandeau diagonal pour les tags En cours / Terminé */}
         {(() => {
+          // Afficher uniquement pour "en_cours" et "termine"
+          if (anime.tag !== 'en_cours' && anime.tag !== 'termine') return null;
+          
           const episodesVus = anime.nb_episodes_vus || 0;
           const episodesTotal = anime.nb_episodes_total || 0;
-          
-          // Terminé : tous les épisodes vus
-          const isComplete = episodesTotal > 0 && episodesVus === episodesTotal;
-          // En cours : au moins 1 épisode vu mais pas tous
-          const isWatching = episodesVus > 0 && episodesVus < episodesTotal;
+          const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
+          const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
           
           if (!isComplete && !isWatching) return null;
           

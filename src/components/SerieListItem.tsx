@@ -101,35 +101,21 @@ export default function SerieListItem({ serie, onUpdate }: SerieListItemProps) {
             {serie.titre}
           </h3>
           
-          {/* Badges compacts */}
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            {serie.is_favorite && (
-              <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Heart size={12} fill="#fff" color="#fff" />
-              </div>
-            )}
-            {TagIcon && tagColor && (
-              <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                background: tagColor,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <TagIcon size={12} color="#fff" />
-              </div>
-            )}
-          </div>
+          {/* Badge favori uniquement */}
+          {serie.is_favorite && (
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <Heart size={12} fill="#fff" color="#fff" />
+            </div>
+          )}
         </div>
 
         {/* Progression et infos */}
