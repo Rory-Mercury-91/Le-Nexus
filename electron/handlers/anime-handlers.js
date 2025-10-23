@@ -1,5 +1,5 @@
 const { fetchAniListCover } = require('../apis/anilist');
-const Groq = require('groq-sdk');
+const { translateText: groqTranslate } = require('../apis/groq');
 
 /**
  * Enregistre tous les handlers IPC pour les animes
@@ -23,30 +23,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         return null; // Pas de clé ou texte trop court
       }
       
-      try {
-        const groq = new Groq({ apiKey: groqApiKey });
-        const response = await groq.chat.completions.create({
-          messages: [
-            {
-              role: 'system',
-              content: 'Tu es un traducteur professionnel spécialisé en anime et manga. Traduis le texte suivant en français. Ne renvoie QUE la traduction, sans commentaires, sans notes, sans explications.'
-            },
-            {
-              role: 'user',
-              content: text
-            }
-          ],
-          model: 'llama-3.3-70b-versatile',
-          temperature: 0.3,
-          max_tokens: 2000
-        });
-        
-        const translated = response.choices[0]?.message?.content?.trim();
-        return translated || null;
-      } catch (error) {
-        console.warn(`⚠️ Erreur traduction Groq (texte ignoré):`, error.message);
-        return null;
-      }
+      const result = await groqTranslate(text, groqApiKey, 'fr', 'anime');
+      return result.success ? result.text : null;
     };
     
     try {

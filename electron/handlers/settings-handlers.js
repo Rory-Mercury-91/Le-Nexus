@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { cleanEmptyFolders, deleteImageWithCleanup } = require('../utils/file-utils');
 const { downloadCover, uploadCustomCover, saveCoverFromPath } = require('../services/cover-manager');
-const Groq = require('groq-sdk');
+const { translateText: groqTranslate } = require('../apis/groq');
 
 /**
  * Enregistre tous les handlers IPC pour les paramètres et la configuration
@@ -633,37 +633,8 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
 
   // Traduire un texte avec Groq AI
   ipcMain.handle('translate-text', async (event, text, targetLang = 'fr') => {
-    try {
-      const apiKey = store.get('groqApiKey', '');
-      
-      if (!apiKey || !text) {
-        return { success: false, text, error: 'Clé API manquante ou texte vide' };
-      }
-
-      const groq = new Groq({ apiKey });
-
-      const response = await groq.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content: `Tu es un traducteur professionnel spécialisé en anime et manga. Traduis le texte suivant en ${targetLang === 'fr' ? 'français' : targetLang}. Ne renvoie QUE la traduction, sans commentaires, sans notes, sans explications.`
-          },
-          {
-            role: 'user',
-            content: text
-          }
-        ],
-        model: 'llama-3.3-70b-versatile',
-        temperature: 0.3,
-        max_tokens: 2000
-      });
-
-      const translatedText = response.choices[0]?.message?.content?.trim() || text;
-      return { success: true, text: translatedText };
-    } catch (error) {
-      console.error('❌ Erreur traduction Groq:', error.message);
-      return { success: false, text, error: error.message };
-    }
+    const apiKey = store.get('groqApiKey', '');
+    return await groqTranslate(text, apiKey, targetLang);
   });
 }
 
