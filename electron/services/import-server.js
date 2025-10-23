@@ -164,8 +164,8 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
           // Ajouter les tomes manquants
           const coverManager = require('./cover-manager');
           const stmtTome = db.prepare(`
-            INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, couverture_url)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO tomes (serie_id, numero, prix, date_sortie, couverture_url)
+            VALUES (?, ?, ?, ?, ?)
           `);
           
           const stmtProprietaire = db.prepare(`
@@ -202,7 +202,6 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
                 serie.id,
                 volume.numero,
                 volume.prix || 0.00, // Prix du tome ou 0.00 par défaut
-                null, // proprietaire = NULL (nouvelle méthode)
                 volume.date_sortie || null,
                 localCoverPath
               );
@@ -371,8 +370,8 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             const coverManager = require('./cover-manager');
             
             const stmtTome = db.prepare(`
-              INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, couverture_url)
-              VALUES (?, ?, ?, ?, ?, ?)
+              INSERT INTO tomes (serie_id, numero, prix, date_sortie, couverture_url)
+              VALUES (?, ?, ?, ?, ?)
             `);
             
             const stmtProprietaire = db.prepare(`
@@ -407,7 +406,6 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
                   serieId,
                   volume.numero,
                   volume.prix || 0.00, // prix du tome ou 0.00 par défaut
-                  null, // proprietaire = NULL (nouvelle méthode)
                   volume.date_sortie || null, // date de sortie VF
                   localCoverPath
                 );
