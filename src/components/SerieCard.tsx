@@ -213,54 +213,29 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </span>
         </div>
 
-        {/* Badge favori uniquement (en haut à gauche) */}
-        {serie.is_favorite && (
-          <button
-            onClick={handleToggleFavorite}
-            title="Favori"
-            style={{
-              position: 'absolute',
-              top: '8px',
-              left: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              color: '#ef4444',
-              background: 'rgba(239, 68, 68, 0.25)',
-              backdropFilter: 'blur(10px)',
-              border: '2px solid #ef4444',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
-              zIndex: 10
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.3)';
-            }}
-          >
-            <Heart size={18} fill="#ef4444" strokeWidth={2.5} />
-          </button>
-        )}
-
-        {/* Bandeau diagonal pour les tags En cours / Lu */}
+        {/* Bandeau diagonal pour les tags En cours / Lu / Abandonné */}
         {(() => {
-          // Afficher uniquement pour "en_cours" et "lu"
-          if (serie.tag !== 'en_cours' && serie.tag !== 'lu') return null;
+          // Afficher pour "en_cours", "lu" et "abandonne"
+          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
           
           const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
           const totalTomes = serie.tomes?.length || 0;
           const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
           const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
+          const isAbandoned = serie.tag === 'abandonne';
           
-          if (!isComplete && !isInProgress) return null;
+          if (!isComplete && !isInProgress && !isAbandoned) return null;
+          
+          let backgroundColor = '#f59e0b'; // En cours (orange)
+          let label = 'En cours';
+          
+          if (isComplete) {
+            backgroundColor = '#10b981'; // Lu (vert)
+            label = 'Lu';
+          } else if (isAbandoned) {
+            backgroundColor = '#6b7280'; // Abandonné (gris)
+            label = 'Abandonné';
+          }
           
           return (
             <div style={{
@@ -278,7 +253,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
                 left: '50%',
                 width: '180px',
                 height: '32px',
-                background: isComplete ? '#10b981' : '#f59e0b',
+                background: backgroundColor,
                 transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
                 display: 'flex',
                 alignItems: 'center',
@@ -291,7 +266,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
                 boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)'
               }}>
-                {isComplete ? 'Lu' : 'En cours'}
+                {label}
               </div>
             </div>
           );
@@ -493,17 +468,52 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
 
       {/* Informations */}
       <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <h3 style={{
-          fontSize: '16px',
-          fontWeight: '600',
-          marginBottom: '8px',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          minHeight: '24px'
-        }} title={serie.titre}>
-          {serie.titre}
-        </h3>
+        {/* Titre + Badge Favori */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <h3 style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            minHeight: '24px',
+            flex: 1
+          }} title={serie.titre}>
+            {serie.titre}
+          </h3>
+          
+          {/* Badge favori à côté du titre */}
+          {serie.is_favorite && (
+            <button
+              onClick={handleToggleFavorite}
+              title="Favori"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                color: '#ef4444',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '2px solid #ef4444',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.15)';
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+              }}
+            >
+              <Heart size={14} fill="#ef4444" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
         
         <div style={{
           display: 'flex',

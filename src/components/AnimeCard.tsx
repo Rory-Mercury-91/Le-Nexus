@@ -75,36 +75,6 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
         position: 'relative'
       }}
     >
-      {/* Badge favori uniquement (en haut à gauche) */}
-      {anime.is_favorite && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          title="Favori"
-          style={{
-            position: 'absolute',
-            top: '8px',
-            left: '8px',
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: '#ef4444',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            transition: 'transform 0.2s',
-            zIndex: 10
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          <Heart size={16} fill="#fff" color="#fff" />
-        </button>
-      )}
 
       {/* Image de couverture */}
       <div style={{
@@ -193,17 +163,29 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Bandeau diagonal pour les tags En cours / Terminé */}
+        {/* Bandeau diagonal pour les tags En cours / Terminé / Abandonné */}
         {(() => {
-          // Afficher uniquement pour "en_cours" et "termine"
-          if (anime.tag !== 'en_cours' && anime.tag !== 'termine') return null;
+          // Afficher pour "en_cours", "termine" et "abandonne"
+          if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
           
           const episodesVus = anime.nb_episodes_vus || 0;
           const episodesTotal = anime.nb_episodes_total || 0;
           const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
           const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
+          const isAbandoned = anime.tag === 'abandonne';
           
-          if (!isComplete && !isWatching) return null;
+          if (!isComplete && !isWatching && !isAbandoned) return null;
+          
+          let backgroundColor = '#f59e0b'; // En cours (orange)
+          let label = 'En cours';
+          
+          if (isComplete) {
+            backgroundColor = '#10b981'; // Terminé (vert)
+            label = 'Terminé';
+          } else if (isAbandoned) {
+            backgroundColor = '#6b7280'; // Abandonné (gris)
+            label = 'Abandonné';
+          }
           
           return (
             <div style={{
@@ -221,7 +203,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
                 left: '50%',
                 width: '180px',
                 height: '32px',
-                background: isComplete ? '#10b981' : '#f59e0b',
+                background: backgroundColor,
                 transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
                 display: 'flex',
                 alignItems: 'center',
@@ -234,7 +216,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
                 boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)'
               }}>
-                {isComplete ? 'Terminé' : 'En cours'}
+                {label}
               </div>
             </div>
           );
@@ -243,21 +225,46 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
 
       {/* Contenu */}
       <div style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Titre */}
-        <h3 style={{
-          fontSize: '15px',
-          fontWeight: '600',
-          marginBottom: '8px',
-          lineHeight: '1.3',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          minHeight: '40px'
-        }}>
-          {anime.titre}
-        </h3>
+        {/* Titre + Badge Favori */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
+          <h3 style={{
+            fontSize: '15px',
+            fontWeight: '600',
+            lineHeight: '1.3',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            minHeight: '40px',
+            flex: 1
+          }}>
+            {anime.titre}
+          </h3>
+          
+          {/* Badge favori à côté du titre */}
+          {anime.is_favorite && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              title="Favori"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: '#ef4444',
+                flexShrink: 0,
+                marginTop: '2px'
+              }}
+            >
+              <Heart size={14} fill="#fff" color="#fff" />
+            </div>
+          )}
+        </div>
 
         {/* Informations */}
         <div style={{
