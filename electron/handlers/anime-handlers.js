@@ -28,18 +28,54 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       // Parser XML simple (sans dépendance externe)
       const animeMatches = [...xmlContent.matchAll(/<anime>([\s\S]*?)<\/anime>/g)];
       
+      // Étape 1 : Grouper les entrées par série (series_adk_id ou titre)
+      const groupedAnimes = new Map();
+      
+      for (const match of animeMatches) {
+        const animeXml = match[1];
+        const malId = parseInt(animeXml.match(/<series_animedb_id>(\d+)<\/series_animedb_id>/)?.[1]);
+        const adkId = animeXml.match(/<series_adk_id>(\d+)<\/series_adk_id>/)?.[1];
+        const titre = animeXml.match(/<series_title><!\[CDATA\[(.*?)\]\]><\/series_title>/)?.[1];
+        
+        if (!malId || !titre) continue;
+        
+        // Utiliser series_adk_id comme clé de groupe, sinon le titre
+        const groupKey = adkId || titre;
+        
+        if (!groupedAnimes.has(groupKey)) {
+          groupedAnimes.set(groupKey, {
+            titre: titre,
+            adkId: adkId,
+            entries: []
+          });
+        }
+        
+        groupedAnimes.get(groupKey).entries.push({
+          malId: malId,
+          xml: animeXml
+        });
+      }
+      
+      // Compter le nombre total d'entrées uniques (après groupement)
+      const totalSeries = groupedAnimes.size;
+      const totalEntries = animeMatches.length;
+      
       const results = {
-        total: animeMatches.length,
+        total: totalEntries,
         imported: 0,
         updated: 0,
-        errors: []
+        errors: [],
+        grouped: totalEntries - totalSeries // Nombre d'entrées groupées
       };
 
+      // Convertir en tableau pour traitement par lots
+      const groupedArray = Array.from(groupedAnimes.values());
+      
       // Segmenter en lots de 50 pour respecter les limites de l'API
       const BATCH_SIZE = 50;
       const batches = [];
-      for (let i = 0; i < animeMatches.length; i += BATCH_SIZE) {
-        batches.push(animeMatches.slice(i, i + BATCH_SIZE));
+      for (let i = 0; i < groupedArray.length; i += BATCH_SIZE) {
+        batches.push(groupedArray.slice(i, i + BATCH_SIZE));
       }
 
 
@@ -54,40 +90,41 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           phase: 'batch',
           currentBatch: batchIndex + 1,
           totalBatches: batches.length,
-          total: animeMatches.length,
+          total: totalSeries,
           imported: results.imported,
           updated: results.updated,
           errors: results.errors.length
         });
 
-        for (const match of batch) {
-        const animeXml = match[1];
+        // Traiter chaque groupe (série avec ses saisons)
+        for (const group of batch) {
+        const titre = group.titre;
+        const entries = group.entries;
         
         try {
-          // Extraire les données de base
-          const malId = parseInt(animeXml.match(/<series_animedb_id>(\d+)<\/series_animedb_id>/)?.[1]);
-          const titre = animeXml.match(/<series_title><!\[CDATA\[(.*?)\]\]><\/series_title>/)?.[1];
+          // Utiliser la première entrée pour les infos de base
+          const firstEntry = entries[0];
+          const animeXml = firstEntry.xml;
+          const malId = firstEntry.malId;
+          
           const type = animeXml.match(/<series_type>(.*?)<\/series_type>/)?.[1] || 'TV';
-          const nbEpisodes = parseInt(animeXml.match(/<series_episodes>(\d+)<\/series_episodes>/)?.[1]) || 0;
-          const episodesVus = parseInt(animeXml.match(/<my_watched_episodes>(\d+)<\/my_watched_episodes>/)?.[1]) || 0;
           const statut = animeXml.match(/<my_status>(.*?)<\/my_status>/)?.[1] || 'Watching';
 
           if (!malId || !titre) {
-            console.warn('⚠️ Anime ignoré : données invalides');
+            console.error('⚠️ Groupe ignoré : données invalides');
             continue;
           }
 
-
           
           // Envoyer la progression de l'anime en cours
-          const currentIndex = batchIndex * BATCH_SIZE + batch.indexOf(match) + 1;
+          const currentIndex = batchIndex * BATCH_SIZE + batch.indexOf(group) + 1;
           sendProgress({
             phase: 'anime',
             currentBatch: batchIndex + 1,
             totalBatches: batches.length,
-            currentAnime: titre,
+            currentAnime: `${titre} (${entries.length} saison${entries.length > 1 ? 's' : ''})`,
             currentIndex: currentIndex,
-            total: animeMatches.length,
+            total: totalSeries,
             imported: results.imported,
             updated: results.updated,
             errors: results.errors.length
@@ -207,48 +244,95 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
           }
 
-          // Créer ou mettre à jour la saison 1 (par défaut)
-          const existingSaison = db.prepare('SELECT id FROM anime_saisons WHERE serie_id = ? AND numero_saison = 1').get(serieId);
-          
-          let saisonId;
-          
-          if (existingSaison) {
-            saisonId = existingSaison.id;
+          // Traiter toutes les saisons du groupe
+          for (let saisonIndex = 0; saisonIndex < entries.length; saisonIndex++) {
+            const entry = entries[saisonIndex];
+            const entryXml = entry.xml;
+            const entryMalId = entry.malId;
             
-            // Mettre à jour le nombre d'épisodes si nécessaire
-            // Priorité au XML, puis Jikan, et on prend le max pour éviter les incohérences
-            const nbEpisodesReel = Math.max(nbEpisodes || 0, anime.episodes || 0);
-            db.prepare('UPDATE anime_saisons SET nb_episodes = ? WHERE id = ?').run(
-              nbEpisodesReel,
-              saisonId
-            );
-          } else {
-            const insertSaison = db.prepare(`
-              INSERT INTO anime_saisons (serie_id, numero_saison, titre, nb_episodes, annee, couverture_url)
-              VALUES (?, 1, ?, ?, ?, ?)
-            `);
-
-            // Priorité au XML, puis Jikan, et on prend le max pour éviter les incohérences
-            const nbEpisodesReel = Math.max(nbEpisodes || 0, anime.episodes || 0);
-            const saisonResult = insertSaison.run(
-              serieId,
-              'Saison 1',
-              nbEpisodesReel,
-              anime.year || anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null,
-              anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || ''
-            );
-
-            saisonId = saisonResult.lastInsertRowid;
-          }
-
-          // Marquer les épisodes vus
-          if (episodesVus > 0) {
-            for (let i = 1; i <= episodesVus; i++) {
-              db.prepare(`
-                INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
-                VALUES (?, ?, ?, 1, date('now'))
-              `).run(saisonId, currentUser, i);
+            const nbEpisodes = parseInt(entryXml.match(/<series_episodes>(\d+)<\/series_episodes>/)?.[1]) || 0;
+            const episodesVus = parseInt(entryXml.match(/<my_watched_episodes>(\d+)<\/my_watched_episodes>/)?.[1]) || 0;
+            
+            // Récupérer les infos de cette saison depuis Jikan
+            let saisonAnime = null;
+            let saisonRetries = 3;
+            
+            while (saisonRetries > 0) {
+              try {
+                const saisonResponse = await fetch(`https://api.jikan.moe/v4/anime/${entryMalId}`);
+                
+                if (saisonResponse.status === 429) {
+                  console.warn(`⚠️ Rate limit atteint pour saison ${entryMalId}, attente...`);
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                  saisonRetries--;
+                  continue;
+                }
+                
+                if (saisonResponse.ok) {
+                  const saisonData = await saisonResponse.json();
+                  saisonAnime = saisonData.data;
+                }
+                break;
+              } catch (error) {
+                console.error(`Erreur fetch Jikan pour saison ${entryMalId}:`, error.message);
+                saisonRetries--;
+                if (saisonRetries > 0) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+              }
             }
+            
+            const numeroSaison = saisonIndex + 1;
+            const existingSaison = db.prepare('SELECT id FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?').get(serieId, numeroSaison);
+            
+            let saisonId;
+            
+            if (existingSaison) {
+              saisonId = existingSaison.id;
+              
+              // Mettre à jour les infos de la saison
+              const nbEpisodesReel = Math.max(nbEpisodes || 0, saisonAnime?.episodes || 0);
+              db.prepare(`
+                UPDATE anime_saisons 
+                SET titre = ?, nb_episodes = ?, annee = ?, couverture_url = COALESCE(NULLIF(?, ''), couverture_url)
+                WHERE id = ?
+              `).run(
+                saisonAnime?.title || `Saison ${numeroSaison}`,
+                nbEpisodesReel,
+                saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
+                saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || '',
+                saisonId
+              );
+            } else {
+              // Créer la saison
+              const nbEpisodesReel = Math.max(nbEpisodes || 0, saisonAnime?.episodes || 0);
+              const saisonResult = db.prepare(`
+                INSERT INTO anime_saisons (serie_id, numero_saison, titre, nb_episodes, annee, couverture_url)
+                VALUES (?, ?, ?, ?, ?, ?)
+              `).run(
+                serieId,
+                numeroSaison,
+                saisonAnime?.title || `Saison ${numeroSaison}`,
+                nbEpisodesReel,
+                saisonAnime?.year || saisonAnime?.aired?.from ? new Date(saisonAnime.aired.from).getFullYear() : null,
+                saisonAnime?.images?.jpg?.large_image_url || saisonAnime?.images?.jpg?.image_url || ''
+              );
+              
+              saisonId = saisonResult.lastInsertRowid;
+            }
+            
+            // Marquer les épisodes vus pour cette saison
+            if (episodesVus > 0) {
+              for (let i = 1; i <= episodesVus; i++) {
+                db.prepare(`
+                  INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
+                  VALUES (?, ?, ?, 1, datetime('now'))
+                `).run(saisonId, currentUser, i);
+              }
+            }
+            
+            // Petit délai pour respecter les rate limits de Jikan
+            await new Promise(resolve => setTimeout(resolve, 333)); // 3 requêtes/seconde max
           }
 
           // Attendre un peu pour ne pas surcharger l'API Jikan (rate limit: 3 req/s max, on joue safe avec 500ms)
@@ -270,7 +354,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             phase: 'pause',
             currentBatch: batchIndex + 1,
             totalBatches: batches.length,
-            total: animeMatches.length,
+            total: totalSeries,
             imported: results.imported,
             updated: results.updated,
             errors: results.errors.length,
