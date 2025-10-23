@@ -7,7 +7,7 @@ import AnimeListItem from '../components/AnimeListItem';
 import CollectionView from '../components/CollectionView';
 import { AnimeFilters, AnimeSerie } from '../types';
 
-type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
+type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation' | 'images';
 
 export default function Animes() {
   const navigate = useNavigate();
