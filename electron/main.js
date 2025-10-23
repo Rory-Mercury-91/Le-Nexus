@@ -175,11 +175,15 @@ app.whenReady().then(async () => {
   // Enregistrer le protocole personnalisé
   registerMangaProtocol();
 
-  // Logs de démarrage
-
-
-
-
+  // Message de bienvenue
+  console.log('\n╔════════════════════════════════════════════════════╗');
+  console.log('║                                                    ║');
+  console.log('║        📚 Bienvenue dans Ma Mangathèque ! 📚       ║');
+  console.log('║                                                    ║');
+  console.log('║        Votre collection de mangas & animes         ║');
+  console.log('║           organisée avec passion ! ✨              ║');
+  console.log('║                                                    ║');
+  console.log('╚════════════════════════════════════════════════════╝\n');
 
 
   // Créer l'icône dans la zone de notification
