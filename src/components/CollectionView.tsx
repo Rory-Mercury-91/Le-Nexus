@@ -71,8 +71,45 @@ export default function CollectionView<T extends { id: number | string }>({
       carousel.scrollBy({ left: e.deltaY * 3, behavior: 'smooth' });
     };
 
+    // Effet 3D sur les cartes lors du scroll
+    const handleScroll3D = () => {
+      const cards = carousel.querySelectorAll('.carousel-card');
+      const containerRect = carousel.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+
+      cards.forEach((card) => {
+        const cardRect = card.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        
+        // Distance du centre du conteneur (-1 à gauche, 0 au centre, +1 à droite)
+        const distanceFromCenter = (cardCenter - containerCenter) / (containerRect.width / 2);
+        
+        // Calculer la rotation et l'échelle en fonction de la distance
+        const rotateY = distanceFromCenter * 25; // Rotation max ±25deg
+        const scale = 1 - Math.abs(distanceFromCenter) * 0.15; // Scale 0.85 à 1
+        const translateZ = -Math.abs(distanceFromCenter) * 50; // Profondeur
+        const opacity = 1 - Math.abs(distanceFromCenter) * 0.3; // Fade léger
+        
+        (card as HTMLElement).style.transform = `
+          perspective(1000px)
+          rotateY(${rotateY}deg)
+          scale(${Math.max(scale, 0.85)})
+          translateZ(${translateZ}px)
+        `;
+        (card as HTMLElement).style.opacity = `${Math.max(opacity, 0.7)}`;
+      });
+    };
+
     carousel.addEventListener('wheel', handleWheel, { passive: false });
-    return () => carousel.removeEventListener('wheel', handleWheel);
+    carousel.addEventListener('scroll', handleScroll3D);
+    
+    // Appliquer l'effet initial
+    handleScroll3D();
+    
+    return () => {
+      carousel.removeEventListener('wheel', handleWheel);
+      carousel.removeEventListener('scroll', handleScroll3D);
+    };
   }, [viewMode]);
 
   if (loading) {
@@ -244,15 +281,24 @@ export default function CollectionView<T extends { id: number | string }>({
               overflowY: 'hidden',
               padding: '8px 40px 24px 40px',
               scrollbarWidth: 'thin',
-              scrollbarColor: 'var(--primary) var(--surface)'
+              scrollbarColor: 'var(--primary) var(--surface)',
+              perspective: '1000px',
+              perspectiveOrigin: 'center center'
             }}
           >
             {items.map((item) => (
-              <div key={item.id} style={{
-                minWidth: '280px',
-                maxWidth: '280px',
-                flexShrink: 0
-              }}>
+              <div 
+                key={item.id} 
+                className="carousel-card"
+                style={{
+                  minWidth: '280px',
+                  maxWidth: '280px',
+                  flexShrink: 0,
+                  transformStyle: 'preserve-3d',
+                  transition: 'transform 0.3s ease, opacity 0.3s ease',
+                  willChange: 'transform, opacity'
+                }}
+              >
                 {renderCard(item, onUpdate)}
               </div>
             ))}
