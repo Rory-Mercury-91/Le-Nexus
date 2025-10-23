@@ -1,7 +1,8 @@
-import { Loader2, Search, Upload, X } from 'lucide-react';
+import { Languages, Loader2, Search, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AnimeSearchResult } from '../types';
 import CoverImage from './CoverImage';
+import { useToast } from '../hooks/useToast';
 
 interface AddAnimeModalProps {
   onClose: () => void;
@@ -14,6 +15,8 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const { showToast, ToastContainer } = useToast();
 
   const [formData, setFormData] = useState({
     titre: '',
@@ -177,6 +180,29 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     if (s === 'not_yet_released' || s === 'upcoming') return 'À venir';
     if (s === 'cancelled') return 'Annulé';
     return statut;
+  };
+
+  const handleTranslateSynopsis = async () => {
+    if (!formData.synopsis || formData.synopsis.length < 10) {
+      showToast('Synopsis trop court pour être traduit', 'error');
+      return;
+    }
+
+    setTranslating(true);
+    try {
+      const result = await window.electronAPI.translateText(formData.synopsis, 'fr');
+      if (result.success && result.text) {
+        setFormData({ ...formData, synopsis: result.text });
+        showToast('Synopsis traduit avec succès', 'success');
+      } else {
+        showToast(`Erreur de traduction: ${result.error || 'Clé API manquante'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Erreur traduction synopsis:', error);
+      showToast('Erreur lors de la traduction', 'error');
+    } finally {
+      setTranslating(false);
+    }
   };
 
   return (
@@ -598,6 +624,36 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
                     placeholder="Description de l'anime..."
                     style={{ resize: 'vertical' }}
                   />
+                  <button
+                    type="button"
+                    onClick={handleTranslateSynopsis}
+                    disabled={!formData.synopsis || formData.synopsis.length < 10 || translating || saving}
+                    className="btn"
+                    style={{
+                      marginTop: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      padding: '8px 12px',
+                      background: translating ? 'var(--surface)' : 'rgba(99, 102, 241, 0.1)',
+                      color: translating ? 'var(--text-secondary)' : 'var(--primary)',
+                      border: '1px solid',
+                      borderColor: translating ? 'var(--border)' : 'var(--primary)'
+                    }}
+                  >
+                    {translating ? (
+                      <>
+                        <Loader2 size={16} className="spin" />
+                        Traduction en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Languages size={16} />
+                        Traduire en français
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -628,6 +684,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
           </div>
         </form>
       </div>
+      <ToastContainer />
     </div>
   );
 }

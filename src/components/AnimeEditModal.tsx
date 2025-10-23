@@ -1,7 +1,8 @@
-import { Plus, Trash2, Upload, X } from 'lucide-react';
+import { Languages, Loader2, Plus, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AnimeSerie } from '../types';
 import CoverImage from './CoverImage';
+import { useToast } from '../hooks/useToast';
 
 interface AnimeSaison {
   id?: number;
@@ -29,6 +30,8 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
   const [studios, setStudios] = useState(anime.studios || '');
   const [saisons, setSaisons] = useState<AnimeSaison[]>([]);
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const { showToast, ToastContainer } = useToast();
 
   // Fermer le modal avec la touche Échap
   useEffect(() => {
@@ -121,6 +124,29 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
     } catch (error) {
       console.error('Erreur lors de la modification de l\'anime:', error);
       setSaving(false);
+    }
+  };
+
+  const handleTranslateDescription = async () => {
+    if (!description || description.length < 10) {
+      showToast('Description trop courte pour être traduite', 'error');
+      return;
+    }
+
+    setTranslating(true);
+    try {
+      const result = await window.electronAPI.translateText(description, 'fr');
+      if (result.success && result.text) {
+        setDescription(result.text);
+        showToast('Description traduite avec succès', 'success');
+      } else {
+        showToast(`Erreur de traduction: ${result.error || 'Clé API manquante'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Erreur traduction description:', error);
+      showToast('Erreur lors de la traduction', 'error');
+    } finally {
+      setTranslating(false);
     }
   };
 
@@ -306,6 +332,36 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                   rows={3}
                   style={{ resize: 'vertical', minHeight: '80px' }}
                 />
+                <button
+                  type="button"
+                  onClick={handleTranslateDescription}
+                  disabled={!description || description.length < 10 || translating || saving}
+                  className="btn"
+                  style={{
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '8px 12px',
+                    background: translating ? 'var(--surface)' : 'rgba(99, 102, 241, 0.1)',
+                    color: translating ? 'var(--text-secondary)' : 'var(--primary)',
+                    border: '1px solid',
+                    borderColor: translating ? 'var(--border)' : 'var(--primary)'
+                  }}
+                >
+                  {translating ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Traduction en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Languages size={16} />
+                      Traduire en français
+                    </>
+                  )}
+                </button>
               </div>
 
               <div style={{ marginBottom: '20px' }}>
@@ -478,6 +534,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
           </div>
         </form>
       </div>
+      <ToastContainer />
     </div>
   );
 }
