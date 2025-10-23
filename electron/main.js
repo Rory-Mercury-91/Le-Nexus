@@ -309,8 +309,20 @@ app.whenReady().then(async () => {
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
-    const paths = pathManager?.getPaths();
-    if (paths) db = initDatabase(paths.database);
+    // Recharger le baseDirectory depuis le store
+    const newBaseDirectory = store.get('baseDirectory');
+    if (newBaseDirectory) {
+      console.log('🔄 Recréation du PathManager avec le nouveau baseDirectory:', newBaseDirectory);
+      pathManager = new PathManager(newBaseDirectory);
+      pathManager.initializeStructure();
+      
+      const paths = pathManager.getPaths();
+      if (db) {
+        db.close(); // Fermer l'ancienne connexion
+      }
+      db = initDatabase(paths.database);
+      console.log('✅ PathManager et base de données réinitialisés !');
+    }
   }, app);
   registerSearchHandlers(ipcMain, shell);
   registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager);

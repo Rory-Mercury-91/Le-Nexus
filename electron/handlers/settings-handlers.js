@@ -89,6 +89,11 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       if (result.success) {
         // Sauvegarder le nouveau chemin
         store.set('baseDirectory', newBasePath);
+        
+        // Réinitialiser la base de données vers le nouvel emplacement
+        console.log('🔄 Réinitialisation de la base de données vers le nouvel emplacement...');
+        reloadDb();
+        console.log('✅ Base de données réinitialisée avec succès !');
       }
       return result;
     } catch (error) {
