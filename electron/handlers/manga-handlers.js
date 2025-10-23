@@ -91,19 +91,25 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       let seriesWithTags = series.map(serie => {
         let effectiveTag = serie.manual_tag || null;
         
-        // Si pas de tag manuel (a_lire ou abandonne), calculer automatiquement
-        if (!serie.manual_tag || serie.manual_tag === null) {
-          if (currentUser && serie.tome_count > 0) {
-            // Compter les tomes lus pour cette série par l'utilisateur
-            const tomesLus = db.prepare(`
-              SELECT COUNT(*) as count 
-              FROM lecture_tomes lt
-              JOIN tomes t ON lt.tome_id = t.id
-              WHERE t.serie_id = ? AND lt.utilisateur = ? AND lt.lu = 1
-            `).get(serie.id, currentUser);
-            
-            const nbTomesLus = tomesLus ? tomesLus.count : 0;
-            
+        // Récupérer les tomes avec leur statut de lecture pour l'utilisateur actuel
+        let tomesWithLecture = [];
+        if (currentUser && serie.tome_count > 0) {
+          tomesWithLecture = db.prepare(`
+            SELECT 
+              t.id,
+              t.numero,
+              CASE WHEN lt.lu = 1 THEN 1 ELSE 0 END as lu
+            FROM tomes t
+            LEFT JOIN lecture_tomes lt ON t.id = lt.tome_id AND lt.utilisateur = ?
+            WHERE t.serie_id = ?
+            ORDER BY t.numero ASC
+          `).all(currentUser, serie.id);
+          
+          // Calculer automatiquement les tags en_cours et lu
+          const nbTomesLus = tomesWithLecture.filter(t => t.lu === 1).length;
+          
+          // Si pas de tag manuel (a_lire ou abandonne), calculer automatiquement
+          if (!serie.manual_tag || serie.manual_tag === null) {
             if (nbTomesLus === serie.tome_count && nbTomesLus > 0) {
               effectiveTag = 'lu';
             } else if (nbTomesLus > 0) {
@@ -114,7 +120,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         
         return {
           ...serie,
-          tomes: new Array(serie.tome_count).fill(null),
+          tomes: tomesWithLecture,
           tag: effectiveTag,
           is_favorite: serie.is_favorite ? true : false
         };
