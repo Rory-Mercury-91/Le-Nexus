@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Route, Routes } from 'react-router-dom';
 import ImportingOverlay from './components/ImportingOverlay';
 import Layout from './components/Layout';
 import OnboardingWizard from './components/OnboardingWizard';
@@ -121,7 +121,7 @@ function App() {
   // Étape 4: Application principale
   return (
     <>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Layout currentUser={currentUser}>
           <Routes>
             <Route path="/" element={<Dashboard key={refreshTrigger} />} />
@@ -132,7 +132,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>
-      </BrowserRouter>
+      </HashRouter>
       
       {isImporting && <ImportingOverlay message={importMessage} />}
     </>
