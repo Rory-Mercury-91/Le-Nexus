@@ -14,6 +14,7 @@ interface UserData {
 
 export default function Settings() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [autoLaunch, setAutoLaunch] = useState(false);
   const [baseDirectory, setBaseDirectory] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -42,6 +43,7 @@ export default function Settings() {
   useEffect(() => {
     loadSettings();
     loadTheme();
+    loadAutoLaunch();
     
     // Écouter les mises à jour de progression de l'import
     const unsubscribe = window.electronAPI.onAnimeImportProgress((progress) => {
@@ -61,6 +63,15 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Erreur chargement thème:', error);
+    }
+  };
+
+  const loadAutoLaunch = async () => {
+    try {
+      const enabled = await window.electronAPI.getAutoLaunch();
+      setAutoLaunch(enabled);
+    } catch (error) {
+      console.error('Erreur chargement auto-launch:', error);
     }
   };
 
@@ -91,6 +102,30 @@ export default function Settings() {
     applyTheme(newTheme);
     // Auto-save
     await window.electronAPI.setTheme(newTheme);
+  };
+
+  const handleAutoLaunchChange = async (enabled: boolean) => {
+    try {
+      const result = await window.electronAPI.setAutoLaunch(enabled);
+      if (result.success) {
+        setAutoLaunch(enabled);
+        if (result.message) {
+          showToast(result.message, 'info');
+        } else {
+          showToast(
+            enabled 
+              ? 'Démarrage automatique activé' 
+              : 'Démarrage automatique désactivé',
+            'success'
+          );
+        }
+      } else {
+        showToast(result.error || 'Erreur lors de la modification', 'error');
+      }
+    } catch (error) {
+      console.error('Erreur auto-launch:', error);
+      showToast('Erreur lors de la modification', 'error');
+    }
   };
 
   const handleCreateUser = async () => {
@@ -572,6 +607,56 @@ export default function Settings() {
           }}>
             💡 Le thème est automatiquement sauvegardé
           </p>
+
+          {/* Démarrage automatique */}
+          <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer',
+              padding: '16px',
+              background: 'var(--surface)',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }}
+            >
+              <input
+                type="checkbox"
+                checked={autoLaunch}
+                onChange={(e) => handleAutoLaunchChange(e.target.checked)}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                  Lancer au démarrage
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Démarrer automatiquement Ma Mangathèque avec Windows
+                </div>
+              </div>
+            </label>
+            <p style={{
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              marginTop: '8px',
+              fontStyle: 'italic'
+            }}>
+              ℹ️ Désactivé en mode développement
+            </p>
+          </div>
           </div>
         </div>
 

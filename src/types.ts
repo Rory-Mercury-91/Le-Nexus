@@ -265,6 +265,8 @@ declare global {
       getCurrentUser: () => Promise<string>;
       getTheme: () => Promise<string>;
       setTheme: (theme: string) => Promise<{ success: boolean }>;
+      getAutoLaunch: () => Promise<boolean>;
+      setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;

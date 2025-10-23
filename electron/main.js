@@ -276,7 +276,7 @@ app.whenReady().then(async () => {
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     const paths = pathManager?.getPaths();
     if (paths) db = initDatabase(paths.database);
-  });
+  }, app);
   registerSearchHandlers(ipcMain, shell);
   registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager);
   

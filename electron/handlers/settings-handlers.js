@@ -12,8 +12,9 @@ const { downloadCover, uploadCustomCover, saveCoverFromPath } = require('../serv
  * @param {Store} store - Instance d'electron-store
  * @param {Function} getPathManager - Fonction pour récupérer le PathManager
  * @param {Function} initDatabase - Fonction pour réinitialiser la base de données
+ * @param {App} app - Module app d'Electron
  */
-function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, initDatabase) {
+function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, initDatabase, app) {
   
   // Fonction helper pour récupérer les chemins de manière lazy
   const getPaths = () => {
@@ -580,6 +581,40 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     store.set('theme', theme);
 
     return { success: true };
+  });
+
+  // ========== DÉMARRAGE AUTOMATIQUE ==========
+  
+  // Récupérer l'état du démarrage automatique
+  ipcMain.handle('get-auto-launch', () => {
+    // En mode dev, toujours retourner false
+    if (!app.isPackaged) {
+      return false;
+    }
+    
+    const loginItemSettings = app.getLoginItemSettings();
+    return loginItemSettings.openAtLogin;
+  });
+
+  // Définir le démarrage automatique
+  ipcMain.handle('set-auto-launch', (event, enabled) => {
+    try {
+      // En mode dev, ignorer la demande
+      if (!app.isPackaged) {
+        return { success: true, message: 'Désactivé en mode développement' };
+      }
+
+      app.setLoginItemSettings({
+        openAtLogin: enabled,
+        openAsHidden: false, // Ne pas démarrer caché
+        args: [] // Pas d'arguments spéciaux
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur set-auto-launch:', error);
+      return { success: false, error: error.message };
+    }
   });
 }
 
