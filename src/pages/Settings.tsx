@@ -1009,14 +1009,24 @@ export default function Settings() {
               borderRadius: '8px',
               border: '1px solid var(--border)'
             }}>
+              {/* Informations lots */}
+              {animeImportProgress.currentBatch && animeImportProgress.totalBatches && (
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  📦 Lot {animeImportProgress.currentBatch}/{animeImportProgress.totalBatches}
+                </div>
+              )}
+              
+              {/* Progression globale */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '600' }}>
-                  {animeImportProgress.current} / {animeImportProgress.total}
+                  {animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated} / {animeImportProgress.total}
                 </span>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {Math.round((animeImportProgress.current / animeImportProgress.total) * 100)}%
+                  {Math.round(((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100)}%
                 </span>
               </div>
+              
+              {/* Barre de progression */}
               <div style={{
                 width: '100%',
                 height: '8px',
@@ -1027,13 +1037,32 @@ export default function Settings() {
                 <div style={{
                   height: '100%',
                   background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
-                  width: `${(animeImportProgress.current / animeImportProgress.total) * 100}%`,
+                  width: `${((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100}%`,
                   transition: 'width 0.3s ease'
                 }} />
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                {animeImportProgress.message}
-              </p>
+              
+              {/* Anime en cours */}
+              {animeImportProgress.currentAnime && (
+                <p style={{ fontSize: '13px', color: 'var(--primary)', marginTop: '12px', fontWeight: '500' }}>
+                  🎬 {animeImportProgress.currentAnime}
+                </p>
+              )}
+              
+              {/* Statistiques temps réel */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                fontSize: '12px', 
+                color: 'var(--text-secondary)', 
+                marginTop: '8px' 
+              }}>
+                <span>✅ {animeImportProgress.imported} importés</span>
+                <span>🔄 {animeImportProgress.updated} mis à jour</span>
+                {animeImportProgress.errors > 0 && (
+                  <span style={{ color: 'var(--error)' }}>⚠️ {animeImportProgress.errors} erreurs</span>
+                )}
+              </div>
             </div>
           )}
 
