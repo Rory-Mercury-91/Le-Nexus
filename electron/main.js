@@ -34,7 +34,14 @@ let importServer;
  * Crée l'icône dans la zone de notification (system tray)
  */
 function createTray() {
-  const iconPath = path.join(__dirname, '..', 'assets', 'icon.ico');
+  // En production, les assets sont dans app.asar.unpacked grâce à asarUnpack
+  const iconPath = isDev 
+    ? path.join(__dirname, '..', 'assets', 'icon.ico')
+    : path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'icon.ico');
+  
+  console.log('🖼️ Chemin icône tray:', iconPath);
+  console.log('🖼️ Existe?', fs.existsSync(iconPath));
+  
   tray = new Tray(iconPath);
 
   const contextMenu = Menu.buildFromTemplate([
@@ -87,6 +94,10 @@ function createWindow() {
     isFullScreen: false
   });
 
+  const windowIconPath = isDev 
+    ? path.join(__dirname, '..', 'assets', 'icon.ico')
+    : path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'icon.ico');
+
   mainWindow = new BrowserWindow({
     width: windowState.width,
     height: windowState.height,
@@ -94,13 +105,14 @@ function createWindow() {
     y: windowState.y,
     minWidth: 1200,
     minHeight: 700,
+    show: false, // Cacher d'abord pour éviter le flash
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '..', 'assets', 'icon.ico')
+    icon: windowIconPath
   });
 
   // Restaurer l'état maximisé/plein écran
@@ -188,15 +200,32 @@ function createWindow() {
     }
   });
 
+  // Charger l'application
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+    console.log('📂 Chemin index.html:', indexPath);
+    console.log('📂 Existe?', fs.existsSync(indexPath));
+    
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('❌ Erreur chargement index.html:', err);
+    });
   }
+
+  // Logs de débogage pour le chargement
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Échec chargement page:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('✅ Page chargée avec succès');
+  });
 
   // S'assurer que la fenêtre est visible au démarrage
   mainWindow.once('ready-to-show', () => {
+    console.log('👁️ ready-to-show déclenché');
     mainWindow.show();
     mainWindow.focus();
   });

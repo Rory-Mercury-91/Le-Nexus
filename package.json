@@ -18,7 +18,11 @@
       "dist/**/*",
       "electron/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      "assets/**/*"
+    ],
+    "asarUnpack": [
+      "assets/**/*"
     ],
     "directories": {
       "buildResources": "assets"
