@@ -77,10 +77,11 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         // Utiliser series_adk_id comme clé de groupe si disponible
         // Sinon, extraire le titre de base pour grouper les saisons ensemble
         const groupKey = adkId || extractBaseTitre(titre);
+        const titreBase = extractBaseTitre(titre); // Toujours extraire le titre pour l'affichage
         
         if (!groupedAnimes.has(groupKey)) {
           groupedAnimes.set(groupKey, {
-            titre: groupKey, // Utiliser le titre de base pour le groupe
+            titre: titreBase, // Utiliser le titre de base extrait (jamais l'ID)
             adkId: adkId,
             entries: []
           });
@@ -208,13 +209,16 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           const jikanData = await response.json();
           const anime = jikanData.data;
           
-          // Récupérer la cover HD depuis AniList (en parallèle, ne pas bloquer)
-          const anilistCover = await fetchAniListCover(malId);
+          // Récupérer la cover HD depuis AniList
+          const anilistCover = await fetchAniListCover(malId, titreBase);
           const coverUrl = anilistCover?.coverImage?.extraLarge || 
                           anilistCover?.coverImage?.large || 
                           anime.images?.jpg?.large_image_url || 
                           anime.images?.jpg?.image_url || 
                           '';
+          
+          // Délai pour respecter le rate limit d'AniList (~90 req/min)
+          await new Promise(resolve => setTimeout(resolve, 800));
           
           // Traduire le synopsis avec Groq AI si disponible
           let description = anime.synopsis || '';
@@ -339,12 +343,15 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             }
             
             // Récupérer la cover HD depuis AniList pour cette saison
-            const saisonAnilistCover = await fetchAniListCover(entryMalId);
+            const saisonAnilistCover = await fetchAniListCover(entryMalId, entryTitre);
             const saisonCoverUrl = saisonAnilistCover?.coverImage?.extraLarge || 
                                    saisonAnilistCover?.coverImage?.large || 
                                    saisonAnime?.images?.jpg?.large_image_url || 
                                    saisonAnime?.images?.jpg?.image_url || 
                                    '';
+            
+            // Délai pour respecter le rate limit d'AniList (~90 req/min)
+            await new Promise(resolve => setTimeout(resolve, 800));
             
             const numeroSaison = saisonIndex + 1;
             const existingSaison = db.prepare('SELECT id FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?').get(serieId, numeroSaison);

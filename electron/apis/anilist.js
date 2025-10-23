@@ -3,9 +3,10 @@ const fetch = require('node-fetch');
 /**
  * Récupère les informations de couverture depuis AniList via leur API GraphQL
  * @param {number} malId - L'ID MyAnimeList de l'anime
+ * @param {string} [titre] - Le titre de l'anime (optionnel, pour les logs)
  * @returns {Promise<{ coverImage: { extraLarge: string, large: string } | null }>}
  */
-async function fetchAniListCover(malId) {
+async function fetchAniListCover(malId, titre = null) {
   try {
     const query = `
       query ($malId: Int) {
@@ -36,14 +37,16 @@ async function fetchAniListCover(malId) {
     });
 
     if (!response.ok) {
-      console.warn(`⚠️ AniList API erreur HTTP ${response.status} pour MAL ID ${malId}`);
+      const identifier = titre ? `"${titre}" (MAL ID: ${malId})` : `MAL ID ${malId}`;
+      console.warn(`⚠️ AniList API erreur HTTP ${response.status} pour ${identifier}`);
       return { coverImage: null };
     }
 
     const data = await response.json();
 
     if (data.errors) {
-      console.warn(`⚠️ AniList GraphQL erreur pour MAL ID ${malId}:`, data.errors[0]?.message);
+      const identifier = titre ? `"${titre}" (MAL ID: ${malId})` : `MAL ID ${malId}`;
+      console.warn(`⚠️ AniList GraphQL erreur pour ${identifier}:`, data.errors[0]?.message);
       return { coverImage: null };
     }
 
@@ -55,7 +58,8 @@ async function fetchAniListCover(malId) {
       coverImage: data.data.Media.coverImage
     };
   } catch (error) {
-    console.error(`❌ Erreur fetchAniListCover pour MAL ID ${malId}:`, error.message);
+    const identifier = titre ? `"${titre}" (MAL ID: ${malId})` : `MAL ID ${malId}`;
+    console.error(`❌ Erreur fetchAniListCover pour ${identifier}:`, error.message);
     return { coverImage: null };
   }
 }
