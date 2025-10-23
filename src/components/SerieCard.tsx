@@ -57,7 +57,12 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     if (!currentUser) return;
     
     try {
-      await window.electronAPI.setSerieTag(serie.id, currentUser.id, tag);
+      // Si le tag cliqué est déjà actif, on le retire
+      if (serie.tag === tag) {
+        await window.electronAPI.removeSerieTag(serie.id, currentUser.id);
+      } else {
+        await window.electronAPI.setSerieTag(serie.id, currentUser.id, tag);
+      }
       setShowTagDropdown(false);
       onUpdate();
     } catch (error) {
@@ -65,20 +70,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     }
   };
 
-  const handleRemoveTag = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!currentUser) return;
-    
-    try {
-      await window.electronAPI.removeSerieTag(serie.id, currentUser.id);
-      setShowTagDropdown(false);
-      onUpdate();
-    } catch (error) {
-      console.error('Erreur lors de la suppression du tag:', error);
-    }
-  };
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -433,35 +424,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
               {isMasquee ? <Eye size={16} /> : <EyeOff size={16} />}
               {isMasquee ? 'Démasquer' : 'Masquer'}
             </button>
-            
-            {serie.tag && MANUAL_TAGS.includes(serie.tag) && (
-              <>
-                <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
-                <button
-                  onClick={handleRemoveTag}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    textAlign: 'left',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--surface-light)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  Retirer le tag
-                </button>
-              </>
-            )}
           </div>
         )}
 
@@ -731,35 +693,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
               {isMasquee ? <Eye size={16} /> : <EyeOff size={16} />}
               {isMasquee ? 'Démasquer' : 'Masquer'}
             </button>
-            
-            {serie.tag && MANUAL_TAGS.includes(serie.tag) && (
-              <>
-                <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
-                <button
-                  onClick={handleRemoveTag}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    textAlign: 'left',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--surface-light)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  Retirer le tag
-                </button>
-              </>
-            )}
           </div>
         )}
 
