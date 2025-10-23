@@ -1,7 +1,8 @@
 import { Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Tome } from '../types';
+import { Tome, User } from '../types';
 import CoverImage from './CoverImage';
+import MultiSelectDropdown from './MultiSelectDropdown';
 
 interface AddTomeModalProps {
   serieId: number;
@@ -14,19 +15,34 @@ interface AddTomeModalProps {
 export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, onSuccess }: AddTomeModalProps) {
   const [numero, setNumero] = useState('');
   const [prix, setPrix] = useState('');
-  const [proprietaire, setProprietaire] = useState<'Céline' | 'Sébastien' | 'Alexandre' | 'Commun'>('Céline');
+  const [proprietaireIds, setProprietaireIds] = useState<number[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [dateSortie, setDateSortie] = useState('');
   const [dateAchat, setDateAchat] = useState('');
   const [couvertureUrl, setCouvertureUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
 
+  // Charger la liste des utilisateurs
+  useEffect(() => {
+    window.electronAPI.getAllUsers().then(allUsers => {
+      setUsers(allUsers);
+      // Sélectionner le premier utilisateur par défaut
+      if (allUsers.length > 0 && proprietaireIds.length === 0) {
+        setProprietaireIds([allUsers[0].id]);
+      }
+    });
+  }, []);
+
   // Pré-remplir avec les valeurs du dernier tome
   useEffect(() => {
     if (lastTome) {
       setNumero(String(lastTome.numero + 1)); // Incrémenter le numéro
       setPrix(String(lastTome.prix)); // Garder le même prix
-      setProprietaire(lastTome.proprietaire); // Garder le même propriétaire
+      // Garder les mêmes propriétaires
+      if (lastTome.proprietaireIds && lastTome.proprietaireIds.length > 0) {
+        setProprietaireIds(lastTome.proprietaireIds);
+      }
       setDateSortie(''); // Ne pas reprendre la date de sortie
       setDateAchat(lastTome.date_achat || ''); // Garder la même date d'achat
       setCouvertureUrl(''); // Ne pas reprendre la couverture
@@ -91,7 +107,7 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
         serie_id: serieId,
         numero: Number(numero),
         prix: Number(prix),
-        proprietaire,
+        proprietaireIds,
         date_sortie: dateSortie || null,
         date_achat: dateAchat || null,
         couverture_url: couvertureUrl || null
@@ -293,19 +309,24 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                  Propriétaire *
-                </label>
-                <select
-                  value={proprietaire}
-                  onChange={(e) => setProprietaire(e.target.value as any)}
-                  className="select"
-                >
-                  <option value="Céline">Céline</option>
-                  <option value="Sébastien">Sébastien</option>
-                  <option value="Alexandre">Alexandre</option>
-                  <option value="Commun">Commun (divisé par 3)</option>
-                </select>
+                <MultiSelectDropdown
+                  label="Propriétaire(s)"
+                  required
+                  options={users.map(u => ({ id: u.id, name: u.name, color: u.color }))}
+                  selectedIds={proprietaireIds}
+                  onChange={setProprietaireIds}
+                  placeholder="Sélectionnez un ou plusieurs propriétaires..."
+                />
+                {proprietaireIds.length > 1 && (
+                  <div style={{
+                    marginTop: '8px',
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic'
+                  }}>
+                    💡 Le coût sera automatiquement divisé par {proprietaireIds.length}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

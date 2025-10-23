@@ -19,10 +19,12 @@ Application de gestion de collection de mangas et animes développée avec Elect
 - Progression de visionnage
 
 ### 👥 Multi-utilisateurs
-- Gestion multi-propriétaires (configuration personnalisable)
+- **Onboarding au premier lancement** : Assistant guidé pour créer votre profil
+- **Gestion dynamique des utilisateurs** : Création, modification, suppression depuis les Paramètres
+- **Multi-propriétaires pour les tomes** : Partage de l'achat avec calcul automatique des coûts
+- **Profils personnalisés** : Avatar (image ou emoji) + couleur personnalisée
 - Données de lecture individuelles par utilisateur
 - Masquage de séries par utilisateur
-- Images de profil personnalisées
 
 ### 💰 Calculs automatiques
 - Calcul des coûts totaux
@@ -30,10 +32,19 @@ Application de gestion de collection de mangas et animes développée avec Elect
 - Propagation automatique du prix du tome 1 aux autres tomes
 
 ### 📊 Statistiques
-- Tableau de bord avec statistiques détaillées
+- **Tableau de bord épuré** avec KPIs visuels (Séries, Tomes, Investissement, Progression)
+- **Graphiques interactifs** : Évolution temporelle (achats/dépenses par mois), répartition par propriétaire
+- **Filtres avancés** : Par type de volume (Broché, Collector, Kindle, Webtoon, Light Novel, Scans...)
+- **Graphiques collapsibles** : Plier/déplier pour plus de clarté
 - Progression de lecture par série
 - Carousels pour séries/animes en cours
-- Filtres de visionnage pour les animes
+
+### 🎨 Interface utilisateur
+- **Mode sombre/clair** : Basculement depuis les Paramètres avec thème clair adapté
+- **Sidebar collapsible** : Réduire la barre latérale pour afficher uniquement les icônes
+- **Page Paramètres dédiée** : Interface complète avec auto-save (création/édition utilisateurs, thème, DB...)
+- **Animations fluides** : Transitions CSS pour un rendu professionnel
+- **Bordures dynamiques** : Couleur de l'avatar liée au profil utilisateur
 
 ### 🖼️ Gestion des images
 - Intégration avec MangaDex pour les couvertures
@@ -96,9 +107,35 @@ Le fichier .exe sera disponible dans le dossier `dist/`.
 
 ### Première utilisation
 
-1. **Sélection de l'utilisateur** : Choisir votre prénom parmi ceux configurés
-2. **Emplacement de stockage** : Sélectionner un dossier (de préférence synchronisé)
-3. **Image de profil** (optionnel) : Ajouter votre photo dans Paramètres
+Au premier lancement, un **assistant d'onboarding** vous guide en 4 étapes :
+
+1. **Bienvenue** : Présentation de l'application
+2. **Création de profil** : Nom, avatar (image ou emoji) et couleur personnalisée
+3. **Emplacement de la base de données** : Sélectionner un dossier (de préférence cloud synchronisé)
+4. **Récapitulatif** : Validation et finalisation
+
+L'application créera automatiquement la structure de dossiers et initialisera votre base de données.
+
+### Gestion des utilisateurs (Paramètres)
+
+Après l'onboarding, vous pouvez gérer les utilisateurs depuis **Paramètres** :
+- **Créer** de nouveaux utilisateurs (nom, avatar, couleur)
+- **Modifier** un profil existant
+- **Supprimer** un utilisateur (demande confirmation)
+- **Changer le thème** : Mode sombre ou clair
+
+### Types de volumes supportés
+
+L'application supporte **9 types de volumes** pour une indexation complète :
+- **Broché** (défaut pour imports automatiques)
+- **Broché Collector**
+- **Coffret**
+- **Kindle** (numérique)
+- **Webtoon** (numérique)
+- **Webtoon Physique**
+- **Light Novel**
+- **Scan Manga**
+- **Scan Webtoon**
 
 ### Structure des dossiers
 
@@ -107,11 +144,7 @@ L'application crée automatiquement :
 ```
 Ma mangathèque/
 ├── configs/
-│   ├── manga.db              ← Base fusionnée (toutes données)
-│   └── databases/
-│       ├── utilisateur1.db   ← Données de lecture Utilisateur 1
-│       ├── utilisateur2.db   ← Données de lecture Utilisateur 2
-│       └── utilisateur3.db   ← Données de lecture Utilisateur 3
+│   └── manga.db              ← Base de données principale
 ├── covers/
 │   └── series/
 │       ├── one-piece/
@@ -122,9 +155,9 @@ Ma mangathèque/
 │       │       └── ...
 │       └── ...
 └── profiles/
-    ├── utilisateur1.jpg      ← Image de profil
-    ├── utilisateur2.jpg
-    └── utilisateur3.jpg
+    ├── utilisateur1.jpg      ← Avatars personnalisés
+    ├── utilisateur2.png
+    └── ...
 ```
 
 ### Dossier de stockage partagé
@@ -233,29 +266,27 @@ Permet de masquer une série de votre vue sans la supprimer pour les autres util
 4. Suivi de la progression avec barre détaillée
 5. Les animes sont importés avec leurs métadonnées complètes
 
-## 🔄 Fusion automatique multi-utilisateurs
+## 🔄 Partage familial (Cloud)
 
 **Configuration recommandée :**
 
-**Étape 1 : Configuration initiale (une seule fois)**
-1. Créez un dossier partagé dans Proton Drive : `Ma mangathèque/`
-2. Tout le monde configure ce dossier dans les paramètres de l'application
+1. Créez un dossier partagé dans votre cloud : `Ma mangathèque/`
+   - Proton Drive, OneDrive, Google Drive, etc.
+2. **Chaque membre de la famille** configure ce dossier dans l'onboarding ou Paramètres
+3. **Chaque personne crée son profil** avec son propre nom et avatar
 
-**Fonctionnement automatique :**
-1. **Au démarrage**, l'application scanne le dossier
-2. **Détecte** les bases utilisateur (`utilisateur1.db`, `utilisateur2.db`, etc.)
-3. **Fusionne automatiquement** dans `manga.db`
-4. **Dédoublonne** les séries par titre
-5. **Conserve tous les tomes** avec leurs propriétaires respectifs
-6. **Charge les données de lecture** de l'utilisateur actuel
+**Fonctionnement :**
+- ✅ **Base de données unique** (`manga.db`) partagée entre tous
+- ✅ **Multi-propriétaires** : Plusieurs personnes peuvent posséder le même tome
+- ✅ **Données de lecture individuelles** : Chacun a ses propres marques "Lu/Non lu"
+- ✅ **Images synchronisées** automatiquement
+- ✅ **Vue complète** de toute la collection familiale
+- ✅ **Pas de doublons** : Même série = une seule entrée
+- ✅ **Ajout de tomes sans conflit** : Import automatique avec attribution au propriétaire actuel
 
-**Avantages :**
-- ✅ Chacun peut ajouter des mangas sans conflit
-- ✅ Fusion automatique au démarrage (aucune action manuelle)
-- ✅ Pas de doublons (même série = une seule entrée)
-- ✅ Images synchronisées automatiquement
-- ✅ Vue complète de toute la collection familiale
-- ✅ Données de lecture personnelles par utilisateur
+**Exemple d'usage :**
+- Utilisateur A importe "One Piece" tome 1 → Il en est propriétaire
+- Utilisateur B achète le tome 2 → Multi-sélection : A + B propriétaires, coût divisé automatiquement
 
 ## 🛡️ Gestion des données
 
@@ -286,7 +317,8 @@ Dans Paramètres → Zone dangereuse → **TOUT supprimer**
 - Couverture (automatique depuis MangaDex ou personnalisée)
 
 ### Tome
-- Numéro, prix, propriétaire, date d'achat
+- Numéro, prix, **multi-propriétaires** (partage possible), date d'achat
+- Type de volume (Broché, Collector, Kindle, Webtoon, Light Novel, Scan...)
 - Couverture (automatique depuis import ou personnalisée)
 - Lu/Non lu par utilisateur
 

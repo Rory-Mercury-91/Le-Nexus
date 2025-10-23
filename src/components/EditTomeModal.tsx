@@ -1,7 +1,8 @@
 import { Upload, X } from 'lucide-react';
-import { useState } from 'react';
-import { Tome } from '../types';
+import { useEffect, useState } from 'react';
+import { Tome, User } from '../types';
 import CoverImage from './CoverImage';
+import MultiSelectDropdown from './MultiSelectDropdown';
 
 interface EditTomeModalProps {
   tome: Tome;
@@ -13,12 +14,18 @@ interface EditTomeModalProps {
 export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: EditTomeModalProps) {
   const [numero, setNumero] = useState(tome.numero.toString());
   const [prix, setPrix] = useState(tome.prix.toString());
-  const [proprietaire, setProprietaire] = useState(tome.proprietaire);
+  const [proprietaireIds, setProprietaireIds] = useState<number[]>(tome.proprietaireIds || []);
+  const [users, setUsers] = useState<User[]>([]);
   const [dateSortie, setDateSortie] = useState(tome.date_sortie || '');
   const [dateAchat, setDateAchat] = useState(tome.date_achat || '');
   const [couvertureUrl, setCouvertureUrl] = useState(tome.couverture_url || '');
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+
+  // Charger la liste des utilisateurs
+  useEffect(() => {
+    window.electronAPI.getAllUsers().then(setUsers);
+  }, []);
 
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
@@ -77,7 +84,7 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
       await window.electronAPI.updateTome(tome.id, {
         numero: Number(numero),
         prix: Number(prix),
-        proprietaire,
+        proprietaireIds,
         date_sortie: dateSortie || null,
         date_achat: dateAchat || null,
         couverture_url: couvertureUrl || null
@@ -251,19 +258,24 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                  Propriétaire *
-                </label>
-                <select
-                  value={proprietaire}
-                  onChange={(e) => setProprietaire(e.target.value as any)}
-                  className="select"
-                >
-                  <option value="Céline">Céline</option>
-                  <option value="Sébastien">Sébastien</option>
-                  <option value="Alexandre">Alexandre</option>
-                  <option value="Commun">Commun (divisé par 3)</option>
-                </select>
+                <MultiSelectDropdown
+                  label="Propriétaire(s)"
+                  required
+                  options={users.map(u => ({ id: u.id, name: u.name, color: u.color }))}
+                  selectedIds={proprietaireIds}
+                  onChange={setProprietaireIds}
+                  placeholder="Sélectionnez un ou plusieurs propriétaires..."
+                />
+                {proprietaireIds.length > 1 && (
+                  <div style={{
+                    marginTop: '8px',
+                    fontSize: '13px',
+                    color: 'var(--text-secondary)',
+                    fontStyle: 'italic'
+                  }}>
+                    💡 Le coût sera automatiquement divisé par {proprietaireIds.length}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>

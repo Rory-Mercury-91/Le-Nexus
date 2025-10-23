@@ -20,32 +20,50 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         parStatut: {},
         nbSeries: 0,
         nbTomes: 0,
-        nbTomesParProprietaire: {
-          'Céline': 0,
-          'Sébastien': 0,
-          'Alexandre': 0,
-          'Commun': 0
-        }
+        nbTomesParProprietaire: {},
+        nbTomesParProprietaireParType: {}, // Nouveau : nombre de tomes par type par propriétaire
+        users: [] // Nouveau : liste des utilisateurs avec leurs couleurs
       };
 
-      // Calcul des totaux et nombre de tomes par propriétaire
-      const tomes = db.prepare('SELECT proprietaire, COUNT(*) as count, SUM(prix) as total FROM tomes GROUP BY proprietaire').all();
+      // Récupérer tous les utilisateurs
+      const users = db.prepare('SELECT id, name, color, emoji FROM users').all();
+      stats.users = users;
+
+      // Initialiser les totaux pour chaque utilisateur
+      users.forEach(user => {
+        stats.totaux[user.id] = 0;
+        stats.nbTomesParProprietaire[user.id] = 0;
+        stats.nbTomesParProprietaireParType[user.id] = {};
+      });
+
+      // Calcul dynamique des coûts et tomes par propriétaire
+      const tomes = db.prepare(`
+        SELECT t.id, t.prix, s.type_volume 
+        FROM tomes t
+        JOIN series s ON t.serie_id = s.id
+      `).all();
       
-      tomes.forEach(row => {
-        if (row.proprietaire === 'Commun') {
-          // Diviser le coût par 3 pour chaque personne
-          const montantParPersonne = row.total / 3;
-          stats.totaux['Céline'] = (stats.totaux['Céline'] || 0) + montantParPersonne;
-          stats.totaux['Sébastien'] = (stats.totaux['Sébastien'] || 0) + montantParPersonne;
-          stats.totaux['Alexandre'] = (stats.totaux['Alexandre'] || 0) + montantParPersonne;
-          stats.totaux['Commun'] = row.total;
+      tomes.forEach(tome => {
+        // Récupérer les propriétaires de ce tome
+        const proprietaires = db.prepare(`
+          SELECT user_id FROM tomes_proprietaires WHERE tome_id = ?
+        `).all(tome.id);
+
+        if (proprietaires.length > 0) {
+          // Diviser le coût entre tous les propriétaires
+          const coutParProprietaire = tome.prix / proprietaires.length;
           
-          // Les tomes communs sont comptés une seule fois dans "Commun"
-          stats.nbTomesParProprietaire['Commun'] = row.count;
-        } else {
-          // ✅ ADDITIONNER au lieu d'écraser pour ne pas perdre les tomes communs
-          stats.totaux[row.proprietaire] = (stats.totaux[row.proprietaire] || 0) + row.total;
-          stats.nbTomesParProprietaire[row.proprietaire] = stats.nbTomesParProprietaire[row.proprietaire] + row.count;
+          proprietaires.forEach(prop => {
+            stats.totaux[prop.user_id] = (stats.totaux[prop.user_id] || 0) + coutParProprietaire;
+            stats.nbTomesParProprietaire[prop.user_id] = (stats.nbTomesParProprietaire[prop.user_id] || 0) + 1;
+            
+            // Compter par type
+            const typeVolume = tome.type_volume || 'Broché';
+            if (!stats.nbTomesParProprietaireParType[prop.user_id][typeVolume]) {
+              stats.nbTomesParProprietaireParType[prop.user_id][typeVolume] = 0;
+            }
+            stats.nbTomesParProprietaireParType[prop.user_id][typeVolume]++;
+          });
         }
       });
 
@@ -192,6 +210,58 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       return { success: true };
     } catch (error) {
       console.error('Erreur toggle-tome-lu:', error);
+      throw error;
+    }
+  });
+
+  // Obtenir les données d'évolution temporelle
+  ipcMain.handle('get-evolution-statistics', () => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      // Récupérer tous les tomes avec leur date d'achat
+      const tomes = db.prepare(`
+        SELECT t.id, t.prix, t.date_achat, s.type_volume
+        FROM tomes t
+        JOIN series s ON t.serie_id = s.id
+        WHERE t.date_achat IS NOT NULL
+        ORDER BY t.date_achat ASC
+      `).all();
+
+      // Grouper par mois
+      const parMois = {};
+      const parAnnee = {};
+
+      tomes.forEach(tome => {
+        const date = new Date(tome.date_achat);
+        const mois = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const annee = date.getFullYear().toString();
+
+        // Par mois
+        if (!parMois[mois]) {
+          parMois[mois] = { count: 0, total: 0 };
+        }
+        parMois[mois].count++;
+        parMois[mois].total += tome.prix;
+
+        // Par année
+        if (!parAnnee[annee]) {
+          parAnnee[annee] = { count: 0, total: 0 };
+        }
+        parAnnee[annee].count++;
+        parAnnee[annee].total += tome.prix;
+      });
+
+      return {
+        parMois,
+        parAnnee,
+        totalTomes: tomes.length
+      };
+    } catch (error) {
+      console.error('Erreur get-evolution-statistics:', error);
       throw error;
     }
   });

@@ -15,6 +15,7 @@ const { registerAnimeHandlers } = require('./handlers/anime-handlers');
 const { registerStatisticsHandlers } = require('./handlers/statistics-handlers');
 const { registerSettingsHandlers } = require('./handlers/settings-handlers');
 const { registerSearchHandlers } = require('./handlers/search-handlers');
+const { registerUserHandlers } = require('./handlers/user-handlers');
 
 // Configuration
 const store = new Store();
@@ -123,32 +124,8 @@ function createWindow() {
 }
 
 /**
- * Demande à l'utilisateur de choisir l'emplacement de Ma Mangathèque
- */
-async function selectBaseDirectory() {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: '📁 Sélectionner l\'emplacement de Ma Mangathèque',
-    properties: ['openDirectory', 'createDirectory'],
-    buttonLabel: 'Choisir ce dossier',
-    message: 'Tous vos fichiers (base de données, images, profils) seront stockés ici.\nIdéal pour Proton Drive, OneDrive, Google Drive, etc.'
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    const selectedPath = result.filePaths[0];
-    store.set('baseDirectory', selectedPath);
-    console.log(`📁 Emplacement configuré: ${selectedPath}`);
-    return selectedPath;
-  }
-
-  // Si annulé, utiliser le chemin par défaut
-  const defaultPath = path.join(userDataPath, 'Ma Mangatheque');
-  store.set('baseDirectory', defaultPath);
-  console.log(`📁 Utilisation de l'emplacement par défaut: ${defaultPath}`);
-  return defaultPath;
-}
-
-/**
- * Récupère ou demande le dossier racine de l'application
+ * Récupère ou crée automatiquement le dossier racine de l'application
+ * Ne demande JAMAIS à l'utilisateur - utilise le chemin par défaut
  */
 async function getBaseDirectory() {
   let storedPath = store.get('baseDirectory');
@@ -162,9 +139,12 @@ async function getBaseDirectory() {
     }
   }
 
-  // Première configuration ou structure invalide : demander l'emplacement
-  console.log('🔧 Configuration initiale de Ma Mangathèque...');
-  return await selectBaseDirectory();
+  // Premier lancement : utiliser automatiquement le chemin par défaut
+  // L'utilisateur choisira l'emplacement définitif dans l'OnboardingWizard
+  const defaultPath = path.join(userDataPath, 'Ma Mangatheque');
+  store.set('baseDirectory', defaultPath);
+  console.log(`📁 Création automatique dans l'emplacement par défaut: ${defaultPath}`);
+  return defaultPath;
 }
 
 /**
@@ -221,6 +201,7 @@ app.whenReady().then(async () => {
     if (paths) db = initDatabase(paths.database);
   });
   registerSearchHandlers(ipcMain, shell);
+  registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager);
   
   console.log('✅ Handlers IPC enregistrés');
 

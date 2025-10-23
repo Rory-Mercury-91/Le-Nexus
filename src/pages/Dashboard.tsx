@@ -1,21 +1,31 @@
-import { BookOpen, Home, Package, RefreshCw, Tv } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Home, Package, RefreshCw, Tv } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import CoverImage from '../components/CoverImage';
-import { AnimeSerie, LectureStatistics, Statistics } from '../types';
+import { AnimeSerie, EvolutionStatistics, LectureStatistics, Statistics } from '../types';
 
 // Schéma de couleurs cohérent
 const COLORS = {
   series: '#f97316',      // Orange pour Séries
-  tomes: '#d946ef',       // Magenta pour Tomes
-  alexandre: '#3b82f6',   // Bleu pour Alexandre
-  celine: '#eab308',      // Jaune pour Céline
-  sebastien: '#22c55e',   // Vert pour Sébastien
-  commun: '#94a3b8'       // Gris pour Commun
+  tomes: '#d946ef'        // Magenta pour Tomes
 };
 
-const CHART_COLORS = ['#f97316', '#d946ef', '#22c55e', '#eab308'];
+const CHART_COLORS = ['#f97316', '#d946ef', '#22c55e', '#eab308', '#3b82f6', '#a855f7', '#ec4899', '#f43f5e'];
+
+// Liste des types de volumes
+const TYPES_VOLUME = [
+  'Tous les tomes',
+  'Broché',
+  'Broché Collector',
+  'Coffret',
+  'Kindle',
+  'Webtoon',
+  'Webtoon Physique',
+  'Light Novel',
+  'Scan Manga',
+  'Scan Webtoon'
+];
 
 export default function Dashboard() {
   const location = useLocation();
@@ -24,6 +34,11 @@ export default function Dashboard() {
   const [animes, setAnimes] = useState<AnimeSerie[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filtreType, setFiltreType] = useState<string>('Tous les tomes'); // Filtre pour le graphique
+  const [evolutionStats, setEvolutionStats] = useState<EvolutionStatistics | null>(null);
+  const [periodeEvolution, setPeriodeEvolution] = useState<'mois' | 'annee'>('mois'); // Par mois ou par année
+  const [showEvolution, setShowEvolution] = useState(false); // Afficher/masquer graphique évolution
+  const [showRepartition, setShowRepartition] = useState(false); // Afficher/masquer graphique répartition
 
   useEffect(() => {
     loadStats();
@@ -34,9 +49,11 @@ export default function Dashboard() {
     const data = await window.electronAPI.getStatistics();
     const lectureData = await window.electronAPI.getLectureStatistics();
     const animesData = await window.electronAPI.getAnimeSeries({});
+    const evolutionData = await window.electronAPI.getEvolutionStatistics();
     setStats(data);
     setLectureStats(lectureData);
     setAnimes(animesData);
+    setEvolutionStats(evolutionData);
     setLoading(false);
   };
 
@@ -57,13 +74,18 @@ export default function Dashboard() {
 
   if (!stats) return null;
 
-  const coutTotal = (stats.totaux['Céline'] || 0) + (stats.totaux['Sébastien'] || 0) + (stats.totaux['Alexandre'] || 0);
+  // Vérification de sécurité : si users n'existe pas, initialiser un tableau vide
+  const users = stats.users || [];
 
-  const dataProprietaires = [
-    { name: 'Céline', value: stats.totaux['Céline'] || 0 },
-    { name: 'Sébastien', value: stats.totaux['Sébastien'] || 0 },
-    { name: 'Alexandre', value: stats.totaux['Alexandre'] || 0 }
-  ];
+  // Calculer le coût total dynamiquement
+  const coutTotal = users.reduce((sum, user) => sum + (stats.totaux[user.id] || 0), 0);
+
+  // Préparer les données pour le graphique des propriétaires
+  const dataProprietaires = users.map(user => ({
+    name: user.name,
+    value: stats.totaux[user.id] || 0,
+    color: user.color
+  })).filter(item => item.value > 0);
 
   const dataTypes = Object.entries(stats.parType).map(([name, data]) => ({
     name,
@@ -400,220 +422,333 @@ export default function Dashboard() {
         })()}
         </div>
 
-        {/* Cartes Séries et Tomes avec graphiques */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(400px, 100%), 1fr))', gap: '24px', marginBottom: '32px' }}>
-          {/* Carte Séries */}
-          <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BookOpen size={18} style={{ color: COLORS.series }} />
-              Séries par statut
-            </h3>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <div style={{
-                fontSize: '48px',
-                fontWeight: '700',
-                color: COLORS.series
-              }}>
-                {stats.nbSeries}
-              </div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>série{stats.nbSeries > 1 ? 's' : ''}</span>
+        {/* KPIs - Vue d'ensemble rapide */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '16px', marginBottom: '32px' }}>
+          <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
+            <BookOpen size={24} style={{ color: COLORS.series, margin: '0 auto 8px' }} />
+            <div style={{ fontSize: '32px', fontWeight: '700', color: COLORS.series, marginBottom: '4px' }}>
+              {stats.nbSeries}
             </div>
-            
-            {/* Graphique */}
-            {dataStatuts.length > 0 && (
-              <div style={{ marginTop: '16px' }}>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={dataStatuts}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => entry.name}
-                      outerRadius={70}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {dataStatuts.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--surface-light)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '8px',
-                        color: 'var(--text)'
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              Série{stats.nbSeries > 1 ? 's' : ''}
+            </div>
           </div>
 
-          {/* Carte Tomes */}
-          <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Package size={18} style={{ color: COLORS.tomes }} />
-              Tomes par type
-            </h3>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <div style={{
-                fontSize: '48px',
-                fontWeight: '700',
-                color: COLORS.tomes
-              }}>
-                {stats.nbTomes}
-              </div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>tome{stats.nbTomes > 1 ? 's' : ''}</span>
+          <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
+            <Package size={24} style={{ color: COLORS.tomes, margin: '0 auto 8px' }} />
+            <div style={{ fontSize: '32px', fontWeight: '700', color: COLORS.tomes, marginBottom: '4px' }}>
+              {stats.nbTomes}
             </div>
-            
-            {/* Graphique */}
-            {dataTypes.length > 0 && (
-              <div style={{ marginTop: '16px' }}>
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={dataTypes}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="name" stroke="var(--text-secondary)" style={{ fontSize: '11px' }} />
-                    <YAxis stroke="var(--text-secondary)" style={{ fontSize: '11px' }} />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--surface-light)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '8px',
-                        color: 'var(--text)'
-                      }}
-                    />
-                    <Bar dataKey="tomes" fill={COLORS.tomes} radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              Tome{stats.nbTomes > 1 ? 's' : ''}
+            </div>
           </div>
 
-          {/* Carte Tomes par propriétaire */}
-          <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Package size={18} style={{ color: COLORS.tomes }} />
-              Tomes par propriétaire
-            </h3>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-              <div style={{
-                fontSize: '48px',
-                fontWeight: '700',
-                color: COLORS.tomes
-              }}>
-                {stats.nbTomes}
+          <div className="card" style={{ padding: '20px', textAlign: 'center', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
+            <div style={{ fontSize: '24px', margin: '0 auto 8px' }}>💰</div>
+            <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--warning)', marginBottom: '4px' }}>
+              {coutTotal.toFixed(0)}€
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+              Investissement
+            </div>
+          </div>
+
+          {lectureStats && lectureStats.tomesTotal > 0 && (
+            <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', margin: '0 auto 8px' }}>📖</div>
+              <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--success)', marginBottom: '4px' }}>
+                {lectureStats.progression.toFixed(0)}%
               </div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>tome{stats.nbTomes > 1 ? 's' : ''} au total</span>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                Progression
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Graphique d'évolution temporelle */}
+        {evolutionStats && evolutionStats.totalTomes > 0 && (
+          <div className="card" style={{ padding: '24px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showEvolution ? '20px' : '0', flexWrap: 'wrap', gap: '12px' }}>
+              <button
+                onClick={() => setShowEvolution(!showEvolution)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📈 Évolution de votre collection
+                </h3>
+                {showEvolution ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+              
+              {/* Dropdown pour la période */}
+              {showEvolution && <select
+                value={periodeEvolution}
+                onChange={(e) => setPeriodeEvolution(e.target.value as 'mois' | 'annee')}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                <option value="mois">Par mois</option>
+                <option value="annee">Par année</option>
+              </select>}
             </div>
             
-            <div style={{ marginTop: '16px' }}>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart 
-                data={[
-                  { 
-                    name: 'Sébastien', 
-                    tomes: stats.nbTomesParProprietaire['Sébastien'] || 0,
-                    fill: COLORS.sebastien
-                  },
-                  { 
-                    name: 'Céline', 
-                    tomes: stats.nbTomesParProprietaire['Céline'] || 0,
-                    fill: COLORS.celine
-                  },
-                  { 
-                    name: 'Alexandre', 
-                    tomes: stats.nbTomesParProprietaire['Alexandre'] || 0,
-                    fill: COLORS.alexandre
-                  },
-                  { 
-                    name: 'Commun', 
-                    tomes: stats.nbTomesParProprietaire['Commun'] || 0,
-                    fill: COLORS.commun
-                  }
-                ]}
+            {showEvolution && (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart
+                data={(() => {
+                  const data = periodeEvolution === 'mois' ? evolutionStats.parMois : evolutionStats.parAnnee;
+                  return Object.keys(data).sort().map(key => ({
+                    periode: periodeEvolution === 'mois' 
+                      ? new Date(key + '-01').toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+                      : key,
+                    tomes: data[key].count,
+                    montant: data[key].total
+                  }));
+                })()}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis 
-                  dataKey="name" 
-                  stroke="var(--text-secondary)" 
-                  style={{ fontSize: '11px' }} 
-                />
-                <YAxis 
+                  dataKey="periode" 
                   stroke="var(--text-secondary)" 
                   style={{ fontSize: '11px' }}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  stroke="var(--text-secondary)" 
+                  style={{ fontSize: '11px' }}
+                  label={{ value: 'Tomes', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="var(--text-secondary)" 
+                  style={{ fontSize: '11px' }}
+                  label={{ value: 'Montant (€)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
                 />
                 <Tooltip
                   contentStyle={{
                     background: 'var(--surface-light)',
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
-                    color: 'var(--text)'
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    fontWeight: '600'
                   }}
-                  formatter={(value) => [`${value} tome${value > 1 ? 's' : ''}`, 'Tomes']}
+                  formatter={(value, name) => {
+                    if (name === 'tomes') {
+                      return [`${value} tome${value > 1 ? 's' : ''}`, 'Tomes achetés'];
+                    } else {
+                      return [`${Number(value).toFixed(2)}€`, 'Montant dépensé'];
+                    }
+                  }}
                 />
-                <Bar 
+                <Legend 
+                  wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }}
+                  formatter={(value) => {
+                    if (value === 'tomes') return 'Tomes achetés';
+                    if (value === 'montant') return 'Montant dépensé (€)';
+                    return value;
+                  }}
+                />
+                <Line 
+                  yAxisId="left"
+                  type="monotone" 
                   dataKey="tomes" 
+                  stroke={COLORS.tomes}
+                  strokeWidth={2}
+                  dot={{ fill: COLORS.tomes, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line 
+                  yAxisId="right"
+                  type="monotone" 
+                  dataKey="montant" 
+                  stroke={COLORS.series}
+                  strokeWidth={2}
+                  dot={{ fill: COLORS.series, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            )}
+          </div>
+        )}
+
+        {/* Graphique de répartition par propriétaire */}
+        {users.length > 0 && (
+          <div className="card" style={{ padding: '24px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showRepartition ? '20px' : '0', flexWrap: 'wrap', gap: '12px' }}>
+              <button
+                onClick={() => setShowRepartition(!showRepartition)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: 'var(--text)'
+                }}
+              >
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Package size={20} style={{ color: COLORS.tomes }} />
+                  📊 Répartition par propriétaire
+                </h3>
+                {showRepartition ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </button>
+              
+              {/* Dropdown pour filtrer par type */}
+              {showRepartition && <select
+                value={filtreType}
+                onChange={(e) => setFiltreType(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                {TYPES_VOLUME.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>}
+            </div>
+            
+            {showRepartition && (
+            <>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart 
+                data={users.map(user => {
+                  // Calculer le nombre de tomes selon le filtre
+                  let nbTomes = 0;
+                  if (filtreType === 'Tous les tomes') {
+                    nbTomes = stats.nbTomesParProprietaire[user.id] || 0;
+                  } else {
+                    // Vérification de sécurité : si nbTomesParProprietaireParType n'existe pas, afficher 0
+                    nbTomes = stats.nbTomesParProprietaireParType?.[user.id]?.[filtreType] || 0;
+                  }
+                  
+                  return {
+                    name: user.name,
+                    tomes: nbTomes,
+                    cout: stats.totaux[user.id] || 0
+                  };
+                })}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="var(--text-secondary)" 
+                  style={{ fontSize: '12px', fontWeight: '600' }} 
+                />
+                <YAxis 
+                  yAxisId="left"
+                  stroke="var(--text-secondary)" 
+                  style={{ fontSize: '12px' }}
+                  label={{ value: 'Tomes', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="var(--text-secondary)" 
+                  style={{ fontSize: '12px' }}
+                  label={{ value: 'Coût (€)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--surface-light)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                  formatter={(value, name) => {
+                    if (name === 'tomes') {
+                      return [`${value} tome${value > 1 ? 's' : ''}`, filtreType];
+                    } else {
+                      return [`${Number(value).toFixed(2)}€`, 'Coût total'];
+                    }
+                  }}
+                />
+                {/* Barre des tomes (filtrée) */}
+                <Bar 
+                  yAxisId="left"
+                  dataKey="tomes" 
+                  fill={COLORS.tomes}
                   radius={[8, 8, 0, 0]}
-                >
-                  {[
-                    { name: 'Sébastien', fill: COLORS.sebastien },
-                    { name: 'Céline', fill: COLORS.celine },
-                    { name: 'Alexandre', fill: COLORS.alexandre },
-                    { name: 'Commun', fill: COLORS.commun }
-                  ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
+                />
+                {/* Barre du coût (fixe) */}
+                <Bar 
+                  yAxisId="right"
+                  dataKey="cout" 
+                  fill={COLORS.series}
+                  radius={[8, 8, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '16px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS.tomes }} />
+                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Tomes ({filtreType})</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS.series }} />
+                <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Coût total</span>
+              </div>
             </div>
+            </>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Coûts par propriétaire */}
         <div style={{ marginBottom: '40px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '20px' }}>
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: COLORS.sebastien }}>
-                Sébastien
-              </h3>
-              <p style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
-                {(stats.totaux['Sébastien'] || 0).toFixed(2)}€
-              </p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                {stats.nbTomesParProprietaire['Sébastien'] || 0} tome{(stats.nbTomesParProprietaire['Sébastien'] || 0) > 1 ? 's' : ''}
-              </p>
-            </div>
-
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: COLORS.celine }}>
-                Céline
-              </h3>
-              <p style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
-                {(stats.totaux['Céline'] || 0).toFixed(2)}€
-              </p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                {stats.nbTomesParProprietaire['Céline'] || 0} tome{(stats.nbTomesParProprietaire['Céline'] || 0) > 1 ? 's' : ''}
-              </p>
-            </div>
-
-            <div className="card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: COLORS.alexandre }}>
-                Alexandre
-              </h3>
-              <p style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
-                {(stats.totaux['Alexandre'] || 0).toFixed(2)}€
-              </p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                {stats.nbTomesParProprietaire['Alexandre'] || 0} tome{(stats.nbTomesParProprietaire['Alexandre'] || 0) > 1 ? 's' : ''}
-              </p>
-            </div>
+            {users.map(user => {
+              const nbTomes = stats.nbTomesParProprietaire[user.id] || 0;
+              return (
+                <div key={user.id} className="card" style={{ padding: '20px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: user.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '18px' }}>{user.emoji}</span>
+                    {user.name}
+                  </h3>
+                  <p style={{ fontSize: '28px', fontWeight: '700', marginBottom: '4px' }}>
+                    {(stats.totaux[user.id] || 0).toFixed(2)}€
+                  </p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                    {nbTomes} tome{nbTomes > 1 ? 's' : ''}
+                  </p>
+                </div>
+              );
+            })}
 
             <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
               <h3 style={{ fontSize: '15px', fontWeight: '600', marginBottom: '12px', color: 'var(--warning)' }}>

@@ -197,9 +197,14 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
                 className="select"
               >
                 <option value="Broché">Broché</option>
+                <option value="Broché Collector">Broché Collector</option>
+                <option value="Coffret">Coffret</option>
                 <option value="Kindle">Kindle</option>
                 <option value="Webtoon">Webtoon</option>
-                <option value="Broché Collector">Broché Collector</option>
+                <option value="Webtoon Physique">Webtoon Physique</option>
+                <option value="Light Novel">Light Novel</option>
+                <option value="Scan Manga">Scan Manga</option>
+                <option value="Scan Webtoon">Scan Webtoon</option>
               </select>
             </div>
           </div>

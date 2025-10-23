@@ -1,7 +1,15 @@
-import { AlertTriangle, CheckCircle, Download, Folder, FolderOpen, Trash2, Tv, Upload, User, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Download, Edit2, Folder, FolderOpen, Plus, Trash2, Tv, Upload, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { AnimeImportProgress, AnimeImportResult } from '../types';
+
+interface UserData {
+  id: number;
+  name: string;
+  emoji: string;
+  avatar_path: string | null;
+  color: string;
+}
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -12,8 +20,6 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
   const [baseDirectory, setBaseDirectory] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [showProfileSuccess, setShowProfileSuccess] = useState(false);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showExportSuccess, setShowExportSuccess] = useState(false);
@@ -22,6 +28,14 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
   const [animeImportResult, setAnimeImportResult] = useState<AnimeImportResult | null>(null);
   const [animeImportProgress, setAnimeImportProgress] = useState<AnimeImportProgress | null>(null);
   const [importStartTime, setImportStartTime] = useState<number>(0);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmoji, setNewUserEmoji] = useState('👤');
+  const [newUserColor, setNewUserColor] = useState('#8b5cf6');
+  const [userError, setUserError] = useState('');
+  const [userAvatars, setUserAvatars] = useState<Record<number, string | null>>({});
   const { confirm, ConfirmDialog } = useConfirm();
 
   useEffect(() => {
@@ -41,10 +55,115 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
     const baseDir = await window.electronAPI.getBaseDirectory();
     setBaseDirectory(baseDir || 'Non configuré');
     
-    const image = await window.electronAPI.getUserProfileImage(currentUser);
-    setProfileImage(image);
+    const usersData = await window.electronAPI.getAllUsers();
+    setUsers(usersData);
+    
+    // Charger les avatars de tous les utilisateurs
+    const avatars: Record<number, string | null> = {};
+    for (const user of usersData) {
+      const avatar = await window.electronAPI.getUserAvatar(user.id);
+      avatars[user.id] = avatar;
+    }
+    setUserAvatars(avatars);
     
     setLoading(false);
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUserName.trim()) {
+      setUserError('Veuillez saisir un nom');
+      return;
+    }
+
+    const result = await window.electronAPI.createUser({
+      name: newUserName.trim(),
+      emoji: newUserEmoji,
+      color: newUserColor
+    });
+
+    if (result.success && result.user) {
+      setNewUserName('');
+      setNewUserEmoji('👤');
+      setNewUserColor('#8b5cf6');
+      setUserError('');
+      await loadSettings();
+    } else {
+      setUserError(result.error || 'Erreur lors de la création');
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser || !newUserName.trim()) {
+      setUserError('Veuillez saisir un nom');
+      return;
+    }
+
+    const result = await window.electronAPI.updateUser({
+      id: editingUser.id,
+      name: newUserName.trim(),
+      emoji: newUserEmoji,
+      color: newUserColor
+    });
+
+    if (result.success) {
+      setEditingUser(null);
+      setNewUserName('');
+      setNewUserEmoji('👤');
+      setNewUserColor('#8b5cf6');
+      setUserError('');
+      await loadSettings();
+    } else {
+      setUserError(result.error || 'Erreur lors de la mise à jour');
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    const confirmed = await confirm({
+      title: 'Supprimer cet utilisateur',
+      message: 'Cette action supprimera toutes les données de cet utilisateur. Cette action est irréversible !',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDanger: true
+    });
+
+    if (confirmed) {
+      const result = await window.electronAPI.deleteUser(userId);
+      if (result.success) {
+        await loadSettings();
+      } else {
+        alert(result.error || 'Erreur lors de la suppression');
+      }
+    }
+  };
+
+  const handleSetUserAvatar = async (userId: number) => {
+    const result = await window.electronAPI.setUserAvatar(userId);
+    if (result.success) {
+      await loadSettings();
+    }
+  };
+
+  const handleRemoveUserAvatar = async (userId: number) => {
+    const result = await window.electronAPI.removeUserAvatar(userId);
+    if (result.success) {
+      await loadSettings();
+    }
+  };
+
+  const handleEditUser = (user: UserData) => {
+    setEditingUser(user);
+    setNewUserName(user.name);
+    setNewUserEmoji(user.emoji);
+    setNewUserColor(user.color);
+    setUserError('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    setNewUserName('');
+    setNewUserEmoji('👤');
+    setNewUserColor('#8b5cf6');
+    setUserError('');
   };
 
   const handleChangeBaseDirectory = async () => {
@@ -56,16 +175,6 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
       if (result.message) {
         alert(result.message);
       }
-    }
-  };
-
-  const handleChangeProfileImage = async () => {
-    const result = await window.electronAPI.setUserProfileImage(currentUser);
-    if (result.success && result.path) {
-      const imageUrl = await window.electronAPI.getUserProfileImage(currentUser);
-      setProfileImage(imageUrl);
-      setShowProfileSuccess(true);
-      setTimeout(() => setShowProfileSuccess(false), 3000);
     }
   };
 
@@ -314,9 +423,9 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
                 )}
               </div>
 
-            {/* ========== COLONNE GAUCHE : PROFIL & SAUVEGARDE ========== */}
-            {/* Profil */}
+            {/* ========== GESTION DES UTILISATEURS (Pleine largeur) ========== */}
             <div style={{
+                gridColumn: '1 / -1',
                 background: 'var(--surface-light)',
                 padding: '20px',
                 borderRadius: '12px',
@@ -327,86 +436,422 @@ export default function SettingsModal({ onClose, currentUser }: SettingsModalPro
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
+                  justifyContent: 'space-between',
                   gap: '10px', 
                   marginBottom: '16px',
                   paddingBottom: '12px',
                   borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                   flexShrink: 0
                 }}>
-                  <User size={18} style={{ color: 'var(--primary)' }} />
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>
-                    Profil : {currentUser}
-                  </h3>
-                </div>
-                
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    overflow: 'hidden',
-                    border: '3px solid var(--primary)',
-                    flexShrink: 0,
-                    background: 'var(--surface)'
-                  }}>
-                    {profileImage ? (
-                      <img 
-                        src={profileImage} 
-                        alt={currentUser}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--text-secondary)'
-                      }}>
-                        <User size={28} />
-                      </div>
-                    )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Users size={18} style={{ color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>
+                      Gestion des utilisateurs
+                    </h3>
                   </div>
-
                   <button
-                    onClick={handleChangeProfileImage}
+                    onClick={() => setShowUserManagement(!showUserManagement)}
                     className="btn btn-primary"
-                    style={{ flex: 1, fontSize: '13px', padding: '10px 16px' }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '13px'
+                    }}
                   >
-                    <User size={16} />
-                    {profileImage ? 'Modifier' : 'Ajouter'}
+                    {showUserManagement ? <X size={16} /> : <Edit2 size={16} />}
+                    {showUserManagement ? 'Fermer' : 'Gérer'}
                   </button>
                 </div>
 
-                <div style={{ flex: 1 }} />
+                {/* Liste des utilisateurs */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                  gap: '12px',
+                  marginBottom: showUserManagement ? '20px' : '0'
+                }}>
+                  {users.map((user) => (
+                    <div
+                      key={user.id}
+                      style={{
+                        padding: '16px',
+                        background: 'var(--surface)',
+                        borderRadius: '8px',
+                        border: `1px solid ${user.name === currentUser ? user.color : 'var(--border)'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      {/* Avatar ou emoji */}
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        background: userAvatars[user.id] ? 'transparent' : `${user.color}22`,
+                        border: `2px solid ${user.color}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '24px',
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                        position: 'relative'
+                      }}>
+                        {userAvatars[user.id] ? (
+                          <img
+                            src={userAvatars[user.id]!}
+                            alt={user.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover'
+                            }}
+                          />
+                        ) : (
+                          user.emoji
+                        )}
+                      </div>
+                      
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: user.color,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {user.name}
+                        </div>
+                        {user.name === currentUser && (
+                          <div style={{
+                            fontSize: '11px',
+                            color: 'var(--text-secondary)',
+                            marginTop: '2px'
+                          }}>
+                            Vous
+                          </div>
+                        )}
+                      </div>
+                      
+                      {showUserManagement && (
+                        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px',
+                              minWidth: 'auto'
+                            }}
+                            title="Modifier"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px',
+                              minWidth: 'auto',
+                              borderColor: 'rgba(239, 68, 68, 0.3)',
+                              color: '#ef4444'
+                            }}
+                            title="Supprimer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-                {showProfileSuccess && (
+                {/* Formulaire d'ajout/modification */}
+                {showUserManagement && (
                   <div style={{
-                    padding: '8px 12px',
-                    background: 'rgba(16, 185, 129, 0.15)',
+                    padding: '20px',
+                    background: 'var(--surface)',
                     borderRadius: '8px',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '12px'
+                    border: '1px solid var(--border)'
                   }}>
-                    <CheckCircle size={14} style={{ color: 'var(--success)' }} />
-                    Mis à jour !
+                    <h4 style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {editingUser ? <Edit2 size={16} /> : <Plus size={16} />}
+                      {editingUser ? `Modifier "${editingUser.name}"` : 'Nouvel utilisateur'}
+                    </h4>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'auto 1fr auto auto',
+                      gap: '12px',
+                      alignItems: 'end'
+                    }}>
+                      {/* Avatar (si en mode édition) */}
+                      {editingUser && (
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            marginBottom: '6px',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            Avatar
+                          </label>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '50%',
+                              background: userAvatars[editingUser.id] ? 'transparent' : `${newUserColor}22`,
+                              border: `2px solid ${newUserColor}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '20px',
+                              overflow: 'hidden'
+                            }}>
+                              {userAvatars[editingUser.id] ? (
+                                <img
+                                  src={userAvatars[editingUser.id]!}
+                                  alt={editingUser.name}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                  }}
+                                />
+                              ) : (
+                                newUserEmoji
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <button
+                                onClick={() => handleSetUserAvatar(editingUser.id)}
+                                className="btn btn-outline"
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '11px',
+                                  minWidth: 'auto'
+                                }}
+                                title="Changer l'avatar"
+                              >
+                                <Upload size={12} />
+                              </button>
+                              {userAvatars[editingUser.id] && (
+                                <button
+                                  onClick={() => handleRemoveUserAvatar(editingUser.id)}
+                                  className="btn btn-outline"
+                                  style={{
+                                    padding: '4px 8px',
+                                    fontSize: '11px',
+                                    minWidth: 'auto',
+                                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                                    color: '#ef4444'
+                                  }}
+                                  title="Supprimer l'avatar"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Nom */}
+                      <div>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          marginBottom: '6px',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Nom
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserName}
+                          onChange={(e) => setNewUserName(e.target.value)}
+                          placeholder="Nom ou pseudo..."
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            background: 'var(--background)',
+                            color: 'var(--text)',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+
+                      {/* Emoji */}
+                      <div>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          marginBottom: '6px',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Emoji
+                        </label>
+                        <input
+                          type="text"
+                          value={newUserEmoji}
+                          onChange={(e) => setNewUserEmoji(e.target.value)}
+                          maxLength={2}
+                          style={{
+                            width: '60px',
+                            padding: '10px',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            background: 'var(--background)',
+                            color: 'var(--text)',
+                            fontSize: '20px',
+                            textAlign: 'center'
+                          }}
+                        />
+                      </div>
+
+                      {/* Couleur */}
+                      <div>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          marginBottom: '6px',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          Couleur personnalisée
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <input
+                            type="color"
+                            value={newUserColor}
+                            onChange={(e) => setNewUserColor(e.target.value)}
+                            style={{
+                              width: '60px',
+                              height: '42px',
+                              border: '1px solid var(--border)',
+                              borderRadius: '6px',
+                              background: 'var(--background)',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <div style={{
+                            padding: '6px 12px',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            color: 'var(--text-secondary)',
+                            fontFamily: 'monospace'
+                          }}>
+                            {newUserColor.toUpperCase()}
+                          </div>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: newUserColor,
+                            border: '2px solid var(--border)',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      marginTop: '16px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <button
+                        onClick={editingUser ? handleUpdateUser : handleCreateUser}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '10px 20px',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {editingUser ? (
+                          <>
+                            <CheckCircle size={16} />
+                            Enregistrer
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={16} />
+                            Créer
+                          </>
+                        )}
+                      </button>
+                      {editingUser ? (
+                        <button
+                          onClick={handleCancelEdit}
+                          className="btn btn-outline"
+                          style={{
+                            padding: '10px 20px',
+                            fontSize: '13px'
+                          }}
+                        >
+                          <X size={16} />
+                          Annuler
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            const user = users.find(u => u.name === newUserName.trim());
+                            if (!user) {
+                              setUserError('Créez d\'abord l\'utilisateur');
+                              return;
+                            }
+                            await handleSetUserAvatar(user.id);
+                          }}
+                          className="btn btn-outline"
+                          style={{
+                            padding: '10px 20px',
+                            fontSize: '13px'
+                          }}
+                          disabled={!newUserName.trim()}
+                        >
+                          <Upload size={16} />
+                          Ajouter avatar après création
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Erreur */}
+                    {userError && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '10px 12px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        fontSize: '13px'
+                      }}>
+                        {userError}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
+            {/* ========== COLONNE GAUCHE : SAUVEGARDE ========== */}
             {/* Sauvegarde */}
             <div style={{
                 background: 'var(--surface-light)',

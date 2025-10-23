@@ -167,6 +167,16 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, couverture_url)
             VALUES (?, ?, ?, ?, ?, ?)
           `);
+          
+          const stmtProprietaire = db.prepare(`
+            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+          `);
+
+          // Récupérer l'ID de l'utilisateur connecté
+          const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
+          if (!user) {
+            throw new Error(`Utilisateur "${currentUser}" introuvable dans la BDD`);
+          }
 
           let tomesCreated = 0;
           for (const volume of tomesToAdd) {
@@ -188,17 +198,20 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
                 }
               }
 
-              stmtTome.run(
+              const result = stmtTome.run(
                 serie.id,
                 volume.numero,
                 volume.prix || 0.00, // Prix du tome ou 0.00 par défaut
-                currentUser,
+                null, // proprietaire = NULL (nouvelle méthode)
                 volume.date_sortie || null,
                 localCoverPath
               );
 
+              // Ajouter l'utilisateur comme propriétaire
+              stmtProprietaire.run(result.lastInsertRowid, user.id);
+
               tomesCreated++;
-              console.log(`✅ Tome ${volume.numero} créé`);
+              console.log(`✅ Tome ${volume.numero} créé → Propriétaire: ${currentUser}`);
             } catch (error) {
               console.error(`❌ Erreur tome ${volume.numero}:`, error.message);
             }
@@ -361,6 +374,16 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
               INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, couverture_url)
               VALUES (?, ?, ?, ?, ?, ?)
             `);
+            
+            const stmtProprietaire = db.prepare(`
+              INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+            `);
+
+            // Récupérer l'ID de l'utilisateur connecté
+            const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
+            if (!user) {
+              throw new Error(`Utilisateur "${currentUser}" introuvable dans la BDD`);
+            }
 
             for (const volume of volumesWithDate) {
               try {
@@ -379,18 +402,21 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
                   }
                 }
 
-                // Insérer le tome avec prix s'il est fourni (ex: Nautiljon)
-                stmtTome.run(
+                // Insérer le tome
+                const result = stmtTome.run(
                   serieId,
                   volume.numero,
                   volume.prix || 0.00, // prix du tome ou 0.00 par défaut
-                  currentUser, // propriétaire par défaut
+                  null, // proprietaire = NULL (nouvelle méthode)
                   volume.date_sortie || null, // date de sortie VF
                   localCoverPath
                 );
 
+                // Ajouter l'utilisateur comme propriétaire
+                stmtProprietaire.run(result.lastInsertRowid, user.id);
+
                 tomesCreated++;
-                console.log(`  ✅ Tome ${volume.numero} créé`);
+                console.log(`  ✅ Tome ${volume.numero} créé → Propriétaire: ${currentUser}`);
               } catch (error) {
                 console.error(`  ⚠️ Erreur création tome ${volume.numero}:`, error.message);
               }

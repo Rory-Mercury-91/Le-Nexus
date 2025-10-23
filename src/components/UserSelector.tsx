@@ -4,29 +4,43 @@ interface UserSelectorProps {
   onUserSelected: (user: string) => void;
 }
 
-const USERS = [
-  { name: 'Céline', color: 'var(--primary)', emoji: '👩' },
-  { name: 'Sébastien', color: 'var(--secondary)', emoji: '👨' },
-  { name: 'Alexandre', color: 'var(--success)', emoji: '🧑' }
-];
+interface User {
+  id: number;
+  name: string;
+  emoji: string;
+  avatar_path: string | null;
+  color: string;
+}
 
 export default function UserSelector({ onUserSelected }: UserSelectorProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [profileImages, setProfileImages] = useState<Record<number, string | null>>({});
 
   useEffect(() => {
-    // Charger les images de profil de tous les utilisateurs
-    const loadProfileImages = async () => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      // Charger les utilisateurs depuis la base de données
+      const usersData = await window.electronAPI.getAllUsers();
+      setUsers(usersData);
+
+      // Charger les images de profil
       const images: Record<string, string | null> = {};
-      for (const user of USERS) {
-        const imagePath = await window.electronAPI.getUserProfileImage(user.name);
-        images[user.name] = imagePath;
+      for (const user of usersData) {
+        const imagePath = await window.electronAPI.getUserAvatar(user.id);
+        images[user.id] = imagePath;
       }
       setProfileImages(images);
-    };
-
-    loadProfileImages();
-  }, []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelect = (userName: string) => {
     setSelectedUser(userName);
@@ -69,13 +83,21 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
       </div>
 
       {/* Sélection utilisateur */}
-      <div style={{
-        display: 'flex',
-        gap: '24px',
-        flexWrap: 'wrap',
-        justifyContent: 'center'
-      }}>
-        {USERS.map((user) => (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="loading" style={{ margin: '0 auto' }} />
+          <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>
+            Chargement...
+          </p>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex',
+          gap: '24px',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
+        }}>
+          {users.map((user) => (
           <button
             key={user.name}
             onClick={() => handleSelect(user.name)}
@@ -109,9 +131,9 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              {profileImages[user.name] ? (
+              {profileImages[user.id] ? (
                 <img
-                  src={profileImages[user.name]!}
+                  src={profileImages[user.id]!}
                   alt={user.name}
                   style={{
                     width: '100px',
@@ -136,8 +158,9 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
               {user.name}
             </h3>
           </button>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Info */}
       <div style={{

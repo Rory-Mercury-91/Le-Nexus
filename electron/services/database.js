@@ -34,12 +34,22 @@ function initDatabase(dbPath) {
       serie_id INTEGER NOT NULL,
       numero INTEGER NOT NULL,
       prix REAL NOT NULL DEFAULT 0,
-      proprietaire TEXT NOT NULL,
+      proprietaire TEXT,
       date_sortie DATE,
       date_achat DATE,
       couverture_url TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tomes_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tome_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(tome_id, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS lecture_tomes (
@@ -115,9 +125,21 @@ function initDatabase(dbPath) {
       CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné'))
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      emoji TEXT,
+      avatar_path TEXT,
+      color TEXT NOT NULL DEFAULT '#8b5cf6',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
     CREATE INDEX IF NOT EXISTS idx_series_statut ON series(statut);
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaire ON tomes(proprietaire);
+    CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_tome ON tomes_proprietaires(tome_id);
+    CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_user ON tomes_proprietaires(user_id);
     CREATE INDEX IF NOT EXISTS idx_lecture_tomes_utilisateur ON lecture_tomes(utilisateur);
     CREATE INDEX IF NOT EXISTS idx_lecture_tomes_tome ON lecture_tomes(tome_id);
     CREATE INDEX IF NOT EXISTS idx_anime_series_statut ON anime_series(statut);
@@ -159,6 +181,40 @@ function initDatabase(dbPath) {
     if (!tomesColumnNames.includes('couverture_url')) {
       console.log('Migration tomes : Ajout de la colonne couverture_url');
       db.exec('ALTER TABLE tomes ADD COLUMN couverture_url TEXT');
+    }
+    
+    // Migration : Rendre la colonne proprietaire nullable
+    const proprietaireColumn = tomesColumns.find(col => col.name === 'proprietaire');
+    if (proprietaireColumn && proprietaireColumn.notnull === 1) {
+      console.log('🔄 Migration tomes : Suppression de la contrainte NOT NULL sur proprietaire...');
+      
+      db.exec(`
+        BEGIN TRANSACTION;
+        
+        CREATE TABLE tomes_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          serie_id INTEGER NOT NULL,
+          numero INTEGER NOT NULL,
+          prix REAL NOT NULL DEFAULT 0,
+          proprietaire TEXT,
+          date_sortie DATE,
+          date_achat DATE,
+          couverture_url TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE
+        );
+        
+        INSERT INTO tomes_new SELECT * FROM tomes;
+        DROP TABLE tomes;
+        ALTER TABLE tomes_new RENAME TO tomes;
+        
+        CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
+        CREATE INDEX IF NOT EXISTS idx_tomes_proprietaire ON tomes(proprietaire);
+        
+        COMMIT;
+      `);
+      
+      console.log('✅ Migration terminée : tomes.proprietaire est maintenant nullable');
     }
     
     // Migration pour la table anime_series (source_import & api_source)

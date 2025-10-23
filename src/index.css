@@ -21,8 +21,27 @@
   --shadow: rgba(0, 0, 0, 0.3);
 }
 
+/* Thème clair (pas trop clair) */
+:root[data-theme="light"] {
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #818cf8;
+  --secondary: #ec4899;
+  --background: #e2e8f0;  /* Gris très clair */
+  --surface: #f1f5f9;     /* Blanc cassé */
+  --surface-light: #ffffff;
+  --text: #1e293b;        /* Texte foncé */
+  --text-secondary: #64748b;
+  --border: #cbd5e1;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
 html {
-  background: #0f172a;
+  background: var(--background);
+  transition: background 0.3s ease;
 }
 
 body {

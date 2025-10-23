@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, Edit, Plus, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, BookOpen, Edit, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AddTomeModal from '../components/AddTomeModal';
@@ -20,20 +20,22 @@ export default function SerieDetail() {
   const [draggingTomeId, setDraggingTomeId] = useState<number | null>(null);
   const [draggingSerie, setDraggingSerie] = useState(false);
   const [scrollPosition, setScrollPosition] = useState<number | null>(null);
-  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
+  const [profileImages, setProfileImages] = useState<Record<number, string | null>>({});
+  const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
 
   useEffect(() => {
     loadSerie();
     loadProfileImages();
+    window.electronAPI.getAllUsers().then(setUsers);
   }, [id]);
 
   const loadProfileImages = async () => {
-    const users = ['Céline', 'Sébastien', 'Alexandre', 'Commun'];
+    const allUsers = await window.electronAPI.getAllUsers();
     const images: Record<string, string | null> = {};
     
-    for (const user of users) {
-      const image = await window.electronAPI.getUserProfileImage(user);
-      images[user] = image;
+    for (const user of allUsers) {
+      const image = await window.electronAPI.getUserAvatar(user.id);
+      images[user.id] = image;
     }
     
     setProfileImages(images);
@@ -201,18 +203,25 @@ export default function SerieDetail() {
     ? tomes.reduce((max, tome) => tome.numero > max.numero ? tome : max, tomes[0])
     : null;
 
-  // Total général = somme brute de tous les prix (sans division pour les tomes communs)
+  // Total général = somme brute de tous les prix
   const totalPrix = tomes.reduce((sum, tome) => sum + tome.prix, 0);
 
-  // Tomes personnels uniquement (pour le comptage dans les stats)
-  const tomesPersonnels = {
-    'Céline': tomes.filter(t => t.proprietaire === 'Céline'),
-    'Sébastien': tomes.filter(t => t.proprietaire === 'Sébastien'),
-    'Alexandre': tomes.filter(t => t.proprietaire === 'Alexandre')
-  };
+  // Pour chaque utilisateur, calculer son coût total
+  const costsByUser = users.map(user => {
+    const userCost = tomes.reduce((sum, tome) => {
+      if (!tome.proprietaires || tome.proprietaires.length === 0) return sum;
+      const isOwner = tome.proprietaires.some(p => p.id === user.id);
+      if (!isOwner) return sum;
+      // Partager le coût entre tous les propriétaires
+      return sum + (tome.prix / tome.proprietaires.length);
+    }, 0);
 
-  // Tomes communs
-  const tomesCommuns = tomes.filter(t => t.proprietaire === 'Commun');
+    const tomesCount = tomes.filter(tome => 
+      tome.proprietaires && tome.proprietaires.some(p => p.id === user.id)
+    ).length;
+
+    return { user, cost: userCost, tomesCount };
+  }).filter(item => item.cost > 0 || item.tomesCount > 0);
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -223,15 +232,6 @@ export default function SerieDetail() {
     }
   };
 
-  const getProprietaireColor = (proprietaire: string) => {
-    switch (proprietaire) {
-      case 'Céline': return '#eab308';      // Jaune
-      case 'Sébastien': return '#22c55e';   // Vert
-      case 'Alexandre': return '#3b82f6';   // Bleu
-      case 'Commun': return '#94a3b8';      // Gris
-      default: return 'var(--text-secondary)';
-    }
-  };
 
   return (
     <div style={{ padding: '40px' }} className="fade-in">
@@ -433,150 +433,78 @@ export default function SerieDetail() {
               
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
                 gap: '12px'
               }}>
-                {/* Propriétaires individuels */}
-                {Object.entries(tomesPersonnels)
-                  .filter(([, tomesPerso]) => {
-                    const coutPerso = tomesPerso.reduce((sum, tome) => sum + tome.prix, 0);
-                    const partCommun = tomesCommuns.reduce((sum, tome) => sum + (tome.prix / 3), 0);
-                    return (coutPerso + partCommun) > 0 || tomesPerso.length > 0;
-                  })
-                  .map(([proprietaire, tomesPerso]) => {
-                    const coutPerso = tomesPerso.reduce((sum, tome) => sum + tome.prix, 0);
-                    const partCommun = tomesCommuns.reduce((sum, tome) => sum + (tome.prix / 3), 0);
-                    const coutTotal = coutPerso + partCommun;
-
-                    return (
-                      <div key={proprietaire} style={{ 
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '16px',
-                        background: 'var(--surface)',
-                        border: `2px solid ${getProprietaireColor(proprietaire)}33`,
-                        borderRadius: '12px'
-                      }}>
-                        {/* Avatar du propriétaire */}
-                        <div style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '50%',
-                          border: `2px solid ${getProprietaireColor(proprietaire)}`,
-                          background: `${getProprietaireColor(proprietaire)}22`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '18px',
-                          fontWeight: '700',
-                          color: getProprietaireColor(proprietaire),
-                          overflow: 'hidden'
-                        }}>
-                          {profileImages[proprietaire] ? (
-                            <img 
-                              src={profileImages[proprietaire]!} 
-                              alt={proprietaire}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                              }}
-                            />
-                          ) : (
-                            <span>{proprietaire.charAt(0)}</span>
-                          )}
-                        </div>
-                        
-                        {/* Nom du propriétaire */}
-                        <span style={{ 
-                          fontSize: '14px', 
-                          fontWeight: '600',
-                          color: getProprietaireColor(proprietaire)
-                        }}>
-                          {proprietaire}
-                        </span>
-                        
-                        {/* Prix */}
-                        <span style={{ 
-                          fontSize: '20px',
-                          fontWeight: '700',
-                          fontVariantNumeric: 'tabular-nums',
-                          color: 'var(--text)'
-                        }}>
-                          {coutTotal.toFixed(2)}€
-                        </span>
-                        
-                        {/* Nombre de tomes personnels */}
-                        <span style={{ 
-                          fontSize: '12px',
-                          color: 'var(--text-secondary)'
-                        }}>
-                          {tomesPerso.length} tome{tomesPerso.length > 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    );
-                  })}
-
-                {/* Carte pour les tomes communs */}
-                {tomesCommuns.length > 0 && (
-                  <div style={{ 
+                {costsByUser.map(({ user, cost, tomesCount }) => (
+                  <div key={user.id} style={{ 
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
                     padding: '16px',
                     background: 'var(--surface)',
-                    border: `2px solid ${getProprietaireColor('Commun')}33`,
+                    border: `2px solid ${user.color}33`,
                     borderRadius: '12px'
                   }}>
-                    {/* Avatar Commun */}
+                    {/* Avatar du propriétaire */}
                     <div style={{
                       width: '48px',
                       height: '48px',
                       borderRadius: '50%',
-                      border: `2px solid ${getProprietaireColor('Commun')}`,
-                      background: `${getProprietaireColor('Commun')}22`,
+                      border: `2px solid ${user.color}`,
+                      background: `${user.color}22`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '18px',
+                      fontSize: '24px',
                       fontWeight: '700',
-                      color: getProprietaireColor('Commun'),
+                      color: user.color,
                       overflow: 'hidden'
                     }}>
-                      <Users size={24} />
+                      {profileImages[user.id] ? (
+                        <img 
+                          src={profileImages[user.id]!} 
+                          alt={user.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      ) : (
+                        <span>{user.emoji}</span>
+                      )}
                     </div>
                     
-                    {/* Nom */}
+                    {/* Nom du propriétaire */}
                     <span style={{ 
                       fontSize: '14px', 
                       fontWeight: '600',
-                      color: getProprietaireColor('Commun')
+                      color: user.color
                     }}>
-                      Commun
+                      {user.name}
                     </span>
                     
-                    {/* Prix total */}
+                    {/* Prix */}
                     <span style={{ 
                       fontSize: '20px',
                       fontWeight: '700',
                       fontVariantNumeric: 'tabular-nums',
                       color: 'var(--text)'
                     }}>
-                      {tomesCommuns.reduce((sum, tome) => sum + tome.prix, 0).toFixed(2)}€
+                      {cost.toFixed(2)}€
                     </span>
                     
-                    {/* Nombre de tomes communs */}
+                    {/* Nombre de tomes */}
                     <span style={{ 
                       fontSize: '12px',
                       color: 'var(--text-secondary)'
                     }}>
-                      {tomesCommuns.length} tome{tomesCommuns.length > 1 ? 's' : ''}
+                      {tomesCount} tome{tomesCount > 1 ? 's' : ''}
                     </span>
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
@@ -721,38 +649,59 @@ export default function SerieDetail() {
                     fontWeight: '600',
                     fontSize: '16px'
                   }}>
-                    {/* Gauche: Avatar + Tome X + Lu */}
+                    {/* Gauche: Avatars + Tome X + Lu */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      {/* Avatar du propriétaire */}
-                      <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        border: `2px solid ${getProprietaireColor(tome.proprietaire)}`,
-                        background: `${getProprietaireColor(tome.proprietaire)}22`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: '700',
-                        color: getProprietaireColor(tome.proprietaire),
-                        flexShrink: 0,
-                        overflow: 'hidden'
-                      }}>
-                        {profileImages[tome.proprietaire] ? (
-                          <img 
-                            src={profileImages[tome.proprietaire]!} 
-                            alt={tome.proprietaire}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover'
-                            }}
-                          />
-                        ) : tome.proprietaire === 'Commun' ? (
-                          <Users size={18} />
+                      {/* Avatars des propriétaires */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {tome.proprietaires && tome.proprietaires.length > 0 ? (
+                          tome.proprietaires.map((proprietaire, idx) => (
+                            <div key={`${tome.id}-${proprietaire.id}`} style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              border: `2px solid ${proprietaire.color}`,
+                              background: `${proprietaire.color}22`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '16px',
+                              fontWeight: '700',
+                              color: proprietaire.color,
+                              flexShrink: 0,
+                              overflow: 'hidden',
+                              marginLeft: idx > 0 ? '-8px' : '0',
+                              zIndex: tome.proprietaires!.length - idx
+                            }}>
+                              {profileImages[proprietaire.id] ? (
+                                <img 
+                                  src={profileImages[proprietaire.id]!} 
+                                  alt={proprietaire.name}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                  }}
+                                />
+                              ) : (
+                                <span>{users.find(u => u.id === proprietaire.id)?.emoji || proprietaire.name.charAt(0)}</span>
+                              )}
+                            </div>
+                          ))
                         ) : (
-                          <span>{tome.proprietaire.charAt(0)}</span>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            border: '2px solid var(--border)',
+                            background: 'var(--surface)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            ?
+                          </div>
                         )}
                       </div>
                       

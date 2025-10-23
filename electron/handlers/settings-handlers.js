@@ -28,6 +28,68 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     return getPaths().base || '';
   });
 
+  // Fonction helper pour copier tous les fichiers vers un nouvel emplacement
+  const copyAllFilesToNewLocation = (newBasePath) => {
+    const currentBasePath = getPaths().base;
+    
+    if (!currentBasePath || !fs.existsSync(currentBasePath)) {
+      return { success: false, error: 'Emplacement actuel introuvable' };
+    }
+
+    try {
+      // Copier récursivement
+      const copyRecursive = (src, dest) => {
+        if (fs.statSync(src).isDirectory()) {
+          if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+          const files = fs.readdirSync(src);
+          files.forEach(file => {
+            copyRecursive(path.join(src, file), path.join(dest, file));
+          });
+        } else {
+          fs.copyFileSync(src, dest);
+        }
+      };
+
+      // Copier les dossiers
+      ['configs', 'profiles', 'covers'].forEach(folder => {
+        const srcFolder = path.join(currentBasePath, folder);
+        const destFolder = path.join(newBasePath, folder);
+        if (fs.existsSync(srcFolder)) {
+          copyRecursive(srcFolder, destFolder);
+        }
+      });
+
+      // Copier la base de données
+      const srcDb = path.join(currentBasePath, 'manga.db');
+      const destDb = path.join(newBasePath, 'manga.db');
+      if (fs.existsSync(srcDb)) {
+        fs.copyFileSync(srcDb, destDb);
+        console.log(`📦 Base de données copiée: ${destDb}`);
+      }
+
+      console.log(`📦 Ma Mangathèque copiée vers: ${newBasePath}`);
+      return { success: true, path: newBasePath };
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+      return { success: false, error: error.message };
+    }
+  };
+  
+  // Copier vers un nouvel emplacement sans ouvrir de dialogue
+  ipcMain.handle('copy-to-new-location', async (event, newBasePath) => {
+    try {
+      const result = copyAllFilesToNewLocation(newBasePath);
+      if (result.success) {
+        // Sauvegarder le nouveau chemin
+        store.set('baseDirectory', newBasePath);
+      }
+      return result;
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   // Changer l'emplacement de Ma Mangathèque
   ipcMain.handle('change-base-directory', async () => {
     try {
@@ -43,29 +105,9 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         const currentBasePath = getPaths().base;
 
         // Copier toute la structure vers le nouvel emplacement
-        if (currentBasePath && fs.existsSync(currentBasePath)) {
-          // Copier récursivement
-          const copyRecursive = (src, dest) => {
-            if (fs.statSync(src).isDirectory()) {
-              if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-              const files = fs.readdirSync(src);
-              files.forEach(file => {
-                copyRecursive(path.join(src, file), path.join(dest, file));
-              });
-            } else {
-              fs.copyFileSync(src, dest);
-            }
-          };
-
-          ['configs', 'profiles', 'covers'].forEach(folder => {
-            const srcFolder = path.join(currentBasePath, folder);
-            const destFolder = path.join(newBasePath, folder);
-            if (fs.existsSync(srcFolder)) {
-              copyRecursive(srcFolder, destFolder);
-            }
-          });
-
-          console.log(`📦 Ma Mangathèque déplacée vers: ${newBasePath}`);
+        const copyResult = copyAllFilesToNewLocation(newBasePath);
+        if (!copyResult.success) {
+          return copyResult;
         }
 
         // Sauvegarder le nouveau chemin
@@ -152,20 +194,44 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   // Obtenir l'image de profil d'un utilisateur
   ipcMain.handle('get-user-profile-image', async (event, userName) => {
     try {
-      const pm = getPathManager();
-      if (!pm) return null;
-      
-      const profilePath = pm.getProfilePath(userName);
-      
-      // Chercher une image avec différentes extensions
-      const extensions = ['.webp', '.jpg', '.jpeg', '.png', '.gif'];
-      for (const ext of extensions) {
-        const testPath = profilePath.replace('.webp', ext);
-        if (fs.existsSync(testPath)) {
-          return `manga://${testPath.replace(/\\/g, '/')}`;
-        }
+      const db = getDb();
+      if (!db) {
+        console.log('❌ get-user-profile-image: DB non initialisée');
+        return null;
       }
       
+      // Récupérer l'avatar depuis la BDD
+      const user = db.prepare('SELECT avatar_path FROM users WHERE name = ?').get(userName);
+      console.log(`🔍 get-user-profile-image pour "${userName}":`, user);
+      
+      if (!user || !user.avatar_path) {
+        console.log(`⚠️  Aucun avatar trouvé pour "${userName}"`);
+        return null;
+      }
+      
+      // L'avatar_path peut être soit relatif, soit absolu
+      let fullPath = user.avatar_path;
+      
+      // Si le chemin est relatif, le combiner avec profilesDir
+      if (!path.isAbsolute(user.avatar_path)) {
+        const pm = getPathManager();
+        if (!pm || !pm.profilesDir) {
+          console.log('❌ PathManager ou profilesDir non disponible');
+          return null;
+        }
+        fullPath = path.join(pm.profilesDir, user.avatar_path);
+      }
+      
+      console.log(`📁 Chemin avatar: ${fullPath}`);
+      
+      // Vérifier que le fichier existe
+      if (fs.existsSync(fullPath)) {
+        const result = `manga://${fullPath.replace(/\\/g, '/')}`;
+        console.log(`✅ Avatar trouvé: ${result}`);
+        return result;
+      }
+      
+      console.log(`❌ Fichier avatar introuvable: ${fullPath}`);
       return null;
     } catch (error) {
       console.error('Erreur get-user-profile-image:', error);
@@ -495,6 +561,20 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       console.error('Erreur lors de la sauvegarde finale:', error);
       return { success: false, error: error.message };
     }
+  });
+
+  // ========== THÈME ==========
+  
+  // Récupérer le thème actuel
+  ipcMain.handle('get-theme', () => {
+    return store.get('theme', 'dark'); // Par défaut : dark
+  });
+
+  // Définir le thème
+  ipcMain.handle('set-theme', (event, theme) => {
+    store.set('theme', theme);
+    console.log(`🎨 Thème changé : ${theme}`);
+    return { success: true };
   });
 }
 

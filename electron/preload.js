@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Statistiques
   getStatistics: () => ipcRenderer.invoke('get-statistics'),
+  getEvolutionStatistics: () => ipcRenderer.invoke('get-evolution-statistics'),
   
   // Import/Export
   exportDatabase: () => ipcRenderer.invoke('export-database'),
@@ -32,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Configuration
   getBaseDirectory: () => ipcRenderer.invoke('get-base-directory'),
   changeBaseDirectory: () => ipcRenderer.invoke('change-base-directory'),
+  copyToNewLocation: (newBasePath) => ipcRenderer.invoke('copy-to-new-location', newBasePath),
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),
   uploadCustomCover: (serieTitre, type) => ipcRenderer.invoke('upload-custom-cover', serieTitre, type),
   saveCoverFromPath: (sourcePath, serieTitre, type) => ipcRenderer.invoke('save-cover-from-path', sourcePath, serieTitre, type),
@@ -40,6 +44,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cleanEmptyFolders: () => ipcRenderer.invoke('clean-empty-folders'),
   getUserProfileImage: (userName) => ipcRenderer.invoke('get-user-profile-image', userName),
   setUserProfileImage: (userName) => ipcRenderer.invoke('set-user-profile-image', userName),
+  getUserAvatar: (userName) => ipcRenderer.invoke('get-user-profile-image', userName), // Alias pour compatibilité
+  
+  // Gestion des utilisateurs
+  getAllUsers: () => ipcRenderer.invoke('users:get-all'),
+  createUser: (userData) => ipcRenderer.invoke('users:create', userData),
+  updateUser: (userData) => ipcRenderer.invoke('users:update', userData),
+  deleteUser: (userId) => ipcRenderer.invoke('users:delete', userId),
+  chooseAvatarFile: () => ipcRenderer.invoke('users:choose-avatar-file'),
+  setUserAvatarFromPath: (userId, sourcePath) => ipcRenderer.invoke('users:set-avatar-from-path', userId, sourcePath),
+  setUserAvatar: (userId) => ipcRenderer.invoke('users:set-avatar', userId),
+  removeUserAvatar: (userId) => ipcRenderer.invoke('users:remove-avatar', userId),
+  getUserAvatar: (userId) => ipcRenderer.invoke('users:get-avatar', userId),
   
   // Fusion
   mergeDatabase: () => ipcRenderer.invoke('merge-database'),

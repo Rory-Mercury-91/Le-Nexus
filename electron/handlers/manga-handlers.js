@@ -92,15 +92,25 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       // Récupérer l'utilisateur actuel
       const currentUser = store.get('currentUser', '');
       
-      // Enrichir chaque tome avec son statut de lecture pour l'utilisateur courant
+      // Enrichir chaque tome avec son statut de lecture et ses propriétaires
       const tomesAvecLecture = tomes.map(tome => {
         const lecture = db.prepare('SELECT lu, date_lecture FROM lecture_tomes WHERE tome_id = ? AND utilisateur = ?')
           .get(tome.id, currentUser);
         
+        // Récupérer les propriétaires de ce tome
+        const proprietaires = db.prepare(`
+          SELECT u.id, u.name, u.color
+          FROM tomes_proprietaires tp
+          JOIN users u ON tp.user_id = u.id
+          WHERE tp.tome_id = ?
+        `).all(tome.id);
+        
         return {
           ...tome,
           lu: lecture ? lecture.lu : 0,
-          date_lecture: lecture ? lecture.date_lecture : null
+          date_lecture: lecture ? lecture.date_lecture : null,
+          proprietaires: proprietaires,
+          proprietaireIds: proprietaires.map(p => p.id)
         };
       });
       
@@ -560,14 +570,39 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         tome.serie_id,
         tome.numero,
         tome.prix,
-        tome.proprietaire,
+        null, // proprietaire maintenant NULL (géré dans tomes_proprietaires)
         tome.date_sortie || null,
         tome.date_achat || null,
         finalCouvertureUrl
       );
       
-      console.log(`Tome créé avec ID ${result.lastInsertRowid}, couverture: ${finalCouvertureUrl}`);
-      return result.lastInsertRowid;
+      const tomeId = result.lastInsertRowid;
+      
+      // Ajouter les propriétaires dans la table de liaison
+      if (tome.proprietaireIds && tome.proprietaireIds.length > 0) {
+        const insertProprietaire = db.prepare(`
+          INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+        `);
+        tome.proprietaireIds.forEach(userId => {
+          insertProprietaire.run(tomeId, userId);
+        });
+        console.log(`Tome ${tomeId} : ${tome.proprietaireIds.length} propriétaire(s) ajouté(s)`);
+      } else {
+        // Si aucun propriétaire n'est spécifié, ajouter l'utilisateur connecté par défaut
+        const currentUser = store.get('currentUser', '');
+        if (currentUser) {
+          const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
+          if (user) {
+            db.prepare(`
+              INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+            `).run(tomeId, user.id);
+            console.log(`Tome ${tomeId} : Propriétaire par défaut → ${currentUser} (ID: ${user.id})`);
+          }
+        }
+      }
+      
+      console.log(`Tome créé avec ID ${tomeId}, couverture: ${finalCouvertureUrl}`);
+      return tomeId;
     } catch (error) {
       console.error('Erreur create-tome:', error);
       throw error;
@@ -619,10 +654,6 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         fields.push('prix = ?');
         values.push(tome.prix);
       }
-      if (tome.proprietaire !== undefined) {
-        fields.push('proprietaire = ?');
-        values.push(tome.proprietaire);
-      }
       if (tome.date_sortie !== undefined) {
         fields.push('date_sortie = ?');
         values.push(tome.date_sortie || null);
@@ -639,9 +670,28 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       // Ajouter l'ID à la fin pour le WHERE
       values.push(id);
       
-      const query = `UPDATE tomes SET ${fields.join(', ')} WHERE id = ?`;
-      const stmt = db.prepare(query);
-      stmt.run(...values);
+      if (fields.length > 0) {
+        const query = `UPDATE tomes SET ${fields.join(', ')} WHERE id = ?`;
+        const stmt = db.prepare(query);
+        stmt.run(...values);
+      }
+      
+      // Mettre à jour les propriétaires si fournis
+      if (tome.proprietaireIds !== undefined) {
+        // Supprimer les anciens propriétaires
+        db.prepare('DELETE FROM tomes_proprietaires WHERE tome_id = ?').run(id);
+        
+        // Ajouter les nouveaux propriétaires
+        if (tome.proprietaireIds.length > 0) {
+          const insertProprietaire = db.prepare(`
+            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+          `);
+          tome.proprietaireIds.forEach(userId => {
+            insertProprietaire.run(id, userId);
+          });
+          console.log(`Tome ${id} : ${tome.proprietaireIds.length} propriétaire(s) mis à jour`);
+        }
+      }
       
       // Si c'est le tome 1 et qu'on change sa couverture, synchroniser avec la série
       if (tome.couverture_url !== undefined && finalNumero === 1 && currentTome) {
@@ -655,40 +705,48 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         }
       }
       
-      // Si c'est le tome 1 et qu'on modifie le prix ou le propriétaire, propager aux autres tomes
-      if (finalNumero === 1 && currentTome && (tome.prix !== undefined || tome.proprietaire !== undefined)) {
-        const propagationFields = [];
-        const propagationValues = [];
+      // Si c'est le tome 1 et qu'on modifie le prix, propager aux autres tomes
+      if (finalNumero === 1 && currentTome && tome.prix !== undefined) {
+        // Propager uniquement aux tomes encore à 0.00€ (non personnalisés)
+        const propagationQuery = `
+          UPDATE tomes 
+          SET prix = ? 
+          WHERE serie_id = ? 
+            AND id != ? 
+            AND prix = 0.00
+        `;
         
-        if (tome.prix !== undefined) {
-          propagationFields.push('prix = ?');
-          propagationValues.push(tome.prix);
+        const propagationResult = db.prepare(propagationQuery).run(tome.prix, currentTome.serie_id, id);
+        
+        if (propagationResult.changes > 0) {
+          console.log(`📦 Propagation prix depuis tome 1 : ${propagationResult.changes} tome(s) mis à jour`);
         }
+      }
+      
+      // Si c'est le tome 1 et qu'on modifie les propriétaires, propager aux autres tomes sans propriétaires
+      if (finalNumero === 1 && currentTome && tome.proprietaireIds !== undefined && tome.proprietaireIds.length > 0) {
+        // Trouver les tomes de la série qui n'ont aucun propriétaire
+        const tomesWithoutOwners = db.prepare(`
+          SELECT t.id
+          FROM tomes t
+          LEFT JOIN tomes_proprietaires tp ON t.id = tp.tome_id
+          WHERE t.serie_id = ?
+            AND t.id != ?
+            AND tp.tome_id IS NULL
+        `).all(currentTome.serie_id, id);
         
-        if (tome.proprietaire !== undefined) {
-          propagationFields.push('proprietaire = ?');
-          propagationValues.push(tome.proprietaire);
-        }
-        
-        if (propagationFields.length > 0) {
-          // Ajouter les conditions WHERE
-          propagationValues.push(currentTome.serie_id);
-          propagationValues.push(id); // Exclure le tome 1 lui-même
+        if (tomesWithoutOwners.length > 0) {
+          const insertProprietaire = db.prepare(`
+            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+          `);
           
-          // Propager uniquement aux tomes encore à 0.00€ (non personnalisés)
-          const propagationQuery = `
-            UPDATE tomes 
-            SET ${propagationFields.join(', ')} 
-            WHERE serie_id = ? 
-              AND id != ? 
-              AND prix = 0.00
-          `;
+          tomesWithoutOwners.forEach(tomeRow => {
+            tome.proprietaireIds.forEach(userId => {
+              insertProprietaire.run(tomeRow.id, userId);
+            });
+          });
           
-          const propagationResult = db.prepare(propagationQuery).run(...propagationValues);
-          
-          if (propagationResult.changes > 0) {
-            console.log(`📦 Propagation depuis tome 1 : ${propagationResult.changes} tome(s) mis à jour`);
-          }
+          console.log(`📦 Propagation propriétaires depuis tome 1 : ${tomesWithoutOwners.length} tome(s) mis à jour`);
         }
       }
       

@@ -2,7 +2,7 @@ export interface Serie {
   id: number;
   titre: string;
   statut: 'En cours' | 'Terminée' | 'Abandonnée';
-  type_volume: 'Broché' | 'Kindle' | 'Webtoon' | 'Broché Collector';
+  type_volume: 'Broché' | 'Broché Collector' | 'Coffret' | 'Kindle' | 'Webtoon' | 'Webtoon Physique' | 'Light Novel' | 'Scan Manga' | 'Scan Webtoon';
   couverture_url: string | null;
   description?: string | null;
   statut_publication?: string | null;
@@ -23,7 +23,9 @@ export interface Tome {
   serie_id: number;
   numero: number;
   prix: number;
-  proprietaire: 'Céline' | 'Sébastien' | 'Alexandre' | 'Commun';
+  proprietaire?: string | null; // Deprecated: pour compatibilité
+  proprietaires?: Array<{ id: number; name: string; color: string }>;
+  proprietaireIds?: number[];
   date_sortie?: string | null;
   date_achat?: string | null;
   couverture_url?: string | null;
@@ -34,7 +36,7 @@ export interface Tome {
 
 export interface Statistics {
   totaux: {
-    [key: string]: number;
+    [userId: number]: number; // Coût par utilisateur (user_id)
   };
   parType: {
     [key: string]: {
@@ -48,8 +50,19 @@ export interface Statistics {
   nbSeries: number;
   nbTomes: number;
   nbTomesParProprietaire: {
-    [key: string]: number;
+    [userId: number]: number; // Nombre de tomes par utilisateur (user_id)
   };
+  nbTomesParProprietaireParType: {
+    [userId: number]: { // Par utilisateur
+      [typeVolume: string]: number; // Nombre de tomes par type (Broché, Kindle, Scan Manga, etc.)
+    };
+  };
+  users: Array<{ // Liste des utilisateurs avec leurs infos
+    id: number;
+    name: string;
+    color: string;
+    emoji: string;
+  }>;
 }
 
 export interface LectureStatistics {
@@ -66,6 +79,22 @@ export interface LectureStatistics {
     couvertureUrl: string;
     dateLecture: string;
   }>;
+}
+
+export interface EvolutionStatistics {
+  parMois: {
+    [mois: string]: {
+      count: number;
+      total: number;
+    };
+  };
+  parAnnee: {
+    [annee: string]: {
+      count: number;
+      total: number;
+    };
+  };
+  totalTomes: number;
 }
 
 export interface SerieFilters {
@@ -184,6 +213,16 @@ export interface AnimeImportProgress {
   remainingPauseSeconds?: number;
 }
 
+export interface User {
+  id: number;
+  name: string;
+  emoji: string;
+  avatar_path: string | null;
+  color: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 declare global {
   interface Window {
     electronAPI: {
@@ -199,6 +238,7 @@ declare global {
       updateTome: (id: number, tome: Partial<Tome>) => Promise<boolean>;
       deleteTome: (id: number) => Promise<boolean>;
       getStatistics: () => Promise<Statistics>;
+      getEvolutionStatistics: () => Promise<EvolutionStatistics>;
       exportDatabase: () => Promise<{ success: boolean; path?: string; error?: string }>;
       importDatabase: () => Promise<{ success: boolean; error?: string }>;
       searchMangadex: (titre: string) => Promise<MangaDexResult[]>;
@@ -207,6 +247,9 @@ declare global {
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
       getBaseDirectory: () => Promise<string>;
       changeBaseDirectory: () => Promise<{ success: boolean; path?: string; message?: string; error?: string }>;
+      copyToNewLocation: (newBasePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+      getTheme: () => Promise<string>;
+      setTheme: (theme: string) => Promise<{ success: boolean }>;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
@@ -215,6 +258,7 @@ declare global {
       cleanEmptyFolders: () => Promise<{ success: boolean; count?: number; error?: string }>;
       getUserProfileImage: (userName: string) => Promise<string | null>;
       setUserProfileImage: (userName: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+      getUserAvatar: (userId: number) => Promise<string | null>;
       mergeDatabase: () => Promise<{ merged: boolean; seriesCount: number; tomesCount: number }>;
       setCurrentUser: (userName: string) => Promise<void>;
       saveUserDatabase: () => Promise<void>;
@@ -237,6 +281,17 @@ declare global {
       deleteAllData: () => Promise<{ success: boolean }>;
       onMangaImportStart?: (callback: (data: { message: string }) => void) => () => void;
       onMangaImportComplete?: (callback: () => void) => () => void;
+      getAllUsers: () => Promise<User[]>;
+      createUser: (userData: { name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
+      updateUser: (userData: { id: number; name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
+      deleteUser: (userId: number) => Promise<{ success: boolean; error?: string }>;
+      chooseAvatarFile: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
+      setUserAvatarFromPath: (userId: number, sourcePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+      setUserAvatar: (userId: number) => Promise<{ success: boolean; path?: string; error?: string }>;
+      removeUserAvatar: (userId: number) => Promise<{ success: boolean; error?: string }>;
+      getUserAvatar: (userId: number) => Promise<string | null>;
+      updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
+      getAnimeSaisons: (serieId: number) => Promise<AnimeSaison[]>;
     };
   }
 }
