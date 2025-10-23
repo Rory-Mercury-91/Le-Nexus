@@ -1,9 +1,9 @@
 import { BookOpen, Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import AddSerieModal from '../components/AddSerieModal';
-import CollectionView from '../components/CollectionView';
-import SerieCard from '../components/SerieCard';
-import SerieListItem from '../components/SerieListItem';
+import AddSerieModal from '../components/modals/manga/AddSerieModal';
+import CollectionView from '../components/common/CollectionView';
+import SerieCard from '../components/cards/SerieCard';
+import SerieListItem from '../components/cards/SerieListItem';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
 type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';

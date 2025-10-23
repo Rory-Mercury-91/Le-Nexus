@@ -1,7 +1,7 @@
 import { BookOpen, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Serie } from '../types';
-import CoverImage from './CoverImage';
+import CoverImage from '../common/CoverImage';
 
 const TAG_CONFIG = {
   a_lire: { icon: BookOpen, label: 'À lire', color: '#3b82f6' },

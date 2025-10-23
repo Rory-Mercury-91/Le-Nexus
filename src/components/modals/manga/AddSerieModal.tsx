@@ -1,7 +1,7 @@
 import { ExternalLink, Loader, Search, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { MangaDexResult } from '../types';
-import CoverImage from './CoverImage';
+import CoverImage from '../../common/CoverImage';
 
 interface AddSerieModalProps {
   onClose: () => void;

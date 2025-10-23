@@ -1,10 +1,10 @@
 import { ArrowLeft, Ban, BookMarked, BookOpen, CheckCircle2, Edit, Heart, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import AddTomeModal from '../components/AddTomeModal';
-import CoverImage from '../components/CoverImage';
-import EditSerieModal from '../components/EditSerieModal';
-import EditTomeModal from '../components/EditTomeModal';
+import AddTomeModal from '../components/modals/manga/AddTomeModal';
+import CoverImage from '../components/common/CoverImage';
+import EditSerieModal from '../components/modals/manga/EditSerieModal';
+import EditTomeModal from '../components/modals/manga/EditTomeModal';
 import { useConfirm } from '../hooks/useConfirm';
 import { Serie, SerieTag } from '../types';
 

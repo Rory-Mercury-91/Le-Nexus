@@ -555,6 +555,20 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             // Créer un nouvel anime
             console.log(`✨ Création d'un nouvel anime: ${animeData.titre}`);
             
+            // Détection automatique de la source si non fournie
+            let sourceImport = animeData.source_import;
+            if (!sourceImport) {
+              // Essayer de deviner depuis l'URL de couverture ou définir 'manual'
+              if (animeData.couverture_url) {
+                if (animeData.couverture_url.includes('crunchyroll')) sourceImport = 'crunchyroll';
+                else if (animeData.couverture_url.includes('animationdigitalnetwork') || animeData.couverture_url.includes('adn')) sourceImport = 'adn';
+                else if (animeData.couverture_url.includes('adkami')) sourceImport = 'adkami';
+                else if (animeData.mal_id) sourceImport = 'myanimelist';
+              }
+              // Si toujours pas de source, définir 'manual' (ajout manuel)
+              if (!sourceImport) sourceImport = 'manual';
+            }
+            
             const insertResult = db.prepare(`
               INSERT INTO anime_series (
                 titre, titre_natif, couverture_url, description, statut, type, 
@@ -571,7 +585,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
               animeData.studios || null,
               animeData.annee || null,
               animeData.mal_id || null,
-              animeData.source_import || null,
+              sourceImport,
               currentUser
             );
             

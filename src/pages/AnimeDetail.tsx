@@ -1,10 +1,10 @@
 import { ArrowLeft, Check, CheckCircle, Edit, Play, Star, Trash2, Tv } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import AnimeEditModal from '../components/AnimeEditModal';
-import ConfirmModal from '../components/ConfirmModal';
-import CoverImage from '../components/CoverImage';
-import PlatformLogo from '../components/PlatformLogo';
+import AnimeEditModal from '../components/modals/anime/AnimeEditModal';
+import ConfirmModal from '../components/modals/common/ConfirmModal';
+import CoverImage from '../components/common/CoverImage';
+import PlatformLogo from '../components/common/PlatformLogo';
 import { AnimeSerie } from '../types';
 
 export default function AnimeDetail() {

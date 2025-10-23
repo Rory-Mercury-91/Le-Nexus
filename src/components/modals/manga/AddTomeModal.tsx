@@ -1,30 +1,37 @@
 import { Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Tome, User } from '../types';
-import CoverImage from './CoverImage';
-import MultiSelectDropdown from './MultiSelectDropdown';
+import CoverImage from '../../common/CoverImage';
+import MultiSelectDropdown from '../../common/MultiSelectDropdown';
 
-interface EditTomeModalProps {
-  tome: Tome;
+interface AddTomeModalProps {
+  serieId: number;
   serieTitre: string;
+  lastTome?: Tome | null;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: EditTomeModalProps) {
-  const [numero, setNumero] = useState(tome.numero.toString());
-  const [prix, setPrix] = useState(tome.prix.toString());
-  const [proprietaireIds, setProprietaireIds] = useState<number[]>(tome.proprietaireIds || []);
+export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, onSuccess }: AddTomeModalProps) {
+  const [numero, setNumero] = useState('');
+  const [prix, setPrix] = useState('');
+  const [proprietaireIds, setProprietaireIds] = useState<number[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [dateSortie, setDateSortie] = useState(tome.date_sortie || '');
-  const [dateAchat, setDateAchat] = useState(tome.date_achat || '');
-  const [couvertureUrl, setCouvertureUrl] = useState(tome.couverture_url || '');
+  const [dateSortie, setDateSortie] = useState('');
+  const [dateAchat, setDateAchat] = useState('');
+  const [couvertureUrl, setCouvertureUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   // Charger la liste des utilisateurs
   useEffect(() => {
-    window.electronAPI.getAllUsers().then(setUsers);
+    window.electronAPI.getAllUsers().then(allUsers => {
+      setUsers(allUsers);
+      // Sélectionner le premier utilisateur par défaut
+      if (allUsers.length > 0 && proprietaireIds.length === 0) {
+        setProprietaireIds([allUsers[0].id]);
+      }
+    });
   }, []);
 
   // Fermer le modal avec la touche Échap
@@ -38,6 +45,21 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, saving]);
+
+  // Pré-remplir avec les valeurs du dernier tome
+  useEffect(() => {
+    if (lastTome) {
+      setNumero(String(lastTome.numero + 1)); // Incrémenter le numéro
+      setPrix(String(lastTome.prix)); // Garder le même prix
+      // Garder les mêmes propriétaires
+      if (lastTome.proprietaireIds && lastTome.proprietaireIds.length > 0) {
+        setProprietaireIds(lastTome.proprietaireIds);
+      }
+      setDateSortie(''); // Ne pas reprendre la date de sortie
+      setDateAchat(lastTome.date_achat || ''); // Garder la même date d'achat
+      setCouvertureUrl(''); // Ne pas reprendre la couverture
+    }
+  }, [lastTome]);
 
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
@@ -93,7 +115,8 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
 
     setSaving(true);
     try {
-      await window.electronAPI.updateTome(tome.id, {
+      const tomeId = await window.electronAPI.createTome({
+        serie_id: serieId,
         numero: Number(numero),
         prix: Number(prix),
         proprietaireIds,
@@ -102,11 +125,17 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
         couverture_url: couvertureUrl || null
       });
       
-      console.log('Tome mis à jour avec couverture:', couvertureUrl);
+      console.log('Tome créé avec ID:', tomeId, 'Couverture:', couvertureUrl);
+      
+      // Réinitialiser le formulaire pour le prochain ajout
+      setNumero(String(Number(numero) + 1));
+      setPrix(prix); // Garder le même prix
+      setCouvertureUrl(''); // Vider la couverture
+      setSaving(false);
       
       onSuccess();
     } catch (error) {
-      console.error('Erreur lors de la modification du tome:', error);
+      console.error('Erreur lors de l\'ajout du tome:', error);
       setSaving(false);
     }
   };
@@ -120,7 +149,7 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
           alignItems: 'center',
           marginBottom: '24px'
         }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Modifier le tome</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Ajouter un tome</h2>
           <button
             type="button"
             onClick={onClose}
@@ -137,6 +166,28 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
           </button>
         </div>
 
+        {lastTome && (
+          <div style={{
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid var(--primary)',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '18px' }}>💡</span>
+            <p style={{ 
+              margin: 0, 
+              fontSize: '14px', 
+              color: 'var(--text)'
+            }}>
+              Valeurs pré-remplies depuis le tome {lastTome.numero}
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', gap: '24px' }}>
             {/* Colonne gauche - Image */}
@@ -148,22 +199,22 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
               gap: '12px'
             }}>
               <div 
-                style={{
-                  width: '100%',
-                  height: '220px',
-                  borderRadius: '8px',
-                  border: dragging 
-                    ? '3px dashed var(--primary)' 
-                    : (couvertureUrl ? '2px solid var(--border)' : '2px dashed var(--border)'),
-                  overflow: 'hidden',
-                  position: 'relative',
-                  background: dragging ? 'var(--primary)22' : 'transparent',
-                  transition: 'border-color 0.2s, background 0.2s'
-                }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
+              style={{
+                width: '100%',
+                height: '220px',
+                borderRadius: '8px',
+                border: dragging 
+                  ? '3px dashed var(--primary)' 
+                  : (couvertureUrl ? '2px solid var(--border)' : '2px dashed var(--border)'),
+                overflow: 'hidden',
+                position: 'relative',
+                background: dragging ? 'var(--primary)22' : 'transparent',
+                transition: 'border-color 0.2s, background 0.2s'
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
                 {dragging ? (
                   <div style={{
                     width: '100%',
@@ -338,7 +389,7 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
                   Enregistrement...
                 </>
               ) : (
-                'Enregistrer'
+                'Ajouter'
               )}
             </button>
           </div>

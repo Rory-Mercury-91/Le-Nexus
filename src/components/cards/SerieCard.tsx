@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useConfirm } from '../hooks/useConfirm';
 import { Serie, SerieTag } from '../types';
-import CoverImage from './CoverImage';
+import CoverImage from '../common/CoverImage';
 
 interface SerieCardProps {
   serie: Serie;

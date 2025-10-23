@@ -1,7 +1,7 @@
 import { Languages, Loader2, Plus, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AnimeSerie } from '../types';
-import CoverImage from './CoverImage';
+import CoverImage from '../../common/CoverImage';
 import { useToast } from '../hooks/useToast';
 
 interface AnimeSaison {

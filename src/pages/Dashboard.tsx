@@ -2,7 +2,7 @@ import { BookOpen, ChevronDown, ChevronUp, Home, Package, RefreshCw, Tv } from '
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import CoverImage from '../components/CoverImage';
+import CoverImage from '../components/common/CoverImage';
 import { AnimeSerie, EvolutionStatistics, LectureStatistics, Statistics } from '../types';
 
 // Schéma de couleurs cohérent

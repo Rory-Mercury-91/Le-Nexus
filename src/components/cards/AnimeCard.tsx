@@ -1,7 +1,7 @@
 import { BookOpen, Eye, Heart, Tv } from 'lucide-react';
 import { AnimeSerie, AnimeTag } from '../types';
-import CoverImage from './CoverImage';
-import PlatformLogo from './PlatformLogo';
+import CoverImage from '../common/CoverImage';
+import PlatformLogo from '../common/PlatformLogo';
 
 const TAG_CONFIG = {
   a_regarder: { icon: BookOpen, label: 'À regarder', color: '#3b82f6' },

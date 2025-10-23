@@ -1,10 +1,10 @@
 import { Filter, Plus, Search, Tv } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AddAnimeModal from '../components/AddAnimeModal';
-import AnimeCard from '../components/AnimeCard';
-import AnimeListItem from '../components/AnimeListItem';
-import CollectionView from '../components/CollectionView';
+import AddAnimeModal from '../components/modals/anime/AddAnimeModal';
+import AnimeCard from '../components/cards/AnimeCard';
+import AnimeListItem from '../components/cards/AnimeListItem';
+import CollectionView from '../components/common/CollectionView';
 import { AnimeFilters, AnimeSerie } from '../types';
 
 type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation' | 'images';
