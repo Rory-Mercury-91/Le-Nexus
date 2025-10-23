@@ -88,6 +88,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     
     try {
       await window.electronAPI.toggleSerieFavorite(serie.id, currentUser.id);
+      setShowTagDropdown(false); // Fermer le dropdown après sélection
       onUpdate();
     } catch (error) {
       console.error('Erreur lors du toggle favori:', error);
@@ -281,6 +282,194 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             <Heart size={18} fill="#ef4444" strokeWidth={2.5} />
           </button>
         )}
+
+        {/* Bouton tag dropdown */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowTagDropdown(!showTagDropdown);
+          }}
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            background: 'rgba(0, 0, 0, 0.6)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            opacity: 0,
+            transition: 'all 0.2s',
+            zIndex: 10
+          }}
+          className="tag-btn"
+        >
+          <Tag size={18} />
+        </button>
+
+        {/* Dropdown de tags */}
+        {showTagDropdown && (
+          <div
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            style={{
+              position: 'absolute',
+              bottom: '56px',
+              left: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              padding: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              border: '1px solid var(--border)',
+              zIndex: 20,
+              minWidth: '180px'
+            }}
+          >
+            {/* Option Favori */}
+            <button
+              onClick={handleToggleFavorite}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                background: serie.is_favorite ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: serie.is_favorite ? '#ef4444' : 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: serie.is_favorite ? '600' : '400',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = serie.is_favorite ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
+              }}
+            >
+              <Heart size={16} fill={serie.is_favorite ? '#ef4444' : 'none'} />
+              {serie.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            </button>
+            
+            <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
+            
+            {/* Tags manuels uniquement */}
+            {MANUAL_TAGS.map((key) => {
+              const config = TAG_CONFIG[key];
+              return (
+                <button
+                  key={key}
+                  onClick={(e) => handleSetTag(key, e)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    background: serie.tag === key ? `${config.color}20` : 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: serie.tag === key ? config.color : 'var(--text)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: serie.tag === key ? '600' : '400',
+                    textAlign: 'left',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `${config.color}15`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = serie.tag === key ? `${config.color}20` : 'transparent';
+                  }}
+                >
+                  {React.createElement(config.icon, { size: 16 })}
+                  {config.label}
+                </button>
+              );
+            })}
+
+            <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
+
+            {/* Option Masquer/Démasquer */}
+            <button
+              onClick={handleToggleMasquer}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 12px',
+                background: isMasquee ? 'rgba(251, 146, 60, 0.15)' : 'transparent',
+                border: 'none',
+                borderRadius: '6px',
+                color: isMasquee ? '#fb923c' : 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: isMasquee ? '600' : '400',
+                textAlign: 'left',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(251, 146, 60, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isMasquee ? 'rgba(251, 146, 60, 0.15)' : 'transparent';
+              }}
+            >
+              {isMasquee ? <Eye size={16} /> : <EyeOff size={16} />}
+              {isMasquee ? 'Démasquer' : 'Masquer'}
+            </button>
+            
+            {serie.tag && MANUAL_TAGS.includes(serie.tag) && (
+              <>
+                <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
+                <button
+                  onClick={handleRemoveTag}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    textAlign: 'left',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  Retirer le tag
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        <style>{`
+          .card:hover .tag-btn {
+            opacity: 1;
+          }
+        `}</style>
       </Link>
     );
   }
