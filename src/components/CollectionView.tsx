@@ -1,5 +1,5 @@
 import { Grid3x3, List, Maximize2, LayoutGrid } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, cloneElement, isValidElement } from 'react';
 
 type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
 
@@ -30,6 +30,7 @@ export default function CollectionView<T extends { id: number | string }>({
 }: CollectionViewProps<T>) {
   // État local du mode de vue (utilisé si non contrôlé)
   const [localViewMode, setLocalViewMode] = useState<ViewMode>('grid');
+  const carouselRef = useRef<HTMLDivElement>(null);
   
   // Utiliser le mode contrôlé si fourni, sinon utiliser l'état local
   const viewMode = controlledViewMode || localViewMode;
@@ -58,6 +59,21 @@ export default function CollectionView<T extends { id: number | string }>({
       localStorage.setItem('collectionViewMode', viewMode);
     }
   }, [viewMode, controlledViewMode]);
+
+  // Gérer le scroll horizontal avec la molette (mode non-passif)
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (!carousel || viewMode !== 'carousel') return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // Multiplier par 3 pour un scroll plus rapide et réactif
+      carousel.scrollBy({ left: e.deltaY * 3, behavior: 'smooth' });
+    };
+
+    carousel.addEventListener('wheel', handleWheel, { passive: false });
+    return () => carousel.removeEventListener('wheel', handleWheel);
+  }, [viewMode]);
 
   if (loading) {
     return (
@@ -220,11 +236,7 @@ export default function CollectionView<T extends { id: number | string }>({
 
           <div
             id="carousel-container"
-            onWheel={(e) => {
-              e.preventDefault();
-              const container = e.currentTarget;
-              container.scrollBy({ left: e.deltaY, behavior: 'smooth' });
-            }}
+            ref={carouselRef}
             style={{
               display: 'flex',
               gap: '20px',
@@ -269,18 +281,26 @@ export default function CollectionView<T extends { id: number | string }>({
           gap: '40px',
           padding: '20px'
         }}>
-          {items.map((item) => (
-            <div key={item.id} style={{
-              transform: 'scale(1)',
-              transition: 'transform 0.3s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              {renderCard(item, onUpdate)}
-            </div>
-          ))}
+          {items.map((item) => {
+            const card = renderCard(item, onUpdate);
+            // Cloner l'élément et ajouter imageObjectFit='contain' pour mode présentation
+            const enhancedCard = isValidElement(card)
+              ? cloneElement(card as React.ReactElement<any>, { imageObjectFit: 'contain' })
+              : card;
+            
+            return (
+              <div key={item.id} style={{
+                transform: 'scale(1)',
+                transition: 'transform 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {enhancedCard}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
