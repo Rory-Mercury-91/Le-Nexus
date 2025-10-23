@@ -1,4 +1,5 @@
 export type SerieTag = 'a_lire' | 'en_cours' | 'lu' | 'abandonne';
+export type AnimeTag = 'a_regarder' | 'en_cours' | 'termine' | 'abandonne';
 
 export interface Serie {
   id: number;
@@ -243,6 +244,10 @@ declare global {
       toggleSerieFavorite: (serieId: number, userId: number) => Promise<{ success: boolean; is_favorite: boolean }>;
       getSerieTag: (serieId: number, userId: number) => Promise<{ tag: SerieTag | null; is_favorite: boolean } | null>;
       removeSerieTag: (serieId: number, userId: number) => Promise<{ success: boolean }>;
+      setAnimeTag: (animeId: number, userId: number, tag: AnimeTag) => Promise<{ success: boolean; tag: string }>;
+      toggleAnimeFavorite: (animeId: number, userId: number) => Promise<{ success: boolean; is_favorite: boolean }>;
+      getAnimeTag: (animeId: number, userId: number) => Promise<{ tag: AnimeTag | null; is_favorite: boolean } | null>;
+      removeAnimeTag: (animeId: number, userId: number) => Promise<{ success: boolean }>;
       createTome: (tome: Partial<Tome>) => Promise<number>;
       updateTome: (id: number, tome: Partial<Tome>) => Promise<boolean>;
       deleteTome: (id: number) => Promise<boolean>;

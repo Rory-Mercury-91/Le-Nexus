@@ -2,6 +2,8 @@ import { BookOpen, Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AddSerieModal from '../components/AddSerieModal';
 import SerieCard from '../components/SerieCard';
+import SerieListItem from '../components/SerieListItem';
+import CollectionView from '../components/CollectionView';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
 export default function Collection() {
@@ -219,45 +221,32 @@ export default function Collection() {
         )}
 
         {/* Liste des séries */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px' }}>
-            <div className="loading" style={{ width: '40px', height: '40px', margin: '0 auto' }} />
-            <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Chargement...</p>
-          </div>
-        ) : series.length > 0 ? (
-          <div className="grid grid-4">
-            {series.map((serie) => (
-              <SerieCard key={serie.id} serie={serie} onUpdate={() => { loadSeries(true); loadLectureStats(); }} />
-            ))}
-          </div>
-        ) : (
-          <div style={{
-            textAlign: 'center',
-            padding: '60px 20px',
-            background: 'var(--surface)',
-            borderRadius: '16px'
-          }}>
-            <BookOpen size={64} style={{ color: 'var(--text-secondary)', margin: '0 auto 24px' }} />
-            <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px' }}>
-              {hasActiveFilters ? 'Aucune série trouvée' : 'Aucune série dans votre collection'}
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              {hasActiveFilters
-                ? 'Essayez de modifier vos filtres de recherche'
-                : 'Commencez par ajouter votre première série !'}
-            </p>
-            {hasActiveFilters ? (
-              <button onClick={clearFilters} className="btn btn-primary">
-                Réinitialiser les filtres
-              </button>
-            ) : (
-              <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-                <Plus size={20} />
-                Ajouter une série
-              </button>
-            )}
-          </div>
-        )}
+        <CollectionView
+          items={series}
+          loading={loading}
+          renderCard={(serie) => (
+            <SerieCard 
+              key={serie.id} 
+              serie={serie} 
+              onUpdate={() => { loadSeries(true); loadLectureStats(); }} 
+            />
+          )}
+          renderListItem={(serie) => (
+            <SerieListItem
+              key={serie.id}
+              serie={serie}
+              onUpdate={() => { loadSeries(true); loadLectureStats(); }}
+            />
+          )}
+          onUpdate={() => { loadSeries(true); loadLectureStats(); }}
+          emptyMessage={
+            hasActiveFilters 
+              ? 'Aucune série trouvée. Essayez de modifier vos filtres de recherche.' 
+              : 'Aucune série dans votre collection. Commencez par ajouter votre première série !'
+          }
+          emptyIcon={<BookOpen size={64} style={{ color: 'var(--text-secondary)', margin: '0 auto 24px' }} />}
+          gridColumns={4}
+        />
       </div>
 
       {showAddModal && (

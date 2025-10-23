@@ -16,7 +16,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleSerieFavorite: (serieId, userId) => ipcRenderer.invoke('toggle-serie-favorite', serieId, userId),
   getSerieTag: (serieId, userId) => ipcRenderer.invoke('get-serie-tag', serieId, userId),
   removeSerieTag: (serieId, userId) => ipcRenderer.invoke('remove-serie-tag', serieId, userId),
-  
+
+  // Tags d'animes
+  setAnimeTag: (animeId, userId, tag) => ipcRenderer.invoke('set-anime-tag', animeId, userId, tag),
+  toggleAnimeFavorite: (animeId, userId) => ipcRenderer.invoke('toggle-anime-favorite', animeId, userId),
+  getAnimeTag: (animeId, userId) => ipcRenderer.invoke('get-anime-tag', animeId, userId),
+  removeAnimeTag: (animeId, userId) => ipcRenderer.invoke('remove-anime-tag', animeId, userId),
+
   // Tomes
   createTome: (tome) => ipcRenderer.invoke('create-tome', tome),
   updateTome: (id, tome) => ipcRenderer.invoke('update-tome', id, tome),

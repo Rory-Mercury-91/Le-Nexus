@@ -77,9 +77,21 @@ function createTray() {
  * Crée la fenêtre principale de l'application
  */
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  // Charger les dimensions/position sauvegardées
+  const windowState = store.get('windowState', {
     width: 1400,
     height: 900,
+    x: undefined,
+    y: undefined,
+    isMaximized: false,
+    isFullScreen: false
+  });
+
+  mainWindow = new BrowserWindow({
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
     minWidth: 1200,
     minHeight: 700,
     webPreferences: {
@@ -91,10 +103,59 @@ function createWindow() {
     icon: path.join(__dirname, '..', 'assets', 'icon.ico')
   });
 
+  // Restaurer l'état maximisé/plein écran
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+  if (windowState.isFullScreen) {
+    mainWindow.setFullScreen(true);
+  }
+
+  // Sauvegarder l'état de la fenêtre (avec debounce pour éviter trop d'écritures)
+  let saveStateTimeout;
+  const saveWindowState = () => {
+    clearTimeout(saveStateTimeout);
+    saveStateTimeout = setTimeout(() => {
+      if (!mainWindow) return;
+      
+      const bounds = mainWindow.getBounds();
+      store.set('windowState', {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        isMaximized: mainWindow.isMaximized(),
+        isFullScreen: mainWindow.isFullScreen()
+      });
+    }, 500); // Attendre 500ms après le dernier changement
+  };
+
+  // Écouter les changements de taille/position
+  mainWindow.on('resize', saveWindowState);
+  mainWindow.on('move', saveWindowState);
+  mainWindow.on('maximize', saveWindowState);
+  mainWindow.on('unmaximize', saveWindowState);
+  mainWindow.on('enter-full-screen', saveWindowState);
+  mainWindow.on('leave-full-screen', saveWindowState);
+
   // Intercepter la fermeture pour minimiser dans le tray au lieu de quitter
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
+      
+      // Sauvegarder immédiatement l'état avant de cacher
+      if (mainWindow) {
+        const bounds = mainWindow.getBounds();
+        store.set('windowState', {
+          width: bounds.width,
+          height: bounds.height,
+          x: bounds.x,
+          y: bounds.y,
+          isMaximized: mainWindow.isMaximized(),
+          isFullScreen: mainWindow.isFullScreen()
+        });
+      }
+      
       mainWindow.hide();
       
       // Afficher une notification la première fois (Windows uniquement)

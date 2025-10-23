@@ -793,6 +793,101 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       throw error;
     }
   });
+
+  // ========== TAGS D'ANIMES ==========
+
+  // Définir ou modifier le tag d'un anime pour un utilisateur
+  ipcMain.handle('set-anime-tag', async (event, animeId, userId, tag) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      if (tag && !['a_regarder', 'abandonne'].includes(tag)) {
+        throw new Error(`Tag invalide: ${tag}`);
+      }
+
+      const existing = db.prepare('SELECT id FROM anime_tags WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
+      
+      if (existing) {
+        db.prepare('UPDATE anime_tags SET tag = ?, updated_at = CURRENT_TIMESTAMP WHERE anime_id = ? AND user_id = ?')
+          .run(tag, animeId, userId);
+      } else {
+        db.prepare('INSERT INTO anime_tags (anime_id, user_id, tag, is_favorite) VALUES (?, ?, ?, 0)')
+          .run(animeId, userId, tag);
+      }
+      
+      return { success: true, tag };
+    } catch (error) {
+      console.error('❌ Erreur set-anime-tag:', error);
+      throw error;
+    }
+  });
+
+  // Basculer le statut favori d'un anime pour un utilisateur
+  ipcMain.handle('toggle-anime-favorite', async (event, animeId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      const existing = db.prepare('SELECT id, is_favorite FROM anime_tags WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
+      
+      if (existing) {
+        const newFavorite = existing.is_favorite ? 0 : 1;
+        db.prepare('UPDATE anime_tags SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE anime_id = ? AND user_id = ?')
+          .run(newFavorite, animeId, userId);
+        return { success: true, is_favorite: newFavorite === 1 };
+      } else {
+        db.prepare('INSERT INTO anime_tags (anime_id, user_id, tag, is_favorite) VALUES (?, ?, NULL, 1)')
+          .run(animeId, userId);
+        return { success: true, is_favorite: true };
+      }
+    } catch (error) {
+      console.error('❌ Erreur toggle-anime-favorite:', error);
+      throw error;
+    }
+  });
+
+  // Récupérer le tag d'un anime pour un utilisateur
+  ipcMain.handle('get-anime-tag', async (event, animeId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) return null;
+
+      const result = db.prepare('SELECT tag, is_favorite FROM anime_tags WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
+      return result ? { tag: result.tag, is_favorite: result.is_favorite === 1 } : null;
+    } catch (error) {
+      console.error('❌ Erreur get-anime-tag:', error);
+      return null;
+    }
+  });
+
+  // Supprimer le tag d'un anime pour un utilisateur (mais garder favori si présent)
+  ipcMain.handle('remove-anime-tag', async (event, animeId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      const existing = db.prepare('SELECT is_favorite FROM anime_tags WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
+      
+      if (existing && existing.is_favorite) {
+        db.prepare('UPDATE anime_tags SET tag = NULL, updated_at = CURRENT_TIMESTAMP WHERE anime_id = ? AND user_id = ?')
+          .run(animeId, userId);
+      } else {
+        db.prepare('DELETE FROM anime_tags WHERE anime_id = ? AND user_id = ?').run(animeId, userId);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur remove-anime-tag:', error);
+      throw error;
+    }
+  });
 }
 
 module.exports = { registerAnimeHandlers };

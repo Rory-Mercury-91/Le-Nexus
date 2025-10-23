@@ -148,6 +148,20 @@ function initDatabase(dbPath) {
       CHECK (tag IS NULL OR tag IN ('a_lire', 'abandonne'))
     );
 
+    CREATE TABLE IF NOT EXISTS anime_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      anime_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      tag TEXT,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(anime_id, user_id),
+      CHECK (tag IS NULL OR tag IN ('a_regarder', 'abandonne'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
     CREATE INDEX IF NOT EXISTS idx_series_statut ON series(statut);
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_tome ON tomes_proprietaires(tome_id);
@@ -163,6 +177,9 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_serie_tags_serie ON serie_tags(serie_id);
     CREATE INDEX IF NOT EXISTS idx_serie_tags_user ON serie_tags(user_id);
     CREATE INDEX IF NOT EXISTS idx_serie_tags_tag ON serie_tags(tag);
+    CREATE INDEX IF NOT EXISTS idx_anime_tags_anime ON anime_tags(anime_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_tags_user ON anime_tags(user_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_tags_tag ON anime_tags(tag);
   `);
 
   console.log('✅ Schéma de base de données créé/vérifié');
