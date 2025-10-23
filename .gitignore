@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+
+# Electron
+out/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Covers (local images)
+covers/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Electron builder
+dist_electron/
+release/

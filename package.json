@@ -1,0 +1,56 @@
+{
+  "name": "ma-mangatheque",
+  "version": "1.0.0",
+  "description": "Application de gestion de collection de mangas",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "concurrently \"npm run start:react\" \"wait-on http://localhost:3000 && npm run start:electron\"",
+    "start:react": "vite",
+    "start:electron": "electron .",
+    "build": "vite build",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.mangatheque.app",
+    "productName": "Ma Mangathèque",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.2.2",
+    "electron-store": "^8.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "recharts": "^2.10.3",
+    "lucide-react": "^0.303.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11",
+    "wait-on": "^7.2.0"
+  }
+}
