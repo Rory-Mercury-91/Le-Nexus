@@ -277,15 +277,18 @@ export default function CollectionView<T extends { id: number | string }>({
       {viewMode === 'presentation' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
           gap: '40px',
           padding: '20px'
         }}>
           {items.map((item) => {
             const card = renderCard(item, onUpdate);
-            // Cloner l'élément et ajouter imageObjectFit='contain' pour mode présentation
+            // Cloner l'élément et ajouter imageObjectFit='contain' + presentationMode pour mode présentation
             const enhancedCard = isValidElement(card)
-              ? cloneElement(card as React.ReactElement<any>, { imageObjectFit: 'contain' })
+              ? cloneElement(card as React.ReactElement<any>, { 
+                  imageObjectFit: 'contain',
+                  presentationMode: true
+                })
               : card;
             
             return (

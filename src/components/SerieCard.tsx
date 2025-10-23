@@ -9,6 +9,7 @@ interface SerieCardProps {
   serie: Serie;
   onUpdate: () => void;
   imageObjectFit?: 'cover' | 'contain';
+  presentationMode?: boolean;
 }
 
 const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg: string }> = {
@@ -21,11 +22,15 @@ const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg
 // Tags manuels uniquement (utilisateur peut les définir)
 const MANUAL_TAGS: SerieTag[] = ['a_lire', 'abandonne'];
 
-export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover' }: SerieCardProps) {
+export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', presentationMode = false }: SerieCardProps) {
   const { confirm, ConfirmDialog } = useConfirm();
   const [isMasquee, setIsMasquee] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
+  
+  // Dimensions adaptatives selon le mode
+  const cardHeight = presentationMode ? '560px' : '420px';
+  const coverHeight = presentationMode ? '420px' : '280px';
 
   useEffect(() => {
     checkIfMasquee();
@@ -162,13 +167,13 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover' }:
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          height: '420px'
+          height: cardHeight
         }}
       >
       {/* Couverture */}
       <div style={{
         width: '100%',
-        height: '280px',
+        height: coverHeight,
         position: 'relative',
         overflow: 'hidden',
         background: 'var(--surface)'
