@@ -71,34 +71,45 @@ export default function CollectionView<T extends { id: number | string }>({
       carousel.scrollBy({ left: e.deltaY * 3, behavior: 'smooth' });
     };
 
-    // Effet 3D sur les cartes lors du scroll
+    // Effet 3D sur les cartes lors du scroll avec requestAnimationFrame pour fluidité
+    let rafId: number | null = null;
     const handleScroll3D = () => {
-      const cards = carousel.querySelectorAll('.carousel-card');
-      const containerRect = carousel.getBoundingClientRect();
-      const containerCenter = containerRect.left + containerRect.width / 2;
+      // Annuler l'animation précédente si elle existe
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      
+      // Planifier la mise à jour à la prochaine frame
+      rafId = requestAnimationFrame(() => {
+        const cards = carousel.querySelectorAll('.carousel-card');
+        const containerRect = carousel.getBoundingClientRect();
+        const containerCenter = containerRect.left + containerRect.width / 2;
 
-      cards.forEach((card) => {
-        const cardRect = card.getBoundingClientRect();
-        const cardCenter = cardRect.left + cardRect.width / 2;
+        cards.forEach((card) => {
+          const cardRect = card.getBoundingClientRect();
+          const cardCenter = cardRect.left + cardRect.width / 2;
+          
+          // Distance du centre du conteneur (-1 à gauche, 0 au centre, +1 à droite)
+          const distanceFromCenter = (cardCenter - containerCenter) / (containerRect.width / 2);
+          
+          // Effet 3D plus prononcé et fluide
+          const rotateY = distanceFromCenter * 45; // Rotation augmentée à ±45deg
+          const scale = 1 - Math.abs(distanceFromCenter) * 0.25; // Scale réduit à 0.75
+          const translateZ = -Math.abs(distanceFromCenter) * 150; // Plus de profondeur
+          const translateX = distanceFromCenter * 30; // Décalage horizontal
+          const opacity = 1 - Math.abs(distanceFromCenter) * 0.5; // Fade plus marqué
+          
+          (card as HTMLElement).style.transform = `
+            rotateY(${rotateY}deg)
+            scale(${Math.max(scale, 0.75)})
+            translateZ(${translateZ}px)
+            translateX(${translateX}px)
+          `;
+          (card as HTMLElement).style.opacity = `${Math.max(opacity, 0.5)}`;
+          (card as HTMLElement).style.filter = `blur(${Math.abs(distanceFromCenter) * 2}px)`;
+        });
         
-        // Distance du centre du conteneur (-1 à gauche, 0 au centre, +1 à droite)
-        const distanceFromCenter = (cardCenter - containerCenter) / (containerRect.width / 2);
-        
-        // Effet 3D plus prononcé et fluide
-        const rotateY = distanceFromCenter * 45; // Rotation augmentée à ±45deg
-        const scale = 1 - Math.abs(distanceFromCenter) * 0.25; // Scale réduit à 0.75
-        const translateZ = -Math.abs(distanceFromCenter) * 150; // Plus de profondeur
-        const translateX = distanceFromCenter * 30; // Décalage horizontal
-        const opacity = 1 - Math.abs(distanceFromCenter) * 0.5; // Fade plus marqué
-        
-        (card as HTMLElement).style.transform = `
-          rotateY(${rotateY}deg)
-          scale(${Math.max(scale, 0.75)})
-          translateZ(${translateZ}px)
-          translateX(${translateX}px)
-        `;
-        (card as HTMLElement).style.opacity = `${Math.max(opacity, 0.5)}`;
-        (card as HTMLElement).style.filter = `blur(${Math.abs(distanceFromCenter) * 2}px)`;
+        rafId = null;
       });
     };
 
@@ -299,7 +310,7 @@ export default function CollectionView<T extends { id: number | string }>({
                   maxWidth: '280px',
                   flexShrink: 0,
                   transformStyle: 'preserve-3d',
-                  transition: 'transform 0.15s ease-out, opacity 0.15s ease-out, filter 0.15s ease-out',
+                  transition: 'none',
                   willChange: 'transform, opacity, filter',
                   scrollSnapAlign: 'center',
                   scrollSnapStop: 'always'
