@@ -1,6 +1,7 @@
 import { BookOpen, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Serie } from '../types';
+import CoverImage from './CoverImage';
 
 const TAG_CONFIG = {
   a_lire: { icon: BookOpen, label: 'À lire', color: '#3b82f6' },
@@ -57,8 +58,8 @@ export default function SerieListItem({ serie, onUpdate }: SerieListItemProps) {
         background: 'var(--background)'
       }}>
         {serie.couverture_url ? (
-          <img
-            src={`manga://${serie.couverture_url}`}
+          <CoverImage
+            src={serie.couverture_url}
             alt={serie.titre}
             style={{
               width: '100%',

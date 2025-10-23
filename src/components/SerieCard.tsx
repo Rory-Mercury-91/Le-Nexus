@@ -160,7 +160,8 @@ export default function SerieCard({ serie, onUpdate }: SerieCardProps) {
           overflow: 'hidden',
           position: 'relative',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          height: '420px'
         }}
       >
       {/* Couverture */}
@@ -474,10 +475,9 @@ export default function SerieCard({ serie, onUpdate }: SerieCardProps) {
           marginBottom: '8px',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical'
-        }}>
+          whiteSpace: 'nowrap',
+          minHeight: '24px'
+        }} title={serie.titre}>
           {serie.titre}
         </h3>
         

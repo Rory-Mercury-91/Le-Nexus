@@ -139,24 +139,112 @@ export default function CollectionView<T extends { id: number | string }>({
       )}
 
       {viewMode === 'carousel' && (
-        <div style={{
-          display: 'flex',
-          gap: '20px',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          padding: '8px 0 24px 0',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--primary) var(--surface)'
-        }}>
-          {items.map((item) => (
-            <div key={item.id} style={{
-              minWidth: '280px',
-              maxWidth: '280px',
-              flexShrink: 0
-            }}>
-              {renderCard(item, onUpdate)}
-            </div>
-          ))}
+        <div style={{ position: 'relative' }}>
+          {/* Flèche gauche */}
+          <button
+            onClick={() => {
+              const container = document.getElementById('carousel-container');
+              if (container) container.scrollBy({ left: -300, behavior: 'smooth' });
+            }}
+            style={{
+              position: 'absolute',
+              left: '-20px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 10,
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--surface)',
+              border: '2px solid var(--primary)',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--primary)';
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--surface)';
+              e.currentTarget.style.color = 'var(--primary)';
+            }}
+          >
+            ‹
+          </button>
+
+          {/* Flèche droite */}
+          <button
+            onClick={() => {
+              const container = document.getElementById('carousel-container');
+              if (container) container.scrollBy({ left: 300, behavior: 'smooth' });
+            }}
+            style={{
+              position: 'absolute',
+              right: '-20px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 10,
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--surface)',
+              border: '2px solid var(--primary)',
+              color: 'var(--primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--primary)';
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'var(--surface)';
+              e.currentTarget.style.color = 'var(--primary)';
+            }}
+          >
+            ›
+          </button>
+
+          <div
+            id="carousel-container"
+            onWheel={(e) => {
+              e.preventDefault();
+              const container = e.currentTarget;
+              container.scrollBy({ left: e.deltaY, behavior: 'smooth' });
+            }}
+            style={{
+              display: 'flex',
+              gap: '20px',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              padding: '8px 40px 24px 40px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'var(--primary) var(--surface)'
+            }}
+          >
+            {items.map((item) => (
+              <div key={item.id} style={{
+                minWidth: '280px',
+                maxWidth: '280px',
+                flexShrink: 0
+              }}>
+                {renderCard(item, onUpdate)}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -177,16 +265,17 @@ export default function CollectionView<T extends { id: number | string }>({
       {viewMode === 'presentation' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '32px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+          gap: '40px',
           padding: '20px'
         }}>
           {items.map((item) => (
             <div key={item.id} style={{
               transform: 'scale(1)',
-              transition: 'transform 0.2s ease'
+              transition: 'transform 0.3s ease',
+              cursor: 'pointer'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
               {renderCard(item, onUpdate)}
