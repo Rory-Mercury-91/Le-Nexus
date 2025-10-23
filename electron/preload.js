@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
   getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
   setAutoLaunch: (enabled) => ipcRenderer.invoke('set-auto-launch', enabled),
+  
+  // Groq AI
+  getGroqApiKey: () => ipcRenderer.invoke('get-groq-api-key'),
+  setGroqApiKey: (apiKey) => ipcRenderer.invoke('set-groq-api-key', apiKey),
+  translateText: (text, targetLang) => ipcRenderer.invoke('translate-text', text, targetLang),
+  
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),
   uploadCustomCover: (serieTitre, type) => ipcRenderer.invoke('upload-custom-cover', serieTitre, type),
   saveCoverFromPath: (sourcePath, serieTitre, type) => ipcRenderer.invoke('save-cover-from-path', sourcePath, serieTitre, type),

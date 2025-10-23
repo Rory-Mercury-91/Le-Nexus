@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Download, Edit2, Folder, FolderOpen, Moon, Plus, Sun, Trash2, Tv, Upload, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Download, Edit2, Eye, EyeOff, Folder, FolderOpen, Moon, Plus, Sun, Trash2, Tv, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
@@ -15,6 +15,8 @@ interface UserData {
 export default function Settings() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [autoLaunch, setAutoLaunch] = useState(false);
+  const [groqApiKey, setGroqApiKey] = useState('');
+  const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   const [baseDirectory, setBaseDirectory] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -44,6 +46,7 @@ export default function Settings() {
     loadSettings();
     loadTheme();
     loadAutoLaunch();
+    loadGroqApiKey();
     
     // Écouter les mises à jour de progression de l'import
     const unsubscribe = window.electronAPI.onAnimeImportProgress((progress) => {
@@ -72,6 +75,26 @@ export default function Settings() {
       setAutoLaunch(enabled);
     } catch (error) {
       console.error('Erreur chargement auto-launch:', error);
+    }
+  };
+
+  const loadGroqApiKey = async () => {
+    try {
+      const apiKey = await window.electronAPI.getGroqApiKey();
+      setGroqApiKey(apiKey || '');
+    } catch (error) {
+      console.error('Erreur chargement clé API Groq:', error);
+    }
+  };
+
+  const handleGroqApiKeyChange = async (newApiKey: string) => {
+    try {
+      await window.electronAPI.setGroqApiKey(newApiKey);
+      setGroqApiKey(newApiKey);
+      showToast(newApiKey ? 'Clé API Groq enregistrée' : 'Clé API Groq supprimée', 'success');
+    } catch (error) {
+      console.error('Erreur sauvegarde clé API Groq:', error);
+      showToast('Erreur lors de la sauvegarde', 'error');
     }
   };
 
@@ -658,6 +681,138 @@ export default function Settings() {
             </p>
           </div>
           </div>
+        </div>
+
+        {/* Section Intelligence Artificielle */}
+        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
+            🤖 Intelligence Artificielle
+          </h2>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text-secondary)'
+            }}>
+              Clé API Groq (optionnel)
+            </label>
+            
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showGroqApiKey ? "text" : "password"}
+                value={groqApiKey}
+                onChange={(e) => handleGroqApiKeyChange(e.target.value)}
+                placeholder="gsk_..."
+                style={{
+                  width: '100%',
+                  padding: '12px 48px 12px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  fontSize: '14px',
+                  fontFamily: 'monospace'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowGroqApiKey(!showGroqApiKey)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                {showGroqApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <p style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            padding: '12px',
+            background: 'var(--surface)',
+            borderRadius: '8px',
+            borderLeft: '3px solid var(--primary)',
+            marginBottom: '12px'
+          }}>
+            🌐 Permet la traduction automatique des synopsis d'anime lors de l'import XML
+            <br />
+            📊 Limite gratuite : 14 400 traductions/jour (30/min)
+          </p>
+
+          <a
+            href="https://console.groq.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-block',
+              fontSize: '13px',
+              color: 'var(--primary)',
+              textDecoration: 'none',
+              padding: '8px 12px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              borderRadius: '6px',
+              fontWeight: '600',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)';
+            }}
+          >
+            🔗 Obtenir une clé API gratuite
+          </a>
+
+          <details style={{ marginTop: '16px' }}>
+            <summary style={{
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--text-secondary)',
+              padding: '8px',
+              borderRadius: '6px',
+              transition: 'background 0.2s'
+            }}>
+              ℹ️ Comment obtenir une clé API ?
+            </summary>
+            <div style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              padding: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              marginTop: '8px',
+              lineHeight: '1.6'
+            }}>
+              <ol style={{ paddingLeft: '20px', margin: '0' }}>
+                <li>Allez sur <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>console.groq.com</a></li>
+                <li>Créez un compte gratuit (email + mot de passe)</li>
+                <li>Vérifiez votre email si demandé</li>
+                <li>Cliquez sur "API Keys" dans le menu</li>
+                <li>Cliquez sur "Create API Key"</li>
+                <li>Copiez votre clé (elle commence par <code style={{ background: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '3px' }}>gsk_...</code>)</li>
+                <li>Collez-la dans le champ ci-dessus</li>
+              </ol>
+              <p style={{ marginTop: '12px', fontWeight: '600', color: 'var(--warning)' }}>
+                ⚠️ Gardez une copie de votre clé dans un endroit sûr. Elle n'est affichée qu'une seule fois !
+              </p>
+            </div>
+          </details>
         </div>
 
         {/* Formulaire d'ajout/édition (pleine largeur en dessous) */}

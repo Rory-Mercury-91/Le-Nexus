@@ -271,6 +271,9 @@ declare global {
       setTheme: (theme: string) => Promise<{ success: boolean }>;
       getAutoLaunch: () => Promise<boolean>;
       setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+      getGroqApiKey: () => Promise<string>;
+      setGroqApiKey: (apiKey: string) => Promise<{ success: boolean }>;
+      translateText: (text: string, targetLang?: string) => Promise<{ success: boolean; text: string; error?: string }>;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
