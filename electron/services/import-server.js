@@ -880,27 +880,31 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       }
 
           // Auto-incrémentation : marquer tous les épisodes précédents comme vus
-          const dateVisionnage = new Date().toISOString().split('T')[0];
+          const baseDate = new Date();
           
           if (episodeInfo.episode_numero > 1) {
             console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
             
-            // Marquer tous les épisodes précédents
+            // Marquer tous les épisodes précédents avec des timestamps espacés
             for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
+              const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000)); // +1 seconde par épisode
+              const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
               db.prepare(`
                 INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
                 VALUES (?, ?, ?, 1, ?)
-              `).run(saison.id, currentUser, ep, dateVisionnage);
+              `).run(saison.id, currentUser, ep, dateVisionnageStr);
             }
             
             console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
           }
           
           // Marquer l'épisode actuel comme vu
+          const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
+          const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
           db.prepare(`
             INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
             VALUES (?, ?, ?, 1, ?)
-          `).run(saison.id, currentUser, episodeInfo.episode_numero, dateVisionnage);
+          `).run(saison.id, currentUser, episodeInfo.episode_numero, dateVisionnageActuelStr);
 
           console.log(`✅ Épisode ${episodeInfo.episode_numero} de "${anime.titre}" marqué comme vu`);
 

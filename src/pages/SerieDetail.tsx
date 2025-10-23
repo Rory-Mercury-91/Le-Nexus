@@ -1,12 +1,22 @@
-import { ArrowLeft, BookOpen, Edit, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Ban, BookMarked, BookOpen, CheckCircle2, Edit, Heart, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import AddTomeModal from '../components/AddTomeModal';
 import CoverImage from '../components/CoverImage';
 import EditSerieModal from '../components/EditSerieModal';
 import EditTomeModal from '../components/EditTomeModal';
 import { useConfirm } from '../hooks/useConfirm';
-import { Serie } from '../types';
+import { Serie, SerieTag } from '../types';
+
+const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg: string }> = {
+  a_lire: { label: 'À lire', icon: BookMarked, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  en_cours: { label: 'En cours', icon: BookMarked, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
+  lu: { label: 'Lu', icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+  abandonne: { label: 'Abandonné', icon: Ban, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)' }
+};
+
+// Tags manuels uniquement
+const MANUAL_TAGS: SerieTag[] = ['a_lire', 'abandonne'];
 
 export default function SerieDetail() {
   const { id } = useParams();
@@ -22,12 +32,21 @@ export default function SerieDetail() {
   const [scrollPosition, setScrollPosition] = useState<number | null>(null);
   const [profileImages, setProfileImages] = useState<Record<number, string | null>>({});
   const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     loadSerie();
     loadProfileImages();
+    loadCurrentUser();
     window.electronAPI.getAllUsers().then(setUsers);
   }, [id]);
+
+  const loadCurrentUser = async () => {
+    const allUsers = await window.electronAPI.getAllUsers();
+    const userName = await window.electronAPI.getCurrentUser();
+    const user = allUsers.find(u => u.name === userName);
+    setCurrentUser(user || null);
+  };
 
   const loadProfileImages = async () => {
     const allUsers = await window.electronAPI.getAllUsers();
@@ -97,6 +116,39 @@ export default function SerieDetail() {
 
     await window.electronAPI.deleteTome(tomeId);
     loadSerie(true);
+  };
+
+  const handleSetTag = async (tag: SerieTag) => {
+    if (!currentUser || !serie) return;
+    
+    try {
+      await window.electronAPI.setSerieTag(serie.id, currentUser.id, tag);
+      loadSerie(true);
+    } catch (error) {
+      console.error('Erreur lors du changement de tag:', error);
+    }
+  };
+
+  const handleRemoveTag = async () => {
+    if (!currentUser || !serie) return;
+    
+    try {
+      await window.electronAPI.removeSerieTag(serie.id, currentUser.id);
+      loadSerie(true);
+    } catch (error) {
+      console.error('Erreur lors de la suppression du tag:', error);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!currentUser || !serie) return;
+    
+    try {
+      await window.electronAPI.toggleSerieFavorite(serie.id, currentUser.id);
+      loadSerie(true);
+    } catch (error) {
+      console.error('Erreur lors du toggle favori:', error);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, tomeId: number) => {
@@ -325,8 +377,143 @@ export default function SerieDetail() {
 
             {/* Informations */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px' }}>
-                <h1 style={{ fontSize: '32px', fontWeight: '700' }}>{serie.titre}</h1>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '12px' }}>{serie.titre}</h1>
+                  
+                  {/* Interface de sélection de tag */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Bouton Favori */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={handleToggleFavorite}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 16px',
+                          background: serie.is_favorite ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface)',
+                          border: `2px solid ${serie.is_favorite ? '#ef4444' : 'var(--border)'}`,
+                          borderRadius: '8px',
+                          color: serie.is_favorite ? '#ef4444' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: serie.is_favorite ? '700' : '500',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#ef4444';
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                          e.currentTarget.style.transform = 'scale(1.02)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = serie.is_favorite ? '#ef4444' : 'var(--border)';
+                          e.currentTarget.style.background = serie.is_favorite ? 'rgba(239, 68, 68, 0.15)' : 'var(--surface)';
+                          e.currentTarget.style.transform = 'scale(1)';
+                        }}
+                      >
+                        <Heart size={16} fill={serie.is_favorite ? '#ef4444' : 'none'} />
+                        {serie.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      </button>
+                    </div>
+
+                    {/* Tags de statut */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                        Statut de lecture :
+                      </span>
+                      
+                      {/* Afficher le tag automatique (en lecture seule) si présent */}
+                      {serie.tag && !MANUAL_TAGS.includes(serie.tag) && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 14px',
+                          background: TAG_CONFIG[serie.tag].bg,
+                          border: `2px solid ${TAG_CONFIG[serie.tag].color}`,
+                          borderRadius: '8px',
+                          color: TAG_CONFIG[serie.tag].color,
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          boxShadow: `0 2px 8px ${TAG_CONFIG[serie.tag].color}40`
+                        }}>
+                          {React.createElement(TAG_CONFIG[serie.tag].icon, { size: 16 })}
+                          {TAG_CONFIG[serie.tag].label}
+                          <span style={{ fontSize: '11px', opacity: 0.7, marginLeft: '4px' }}>(auto)</span>
+                        </div>
+                      )}
+                      
+                      {/* Boutons pour tags manuels */}
+                      {MANUAL_TAGS.map((key) => {
+                        const config = TAG_CONFIG[key];
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => handleSetTag(key)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 12px',
+                              background: serie.tag === key ? config.bg : 'var(--surface)',
+                              border: `1px solid ${serie.tag === key ? config.color : 'var(--border)'}`,
+                              borderRadius: '6px',
+                              color: serie.tag === key ? config.color : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontWeight: serie.tag === key ? '600' : '400',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (serie.tag !== key) {
+                                e.currentTarget.style.borderColor = config.color;
+                                e.currentTarget.style.background = `${config.bg}66`;
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (serie.tag !== key) {
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.background = 'var(--surface)';
+                              }
+                            }}
+                          >
+                            {React.createElement(config.icon, { size: 14 })}
+                            {config.label}
+                          </button>
+                        );
+                      })}
+                      
+                      {/* Bouton retirer (seulement pour tags manuels) */}
+                      {serie.tag && MANUAL_TAGS.includes(serie.tag) && (
+                        <button
+                          onClick={handleRemoveTag}
+                          style={{
+                            padding: '6px 12px',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: '6px',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--text-secondary)';
+                            e.currentTarget.style.background = 'var(--surface-light)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          Retirer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={() => setShowEditSerie(true)} className="btn btn-primary">
                     <Edit size={18} />

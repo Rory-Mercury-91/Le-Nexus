@@ -1,3 +1,5 @@
+export type SerieTag = 'a_lire' | 'en_cours' | 'lu' | 'abandonne';
+
 export interface Serie {
   id: number;
   titre: string;
@@ -16,6 +18,8 @@ export interface Serie {
   created_at?: string;
   updated_at?: string;
   tomes?: Tome[];
+  tag?: SerieTag | null;
+  is_favorite?: boolean;
 }
 
 export interface Tome {
@@ -103,6 +107,7 @@ export interface SerieFilters {
   proprietaire?: string;
   search?: string;
   afficherMasquees?: boolean;
+  tag?: SerieTag | 'aucun';
 }
 
 export interface MangaDexResult {
@@ -234,6 +239,10 @@ declare global {
       masquerSerie: (serieId: number) => Promise<{ success: boolean }>;
       demasquerSerie: (serieId: number) => Promise<{ success: boolean }>;
       isSerieMasquee: (serieId: number) => Promise<boolean>;
+      setSerieTag: (serieId: number, userId: number, tag: SerieTag) => Promise<{ success: boolean; tag: string }>;
+      toggleSerieFavorite: (serieId: number, userId: number) => Promise<{ success: boolean; is_favorite: boolean }>;
+      getSerieTag: (serieId: number, userId: number) => Promise<{ tag: SerieTag | null; is_favorite: boolean } | null>;
+      removeSerieTag: (serieId: number, userId: number) => Promise<{ success: boolean }>;
       createTome: (tome: Partial<Tome>) => Promise<number>;
       updateTome: (id: number, tome: Partial<Tome>) => Promise<boolean>;
       deleteTome: (id: number) => Promise<boolean>;
@@ -248,6 +257,7 @@ declare global {
       getBaseDirectory: () => Promise<string>;
       changeBaseDirectory: () => Promise<{ success: boolean; path?: string; message?: string; error?: string }>;
       copyToNewLocation: (newBasePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+      getCurrentUser: () => Promise<string>;
       getTheme: () => Promise<string>;
       setTheme: (theme: string) => Promise<{ success: boolean }>;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;

@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   demasquerSerie: (serieId) => ipcRenderer.invoke('demasquer-serie', serieId),
   isSerieMasquee: (serieId) => ipcRenderer.invoke('is-serie-masquee', serieId),
   
+  // Tags de séries
+  setSerieTag: (serieId, userId, tag) => ipcRenderer.invoke('set-serie-tag', serieId, userId, tag),
+  toggleSerieFavorite: (serieId, userId) => ipcRenderer.invoke('toggle-serie-favorite', serieId, userId),
+  getSerieTag: (serieId, userId) => ipcRenderer.invoke('get-serie-tag', serieId, userId),
+  removeSerieTag: (serieId, userId) => ipcRenderer.invoke('remove-serie-tag', serieId, userId),
+  
   // Tomes
   createTome: (tome) => ipcRenderer.invoke('create-tome', tome),
   updateTome: (id, tome) => ipcRenderer.invoke('update-tome', id, tome),
@@ -34,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBaseDirectory: () => ipcRenderer.invoke('get-base-directory'),
   changeBaseDirectory: () => ipcRenderer.invoke('change-base-directory'),
   copyToNewLocation: (newBasePath) => ipcRenderer.invoke('copy-to-new-location', newBasePath),
+  getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
   getTheme: () => ipcRenderer.invoke('get-theme'),
   setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),

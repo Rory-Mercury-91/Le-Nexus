@@ -196,7 +196,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      const dateLecture = lu ? new Date().toISOString().split('T')[0] : null;
+      const dateLecture = lu ? new Date().toISOString().replace('T', ' ').replace('Z', '') : null;
 
       // Utiliser INSERT OR REPLACE pour gérer l'insertion ou la mise à jour
       db.prepare(`
@@ -279,11 +279,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      // Récupérer tous les tomes de la série
-      const tomes = db.prepare('SELECT id FROM tomes WHERE serie_id = ?').all(serieId);
-      const dateLecture = new Date().toISOString().split('T')[0];
-
-      // Marquer tous les tomes comme lus
+      // Récupérer tous les tomes de la série, triés par numéro
+      const tomes = db.prepare('SELECT id FROM tomes WHERE serie_id = ? ORDER BY numero ASC').all(serieId);
+      
+      // Marquer tous les tomes comme lus avec des timestamps espacés de quelques secondes
+      // pour conserver l'ordre chronologique (1 seconde entre chaque tome)
       const stmt = db.prepare(`
         INSERT INTO lecture_tomes (tome_id, utilisateur, lu, date_lecture)
         VALUES (?, ?, 1, ?)
@@ -291,8 +291,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         DO UPDATE SET lu = 1, date_lecture = ?
       `);
 
-      tomes.forEach(tome => {
-        stmt.run(tome.id, currentUser, dateLecture, dateLecture);
+      const baseDate = new Date();
+      tomes.forEach((tome, index) => {
+        const dateLecture = new Date(baseDate.getTime() + (index * 1000)); // +1 seconde par tome
+        const dateLectureStr = dateLecture.toISOString().replace('T', ' ').replace('Z', '');
+        stmt.run(tome.id, currentUser, dateLectureStr, dateLectureStr);
       });
 
       console.log(`Série ${serieId} (${tomes.length} tomes) marquée comme lue pour ${currentUser}`);

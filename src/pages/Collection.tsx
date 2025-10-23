@@ -155,6 +155,21 @@ export default function Collection() {
               <option value="Broché Collector">Broché Collector</option>
             </select>
 
+            <select
+              className="select"
+              value={filters.tag || ''}
+              onChange={(e) => handleFilterChange('tag', e.target.value)}
+              style={{ width: 'auto', minWidth: '160px' }}
+            >
+              <option value="">Tous les tags</option>
+              <option value="favori">❤️ Favoris</option>
+              <option value="a_lire">📚 À lire</option>
+              <option value="en_cours">🔵 En cours</option>
+              <option value="lu">✅ Lu</option>
+              <option value="abandonne">🚫 Abandonné</option>
+              <option value="aucun">Sans tag</option>
+            </select>
+
             <label style={{ 
               display: 'flex', 
               alignItems: 'center', 

@@ -496,7 +496,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      const dateVisionnage = vu ? new Date().toISOString().split('T')[0] : null;
+      const dateVisionnage = vu ? new Date().toISOString().replace('T', ' ').replace('Z', '') : null;
 
       db.prepare(`
         INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
@@ -550,8 +550,6 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      const dateVisionnage = new Date().toISOString().split('T')[0];
-
       // Récupérer la série ID et le nombre d'épisodes
       const saisonInfo = db.prepare('SELECT serie_id, nb_episodes FROM anime_saisons WHERE id = ?').get(saisonId);
       
@@ -559,12 +557,16 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         throw new Error('Saison non trouvée');
       }
 
-      // Marquer tous les épisodes comme vus
+      // Marquer tous les épisodes comme vus avec des timestamps espacés
+      // pour conserver l'ordre chronologique (1 seconde entre chaque épisode)
+      const baseDate = new Date();
       for (let i = 1; i <= saisonInfo.nb_episodes; i++) {
+        const dateVisionnage = new Date(baseDate.getTime() + ((i - 1) * 1000)); // +1 seconde par épisode
+        const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
         db.prepare(`
           INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
           VALUES (?, ?, ?, 1, ?)
-        `).run(saisonId, currentUser, i, dateVisionnage);
+        `).run(saisonId, currentUser, i, dateVisionnageStr);
       }
 
       // Vérifier si tous les épisodes de la série sont vus

@@ -28,6 +28,11 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     return getPaths().base || '';
   });
 
+  // Récupérer l'utilisateur actuel
+  ipcMain.handle('get-current-user', () => {
+    return store.get('currentUser', '');
+  });
+
   // Fonction helper pour copier tous les fichiers vers un nouvel emplacement
   const copyAllFilesToNewLocation = (newBasePath) => {
     const currentBasePath = getPaths().base;

@@ -57,7 +57,7 @@ function initDatabase(dbPath) {
       tome_id INTEGER NOT NULL,
       utilisateur TEXT NOT NULL,
       lu BOOLEAN NOT NULL DEFAULT 0,
-      date_lecture DATE,
+      date_lecture DATETIME,
       FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE CASCADE,
       UNIQUE(tome_id, utilisateur)
     );
@@ -110,7 +110,7 @@ function initDatabase(dbPath) {
       utilisateur TEXT NOT NULL,
       episode_numero INTEGER NOT NULL,
       vu BOOLEAN NOT NULL DEFAULT 0,
-      date_visionnage DATE,
+      date_visionnage DATETIME,
       FOREIGN KEY (saison_id) REFERENCES anime_saisons(id) ON DELETE CASCADE,
       UNIQUE(saison_id, utilisateur, episode_numero)
     );
@@ -135,6 +135,20 @@ function initDatabase(dbPath) {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS serie_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      serie_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      tag TEXT,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(serie_id, user_id),
+      CHECK (tag IS NULL OR tag IN ('a_lire', 'abandonne'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
     CREATE INDEX IF NOT EXISTS idx_series_statut ON series(statut);
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaire ON tomes(proprietaire);
@@ -148,6 +162,9 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_utilisateur ON anime_episodes_vus(utilisateur);
     CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_saison ON anime_episodes_vus(saison_id);
     CREATE INDEX IF NOT EXISTS idx_anime_statut_utilisateur ON anime_statut_utilisateur(utilisateur);
+    CREATE INDEX IF NOT EXISTS idx_serie_tags_serie ON serie_tags(serie_id);
+    CREATE INDEX IF NOT EXISTS idx_serie_tags_user ON serie_tags(user_id);
+    CREATE INDEX IF NOT EXISTS idx_serie_tags_tag ON serie_tags(tag);
   `);
 
   // Migration : Ajouter les colonnes manquantes si elles n'existent pas
@@ -229,6 +246,69 @@ function initDatabase(dbPath) {
     if (!animeColumnNames.includes('api_source')) {
       console.log('Migration anime_series : Ajout de la colonne api_source');
       db.exec('ALTER TABLE anime_series ADD COLUMN api_source TEXT');
+    }
+    
+    // Migration pour la table serie_tags (is_favorite et tag nullable)
+    const serieTagsColumns = db.prepare("PRAGMA table_info(serie_tags)").all();
+    const serieTagsColumnNames = serieTagsColumns.map(col => col.name);
+    const tagColumn = serieTagsColumns.find(col => col.name === 'tag');
+    
+    // Vérifier si on doit migrer la table (tag NOT NULL ou is_favorite manquant)
+    const needsMigration = !serieTagsColumnNames.includes('is_favorite') || 
+                          (tagColumn && tagColumn.notnull === 1);
+    
+    if (needsMigration) {
+      console.log('🔄 Migration serie_tags : Recréation de la table avec le nouveau schéma');
+      
+      db.exec(`
+        BEGIN TRANSACTION;
+        
+        -- Créer la nouvelle table avec le bon schéma
+        CREATE TABLE serie_tags_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          serie_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          tag TEXT,
+          is_favorite INTEGER NOT NULL DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(serie_id, user_id),
+          CHECK (tag IS NULL OR tag IN ('a_lire', 'abandonne'))
+        );
+        
+        -- Copier les données en convertissant les anciens tags
+        INSERT INTO serie_tags_new (id, serie_id, user_id, tag, is_favorite, created_at, updated_at)
+        SELECT 
+          id,
+          serie_id,
+          user_id,
+          CASE 
+            WHEN tag = 'favori' THEN NULL
+            WHEN tag = 'lu' THEN NULL
+            ELSE tag
+          END,
+          CASE WHEN tag = 'favori' THEN 1 ELSE 0 END,
+          created_at,
+          updated_at
+        FROM serie_tags;
+        
+        -- Supprimer l'ancienne table
+        DROP TABLE serie_tags;
+        
+        -- Renommer la nouvelle table
+        ALTER TABLE serie_tags_new RENAME TO serie_tags;
+        
+        -- Recréer les index
+        CREATE INDEX idx_serie_tags_serie ON serie_tags(serie_id);
+        CREATE INDEX idx_serie_tags_user ON serie_tags(user_id);
+        CREATE INDEX idx_serie_tags_tag ON serie_tags(tag);
+        
+        COMMIT;
+      `);
+      
+      console.log('✅ Migration serie_tags : Table recréée avec succès');
     }
   } catch (error) {
     console.error('Erreur lors de la migration:', error);

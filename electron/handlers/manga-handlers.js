@@ -27,15 +27,22 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       }
 
       const currentUser = store.get('currentUser', '');
+      
+      // Récupérer l'ID de l'utilisateur actuel
+      const user = currentUser ? db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser) : null;
+      const userId = user ? user.id : null;
 
       let query = `
         SELECT 
           s.*,
-          (SELECT COUNT(*) FROM tomes WHERE serie_id = s.id) as tome_count
+          (SELECT COUNT(*) FROM tomes WHERE serie_id = s.id) as tome_count,
+          st.tag as manual_tag,
+          st.is_favorite as is_favorite
         FROM series s 
+        LEFT JOIN serie_tags st ON s.id = st.serie_id AND st.user_id = ?
         WHERE 1=1
       `;
-      const params = [];
+      const params = [userId];
 
       // Filtrer les séries masquées (sauf si on demande explicitement à les afficher)
       if (currentUser && !filters.afficherMasquees) {
@@ -60,16 +67,67 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         params.push(`%${filters.search}%`);
       }
 
+      // Filtre par tag
+      if (filters.tag) {
+        if (filters.tag === 'aucun') {
+          query += ' AND st.tag IS NULL AND (st.is_favorite IS NULL OR st.is_favorite = 0)';
+        } else if (filters.tag === 'favori') {
+          query += ' AND st.is_favorite = 1';
+        } else if (filters.tag === 'en_cours' || filters.tag === 'lu') {
+          // Pour les tags automatiques, on filtre après la requête
+          // car ils dépendent du calcul de la progression
+        } else {
+          query += ' AND st.tag = ?';
+          params.push(filters.tag);
+        }
+      }
+
       query += ' ORDER BY s.titre ASC';
 
       const stmt = db.prepare(query);
       const series = stmt.all(...params);
       
-      // Transformer tome_count en un tableau vide de tomes pour compatibilité avec l'interface
-      return series.map(serie => ({
-        ...serie,
-        tomes: new Array(serie.tome_count).fill(null)
-      }));
+      // Calculer le tag effectif pour chaque série en fonction de la progression
+      let seriesWithTags = series.map(serie => {
+        let effectiveTag = serie.manual_tag || null;
+        
+        // Si pas de tag manuel (a_lire ou abandonne), calculer automatiquement
+        if (!serie.manual_tag || serie.manual_tag === null) {
+          if (currentUser && serie.tome_count > 0) {
+            // Compter les tomes lus pour cette série par l'utilisateur
+            const tomesLus = db.prepare(`
+              SELECT COUNT(*) as count 
+              FROM lecture_tomes lt
+              JOIN tomes t ON lt.tome_id = t.id
+              WHERE t.serie_id = ? AND lt.utilisateur = ? AND lt.lu = 1
+            `).get(serie.id, currentUser);
+            
+            const nbTomesLus = tomesLus ? tomesLus.count : 0;
+            
+            if (nbTomesLus === serie.tome_count && nbTomesLus > 0) {
+              effectiveTag = 'lu';
+            } else if (nbTomesLus > 0) {
+              effectiveTag = 'en_cours';
+            }
+          }
+        }
+        
+        return {
+          ...serie,
+          tomes: new Array(serie.tome_count).fill(null),
+          tag: effectiveTag,
+          is_favorite: serie.is_favorite ? true : false
+        };
+      });
+      
+      // Filtrer par tag automatique si nécessaire
+      if (filters.tag === 'en_cours') {
+        seriesWithTags = seriesWithTags.filter(s => s.tag === 'en_cours');
+      } else if (filters.tag === 'lu') {
+        seriesWithTags = seriesWithTags.filter(s => s.tag === 'lu');
+      }
+      
+      return seriesWithTags;
     } catch (error) {
       console.error('Erreur get-series:', error);
       throw error;
@@ -91,6 +149,32 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       
       // Récupérer l'utilisateur actuel
       const currentUser = store.get('currentUser', '');
+      
+      // Récupérer le tag de la série pour l'utilisateur actuel
+      const user = currentUser ? db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser) : null;
+      const userId = user ? user.id : null;
+      const tagData = userId ? db.prepare('SELECT tag, is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(id, userId) : null;
+      
+      // Calculer le tag effectif (manuel ou automatique)
+      let effectiveTag = tagData ? tagData.tag : null;
+      if (!effectiveTag || effectiveTag === null) {
+        if (currentUser && tomes.length > 0) {
+          const tomesLus = db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM lecture_tomes lt
+            JOIN tomes t ON lt.tome_id = t.id
+            WHERE t.serie_id = ? AND lt.utilisateur = ? AND lt.lu = 1
+          `).get(id, currentUser);
+          
+          const nbTomesLus = tomesLus ? tomesLus.count : 0;
+          
+          if (nbTomesLus === tomes.length && nbTomesLus > 0) {
+            effectiveTag = 'lu';
+          } else if (nbTomesLus > 0) {
+            effectiveTag = 'en_cours';
+          }
+        }
+      }
       
       // Enrichir chaque tome avec son statut de lecture et ses propriétaires
       const tomesAvecLecture = tomes.map(tome => {
@@ -114,7 +198,13 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         };
       });
       
-      return { ...serie, tomes: tomesAvecLecture };
+      return { 
+        ...serie, 
+        tomes: tomesAvecLecture, 
+        tag: effectiveTag,
+        manual_tag: tagData ? tagData.tag : null,
+        is_favorite: tagData ? (tagData.is_favorite ? true : false) : false
+      };
     } catch (error) {
       console.error('Erreur get-serie:', error);
       throw error;
@@ -793,6 +883,122 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       return true;
     } catch (error) {
       console.error('❌ Erreur delete-tome:', error);
+      throw error;
+    }
+  });
+
+  // ========== TAGS DE SÉRIES ==========
+
+  // Définir ou modifier le tag d'une série pour un utilisateur
+  ipcMain.handle('set-serie-tag', async (event, serieId, userId, tag) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      console.log(`🏷️ set-serie-tag pour série ${serieId}, user ${userId}, tag: ${tag}`);
+      
+      if (tag && !['a_lire', 'abandonne'].includes(tag)) {
+        throw new Error(`Tag invalide: ${tag}`);
+      }
+
+      // Vérifier si une entrée existe déjà
+      const existing = db.prepare('SELECT id FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+      
+      if (existing) {
+        // Mettre à jour le tag existant
+        db.prepare('UPDATE serie_tags SET tag = ?, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
+          .run(tag, serieId, userId);
+        console.log(`✅ Tag mis à jour : ${tag}`);
+      } else {
+        // Créer une nouvelle entrée
+        db.prepare('INSERT INTO serie_tags (serie_id, user_id, tag, is_favorite) VALUES (?, ?, ?, 0)')
+          .run(serieId, userId, tag);
+        console.log(`✅ Tag créé : ${tag}`);
+      }
+      
+      return { success: true, tag };
+    } catch (error) {
+      console.error('❌ Erreur set-serie-tag:', error);
+      throw error;
+    }
+  });
+
+  // Basculer le statut favori d'une série pour un utilisateur
+  ipcMain.handle('toggle-serie-favorite', async (event, serieId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      console.log(`⭐ toggle-serie-favorite pour série ${serieId}, user ${userId}`);
+      
+      // Vérifier si une entrée existe déjà
+      const existing = db.prepare('SELECT id, is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+      
+      if (existing) {
+        // Inverser le statut favori
+        const newFavorite = existing.is_favorite ? 0 : 1;
+        db.prepare('UPDATE serie_tags SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
+          .run(newFavorite, serieId, userId);
+        console.log(`✅ Favori ${newFavorite ? 'activé' : 'désactivé'}`);
+        return { success: true, is_favorite: newFavorite === 1 };
+      } else {
+        // Créer une nouvelle entrée avec favori activé
+        db.prepare('INSERT INTO serie_tags (serie_id, user_id, tag, is_favorite) VALUES (?, ?, NULL, 1)')
+          .run(serieId, userId);
+        console.log(`✅ Favori activé`);
+        return { success: true, is_favorite: true };
+      }
+    } catch (error) {
+      console.error('❌ Erreur toggle-serie-favorite:', error);
+      throw error;
+    }
+  });
+
+  // Récupérer le tag d'une série pour un utilisateur
+  ipcMain.handle('get-serie-tag', async (event, serieId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) return null;
+
+      const result = db.prepare('SELECT tag, is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+      return result ? { tag: result.tag, is_favorite: result.is_favorite === 1 } : null;
+    } catch (error) {
+      console.error('❌ Erreur get-serie-tag:', error);
+      return null;
+    }
+  });
+
+  // Supprimer le tag d'une série pour un utilisateur (mais garder favori si présent)
+  ipcMain.handle('remove-serie-tag', async (event, serieId, userId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      console.log(`🗑️ remove-serie-tag pour série ${serieId}, user ${userId}`);
+      
+      // Vérifier si c'est un favori
+      const existing = db.prepare('SELECT is_favorite FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+      
+      if (existing && existing.is_favorite) {
+        // Si c'est un favori, on garde l'entrée mais on supprime juste le tag
+        db.prepare('UPDATE serie_tags SET tag = NULL, updated_at = CURRENT_TIMESTAMP WHERE serie_id = ? AND user_id = ?')
+          .run(serieId, userId);
+        console.log(`✅ Tag supprimé (favori conservé)`);
+      } else {
+        // Sinon on supprime l'entrée complète
+        db.prepare('DELETE FROM serie_tags WHERE serie_id = ? AND user_id = ?').run(serieId, userId);
+        console.log(`✅ Tag supprimé`);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur remove-serie-tag:', error);
       throw error;
     }
   });
