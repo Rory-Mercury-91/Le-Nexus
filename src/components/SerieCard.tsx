@@ -1,4 +1,4 @@
-import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, Tag, Trash2 } from 'lucide-react';
+import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, Tag } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useConfirm } from '../hooks/useConfirm';
@@ -10,6 +10,7 @@ interface SerieCardProps {
   onUpdate: () => void;
   imageObjectFit?: 'cover' | 'contain';
   presentationMode?: boolean;
+  imageOnly?: boolean;
 }
 
 const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg: string }> = {
@@ -22,15 +23,15 @@ const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg
 // Tags manuels uniquement (utilisateur peut les définir)
 const MANUAL_TAGS: SerieTag[] = ['a_lire', 'abandonne'];
 
-export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', presentationMode = false }: SerieCardProps) {
+export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', presentationMode = false, imageOnly = false }: SerieCardProps) {
   const { confirm, ConfirmDialog } = useConfirm();
   const [isMasquee, setIsMasquee] = useState(false);
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
   
   // Dimensions adaptatives selon le mode
-  const cardHeight = presentationMode ? '560px' : '420px';
-  const coverHeight = presentationMode ? '420px' : '280px';
+  const cardHeight = imageOnly ? '300px' : (presentationMode ? '560px' : '420px');
+  const coverHeight = imageOnly ? '300px' : (presentationMode ? '420px' : '280px');
 
   useEffect(() => {
     checkIfMasquee();
@@ -120,23 +121,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     setShowTagDropdown(false); // Fermer le dropdown après l'action
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    
-    const confirmed = await confirm({
-      title: 'Supprimer la série',
-      message: `Êtes-vous sûr de vouloir supprimer "${serie.titre}" et tous ses tomes ?`,
-      confirmText: 'Supprimer',
-      cancelText: 'Annuler',
-      isDanger: true
-    });
-
-    if (!confirmed) return;
-
-    await window.electronAPI.deleteSerie(serie.id);
-    onUpdate();
-  };
-
   const getStatutColor = (statut: string) => {
     switch (statut) {
       case 'En cours': return 'var(--primary)';
@@ -154,6 +138,152 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
       default: return 'badge-primary';
     }
   };
+
+  // Mode images uniquement : afficher seulement la couverture avec bannières et badge favori
+  if (imageOnly) {
+    return (
+      <Link
+        to={`/serie/${serie.id}`}
+        className="card"
+        style={{
+          position: 'relative',
+          display: 'block',
+          height: coverHeight,
+          width: '100%',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          padding: '0',
+          textDecoration: 'none',
+          color: 'inherit'
+        }}
+      >
+        {/* Image de couverture */}
+        {serie.couverture_url ? (
+          <CoverImage
+            src={serie.couverture_url}
+            alt={serie.titre}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(135deg, var(--surface-light), var(--surface))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-secondary)'
+          }}>
+            <BookOpen size={48} />
+          </div>
+        )}
+
+        {/* Bannières diagonales pour les tags En cours / Lu / Abandonné */}
+        {(() => {
+          if (serie.tag !== 'en_cours' && serie.tag !== 'lu' && serie.tag !== 'abandonne') return null;
+          
+          const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
+          const totalTomes = serie.tomes?.length || 0;
+          const isComplete = serie.tag === 'lu' || (totalTomes > 0 && tomesLus === totalTomes);
+          const isInProgress = serie.tag === 'en_cours' || (tomesLus > 0 && tomesLus < totalTomes);
+          const isAbandoned = serie.tag === 'abandonne';
+          
+          if (!isComplete && !isInProgress && !isAbandoned) return null;
+          
+          let backgroundColor = '#f59e0b'; // En cours (orange)
+          let label = 'En cours';
+          
+          if (isComplete) {
+            backgroundColor = '#10b981'; // Lu (vert)
+            label = 'Lu';
+          } else if (isAbandoned) {
+            backgroundColor = '#6b7280'; // Abandonné (gris)
+            label = 'Abandonné';
+          }
+          
+          return (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '120px',
+              height: '120px',
+              overflow: 'hidden',
+              zIndex: 3
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                width: '180px',
+                height: '32px',
+                background: backgroundColor,
+                transform: 'translate(-50%, -50%) rotate(-45deg) translateY(-44px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '9px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.8px',
+                boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+              }}>
+                {label}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Badge favori en haut à droite */}
+        {serie.is_favorite && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleToggleFavorite(e);
+            }}
+            title="Favori"
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              color: '#ef4444',
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: '2px solid #ef4444',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              zIndex: 4
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+            }}
+          >
+            <Heart size={18} fill="#ef4444" strokeWidth={2.5} />
+          </button>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <>
@@ -465,27 +595,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
         >
           {isMasquee ? <Eye size={18} /> : <EyeOff size={18} />}
         </button>
-
-        {/* Bouton supprimer */}
-        <button
-          onClick={handleDelete}
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            background: 'rgba(239, 68, 68, 0.9)',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px',
-            cursor: 'pointer',
-            color: 'white',
-            opacity: 0,
-            transition: 'opacity 0.2s'
-          }}
-          className="delete-btn"
-        >
-          <Trash2 size={18} />
-        </button>
       </div>
 
       {/* Informations */}
@@ -567,7 +676,11 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             padding: '3px 7px',
             borderRadius: '6px'
           }}>
-            {serie.tomes?.length || 0} tome{(serie.tomes?.length || 0) > 1 ? 's' : ''}
+            {(() => {
+              const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
+              const totalTomes = serie.tomes?.length || 0;
+              return `${tomesLus} sur ${totalTomes} tome${totalTomes > 1 ? 's' : ''}`;
+            })()}
           </span>
         </div>
       </div>

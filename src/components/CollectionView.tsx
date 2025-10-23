@@ -1,7 +1,7 @@
-import { Grid3x3, LayoutGrid, List, Maximize2 } from 'lucide-react';
+import { Grid3x3, Image, LayoutGrid, List, Maximize2 } from 'lucide-react';
 import { cloneElement, isValidElement, useEffect, useRef, useState } from 'react';
 
-type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
+type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation' | 'images';
 
 interface CollectionViewProps<T> {
   items: T[];
@@ -191,6 +191,14 @@ export default function CollectionView<T extends { id: number | string }>({
         >
           <Maximize2 size={18} />
         </button>
+        <button
+          onClick={() => handleViewModeChange('images')}
+          className={viewMode === 'images' ? 'btn btn-primary' : 'btn'}
+          style={{ padding: '8px 16px' }}
+          title="Images uniquement"
+        >
+          <Image size={18} />
+        </button>
       </div>
 
       {/* Contenu selon le mode de vue */}
@@ -361,6 +369,41 @@ export default function CollectionView<T extends { id: number | string }>({
                 cursor: 'pointer'
               }}
               onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {enhancedCard}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Mode Images uniquement */}
+      {viewMode === 'images' && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '16px',
+          padding: '20px'
+        }}>
+          {items.map((item) => {
+            const card = renderCard(item, onUpdate);
+            // Cloner l'élément et ajouter imageOnly pour mode images
+            const enhancedCard = isValidElement(card)
+              ? cloneElement(card as React.ReactElement<any>, { 
+                  imageOnly: true
+                })
+              : card;
+            
+            return (
+              <div key={item.id} style={{
+                transform: 'scale(1)',
+                transition: 'transform 0.2s ease',
+                cursor: 'pointer',
+                borderRadius: '12px',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
               onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 {enhancedCard}
