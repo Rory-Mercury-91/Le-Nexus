@@ -71,51 +71,57 @@ function initDatabase(dbPath) {
 
     CREATE TABLE IF NOT EXISTS anime_series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      mal_id INTEGER UNIQUE NOT NULL,
       titre TEXT NOT NULL,
       titre_romaji TEXT,
       titre_natif TEXT,
-      titre_anglais TEXT,
-      type TEXT NOT NULL,
-      nb_episodes INTEGER NOT NULL DEFAULT 0,
       couverture_url TEXT,
       description TEXT,
-      statut_diffusion TEXT,
-      annee INTEGER,
-      saison_diffusion TEXT,
+      statut TEXT NOT NULL,
+      type TEXT,
       genres TEXT,
       studios TEXT,
+      annee INTEGER,
       rating TEXT,
-      score REAL,
-      franchise_name TEXT,
-      franchise_order INTEGER DEFAULT 1,
-      prequel_mal_id INTEGER,
-      sequel_mal_id INTEGER,
-      source_import TEXT DEFAULT 'manual',
+      mal_id INTEGER UNIQUE,
+      anilist_id INTEGER,
+      source_import TEXT,
       utilisateur_ajout TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS anime_saisons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      serie_id INTEGER NOT NULL,
+      numero_saison INTEGER NOT NULL,
+      titre TEXT,
+      nb_episodes INTEGER NOT NULL DEFAULT 0,
+      annee INTEGER,
+      couverture_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (serie_id) REFERENCES anime_series(id) ON DELETE CASCADE,
+      UNIQUE(serie_id, numero_saison)
+    );
+
     CREATE TABLE IF NOT EXISTS anime_episodes_vus (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      anime_id INTEGER NOT NULL,
+      saison_id INTEGER NOT NULL,
       utilisateur TEXT NOT NULL,
       episode_numero INTEGER NOT NULL,
       vu BOOLEAN NOT NULL DEFAULT 0,
       date_visionnage DATETIME,
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      UNIQUE(anime_id, utilisateur, episode_numero)
+      FOREIGN KEY (saison_id) REFERENCES anime_saisons(id) ON DELETE CASCADE,
+      UNIQUE(saison_id, utilisateur, episode_numero)
     );
 
     CREATE TABLE IF NOT EXISTS anime_statut_utilisateur (
-      anime_id INTEGER NOT NULL,
+      serie_id INTEGER NOT NULL,
       utilisateur TEXT NOT NULL,
       statut_visionnage TEXT NOT NULL DEFAULT 'En cours',
       date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (anime_id, utilisateur),
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'En attente'))
+      PRIMARY KEY (serie_id, utilisateur),
+      FOREIGN KEY (serie_id) REFERENCES anime_series(id) ON DELETE CASCADE,
+      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné'))
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -162,14 +168,12 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_user ON tomes_proprietaires(user_id);
     CREATE INDEX IF NOT EXISTS idx_lecture_tomes_utilisateur ON lecture_tomes(utilisateur);
     CREATE INDEX IF NOT EXISTS idx_lecture_tomes_tome ON lecture_tomes(tome_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_series_statut ON anime_series(statut);
     CREATE INDEX IF NOT EXISTS idx_anime_series_mal_id ON anime_series(mal_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_series_franchise ON anime_series(franchise_name);
-    CREATE INDEX IF NOT EXISTS idx_anime_series_type ON anime_series(type);
-    CREATE INDEX IF NOT EXISTS idx_anime_series_annee ON anime_series(annee);
+    CREATE INDEX IF NOT EXISTS idx_anime_saisons_serie ON anime_saisons(serie_id);
     CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_utilisateur ON anime_episodes_vus(utilisateur);
-    CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_anime ON anime_episodes_vus(anime_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_saison ON anime_episodes_vus(saison_id);
     CREATE INDEX IF NOT EXISTS idx_anime_statut_utilisateur ON anime_statut_utilisateur(utilisateur);
-    CREATE INDEX IF NOT EXISTS idx_anime_statut_anime ON anime_statut_utilisateur(anime_id);
     CREATE INDEX IF NOT EXISTS idx_serie_tags_serie ON serie_tags(serie_id);
     CREATE INDEX IF NOT EXISTS idx_serie_tags_user ON serie_tags(user_id);
     CREATE INDEX IF NOT EXISTS idx_serie_tags_tag ON serie_tags(tag);

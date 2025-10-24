@@ -150,50 +150,35 @@ export interface AnimeSearchResult {
 
 export interface AnimeSerie {
   id: number;
+  mal_id: number;
   titre: string;
   titre_romaji?: string;
   titre_natif?: string;
+  titre_anglais?: string;
+  type: string;
+  nb_episodes: number;
   couverture_url?: string;
   description?: string;
-  statut: string;
-  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné';
-  type?: string;
+  statut_diffusion?: string;
+  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente';
+  annee?: number;
+  saison_diffusion?: string;
   genres?: string;
   studios?: string;
-  annee?: number;
   rating?: string;
-  mal_id?: number;
-  anilist_id?: number;
-  source_import?: string; // Source du streaming (adn, crunchyroll, adkami)
-  api_source?: string; // Source des métadonnées enrichies (anilist, myanimelist, kitsu)
+  score?: number;
+  franchise_name?: string;
+  franchise_order?: number;
+  prequel_mal_id?: number;
+  sequel_mal_id?: number;
+  source_import?: string;
   utilisateur_ajout: string;
-  nb_saisons?: number;
-  nb_episodes_total?: number;
-  nb_episodes_vus?: number;
-  saisons?: AnimeSaison[];
+  episodes_vus?: number;
   created_at?: string;
   updated_at?: string;
   // Tags utilisateur
   tag?: AnimeTag | null;
-  manual_tag?: AnimeTag | null;
   is_favorite?: boolean;
-}
-
-export interface AnimeSaison {
-  id: number;
-  serie_id: number;
-  numero_saison: number;
-  titre?: string;
-  nb_episodes: number;
-  annee?: number;
-  couverture_url?: string;
-  episodes_vus?: number;
-  episodes_vus_details?: Array<{
-    episode_numero: number;
-    vu: boolean;
-    date_visionnage?: string;
-  }>;
-  created_at?: string;
 }
 
 export interface AnimeFilters {
@@ -291,16 +276,16 @@ declare global {
       toggleTomeLu: (tomeId: number, lu: boolean) => Promise<{ success: boolean }>;
       marquerSerieLue: (serieId: number) => Promise<{ success: boolean; tomesMarques: number }>;
       getLectureStatistics: () => Promise<LectureStatistics>;
+      addAnimeByMalId: (malIdOrUrl: string | number) => Promise<{ success: boolean; animeId?: number; anime?: AnimeSerie; relatedAnimes?: Array<{ mal_id: number; title: string; relation: string }>; error?: string }>;
       importAnimeXml: (xmlContent: string) => Promise<AnimeImportResult>;
       onAnimeImportProgress: (callback: (progress: AnimeImportProgress) => void) => () => void;
-      createAnime: (animeData: any) => Promise<{ success: boolean; id?: number }>;
-      getAnimeSeries: (filters?: AnimeFilters) => Promise<AnimeSerie[]>;
-      getAnimeDetail: (serieId: number) => Promise<AnimeSerie>;
-      toggleEpisodeVu: (saisonId: number, episodeNumero: number, vu: boolean) => Promise<{ success: boolean }>;
-      marquerSaisonVue: (saisonId: number) => Promise<{ success: boolean }>;
-      deleteAnime: (serieId: number) => Promise<{ success: boolean }>;
-      setAnimeStatutVisionnage: (serieId: number, statutVisionnage: 'En cours' | 'Terminé' | 'Abandonné') => Promise<{ success: boolean }>;
-      checkAnimeCompletion: (serieId: number) => Promise<{ success: boolean; isComplete: boolean }>;
+      getAnimeSeries: (filters?: AnimeFilters) => Promise<{ success: boolean; animes: AnimeSerie[] }>;
+      getAnimeDetail: (animeId: number) => Promise<{ success: boolean; anime?: AnimeSerie; episodes?: Array<{ numero: number; vu: boolean; date_visionnage?: string }>; franchiseAnimes?: AnimeSerie[]; error?: string }>;
+      toggleEpisodeVu: (animeId: number, episodeNumero: number, vu: boolean) => Promise<{ success: boolean }>;
+      marquerAnimeComplet: (animeId: number) => Promise<{ success: boolean }>;
+      deleteAnime: (animeId: number) => Promise<{ success: boolean }>;
+      setAnimeStatutVisionnage: (animeId: number, statutVisionnage: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente') => Promise<{ success: boolean }>;
+      updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
       deleteUserData: (userName: string) => Promise<{ success: boolean }>;
       deleteAllData: () => Promise<{ success: boolean }>;
       onMangaImportStart?: (callback: (data: { message: string }) => void) => () => void;
@@ -314,8 +299,6 @@ declare global {
       setUserAvatar: (userId: number) => Promise<{ success: boolean; path?: string; error?: string }>;
       removeUserAvatar: (userId: number) => Promise<{ success: boolean; error?: string }>;
       getUserAvatar: (userId: number) => Promise<string | null>;
-      updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
-      getAnimeSaisons: (serieId: number) => Promise<AnimeSaison[]>;
     };
   }
 }

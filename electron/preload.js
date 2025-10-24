@@ -91,6 +91,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLectureStatistics: () => ipcRenderer.invoke('get-lecture-statistics'),
   
   // Animes
+  addAnimeByMalId: (malIdOrUrl) => ipcRenderer.invoke('add-anime-by-mal-id', malIdOrUrl),
   importAnimeXml: (xmlContent) => ipcRenderer.invoke('import-anime-xml', xmlContent),
   onAnimeImportProgress: (callback) => {
     const subscription = (event, progress) => callback(progress);
@@ -98,16 +99,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Retourner une fonction de nettoyage
     return () => ipcRenderer.removeListener('anime-import-progress', subscription);
   },
-  createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),
   getAnimeSeries: (filters) => ipcRenderer.invoke('get-anime-series', filters),
-  getAnimeDetail: (serieId) => ipcRenderer.invoke('get-anime-detail', serieId),
-  toggleEpisodeVu: (saisonId, episodeNumero, vu) => ipcRenderer.invoke('toggle-episode-vu', saisonId, episodeNumero, vu),
-  marquerSaisonVue: (saisonId) => ipcRenderer.invoke('marquer-saison-vue', saisonId),
-  deleteAnime: (serieId) => ipcRenderer.invoke('delete-anime', serieId),
-  setAnimeStatutVisionnage: (serieId, statutVisionnage) => ipcRenderer.invoke('set-anime-statut-visionnage', serieId, statutVisionnage),
-  checkAnimeCompletion: (serieId) => ipcRenderer.invoke('check-anime-completion', serieId),
+  getAnimeDetail: (animeId) => ipcRenderer.invoke('get-anime-detail', animeId),
+  toggleEpisodeVu: (animeId, episodeNumero, vu) => ipcRenderer.invoke('toggle-episode-vu', animeId, episodeNumero, vu),
+  marquerAnimeComplet: (animeId) => ipcRenderer.invoke('marquer-anime-complet', animeId),
+  deleteAnime: (animeId) => ipcRenderer.invoke('delete-anime', animeId),
+  setAnimeStatutVisionnage: (animeId, statutVisionnage) => ipcRenderer.invoke('set-anime-statut-visionnage', animeId, statutVisionnage),
   updateAnime: (id, animeData) => ipcRenderer.invoke('update-anime', id, animeData),
-  getAnimeSaisons: (serieId) => ipcRenderer.invoke('get-anime-saisons', serieId),
   deleteUserData: (userName) => ipcRenderer.invoke('delete-user-data', userName),
   deleteAllData: () => ipcRenderer.invoke('delete-all-data'),
   
