@@ -196,12 +196,24 @@
                 console.log('🏢 Éditeur VF:', editeur);
             }
 
-            // 8. NOMBRE DE VOLUMES VF
+            // 8. NOMBRE DE VOLUMES VF ou CHAPITRES VF
             let nb_chapitres = null;
-            const nbVolMatch = allText.match(/Nb volumes VF\s*:\s*(\d+)/i);
-            if (nbVolMatch) {
-                nb_chapitres = parseInt(nbVolMatch[1]);
-                console.log('📚 Nb volumes VF:', nb_chapitres);
+            let type_contenu = 'volume'; // 'volume' ou 'chapitre'
+            
+            // Priorité 1: Chercher "Nb chapitres VF" (pour scans/webcomics)
+            const nbChapMatch = allText.match(/Nb chapitres VF\s*:\s*(\d+)/i);
+            if (nbChapMatch) {
+                nb_chapitres = parseInt(nbChapMatch[1]);
+                type_contenu = 'chapitre';
+                console.log('📖 Nb chapitres VF:', nb_chapitres, '(scan/webcomic)');
+            } else {
+                // Priorité 2: Chercher "Nb volumes VF" (pour tomes physiques)
+                const nbVolMatch = allText.match(/Nb volumes VF\s*:\s*(\d+)/i);
+                if (nbVolMatch) {
+                    nb_chapitres = parseInt(nbVolMatch[1]);
+                    type_contenu = 'volume';
+                    console.log('📚 Nb volumes VF:', nb_chapitres, '(tome physique)');
+                }
             }
 
             // 9. ANNÉE VF
@@ -360,7 +372,8 @@
                 titre: titre.trim(),
                 titre_alternatif: titre_alternatif,
                 statut: statut,
-                type_volume: 'Broché',
+                type_volume: type_contenu === 'chapitre' ? 'Numérique' : 'Broché',
+                type_contenu: type_contenu, // 'volume' ou 'chapitre'
                 couverture_url: couverture_url,
                 description: description || null,
                 statut_publication: statut,
@@ -378,7 +391,7 @@
                 _editeur: editeur,
                 _prix_defaut: prix_defaut,
                 
-                // Volumes avec détails
+                // Volumes avec détails (même pour les chapitres, pour compatibilité)
                 volumes: volumes
             };
             

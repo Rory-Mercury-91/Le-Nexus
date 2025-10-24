@@ -300,17 +300,18 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
           // Insérer dans la base de données
           const stmt = db.prepare(`
             INSERT INTO series (
-              titre, statut, type_volume, couverture_url, description,
+              titre, statut, type_volume, type_contenu, couverture_url, description,
               statut_publication, annee_publication, genres, nb_chapitres,
               langue_originale, demographie, editeur, rating
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
 
           const result = stmt.run(
             mangaData.titre,
             mangaData.statut || 'En cours',
             mangaData.type_volume || 'Broché',
+            mangaData.type_contenu || 'volume',
             mangaData.couverture_url,
             mangaData.description,
             mangaData.statut_publication,

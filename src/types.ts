@@ -5,7 +5,8 @@ export interface Serie {
   id: number;
   titre: string;
   statut: 'En cours' | 'Terminée' | 'Abandonnée';
-  type_volume: 'Broché' | 'Broché Collector' | 'Coffret' | 'Kindle' | 'Webtoon' | 'Webtoon Physique' | 'Light Novel' | 'Scan Manga' | 'Scan Webtoon';
+  type_volume: 'Broché' | 'Broché Collector' | 'Coffret' | 'Kindle' | 'Webtoon' | 'Webtoon Physique' | 'Light Novel' | 'Scan Manga' | 'Scan Webtoon' | 'Numérique';
+  type_contenu?: 'volume' | 'chapitre';
   couverture_url: string | null;
   description?: string | null;
   statut_publication?: string | null;

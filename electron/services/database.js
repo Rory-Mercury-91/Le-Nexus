@@ -15,6 +15,7 @@ function initDatabase(dbPath) {
       titre TEXT NOT NULL,
       statut TEXT NOT NULL,
       type_volume TEXT NOT NULL,
+      type_contenu TEXT DEFAULT 'volume',
       couverture_url TEXT,
       description TEXT,
       statut_publication TEXT,
