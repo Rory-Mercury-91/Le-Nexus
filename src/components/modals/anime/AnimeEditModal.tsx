@@ -156,18 +156,15 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '1000px' }}>
+      <div className="modal" style={{ maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '24px',
-          position: 'sticky',
-          top: 0,
+          padding: '24px 32px 16px',
           background: 'var(--card-bg)',
-          zIndex: 10,
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--border)'
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0
         }}>
           <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Modifier l'anime</h2>
           <button
@@ -186,7 +183,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form id="anime-edit-form" onSubmit={handleSubmit} style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
           <div style={{ display: 'flex', gap: '24px' }}>
             {/* Colonne image */}
             <div style={{ width: '200px', flexShrink: 0 }}>
@@ -637,37 +634,41 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
               </div>
             </div>
           </div>
-
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px', 
-            justifyContent: 'flex-end', 
-            marginTop: '24px'
-          }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-outline"
-              disabled={saving}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <div className="loading" />
-                  Enregistrement...
-                </>
-              ) : (
-                'Enregistrer'
-              )}
-            </button>
-          </div>
         </form>
+
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          justifyContent: 'flex-end', 
+          padding: '16px 32px',
+          borderTop: '1px solid var(--border)',
+          background: 'var(--card-bg)',
+          flexShrink: 0
+        }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-outline"
+            disabled={saving}
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            form="anime-edit-form"
+            className="btn btn-primary"
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <div className="loading" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer'
+            )}
+          </button>
+        </div>
       </div>
       <ToastContainer />
     </div>
