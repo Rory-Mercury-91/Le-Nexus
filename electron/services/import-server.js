@@ -1067,6 +1067,94 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       return;
     }
 
+    // Route: POST /add-anime (import rapide via MAL ID depuis Tampermonkey)
+    if (req.method === 'POST' && req.url === '/add-anime') {
+      let body = '';
+
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+
+      req.on('end', async () => {
+        try {
+          const data = JSON.parse(body);
+          const malId = data.mal_id;
+          
+          if (!malId || isNaN(parseInt(malId))) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              success: false, 
+              error: 'MAL ID invalide' 
+            }));
+            return;
+          }
+
+          console.log(`🎬 Import rapide MAL ID: ${malId} depuis Tampermonkey`);
+
+          // Notifier le début de l'import
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('manga-import-start', {
+              message: `Import anime MAL ID: ${malId}...`
+            });
+          }
+
+          // Appeler directement le handler add-anime-by-mal-id via webContents.executeJavaScript
+          // pour déclencher l'IPC depuis le renderer et attendre le résultat
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            const result = await mainWindow.webContents.executeJavaScript(`
+              window.electronAPI.addAnimeByMalId(${malId})
+            `);
+
+            // Notifier la fin de l'import
+            setTimeout(() => {
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('manga-import-complete');
+                // Rafraîchir la liste des animes
+                mainWindow.webContents.send('refresh-anime-list');
+              }
+            }, 1000);
+
+            if (result.success) {
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                success: true, 
+                anime: result.anime,
+                message: `${result.anime.titre} ajouté avec succès !`
+              }));
+            } else {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                success: false, 
+                error: result.error || 'Erreur lors de l\'import'
+              }));
+            }
+          } else {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              success: false, 
+              error: 'Fenêtre principale non disponible'
+            }));
+          }
+
+        } catch (error) {
+          console.error('❌ Erreur add-anime:', error);
+          
+          // Notifier la fin de l'import même en cas d'erreur
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('manga-import-complete');
+          }
+          
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            success: false, 
+            error: error.message 
+          }));
+        }
+      });
+
+      return;
+    }
+
     // Route: GET / (healthcheck)
     if (req.method === 'GET' && req.url === '/') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
