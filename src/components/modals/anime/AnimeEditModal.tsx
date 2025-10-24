@@ -1,8 +1,8 @@
 import { Languages, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../hooks/useToast';
 import { AnimeSerie } from '../../../types';
 import CoverImage from '../../common/CoverImage';
-import { useToast } from '../../../hooks/useToast';
 
 interface AnimeEditModalProps {
   anime: AnimeSerie;
@@ -276,23 +276,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                    Statut
-                  </label>
-                  <select
-                    value={statut}
-                    onChange={(e) => setStatut(e.target.value as any)}
-                    className="select"
-                  >
-                    <option value="En cours">En cours</option>
-                    <option value="Terminé">Terminé</option>
-                    <option value="Abandonné">Abandonné</option>
-                    <option value="En attente">En attente</option>
-                  </select>
-                </div>
-
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
                     Type
@@ -303,10 +287,11 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                     className="select"
                   >
                     <option value="TV">TV</option>
-                    <option value="Film">Film</option>
-                    <option value="OAV">OAV</option>
+                    <option value="Movie">Film</option>
+                    <option value="OVA">OVA</option>
                     <option value="ONA">ONA</option>
                     <option value="Special">Special</option>
+                    <option value="Music">Music</option>
                   </select>
                 </div>
 

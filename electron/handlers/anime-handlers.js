@@ -963,4 +963,3 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 }
 
 module.exports = { registerAnimeHandlers };
-
