@@ -1,16 +1,8 @@
-import { Languages, Loader2, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Languages, Loader2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AnimeSerie } from '../../../types';
 import CoverImage from '../../common/CoverImage';
 import { useToast } from '../../../hooks/useToast';
-
-interface AnimeSaison {
-  id?: number;
-  numero_saison: number;
-  titre: string;
-  nb_episodes: number;
-  annee: number | null;
-}
 
 interface AnimeEditModalProps {
   anime: AnimeSerie;
@@ -19,16 +11,43 @@ interface AnimeEditModalProps {
 }
 
 export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditModalProps) {
+  // Champs de base
   const [titre, setTitre] = useState(anime.titre);
+  const [titreRomaji, setTitreRomaji] = useState(anime.titre_romaji || '');
   const [titreNatif, setTitreNatif] = useState(anime.titre_natif || '');
+  const [titreAnglais, setTitreAnglais] = useState(anime.titre_anglais || '');
+  const [titresAlternatifs, setTitresAlternatifs] = useState(anime.titres_alternatifs || '');
   const [couvertureUrl, setCouvertureUrl] = useState(anime.couverture_url || '');
   const [description, setDescription] = useState(anime.description || '');
-  const [statut, setStatut] = useState(anime.statut);
+  
+  // Métadonnées
   const [type, setType] = useState(anime.type);
+  const [source, setSource] = useState(anime.source || '');
+  const [nbEpisodes, setNbEpisodes] = useState(anime.nb_episodes?.toString() || '');
+  const [statutDiffusion, setStatutDiffusion] = useState(anime.statut_diffusion || '');
+  const [enCoursDiffusion, setEnCoursDiffusion] = useState(anime.en_cours_diffusion || false);
+  const [dateDebut, setDateDebut] = useState(anime.date_debut || '');
+  const [dateFin, setDateFin] = useState(anime.date_fin || '');
+  const [duree, setDuree] = useState(anime.duree || '');
   const [annee, setAnnee] = useState(anime.annee?.toString() || '');
+  const [saisonDiffusion, setSaisonDiffusion] = useState(anime.saison_diffusion || '');
+  
+  // Classification
   const [genres, setGenres] = useState(anime.genres || '');
+  const [themes, setThemes] = useState(anime.themes || '');
+  const [demographics, setDemographics] = useState(anime.demographics || '');
+  const [rating, setRating] = useState(anime.rating || '');
+  const [score, setScore] = useState(anime.score?.toString() || '');
+  
+  // Production
   const [studios, setStudios] = useState(anime.studios || '');
-  const [saisons, setSaisons] = useState<AnimeSaison[]>([]);
+  const [producteurs, setProducteurs] = useState(anime.producteurs || '');
+  const [diffuseurs, setDiffuseurs] = useState(anime.diffuseurs || '');
+  
+  // Liens
+  const [liensExternes, setLiensExternes] = useState(anime.liens_externes || '');
+  const [liensStreaming, setLiensStreaming] = useState(anime.liens_streaming || '');
+  
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
   const { showToast, ToastContainer } = useToast();
@@ -45,25 +64,6 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, saving]);
 
-  // Charger les saisons au montage
-  useState(() => {
-    const loadSaisons = async () => {
-      try {
-        const loadedSaisons = await window.electronAPI.getAnimeSaisons(anime.id);
-        setSaisons(loadedSaisons.map((s: any) => ({
-          id: s.id,
-          numero_saison: s.numero_saison,
-          titre: s.titre,
-          nb_episodes: s.nb_episodes,
-          annee: s.annee
-        })));
-      } catch (error) {
-        console.error('Erreur chargement saisons:', error);
-      }
-    };
-    loadSaisons();
-  });
-
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
     if (couvertureUrl && couvertureUrl.startsWith('covers/')) {
@@ -73,56 +73,60 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
     const result = await window.electronAPI.uploadCustomCover(titre, 'anime');
     if (result.success && result.localPath) {
       setCouvertureUrl(result.localPath);
+      showToast('Image téléchargée avec succès', 'success');
     }
-  };
-
-  const handleAddSaison = () => {
-    const newNumero = saisons.length > 0 
-      ? Math.max(...saisons.map(s => s.numero_saison)) + 1 
-      : 1;
-    
-    setSaisons([...saisons, {
-      numero_saison: newNumero,
-      titre: `Saison ${newNumero}`,
-      nb_episodes: 12,
-      annee: annee ? parseInt(annee) : null
-    }]);
-  };
-
-  const handleRemoveSaison = (index: number) => {
-    setSaisons(saisons.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateSaison = (index: number, field: keyof AnimeSaison, value: any) => {
-    const newSaisons = [...saisons];
-    newSaisons[index] = { ...newSaisons[index], [field]: value };
-    setSaisons(newSaisons);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!titre.trim()) {
+      showToast('Le titre est obligatoire', 'error');
       return;
     }
 
     setSaving(true);
     try {
-      await window.electronAPI.updateAnime(anime.id, {
+      const result = await window.electronAPI.updateAnime(anime.id, {
         titre: titre.trim(),
+        titre_romaji: titreRomaji.trim() || null,
         titre_natif: titreNatif.trim() || null,
+        titre_anglais: titreAnglais.trim() || null,
+        titres_alternatifs: titresAlternatifs.trim() || null,
         couverture_url: couvertureUrl || null,
         description: description || null,
-        statut,
         type,
+        source: source || null,
+        nb_episodes: nbEpisodes ? parseInt(nbEpisodes) : 0,
+        statut_diffusion: statutDiffusion || null,
+        en_cours_diffusion: enCoursDiffusion,
+        date_debut: dateDebut || null,
+        date_fin: dateFin || null,
+        duree: duree || null,
         annee: annee ? parseInt(annee) : null,
+        saison_diffusion: saisonDiffusion || null,
         genres: genres || null,
+        themes: themes || null,
+        demographics: demographics || null,
+        rating: rating || null,
+        score: score ? parseFloat(score) : null,
         studios: studios || null,
-        saisons: saisons
+        producteurs: producteurs || null,
+        diffuseurs: diffuseurs || null,
+        liens_externes: liensExternes || null,
+        liens_streaming: liensStreaming || null
       });
-      onSuccess();
+      
+      if (result.success) {
+        showToast('Anime modifié avec succès', 'success');
+        setTimeout(() => onSuccess(), 800);
+      } else {
+        showToast(`Erreur: ${result.error}`, 'error');
+        setSaving(false);
+      }
     } catch (error) {
       console.error('Erreur lors de la modification de l\'anime:', error);
+      showToast('Erreur lors de la modification', 'error');
       setSaving(false);
     }
   };
@@ -364,6 +368,153 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                 </button>
               </div>
 
+              {/* Titres alternatifs */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Titre romaji
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Romaji Title"
+                    value={titreRomaji}
+                    onChange={(e) => setTitreRomaji(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Titre anglais
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="English Title"
+                    value={titreAnglais}
+                    onChange={(e) => setTitreAnglais(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Titres alternatifs
+                </label>
+                <input
+                  type="text"
+                  placeholder="Titre alt 1, Titre alt 2"
+                  value={titresAlternatifs}
+                  onChange={(e) => setTitresAlternatifs(e.target.value)}
+                  className="input"
+                />
+              </div>
+
+              {/* Métadonnées détaillées */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Source
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Manga, Light Novel..."
+                    value={source}
+                    onChange={(e) => setSource(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Nb épisodes
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="12"
+                    value={nbEpisodes}
+                    onChange={(e) => setNbEpisodes(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Durée
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="24 min"
+                    value={duree}
+                    onChange={(e) => setDuree(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Statut diffusion */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Statut diffusion
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Finished Airing"
+                    value={statutDiffusion}
+                    onChange={(e) => setStatutDiffusion(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Saison
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Winter, Spring..."
+                    value={saisonDiffusion}
+                    onChange={(e) => setSaisonDiffusion(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={enCoursDiffusion}
+                      onChange={(e) => setEnCoursDiffusion(e.target.checked)}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    En cours de diffusion
+                  </label>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Date début
+                  </label>
+                  <input
+                    type="date"
+                    value={dateDebut}
+                    onChange={(e) => setDateDebut(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Date fin
+                  </label>
+                  <input
+                    type="date"
+                    value={dateFin}
+                    onChange={(e) => setDateFin(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Classification */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
                   Genres
@@ -377,128 +528,127 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                 />
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Thèmes
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="School, Military..."
+                    value={themes}
+                    onChange={(e) => setThemes(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Démographie
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Shounen, Seinen..."
+                    value={demographics}
+                    onChange={(e) => setDemographics(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Rating
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="PG-13, R+..."
+                    value={rating}
+                    onChange={(e) => setRating(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Score MAL
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="8.5"
+                    value={score}
+                    onChange={(e) => setScore(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Production */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
                   Studios
                 </label>
                 <input
                   type="text"
-                  placeholder="Studio Ghibli"
+                  placeholder="Studio Ghibli, Toei Animation"
                   value={studios}
                   onChange={(e) => setStudios(e.target.value)}
                   className="input"
                 />
               </div>
 
-              {/* Gestion des saisons */}
-              <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '2px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '700' }}>Saisons</h3>
-                  <button
-                    type="button"
-                    onClick={handleAddSaison}
-                    className="btn btn-primary"
-                    style={{ fontSize: '14px' }}
-                  >
-                    <Plus size={16} />
-                    Ajouter une saison
-                  </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Producteurs
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Bandai Visual, Aniplex"
+                    value={producteurs}
+                    onChange={(e) => setProducteurs(e.target.value)}
+                    className="input"
+                  />
                 </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Diffuseurs
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Crunchyroll, Netflix"
+                    value={diffuseurs}
+                    onChange={(e) => setDiffuseurs(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
 
-                {saisons.length === 0 ? (
-                  <div style={{
-                    padding: '20px',
-                    textAlign: 'center',
-                    color: 'var(--text-secondary)',
-                    border: '2px dashed var(--border)',
-                    borderRadius: '8px'
-                  }}>
-                    Aucune saison. Cliquez sur "Ajouter une saison" pour commencer.
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {saisons.map((saison, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          background: 'var(--bg)',
-                          padding: '16px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)'
-                        }}
-                      >
-                        <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 90px 60px', gap: '16px', alignItems: 'center' }}>
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: '600' }}>
-                              Saison
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={saison.numero_saison}
-                              onChange={(e) => handleUpdateSaison(index, 'numero_saison', parseInt(e.target.value))}
-                              className="input"
-                              style={{ fontSize: '14px', padding: '6px 8px' }}
-                            />
-                          </div>
+              {/* Liens */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Liens externes
+                </label>
+                <input
+                  type="text"
+                  placeholder="Wikipedia, AniDB..."
+                  value={liensExternes}
+                  onChange={(e) => setLiensExternes(e.target.value)}
+                  className="input"
+                />
+              </div>
 
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: '600' }}>
-                              Titre
-                            </label>
-                            <input
-                              type="text"
-                              value={saison.titre}
-                              onChange={(e) => handleUpdateSaison(index, 'titre', e.target.value)}
-                              className="input"
-                              style={{ fontSize: '14px', padding: '6px 8px' }}
-                            />
-                          </div>
-
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: '600' }}>
-                              Épisodes
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={saison.nb_episodes}
-                              onChange={(e) => handleUpdateSaison(index, 'nb_episodes', parseInt(e.target.value))}
-                              className="input"
-                              style={{ fontSize: '14px', padding: '6px 8px' }}
-                            />
-                          </div>
-
-                          <div>
-                            <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', fontWeight: '600' }}>
-                              Année
-                            </label>
-                            <input
-                              type="number"
-                              placeholder="2024"
-                              value={saison.annee || ''}
-                              onChange={(e) => handleUpdateSaison(index, 'annee', e.target.value ? parseInt(e.target.value) : null)}
-                              className="input"
-                              style={{ fontSize: '14px', padding: '6px 8px' }}
-                            />
-                          </div>
-
-                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', height: '100%', paddingBottom: '4px' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSaison(index)}
-                              className="btn btn-danger"
-                              style={{ fontSize: '14px', padding: '8px', minWidth: '40px' }}
-                              title="Supprimer cette saison"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Liens streaming
+                </label>
+                <input
+                  type="text"
+                  placeholder="Crunchyroll, Netflix..."
+                  value={liensStreaming}
+                  onChange={(e) => setLiensStreaming(e.target.value)}
+                  className="input"
+                />
               </div>
             </div>
           </div>
