@@ -10,6 +10,19 @@ const { translateText: groqTranslate } = require('../apis/groq');
 function registerAnimeHandlers(ipcMain, getDb, store) {
   
   /**
+   * Helper : Traduire les saisons en français
+   */
+  const translateSeason = (season) => {
+    const seasons = {
+      'winter': 'Hiver',
+      'spring': 'Printemps',
+      'summer': 'Été',
+      'fall': 'Automne'
+    };
+    return seasons[season?.toLowerCase()] || season;
+  };
+
+  /**
    * Helper : Récupérer les données depuis Jikan API
    */
   const fetchJikanData = async (malId) => {
@@ -125,24 +138,37 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const prequelMalId = prequel?.entry[0]?.mal_id || null;
       const sequelMalId = sequel?.entry[0]?.mal_id || null;
 
-      // Préparer les données
+      // Préparer les données (avec tous les champs enrichis)
       const animeData = {
         mal_id: malId,
+        mal_url: anime.url || `https://myanimelist.net/anime/${malId}`,
         titre: anime.title,
         titre_romaji: anime.title_japanese || null,
         titre_natif: anime.title_japanese || null,
         titre_anglais: anime.title_english || null,
+        titres_alternatifs: anime.title_synonyms?.join(', ') || null,
         type: anime.type || 'TV',
+        source: anime.source || null,
         nb_episodes: anime.type === 'Movie' ? 1 : (anime.episodes || 0),
         couverture_url: coverUrl,
         description: description,
         statut_diffusion: anime.status || 'Finished Airing',
+        en_cours_diffusion: anime.airing ? 1 : 0,
+        date_debut: anime.aired?.from || null,
+        date_fin: anime.aired?.to || null,
+        duree: anime.duration || null,
         annee: anime.year || anime.aired?.prop?.from?.year || null,
-        saison_diffusion: anime.season || null,
+        saison_diffusion: translateSeason(anime.season),
         genres: anime.genres?.map(g => g.name).join(', ') || '',
+        themes: anime.themes?.map(t => t.name).join(', ') || null,
+        demographics: anime.demographics?.map(d => d.name).join(', ') || null,
         studios: anime.studios?.map(s => s.name).join(', ') || '',
+        producteurs: anime.producers?.map(p => p.name).join(', ') || null,
+        diffuseurs: anime.licensors?.map(l => l.name).join(', ') || null,
         rating: anime.rating || null,
         score: anime.score || null,
+        liens_externes: JSON.stringify(anime.external?.filter(e => e.name === 'Wikipedia') || []),
+        liens_streaming: JSON.stringify(anime.streaming || []),
         franchise_name: franchiseName,
         franchise_order: franchiseOrder,
         prequel_mal_id: prequelMalId,
@@ -154,15 +180,17 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       // Insérer dans la base de données
       const stmt = db.prepare(`
         INSERT INTO anime_series (
-          mal_id, titre, titre_romaji, titre_natif, titre_anglais, type, nb_episodes,
-          couverture_url, description, statut_diffusion, annee, saison_diffusion,
-          genres, studios, rating, score, franchise_name, franchise_order,
-          prequel_mal_id, sequel_mal_id, source_import, utilisateur_ajout
+          mal_id, mal_url, titre, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
+          type, source, nb_episodes, couverture_url, description, statut_diffusion, en_cours_diffusion,
+          date_debut, date_fin, duree, annee, saison_diffusion, genres, themes, demographics,
+          studios, producteurs, diffuseurs, rating, score, liens_externes, liens_streaming,
+          franchise_name, franchise_order, prequel_mal_id, sequel_mal_id, source_import, utilisateur_ajout
         ) VALUES (
-          @mal_id, @titre, @titre_romaji, @titre_natif, @titre_anglais, @type, @nb_episodes,
-          @couverture_url, @description, @statut_diffusion, @annee, @saison_diffusion,
-          @genres, @studios, @rating, @score, @franchise_name, @franchise_order,
-          @prequel_mal_id, @sequel_mal_id, @source_import, @utilisateur_ajout
+          @mal_id, @mal_url, @titre, @titre_romaji, @titre_natif, @titre_anglais, @titres_alternatifs,
+          @type, @source, @nb_episodes, @couverture_url, @description, @statut_diffusion, @en_cours_diffusion,
+          @date_debut, @date_fin, @duree, @annee, @saison_diffusion, @genres, @themes, @demographics,
+          @studios, @producteurs, @diffuseurs, @rating, @score, @liens_externes, @liens_streaming,
+          @franchise_name, @franchise_order, @prequel_mal_id, @sequel_mal_id, @source_import, @utilisateur_ajout
         )
       `);
       
@@ -239,17 +267,17 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         const animeXml = animeMatches[i][1];
         
         // Extraire les données XML
-        const malId = parseInt(animeXml.match(/<series_animedb_id>(\d+)<\/series_animedb_id>/)?.[1]);
-        const titre = animeXml.match(/<series_title><!\[CDATA\[(.*?)\]\]><\/series_title>/)?.[1];
+          const malId = parseInt(animeXml.match(/<series_animedb_id>(\d+)<\/series_animedb_id>/)?.[1]);
+          const titre = animeXml.match(/<series_title><!\[CDATA\[(.*?)\]\]><\/series_title>/)?.[1];
         const watchedEpisodes = parseInt(animeXml.match(/<my_watched_episodes>(\d+)<\/my_watched_episodes>/)?.[1] || 0);
         const myStatus = animeXml.match(/<my_status>(.*?)<\/my_status>/)?.[1];
 
-        if (!malId || !titre) {
+          if (!malId || !titre) {
           skipped++;
-          continue;
-        }
+            continue;
+          }
 
-        sendProgress({ 
+          sendProgress({
           current: i + 1, 
           total: totalAnimes, 
           currentAnime: titre 
@@ -294,24 +322,37 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           const prequelMalId = prequel?.entry[0]?.mal_id || null;
           const sequelMalId = sequel?.entry[0]?.mal_id || null;
 
-          // Préparer les données
+          // Préparer les données (avec tous les champs enrichis)
           const animeData = {
             mal_id: malId,
+            mal_url: anime.url || `https://myanimelist.net/anime/${malId}`,
             titre: anime.title,
             titre_romaji: anime.title_japanese || null,
             titre_natif: anime.title_japanese || null,
             titre_anglais: anime.title_english || null,
+            titres_alternatifs: anime.title_synonyms?.join(', ') || null,
             type: anime.type || 'TV',
+            source: anime.source || null,
             nb_episodes: anime.type === 'Movie' ? 1 : (anime.episodes || 0),
             couverture_url: coverUrl,
             description: description,
             statut_diffusion: anime.status || 'Finished Airing',
+            en_cours_diffusion: anime.airing ? 1 : 0,
+            date_debut: anime.aired?.from || null,
+            date_fin: anime.aired?.to || null,
+            duree: anime.duration || null,
             annee: anime.year || anime.aired?.prop?.from?.year || null,
-            saison_diffusion: anime.season || null,
+            saison_diffusion: translateSeason(anime.season),
             genres: anime.genres?.map(g => g.name).join(', ') || '',
+            themes: anime.themes?.map(t => t.name).join(', ') || null,
+            demographics: anime.demographics?.map(d => d.name).join(', ') || null,
             studios: anime.studios?.map(s => s.name).join(', ') || '',
+            producteurs: anime.producers?.map(p => p.name).join(', ') || null,
+            diffuseurs: anime.licensors?.map(l => l.name).join(', ') || null,
             rating: anime.rating || null,
             score: anime.score || null,
+            liens_externes: JSON.stringify(anime.external?.filter(e => e.name === 'Wikipedia') || []),
+            liens_streaming: JSON.stringify(anime.streaming || []),
             franchise_name: franchiseName,
             franchise_order: franchiseOrder,
             prequel_mal_id: prequelMalId,
@@ -323,15 +364,17 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           // Insérer dans la DB
           const stmt = db.prepare(`
             INSERT INTO anime_series (
-              mal_id, titre, titre_romaji, titre_natif, titre_anglais, type, nb_episodes,
-              couverture_url, description, statut_diffusion, annee, saison_diffusion,
-              genres, studios, rating, score, franchise_name, franchise_order,
-              prequel_mal_id, sequel_mal_id, source_import, utilisateur_ajout
+              mal_id, mal_url, titre, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
+              type, source, nb_episodes, couverture_url, description, statut_diffusion, en_cours_diffusion,
+              date_debut, date_fin, duree, annee, saison_diffusion, genres, themes, demographics,
+              studios, producteurs, diffuseurs, rating, score, liens_externes, liens_streaming,
+              franchise_name, franchise_order, prequel_mal_id, sequel_mal_id, source_import, utilisateur_ajout
             ) VALUES (
-              @mal_id, @titre, @titre_romaji, @titre_natif, @titre_anglais, @type, @nb_episodes,
-              @couverture_url, @description, @statut_diffusion, @annee, @saison_diffusion,
-              @genres, @studios, @rating, @score, @franchise_name, @franchise_order,
-              @prequel_mal_id, @sequel_mal_id, @source_import, @utilisateur_ajout
+              @mal_id, @mal_url, @titre, @titre_romaji, @titre_natif, @titre_anglais, @titres_alternatifs,
+              @type, @source, @nb_episodes, @couverture_url, @description, @statut_diffusion, @en_cours_diffusion,
+              @date_debut, @date_fin, @duree, @annee, @saison_diffusion, @genres, @themes, @demographics,
+              @studios, @producteurs, @diffuseurs, @rating, @score, @liens_externes, @liens_streaming,
+              @franchise_name, @franchise_order, @prequel_mal_id, @sequel_mal_id, @source_import, @utilisateur_ajout
             )
           `);
           
@@ -407,7 +450,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
     try {
       const db = getDb();
       const currentUser = store.get('currentUser', '');
-
+      
       let query = `
         SELECT 
           a.*,
@@ -461,7 +504,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
 
       // Tri
       if (filters.sortBy === 'titre') {
-        query += ` ORDER BY a.titre ASC`;
+      query += ` ORDER BY a.titre ASC`;
       } else if (filters.sortBy === 'annee') {
         query += ` ORDER BY a.annee DESC, a.franchise_order ASC`;
       } else {
@@ -484,7 +527,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
     try {
       const db = getDb();
       const currentUser = store.get('currentUser', '');
-
+      
       const anime = db.prepare(`
         SELECT 
           a.*,
@@ -512,7 +555,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       for (let i = 1; i <= anime.nb_episodes; i++) {
         const vu = db.prepare(`
           SELECT vu, date_visionnage 
-          FROM anime_episodes_vus 
+          FROM anime_episodes_vus
           WHERE anime_id = ? AND utilisateur = ? AND episode_numero = ?
         `).get(animeId, currentUser, i);
 
@@ -552,12 +595,12 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const currentUser = store.get('currentUser', '');
 
       if (vu) {
-        db.prepare(`
+      db.prepare(`
           INSERT OR REPLACE INTO anime_episodes_vus (anime_id, utilisateur, episode_numero, vu, date_visionnage)
           VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
         `).run(animeId, currentUser, episodeNumero);
       } else {
-        db.prepare(`
+          db.prepare(`
           DELETE FROM anime_episodes_vus
           WHERE anime_id = ? AND utilisateur = ? AND episode_numero = ?
         `).run(animeId, currentUser, episodeNumero);
@@ -593,7 +636,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       }
 
       // Mettre à jour le statut
-      db.prepare(`
+        db.prepare(`
         INSERT OR REPLACE INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage)
         VALUES (?, ?, 'Terminé')
       `).run(animeId, currentUser);
@@ -647,7 +690,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const db = getDb();
       
       const stmt = db.prepare(`
-        UPDATE anime_series
+        UPDATE anime_series 
         SET titre = ?, description = ?, genres = ?, studios = ?, annee = ?,
             rating = ?, type = ?, nb_episodes = ?, couverture_url = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
@@ -679,7 +722,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
   ipcMain.handle('set-anime-tag', async (event, animeId, userId, tag) => {
     try {
       const db = getDb();
-      db.prepare(`
+            db.prepare(`
         INSERT OR REPLACE INTO anime_tags (anime_id, user_id, tag, updated_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `).run(animeId, userId, tag);
@@ -695,7 +738,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const current = db.prepare('SELECT is_favorite FROM anime_tags WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
       const newValue = current?.is_favorite ? 0 : 1;
       
-      db.prepare(`
+            db.prepare(`
         INSERT OR REPLACE INTO anime_tags (anime_id, user_id, is_favorite, updated_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `).run(animeId, userId, newValue);
