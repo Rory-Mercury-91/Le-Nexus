@@ -154,7 +154,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   ipcMain.handle('upload-custom-cover', async (event, serieTitre, type = 'serie') => {
     const pm = getPathManager();
     if (!pm) return { success: false, error: 'PathManager non initialisé' };
-    return await uploadCustomCover(dialog, mainWindow, pm, serieTitre, type);
+    return await uploadCustomCover(dialog, getMainWindow(), pm, serieTitre, type);
   });
 
   // Sauvegarder une image depuis un chemin (drag & drop)
