@@ -1,328 +1,207 @@
-# 📚 Scripts Tampermonkey pour Ma Mangathèque
+# 🎭 Scripts Tampermonkey - Ma Mangathèque
 
-Scripts d'import automatique pour faciliter l'ajout de **mangas** et **animes** dans votre collection.
-
----
-
-## ⚠️ Avertissement
-
-**Usage personnel uniquement**
-
-Ces scripts sont conçus pour automatiser l'import de données depuis des sites web publics vers votre application locale. Ils sont fournis à titre d'exemple et d'aide personnelle.
-
-**Important :**
-- Ces scripts peuvent cesser de fonctionner si les sites modifient leur structure HTML ou API
-- Respectez les conditions d'utilisation de chaque site
-- Usage modéré recommandé (pas de scraping massif)
-- Aucune garantie de fonctionnement ou de maintenance
+Scripts d'intégration navigateur pour **Ma Mangathèque**.
 
 ---
 
-## 📦 Scripts disponibles
+## 📦 Installation
 
-### 🎬 Animes
+### 1. Installer Tampermonkey
 
-#### 1. **ADKami Integration** 🟣🟢
-- **Site** : [ADKami.com](https://www.adkami.com/)
-- **URL supportées** : `/anime/*` (toutes les pages anime)
-- **Fonctionnalités** :
-  - **Sur `/anime/ID` ou `/anime/ID/info`** : 🟣 Bouton d'import d'anime (bas droite)
-    - ✅ Import complet d'animes depuis ADKami
-    - ✅ MAL ID, titre natif, couverture
-    - ✅ Genres, studios, auteur, saison
-    - ✅ Création automatique des saisons et épisodes
-    - ✅ Description et métadonnées complètes
-  - **Sur pages épisode** : 🟢 Bouton de marquage (haut droite)
-    - ✅ Marquer un épisode comme vu depuis ADKami
-    - ✅ Détection automatique de l'anime, saison et épisode via MAL ID
-    - ✅ Synchronisation directe avec Ma Mangathèque
-    - ✅ Marquage automatique du statut "Terminé" si tous les épisodes sont vus
+Installez l'extension Tampermonkey pour votre navigateur :
+- **Chrome** : [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
+- **Firefox** : [Firefox Add-ons](https://addons.mozilla.org/fr/firefox/addon/tampermonkey/)
+- **Edge** : [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
+- **Safari** : [App Store](https://apps.apple.com/app/tampermonkey/id1482490089)
 
-> **⚠️ Important** : Ce script remplace les anciens scripts "ADKami Anime Extractor" et "ADKami Episode Tracker". Si vous les aviez installés, **désinstallez-les** avant d'installer ce nouveau script unifié.
+### 2. Installer un script
 
-#### 2. **Crunchyroll Episode Tracker** 🟠📥
-- **Site** : [Crunchyroll](https://www.crunchyroll.com/)
-- **URL supportées** : `/series/*` (import), `/watch/*` (marquage)
-- **Fonctionnalités** :
-  - **Sur `/series/*` (page principale)** : 📥 Bouton d'import orange (bas droite)
-    - ✅ **Import complet depuis la page série** (JSON-LD + DOM)
-    - 📸 Vraie couverture de l'anime (haute qualité, sans blur)
-    - 📝 Description complète de la série
-    - 🏷️ Genres nettoyés et dédupliqués (Action, Aventure, Fantastique)
-    - 🎬 Détection automatique du nombre d'épisodes
-    - 🏷️ Badge de source d'import (logo Crunchyroll) dans l'application
-    - 🔢 **Affichage bannière pleine largeur** pour les couvertures paysage Crunchyroll
-  - **Sur `/watch/*` (page épisode)** : 👁️ Bouton de marquage vert (bas droite)
-    - ✅ Marquer un épisode comme vu depuis Crunchyroll
-    - ✅ **Auto-incrémentation** : Marquer l'épisode 5 marque automatiquement les épisodes 1-5 comme vus
-    - ⚠️ Si l'anime n'existe pas : message d'erreur → Allez sur la page série pour l'importer
-  - ✅ **Auto-détection SPA** : Les boutons se mettent à jour automatiquement lors de la navigation
-  - ✅ **Détection avancée des saisons** (multi-niveaux) :
-    - 📊 JSON-LD (`seasonNumber`)
-    - 🔍 Patterns dans le titre (`Season 2`, `S2`, `Part 2`, `Saison 2`, `Cour 2`)
-    - 🧹 Nettoyage automatique du titre (ex: `"Titre Season 2"` → `"Titre"` + Saison 2)
-    - 🔄 **Création automatique des saisons précédentes** : Si vous importez la saison 2, la saison 1 sera créée automatiquement (12 épisodes par défaut)
-  - ✅ Marquage automatique du statut "Terminé" quand tous les épisodes sont vus
-  - ✅ Synchronisation directe avec Ma Mangathèque
+1. Ouvrez le fichier `.user.js` dans un éditeur de texte
+2. **Copiez tout le contenu** du script
+3. Ouvrez le **tableau de bord Tampermonkey** (icône → Dashboard)
+4. Cliquez sur l'onglet **"Utilitaires"**
+5. Collez le code dans la zone de texte
+6. Cliquez sur **"Installer"**
 
-> **💡 Workflow recommandé** : 
-> 1. Allez sur la page série (`/series/`) et cliquez sur 📥 pour importer
-> 2. Regardez un épisode et cliquez sur 👁️ pour marquer comme vu
-> 3. Les boutons changent automatiquement selon la page (SPA)
-> 4. **Pour les séries multi-saisons** : Importez chaque saison depuis sa page dédiée
+**OU**
 
-> **⚠️ Note** : Crunchyroll est une SPA (Single Page Application). Les boutons se mettent à jour automatiquement lors de la navigation, mais un délai de 1 seconde peut être nécessaire.
-
-#### 3. **ADN Episode Tracker** 🔵 ⭐ Recommandé
-- **Site** : [ADN](https://animationdigitalnetwork.com/) (AnimationDigitalNetwork)
-- **URL supportées** : `/video/*`
-- **Fonctionnalités** :
-  - ✅ Marquer un épisode comme vu depuis ADN
-  - ✅ **Auto-incrémentation** : Marquer l'épisode 5 marque automatiquement les épisodes 1-5 comme vus
-  - ✅ **Import automatique optimisé** depuis la page principale de l'anime
-    - 📸 Vraie couverture de l'anime (pas de capture d'écran d'épisode)
-    - 🎯 Nombre réel d'épisodes (pas d'estimation)
-    - 📝 Description complète et métadonnées détaillées
-    - 🏢 Studios, genres, année précise
-    - 🏷️ Badge de source d'import (logo ADN) dans l'application
-  - ✅ Détection automatique via JSON-LD
-  - ✅ Bouton flottant vert en bas à droite
-  - ✅ Mise à jour automatique du bouton lors du changement d'épisode
-  - ✅ Marquage automatique du statut "Terminé" quand tous les épisodes sont vus
-  - ✅ Synchronisation directe avec Ma Mangathèque
-
-> **🚀 Pourquoi ADN est recommandé ?** ADN et Crunchyroll récupèrent tous deux les données depuis les pages principales pour garantir des informations complètes. ADN est légèrement plus recommandé car il a un meilleur accès aux métadonnées complètes (nombre réel d'épisodes, studios, etc.) sur la plateforme française.
-
-### 📚 Mangas
-
-#### 5. **MangaCollec Extractor** 🟣
-- **Site** : [MangaCollec.com](https://www.mangacollec.com/)
-- **URL supportées** : `/series/*`, `/editions/*`
-- **Fonctionnalités** :
-  - ✅ Import via API (fiable et rapide)
-  - ✅ Création automatique des tomes avec couvertures
-  - ✅ Dates de sortie et ISBN
-  - ✅ Genres, éditeur, auteurs, démographie
-  - ✅ Interception API pour données complètes
-
-#### 6. **Nautiljon Extractor** 🟠
-- **Site** : [Nautiljon.com](https://www.nautiljon.com/)
-- **URL supportées** : `/mangas/*`
-- **Fonctionnalités** :
-  - ✅ Import complet avec fetch multipage optimisé
-  - ✅ **Déduplication intelligente des volumes** (éditions française/japonaise)
-  - ✅ Création automatique des tomes avec couvertures (série + tomes)
-  - ✅ Téléchargement local des images (série et tous les tomes)
-  - ✅ Titre, titre alternatif, type (Shonen/Seinen/Shojo)
-  - ✅ Genres et thèmes séparés
-  - ✅ Auteurs, éditeur VF, synopsis complet
-  - ✅ Prix automatique par tome (7.20€ par défaut si non trouvé)
-  - ✅ Dates de sortie VF (seuls les tomes avec date VF sont importés)
-  - ✅ Détection et import de tous les volumes disponibles
-  - ✅ **Anti-rate-limiting** : Délai adaptatif 350ms → 1500ms avec retry automatique
-  - ✅ **Protection contre le HTTP 429** : Backoff exponentiel (2s, 4s, 8s)
-
-> **⚠️ Performance** : L'import de séries longues (40+ tomes) peut prendre 45-60 secondes en raison des limites de rate du serveur Nautiljon. Le script s'adapte automatiquement pour garantir un import complet sans erreur.
-
-#### 7. **Booknode Extractor** 🔵
-- **Site** : [Booknode.com](https://booknode.com/)
-- **URL supportées** : `/serie/*`
-- **Fonctionnalités** :
-  - ✅ Import complet (titre, auteurs, thèmes, synopsis)
-  - ✅ Création automatique des tomes avec couvertures
-  - ✅ Dates de sortie récupérées individuellement
-  - ✅ Support Manga et Light Novel
-  - ✅ Scroll automatique pour lazy loading
+1. Glissez-déposez le fichier `.user.js` dans votre navigateur
+2. Tampermonkey détectera automatiquement le script
+3. Cliquez sur **"Installer"**
 
 ---
 
-## 🚀 Installation
+## 🎬 Scripts Animes
 
-### Étape 1 : Installer Tampermonkey
+### MyAnimeList Quick Add
 
-1. **Chrome/Edge** : [Tampermonkey sur Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-2. **Firefox** : [Tampermonkey sur Firefox Add-ons](https://addons.mozilla.org/fr/firefox/addon/tampermonkey/)
-3. **Safari** : [Tampermonkey sur App Store](https://apps.apple.com/app/tampermonkey/id1482490089)
+**Fichier** : `animes/MyAnimeList Quick Add.user.js`
 
-### Étape 2 : Installer les scripts
+**Fonction** : Ajoute un bouton sur les pages d'anime MyAnimeList pour importer directement dans Ma Mangathèque.
 
-1. Cliquez sur l'icône **Tampermonkey** dans votre navigateur
-2. Cliquez sur **"Créer un nouveau script..."**
-3. Copiez le contenu d'un script (ex: `MangaCollec Extractor.user.js`)
-4. Collez-le dans l'éditeur Tampermonkey
-5. **Fichier** → **Enregistrer** (ou `Ctrl+S`)
-6. Répétez pour chaque script souhaité
+**Pages compatibles** : `https://myanimelist.net/anime/*`
 
----
+#### 📋 Fonctionnalités
+- ✅ Bouton "Ajouter à Ma Mangathèque" avec design moderne
+- ✅ Import complet automatique (Jikan + AniList + Groq)
+- ✅ 28 champs enrichis récupérés (cover HD, synopsis traduit, genres, themes, etc.)
+- ✅ Feedback visuel (succès/erreur)
+- ✅ Détection automatique du MAL ID depuis l'URL
 
-## 📖 Utilisation
+#### 🎯 Utilisation
+1. Naviguez vers une page d'anime sur MyAnimeList
+   - Exemple : `https://myanimelist.net/anime/59027/Spy_x_Family_Season_3`
+2. Un bouton violet apparaît sous le titre
+3. Cliquez sur **"Ajouter à Ma Mangathèque"**
+4. ✅ L'anime est ajouté automatiquement !
 
-### Pré-requis
-✅ **Ma Mangathèque** doit être **démarrée** (l'application Electron doit tourner)
-
-### Workflow d'import
-
-#### 🎬 Pour les animes
-
-1. **Lancez** Ma Mangathèque sur votre ordinateur
-2. **Pour importer un anime** :
-   - **ADKami** : Allez sur la page **info** (`/anime/ID` ou `/info`) et cliquez sur 📥
-   - **Crunchyroll** : Allez sur la page **série** (`/series/*`) et cliquez sur 📥 (bas droite)
-   - L'anime sera ajouté avec ses saisons et épisodes
-3. **Pour marquer un épisode comme vu** :
-   - **ADN** : Le bouton ✅ apparaît sur la page épisode (import auto si besoin)
-   - **Crunchyroll** : Le bouton 👁️ apparaît sur la page épisode (requiert import préalable via `/series/*`)
-   - **ADKami** : Le bouton ✅ apparaît sur la page épisode (requiert import préalable via `/info`)
-   - L'épisode sera automatiquement marqué dans votre collection
-   - **Auto-incrémentation** : Marquer l'épisode 5 marque aussi automatiquement 1-4 (toutes plateformes)
-   - Si tous les épisodes sont vus, le statut passe automatiquement à "Terminé"
-   - Un **badge de source** (logo ADN/Crunchyroll/ADKami) s'affiche dans l'application
-
-> **💡 Workflow Crunchyroll** : 
-> 1. Allez sur la page série → Cliquez sur 📥 orange pour importer
-> 2. Regardez un épisode → Cliquez sur 👁️ vert pour marquer comme vu
-> 3. Les boutons changent automatiquement quand vous naviguez
-
-#### 📚 Pour les mangas
-
-1. **Lancez** Ma Mangathèque sur votre ordinateur
-2. **Naviguez** vers un site supporté :
-   - MangaCollec : Page d'une série (`/series/xxx`) ou édition (`/editions/xxx`)
-   - Nautiljon : Page d'un manga (`/mangas/xxx`)
-   - Booknode : Page d'une série (`/serie/xxx`)
-3. **Choisissez** le type d'import :
-   - 📚 **Import complet** (série + tomes) : Crée une nouvelle série avec tous ses tomes
-   - 📖 **Import tomes uniquement** : Ajoute les tomes manquants à une série existante
-4. **Attendez** l'extraction et l'import (notification de confirmation)
-5. L'application se rafraîchit automatiquement pour afficher les nouvelles données
-
-### Import multi-sources
-
-Vous pouvez combiner différentes sources pour optimiser vos imports :
-
-**Exemple :**
-1. Importez une série depuis **Booknode** (📚) pour avoir le synopsis complet
-2. Complétez les tomes manquants depuis **Nautiljon** (📖) pour avoir les prix
-3. Ou utilisez **MangaCollec** (📖) pour ajouter les ISBN
-
-**Note :** L'import "tomes uniquement" ne créera que les tomes qui n'existent pas encore.
+#### ⚠️ Prérequis
+- **Ma Mangathèque doit être lancé** (serveur d'import sur port 51234)
+- Connexion Internet pour les API (Jikan, AniList, Groq)
 
 ---
 
-## 🎨 Identification visuelle
+## 📚 Scripts Mangas
 
-### Animes
-
-#### Import d'animes
-| Script | Bouton | Position | Page |
-|--------|--------|----------|------|
-| **ADKami Integration** | 🟣 Violet 📥 Import | Bas droite | `/anime/ID` ou `/info` |
-| **Crunchyroll Episode Tracker** | 🟠 Orange 📥 Import | Bas droite | `/series/*` |
-
-#### Marquage d'épisodes
-| Script | Bouton | Position | Import auto | Auto-incrémentation | Page |
-|--------|--------|----------|-------------|---------------------|----- |
-| **ADKami Integration** | 🟢 Vert 👁️ Ep.X | Haut droite | ❌ Non (requiert import via `/info`) | ✅ Oui | Pages épisode |
-| **Crunchyroll Episode Tracker** | 🟢 Vert 👁️ | Bas droite | ❌ Non (requiert import via `/series/*`) | ✅ Oui | `/watch/*` |
-| **ADN Episode Tracker** | 🟢 Vert ✅ Ep.X | Bas droite | ✅ Oui (optimisé) | ✅ Oui | `/video/*` |
-
-### Mangas
-Chaque script affiche **deux boutons flottants** dans le coin inférieur droit :
-
-| Script | Import complet | Import tomes |
-|--------|----------------|--------------|
-| **MangaCollec** | 🟣 Violet 📚 | 🟠 Orange 📖 |
-| **Nautiljon** | 🟠 Orange 📚 | 🩷 Rose 📖 |
-| **Booknode** | 🔵 Bleu 📚 | 🟣 Violet 📖 |
+*(Pas encore disponibles - scripts ADKami/Crunchyroll archivés)*
 
 ---
 
-## 🔧 Configuration
+## 🛠️ Configuration
 
-Par défaut, les scripts se connectent au serveur local sur le port **51234**.
+### Port du serveur d'import
 
-Si vous avez modifié le port dans `electron/main.js`, vous devrez aussi modifier la constante `PORT` dans chaque script :
-
-```javascript
-const PORT = 51234; // ← Changez ici si nécessaire
+Par défaut, les scripts communiquent avec **Ma Mangathèque** via :
 ```
+http://localhost:51234
+```
+
+Si vous avez modifié le port dans l'application, éditez la variable dans le script :
+```javascript
+fetch('http://localhost:VOTRE_PORT/add-anime', {
+  // ...
+})
+```
+
+### Désactiver un script temporairement
+
+1. Ouvrez le **tableau de bord Tampermonkey**
+2. Cliquez sur l'**interrupteur** à côté du script
+3. Le script sera désactivé sans être supprimé
 
 ---
 
 ## 🐛 Dépannage
 
-### Le bouton 📚 n'apparaît pas
-- ✅ Vérifiez que Tampermonkey est activé (icône colorée)
-- ✅ Vérifiez que le script est activé dans Tampermonkey
-- ✅ Rafraîchissez la page (`F5`)
+### Le bouton n'apparaît pas
 
-### "Ma Mangathèque n'est pas démarré"
-- ✅ Lancez l'application Electron
-- ✅ Vérifiez que le port 51234 est bien utilisé
-- ✅ Désactivez votre pare-feu/antivirus temporairement
+**Solutions** :
+1. Vérifiez que Tampermonkey est activé (icône dans la barre du navigateur)
+2. Vérifiez que le script est **activé** dans le tableau de bord
+3. Actualisez la page MyAnimeList (`F5` ou `Ctrl+R`)
+4. Vérifiez les logs de la console développeur (`F12`)
 
-### "Impossible de trouver le titre de la série"
-- ⚠️ Le site a peut-être changé sa structure HTML
-- ⚠️ La page utilise peut-être un chargement JavaScript différé
-- 🔄 Attendez quelques secondes et réessayez
+### Erreur "Vérifiez que l'app est lancée"
 
-### Les images des tomes ne s'affichent pas (Booknode)
-- 🔄 Réessayez l'import (le scroll automatique peut parfois échouer)
-- 📸 Vérifiez que les images sont bien chargées dans votre navigateur
-- 🗂️ Vérifiez le dossier `covers/` de Ma Mangathèque
+**Solutions** :
+1. **Lancez Ma Mangathèque** (`npm start`)
+2. Vérifiez que le serveur d'import est démarré :
+   - Ouvrez l'application
+   - Regardez les logs : `🌐 Serveur d'import démarré sur http://localhost:51234`
+3. Testez manuellement : http://localhost:51234 dans le navigateur
+   - Doit afficher : `{"status":"ok","message":"Ma Mangathèque Import Server"}`
 
-### L'import Nautiljon est très lent ou bloqué (HTTP 429)
-- ⏱️ **C'est normal** : Pour les séries longues (40+ tomes), l'import prend 45-60 secondes
-- ⚠️ **Ne touchez pas au site** pendant l'extraction (changement de page, fermeture d'onglet)
-- 🔄 Le script utilise un délai adaptatif (350-1500ms) et des retries automatiques
-- 🛡️ Si vous voyez "HTTP 429" dans la console, le script réessaiera automatiquement (2s, 4s, 8s)
-- ✅ Attendez la fin de l'import : l'overlay disparaîtra automatiquement
+### L'anime est ajouté plusieurs fois
 
-### "Anime non trouvé dans votre collection" (Streaming Tracker)
-- ❗ Vous devez d'abord **importer l'anime** depuis ADKami avec le script ADKami Anime Extractor
-- 🔍 Vérifiez que le titre de l'anime correspond dans votre collection
-- 📺 Si le titre est légèrement différent, modifiez-le dans l'application pour qu'il corresponde
+**Solution** : Attendez que le bouton affiche "✅ Ajouté avec succès !" avant de recliquer.
 
-### Le bouton "Marquer comme vu" ne fonctionne pas
-- ✅ Vérifiez que vous avez bien importé l'anime dans Ma Mangathèque
-- ✅ Vérifiez que la saison existe dans l'anime
-- ✅ Ouvrez la console (`F12`) pour voir les erreurs détaillées
+Le script empêche les doubles clics, mais un clic pendant le chargement créera un doublon.
 
 ---
 
-## 📊 Comparaison des sources
+## 🔒 Sécurité
 
-| Fonctionnalité | MangaCollec | Nautiljon | Booknode |
-|----------------|-------------|-----------|----------|
-| **Fiabilité** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **Données complètes** | ✅ | ✅ | ✅ |
-| **Tomes auto** | ✅ | ✅ | ✅ |
-| **Images des tomes** | ✅ | ✅ (local) | ✅ |
-| **Image de série** | ❌ | ✅ (local) | ❌ |
-| **Dates de sortie** | ✅ | ✅ | ✅ |
-| **Prix** | ❌ | ✅ | ❌ |
-| **Synopsis** | ⚠️ | ✅ | ✅ |
-| **ISBN** | ✅ | ❌ | ❌ |
-| **Titre alternatif** | ❌ | ✅ | ❌ |
-| **Thèmes** | ❌ | ✅ | ✅ |
-| **Déduplication** | ❌ | ✅ | ❌ |
-| **Anti-rate-limit** | N/A | ✅ | ❌ |
-| **Vitesse** | ⚡ Rapide | 🐢 Lent* | 🐢 Lent* |
+### Pourquoi localhost ?
 
-\* *Nautiljon et Booknode sont plus lents car ils doivent fetch chaque tome individuellement pour les détails. Nautiljon utilise un système de délai adaptatif (350-1500ms) pour garantir un import complet sans erreur HTTP 429.*
+Les scripts communiquent uniquement avec **votre machine locale** (`localhost:51234`). Aucune donnée n'est envoyée à un serveur externe.
+
+### Code source ouvert
+
+Tous les scripts sont **open source**. Vous pouvez les consulter et les modifier librement. Le code est commenté et lisible.
+
+### Permissions
+
+Les scripts Tampermonkey demandent uniquement :
+- 🌐 **Accès aux pages spécifiées** (ex: `myanimelist.net/anime/*`)
+- 🔌 **Accès à localhost** pour communiquer avec l'application
 
 ---
 
-## 🤝 Contribution
+## 📝 Développement
 
-Si un site change sa structure et qu'un script ne fonctionne plus :
+### Créer un nouveau script
 
-1. Ouvrez la **console du navigateur** (`F12`)
-2. Notez les erreurs affichées
-3. Créez une issue sur GitHub avec les détails
+1. Créez un fichier `.user.js` dans le dossier approprié
+2. Ajoutez l'en-tête Tampermonkey :
+```javascript
+// ==UserScript==
+// @name         Mon Script
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Description du script
+// @author       Votre nom
+// @match        https://exemple.com/*
+// @grant        none
+// ==/UserScript==
+```
+
+3. Développez votre logique
+4. Testez en l'installant dans Tampermonkey
+5. Committez le fichier dans le dépôt
+
+### Structure recommandée
+
+```javascript
+(function() {
+    'use strict';
+    
+    // Extraire les données de la page
+    const data = extractPageData();
+    
+    // Créer l'interface
+    const button = createButton();
+    
+    // Gérer l'action
+    button.onclick = async () => {
+        const result = await sendToApp(data);
+        showFeedback(result);
+    };
+    
+    // Injecter dans la page
+    injectButton(button);
+})();
+```
 
 ---
 
-## 📜 Licence
+## 📚 Ressources
 
-Ces scripts sont fournis "en l'état" sans aucune garantie. Utilisez-les à vos propres risques.
+- [Documentation Tampermonkey](https://www.tampermonkey.net/documentation.php)
+- [Jikan API (MyAnimeList)](https://jikan.moe/)
+- [AniList API](https://anilist.gitbook.io/anilist-apiv2-docs/)
+- [Ma Mangathèque GitHub](https://github.com/votre-repo)
+
+---
+
+## 🆘 Support
+
+Problème avec un script ? Ouvrez une issue sur GitHub avec :
+- 📝 Nom du script
+- 🌐 Navigateur utilisé
+- ❌ Message d'erreur (console F12)
+- 📸 Capture d'écran (si pertinent)
+
+---
+
+**Dernière mise à jour** : Octobre 2024  
+**Version** : 2.0
