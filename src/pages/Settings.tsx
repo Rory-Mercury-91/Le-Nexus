@@ -1204,6 +1204,52 @@ export default function Settings() {
                 </p>
               )}
               
+              {/* ⏱️ Chronomètre et statistiques de performance */}
+              {animeImportProgress.elapsedMs && (
+                <div style={{ 
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(139, 92, 246, 0.2)'
+                }}>
+                  <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '12px',
+                    fontSize: '12px'
+                  }}>
+                    {/* Temps écoulé */}
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏱️ Temps écoulé</div>
+                      <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                        {Math.floor(animeImportProgress.elapsedMs / 60000)}:{String(Math.floor((animeImportProgress.elapsedMs % 60000) / 1000)).padStart(2, '0')}
+                      </div>
+                    </div>
+
+                    {/* ETA */}
+                    {animeImportProgress.etaMs && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏳ Temps restant</div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                          {Math.floor(animeImportProgress.etaMs / 60000)}:{String(Math.floor((animeImportProgress.etaMs % 60000) / 1000)).padStart(2, '0')}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vitesse */}
+                    {animeImportProgress.speed && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⚡ Vitesse</div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                          {animeImportProgress.speed.toFixed(1)} animes/min
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Statistiques temps réel */}
               <div style={{ 
                 display: 'flex', 
@@ -1212,8 +1258,8 @@ export default function Settings() {
                 color: 'var(--text-secondary)', 
                 marginTop: '8px' 
               }}>
-                <span>✅ {animeImportProgress.imported} importés</span>
-                <span>🔄 {animeImportProgress.updated} mis à jour</span>
+                <span>✅ {animeImportProgress.imported || 0} importés</span>
+                <span>⏭️ {animeImportProgress.skipped || 0} ignorés</span>
                 {animeImportProgress.errors > 0 && (
                   <span style={{ color: 'var(--error)' }}>⚠️ {animeImportProgress.errors} erreurs</span>
                 )}
@@ -1236,7 +1282,14 @@ export default function Settings() {
               <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
                 <p>✅ <strong>{animeImportResult.imported}</strong> animes importés</p>
                 <p>🔄 <strong>{animeImportResult.updated}</strong> animes mis à jour</p>
-                <p>📊 <strong>{animeImportResult.total}</strong> animes au total</p>
+                <p>⏭️ <strong>{animeImportResult.skipped}</strong> animes ignorés</p>
+                <p>📊 <strong>{animeImportResult.total || (animeImportResult.imported + animeImportResult.updated + animeImportResult.skipped)}</strong> animes au total</p>
+                {animeImportResult.totalTimeMs && (
+                  <>
+                    <p>⏱️ <strong>{(animeImportResult.totalTimeMs / 60000).toFixed(2)}</strong> minutes</p>
+                    <p>⚡ <strong>{animeImportResult.speed?.toFixed(1)}</strong> animes/min</p>
+                  </>
+                )}
                 {animeImportResult.errors && animeImportResult.errors.length > 0 && (
                   <details style={{ marginTop: '12px' }}>
                     <summary style={{ cursor: 'pointer', color: 'var(--error)' }}>

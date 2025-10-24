@@ -263,8 +263,20 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const animeMatches = [...xmlContent.matchAll(/<anime>([\s\S]*?)<\/anime>/g)];
       const totalAnimes = animeMatches.length;
 
+      // ⏱️ Chronomètre de performance
+      const startTime = Date.now();
+
       console.log(`\n🎬 Début de l'import : ${totalAnimes} animes à importer`);
-      sendProgress({ current: 0, total: totalAnimes, currentAnime: 'Initialisation...' });
+      sendProgress({ 
+        current: 0, 
+        total: totalAnimes, 
+        currentAnime: 'Initialisation...',
+        startTime,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0
+      });
 
       let imported = 0;
       let updated = 0;
@@ -285,10 +297,26 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             continue;
           }
 
+          // ⏱️ Calculer les statistiques de performance
+          const elapsedMs = Date.now() - startTime;
+          const elapsedMin = elapsedMs / 60000;
+          const processedCount = i + 1;
+          const speed = processedCount / elapsedMin; // animes par minute
+          const remainingCount = totalAnimes - processedCount;
+          const etaMs = (remainingCount / speed) * 60000;
+
           sendProgress({
-          current: i + 1, 
+          current: processedCount, 
           total: totalAnimes, 
-          currentAnime: titre 
+            currentAnime: titre,
+            startTime,
+            elapsedMs,
+            etaMs: isFinite(etaMs) ? etaMs : null,
+            speed: isFinite(speed) ? speed : null,
+            imported,
+            updated,
+            skipped,
+            errors
         });
 
         try {
@@ -436,19 +464,40 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         }
       }
 
+      // ⏱️ Statistiques finales
+      const totalTimeMs = Date.now() - startTime;
+      const totalTimeSec = totalTimeMs / 1000;
+      const totalTimeMin = totalTimeSec / 60;
+      const finalSpeed = totalAnimes / totalTimeMin;
+
       console.log(`\n✅ Import terminé !`);
       console.log(`   📥 Importés : ${imported}`);
       console.log(`   ⏭️ Ignorés : ${skipped}`);
       console.log(`   ❌ Erreurs : ${errors}`);
+      console.log(`   ⏱️ Temps total : ${totalTimeMin.toFixed(2)} minutes`);
+      console.log(`   ⚡ Vitesse moyenne : ${finalSpeed.toFixed(1)} animes/min`);
 
-      sendProgress({ current: totalAnimes, total: totalAnimes, currentAnime: 'Terminé !' });
+      sendProgress({
+        current: totalAnimes, 
+        total: totalAnimes, 
+        currentAnime: 'Terminé !',
+        startTime,
+        elapsedMs: totalTimeMs,
+        speed: finalSpeed,
+        imported,
+        updated,
+        skipped,
+        errors
+      });
 
       return {
         success: true,
         imported,
         updated,
         skipped,
-        errors
+        errors,
+        totalTimeMs,
+        speed: finalSpeed
       };
 
     } catch (error) {
