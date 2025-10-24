@@ -39,10 +39,11 @@ export default function Animes() {
   const loadAnimes = async () => {
     setLoading(true);
     try {
-      const data = await window.electronAPI.getAnimeSeries(filters);
-      setAnimes(data);
+      const result = await window.electronAPI.getAnimeSeries(filters);
+      setAnimes(result.animes || []);
     } catch (error) {
       console.error('Erreur lors du chargement des animes:', error);
+      setAnimes([]);
     } finally {
       setLoading(false);
     }
@@ -79,8 +80,8 @@ export default function Animes() {
     
     // Filtre par progression de visionnage
     if (filters.visionnage) {
-      const episodesVus = anime.nb_episodes_vus || 0;
-      const episodesTotal = anime.nb_episodes_total || 0;
+      const episodesVus = anime.episodes_vus || 0;
+      const episodesTotal = anime.nb_episodes || 0;
       
       if (filters.visionnage === 'completed' && !(episodesTotal > 0 && episodesVus === episodesTotal)) {
         return false;
@@ -235,8 +236,8 @@ export default function Animes() {
 
         {/* Message de tous les épisodes visionnés */}
         {(() => {
-          const episodesVus = animes.reduce((acc, a) => acc + (a.nb_episodes_vus || 0), 0);
-          const episodesTotal = animes.reduce((acc, a) => acc + (a.nb_episodes_total || 0), 0);
+          const episodesVus = animes.reduce((acc, a) => acc + (a.episodes_vus || 0), 0);
+          const episodesTotal = animes.reduce((acc, a) => acc + (a.nb_episodes || 0), 0);
           return episodesVus === episodesTotal && episodesTotal > 0 && (
             <div style={{
               padding: '12px 16px',

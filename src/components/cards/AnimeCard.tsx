@@ -106,8 +106,8 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
         {(() => {
           if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
           
-          const episodesVus = anime.nb_episodes_vus || 0;
-          const episodesTotal = anime.nb_episodes_total || 0;
+          const episodesVus = anime.episodes_vus || 0;
+          const episodesTotal = anime.nb_episodes || 0;
           const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
           const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
           const isAbandoned = anime.tag === 'abandonne';
@@ -300,8 +300,8 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           // Afficher pour "en_cours", "termine" et "abandonne"
           if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
           
-          const episodesVus = anime.nb_episodes_vus || 0;
-          const episodesTotal = anime.nb_episodes_total || 0;
+          const episodesVus = anime.episodes_vus || 0;
+          const episodesTotal = anime.nb_episodes || 0;
           const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
           const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
           const isAbandoned = anime.tag === 'abandonne';
@@ -409,20 +409,20 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           fontSize: '12px',
           color: 'var(--text-secondary)'
         }}>
-          {/* Saisons */}
-          {anime.nb_saisons && anime.nb_saisons > 0 && (
+          {/* Type */}
+          {anime.type && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Tv size={14} />
-              <span>{anime.nb_saisons} saison{anime.nb_saisons > 1 ? 's' : ''}</span>
+              <span>{anime.type}</span>
             </div>
           )}
 
           {/* Épisodes */}
-          {anime.nb_episodes_total && anime.nb_episodes_total > 0 && (
+          {anime.nb_episodes && anime.nb_episodes > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Eye size={14} />
               <span>
-                {anime.nb_episodes_vus || 0}/{anime.nb_episodes_total} épisode{anime.nb_episodes_total > 1 ? 's' : ''}
+                {anime.episodes_vus || 0}/{anime.nb_episodes} épisode{anime.nb_episodes > 1 ? 's' : ''}
               </span>
             </div>
           )}

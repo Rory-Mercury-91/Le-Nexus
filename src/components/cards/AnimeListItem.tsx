@@ -21,8 +21,8 @@ export default function AnimeListItem({ anime, onUpdate }: AnimeListItemProps) {
   const tagColor = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].color : null;
 
   // Calculer la progression
-  const episodesVus = anime.nb_episodes_vus || 0;
-  const totalEpisodes = anime.nb_episodes_total || 0;
+  const episodesVus = anime.episodes_vus || 0;
+  const totalEpisodes = anime.nb_episodes || 0;
   const progression = totalEpisodes > 0 ? Math.round((episodesVus / totalEpisodes) * 100) : 0;
 
   return (
@@ -126,12 +126,6 @@ export default function AnimeListItem({ anime, onUpdate }: AnimeListItemProps) {
           fontSize: '13px',
           color: 'var(--text-secondary)'
         }}>
-          {anime.nb_saisons && anime.nb_saisons > 0 && (
-            <>
-              <span>{anime.nb_saisons} saison{anime.nb_saisons > 1 ? 's' : ''}</span>
-              <span>•</span>
-            </>
-          )}
           {totalEpisodes > 0 && (
             <>
               <span>{episodesVus} / {totalEpisodes} épisode{totalEpisodes > 1 ? 's' : ''}</span>

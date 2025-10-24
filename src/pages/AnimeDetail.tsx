@@ -24,8 +24,10 @@ export default function AnimeDetail() {
   const loadAnime = async () => {
     setLoading(true);
     try {
-      const data = await window.electronAPI.getAnimeDetail(parseInt(id!));
-      setAnime(data);
+      const result = await window.electronAPI.getAnimeDetail(parseInt(id!));
+      if (result.success) {
+        setAnime(result.anime);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'anime:', error);
     } finally {
