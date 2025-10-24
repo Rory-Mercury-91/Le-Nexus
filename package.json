@@ -9,7 +9,8 @@
     "start:electron": "electron .",
     "build": "vite build",
     "build:win": "npm run build && electron-builder --win --x64",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "clear-cache": "node scripts/clear-cache.js"
   },
   "build": {
     "appId": "com.mangatheque.app",
