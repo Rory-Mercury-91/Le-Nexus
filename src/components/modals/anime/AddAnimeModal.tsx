@@ -1,8 +1,8 @@
 import { Languages, Loader2, Search, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../hooks/useToast';
 import { AnimeSearchResult } from '../../../types';
 import CoverImage from '../../common/CoverImage';
-import { useToast } from '../../../hooks/useToast';
 
 interface AddAnimeModalProps {
   onClose: () => void;
@@ -138,7 +138,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     e.preventDefault();
     
     if (!formData.titre.trim()) {
-      alert('Le titre est obligatoire');
+      showToast('Le titre est obligatoire', 'error');
       return;
     }
 
@@ -146,13 +146,17 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     try {
       const result = await window.electronAPI.createAnime(formData);
       if (result.success) {
-        onSuccess();
+        showToast(`✅ ${formData.titre} ajouté avec succès !`, 'success');
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1000);
       } else {
-        alert('Erreur lors de la création de l\'anime');
+        showToast(result.error || 'Erreur lors de la création de l\'anime', 'error');
       }
     } catch (error) {
       console.error('Erreur:', error);
-      alert('Une erreur est survenue lors de la création de l\'anime');
+      showToast('Une erreur est survenue lors de la création de l\'anime', 'error');
     } finally {
       setSaving(false);
     }

@@ -735,6 +735,88 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
   });
 
   /**
+   * Créer un anime manuellement (sans MAL ID)
+   */
+  ipcMain.handle('create-anime', (event, animeData) => {
+    try {
+      const db = getDb();
+      const currentUser = store.get('currentUser', '');
+
+      if (!currentUser) {
+        return { success: false, error: 'Aucun utilisateur connecté' };
+      }
+
+      if (!animeData.titre || !animeData.titre.trim()) {
+        return { success: false, error: 'Le titre est obligatoire' };
+      }
+
+      console.log('📝 Création manuelle d\'un anime:', animeData.titre);
+
+      // Insérer l'anime avec les données fournies
+      const stmt = db.prepare(`
+        INSERT INTO anime_series (
+          mal_id, titre, titre_anglais, type, nb_episodes, 
+          annee, score, description, couverture_url, genres,
+          source_import, utilisateur_ajout, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `);
+
+      const result = stmt.run(
+        animeData.mal_id || 0,
+        animeData.titre.trim(),
+        animeData.titre_en?.trim() || null,
+        animeData.type || 'TV',
+        animeData.nb_episodes || 0,
+        animeData.annee || new Date().getFullYear(),
+        animeData.score || 0,
+        animeData.synopsis?.trim() || null,
+        animeData.image_url?.trim() || null,
+        animeData.genres?.trim() || null,
+        'manual',
+        currentUser
+      );
+
+      const animeId = result.lastInsertRowid;
+
+      console.log(`✅ Anime "${animeData.titre}" créé avec l'ID ${animeId}`);
+
+      // Définir le statut de visionnage si fourni
+      if (animeData.statut) {
+        const statutMap = {
+          'watching': 'En cours',
+          'completed': 'Terminé',
+          'on_hold': 'En attente',
+          'dropped': 'Abandonné',
+          'plan_to_watch': 'À regarder'
+        };
+
+        const statutFr = statutMap[animeData.statut] || 'À regarder';
+
+        db.prepare(`
+          INSERT INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage, date_modification)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(animeId, currentUser, statutFr);
+
+        console.log(`📊 Statut défini: ${statutFr}`);
+      }
+
+      return { 
+        success: true, 
+        id: animeId,
+        anime: {
+          id: animeId,
+          titre: animeData.titre,
+          type: animeData.type || 'TV',
+          nb_episodes: animeData.nb_episodes || 0
+        }
+      };
+    } catch (error) {
+      console.error('❌ Erreur create-anime:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
    * Supprimer un anime
    */
   ipcMain.handle('delete-anime', (event, animeId) => {

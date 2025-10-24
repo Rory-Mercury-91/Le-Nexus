@@ -142,4 +142,3 @@
 
     console.log('🎬 Ma Mangathèque - Bouton Quick Add injecté (MAL ID:', malId, ')');
 })();
-

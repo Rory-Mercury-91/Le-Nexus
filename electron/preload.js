@@ -91,6 +91,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLectureStatistics: () => ipcRenderer.invoke('get-lecture-statistics'),
   
   // Animes
+  createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),
   addAnimeByMalId: (malIdOrUrl) => ipcRenderer.invoke('add-anime-by-mal-id', malIdOrUrl),
   importAnimeXml: (xmlContent) => ipcRenderer.invoke('import-anime-xml', xmlContent),
   onAnimeImportProgress: (callback) => {
