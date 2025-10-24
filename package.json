@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--no-deprecation concurrently \"npm run start:react\" \"wait-on http://localhost:3000 && npm run start:electron\"",
-    "start:react": "vite",
+    "start:react": "node scripts/start-vite-quiet.js",
     "start:electron": "electron .",
     "build": "vite build",
     "build:win": "npm run build && electron-builder --win --x64",
