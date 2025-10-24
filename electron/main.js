@@ -109,7 +109,9 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      // Vider le cache en mode dev pour éviter les erreurs de cache
+      cache: isDev ? false : true
     },
     autoHideMenuBar: true,
     icon: windowIconPath
