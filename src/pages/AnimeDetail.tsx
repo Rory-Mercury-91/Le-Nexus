@@ -6,6 +6,7 @@ import PlatformLogo from '../components/common/PlatformLogo';
 import AnimeEditModal from '../components/modals/anime/AnimeEditModal';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
 import { AnimeSerie } from '../types';
+import { translateGenres, translateThemes, translateDemographic, translateSource, translateStatus, translateRating, translateSeason } from '../utils/translations';
 
 interface Episode {
   numero: number;
@@ -21,16 +22,6 @@ export default function AnimeDetail() {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // Traduction des statuts de diffusion
-  const translateStatus = (status: string) => {
-    const translations: Record<string, string> = {
-      'Currently Airing': 'En cours de diffusion',
-      'Finished Airing': 'Terminé',
-      'Not yet aired': 'Pas encore diffusé'
-    };
-    return translations[status] || status;
-  };
 
   useEffect(() => {
     if (id) {
@@ -317,7 +308,7 @@ export default function AnimeDetail() {
                   background: 'rgba(59, 130, 246, 0.15)',
                   color: '#3b82f6'
                 }}>
-                  {anime.source}
+                  {translateSource(anime.source)}
                 </span>
               )}
 
@@ -383,7 +374,7 @@ export default function AnimeDetail() {
               <div className="card" style={{ padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Diffusion</div>
                 <div style={{ fontSize: '20px', fontWeight: '700' }}>
-                  {anime.saison_diffusion && `${anime.saison_diffusion} `}
+                  {anime.saison_diffusion && `${translateSeason(anime.saison_diffusion)} `}
                   {anime.annee}
                 </div>
                 {anime.date_debut && (
@@ -454,7 +445,7 @@ export default function AnimeDetail() {
                 <div>
                   <strong style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Genres : </strong>
                   <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                    {anime.genres.split(',').map((genre, index) => (
+                    {translateGenres(anime.genres).split(',').map((genre, index) => (
                       <span
                         key={index}
                         style={{
@@ -479,7 +470,7 @@ export default function AnimeDetail() {
                 <div>
                   <strong style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Thèmes : </strong>
                   <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                    {anime.themes.split(',').map((theme, index) => (
+                    {translateThemes(anime.themes).split(',').map((theme, index) => (
                       <span
                         key={index}
                         style={{
@@ -503,7 +494,7 @@ export default function AnimeDetail() {
               {anime.demographics && (
                 <div>
                   <strong style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Démographie : </strong>
-                  <span style={{ fontSize: '14px' }}>{anime.demographics}</span>
+                  <span style={{ fontSize: '14px' }}>{translateDemographic(anime.demographics)}</span>
                 </div>
               )}
 
@@ -535,7 +526,7 @@ export default function AnimeDetail() {
               {anime.rating && (
                 <div>
                   <strong style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Classification : </strong>
-                  <span style={{ fontSize: '14px' }}>{anime.rating}</span>
+                  <span style={{ fontSize: '14px' }}>{translateRating(anime.rating)}</span>
                 </div>
               )}
             </div>

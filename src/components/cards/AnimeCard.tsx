@@ -255,25 +255,6 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           {getStatusLabel(anime.statut)}
         </div>
 
-        {/* Badge Type */}
-        {anime.type && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            fontWeight: '600',
-            transform: 'translateX(-85px)'
-          }}>
-            {getTypeLabel(anime.type)}
-          </div>
-        )}
-
         {/* Bannières diagonales pour les tags En cours / Terminé / Abandonné */}
         {(() => {
           // Afficher pour "en_cours", "termine" et "abandonne"
