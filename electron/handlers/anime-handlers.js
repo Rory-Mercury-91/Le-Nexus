@@ -105,29 +105,31 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
         };
       }
 
-      // Récupérer les données depuis Jikan
+      // ⚡ OPTIMISATION : Fetch parallèle Jikan + AniList (gain ~1-1.5s par anime)
       console.log(`🔍 Récupération des données pour MAL ID ${malId}...`);
-      const anime = await fetchJikanData(malId);
-      await new Promise(resolve => setTimeout(resolve, 333)); // Rate limit Jikan
+      
+      const [anime, anilistCover] = await Promise.all([
+        fetchJikanData(malId),
+        fetchAniListCover(malId)
+      ]);
 
-      // Récupérer la couverture HD depuis AniList
-      console.log(`🖼️ Récupération de la couverture HD depuis AniList...`);
-      const anilistCover = await fetchAniListCover(malId, anime.title);
       const coverUrl = anilistCover?.coverImage?.extraLarge || 
                       anilistCover?.coverImage?.large || 
                       anime.images?.jpg?.large_image_url || 
                       anime.images?.jpg?.image_url || '';
-      await new Promise(resolve => setTimeout(resolve, 800)); // Rate limit AniList
 
-      // Traduire le synopsis
+      // Traduire le synopsis (en parallèle avec le reste du traitement)
       let description = anime.synopsis || '';
+      let translationPromise = null;
       if (description) {
-        console.log(`🌐 Traduction du synopsis...`);
-        const translated = await translateWithGroq(description);
-        if (translated) description = translated;
+        console.log(`🌐 Traduction du synopsis en arrière-plan...`);
+        translationPromise = translateWithGroq(description);
       }
 
-      // Extraire les informations de franchise
+      // Rate limit respecté après toutes les requêtes
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Extraire les informations de franchise (pendant que la traduction se fait)
       const relations = anime.relations || [];
       const franchiseName = extractFranchiseName(anime, relations);
       const franchiseOrder = determineFranchiseOrder(anime, relations);
@@ -137,6 +139,12 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       const sequel = relations.find(r => r.relation === 'Sequel');
       const prequelMalId = prequel?.entry[0]?.mal_id || null;
       const sequelMalId = sequel?.entry[0]?.mal_id || null;
+
+      // Attendre la fin de la traduction si elle était en cours
+      if (translationPromise) {
+        const translated = await translationPromise;
+        if (translated) description = translated;
+      }
 
       // Préparer les données (avec tous les champs enrichis)
       const animeData = {
@@ -293,26 +301,29 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
             continue;
           }
 
-          // Récupérer les données depuis Jikan
-          console.log(`📡 Fetch Jikan pour: ${titre} (MAL ${malId})`);
-          const anime = await fetchJikanData(malId);
-          await new Promise(resolve => setTimeout(resolve, 333));
+          // ⚡ OPTIMISATION : Fetch parallèle Jikan + AniList (gain ~1-1.5s par anime)
+          console.log(`📡 Fetch parallèle pour: ${titre} (MAL ${malId})`);
+          
+          const [anime, anilistCover] = await Promise.all([
+            fetchJikanData(malId),
+            fetchAniListCover(malId, titre)
+          ]);
 
-          // Récupérer la couverture HD depuis AniList
-          const anilistCover = await fetchAniListCover(malId, titre);
           const coverUrl = anilistCover?.coverImage?.extraLarge || 
                           anilistCover?.coverImage?.large || 
                           anime.images?.jpg?.large_image_url || '';
-          await new Promise(resolve => setTimeout(resolve, 800));
 
-          // Traduire le synopsis
+          // Traduire le synopsis (en arrière-plan pendant le traitement)
           let description = anime.synopsis || '';
+          let translationPromise = null;
           if (description) {
-            const translated = await translateWithGroq(description);
-            if (translated) description = translated;
+            translationPromise = translateWithGroq(description);
           }
 
-          // Extraire les informations de franchise
+          // Rate limit respecté après toutes les requêtes
+          await new Promise(resolve => setTimeout(resolve, 800));
+
+          // Extraire les informations de franchise (pendant que la traduction se fait)
           const relations = anime.relations || [];
           const franchiseName = extractFranchiseName(anime, relations);
           const franchiseOrder = determineFranchiseOrder(anime, relations);
@@ -321,6 +332,12 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           const sequel = relations.find(r => r.relation === 'Sequel');
           const prequelMalId = prequel?.entry[0]?.mal_id || null;
           const sequelMalId = sequel?.entry[0]?.mal_id || null;
+
+          // Attendre la fin de la traduction si elle était en cours
+          if (translationPromise) {
+            const translated = await translationPromise;
+            if (translated) description = translated;
+          }
 
           // Préparer les données (avec tous les champs enrichis)
           const animeData = {

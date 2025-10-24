@@ -1,10 +1,10 @@
 import { ArrowLeft, Calendar, Check, Clock, Edit, ExternalLink, Globe, Play, Star, Trash2, Tv, TvMinimalPlay } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import AnimeEditModal from '../components/modals/anime/AnimeEditModal';
-import ConfirmModal from '../components/modals/common/ConfirmModal';
 import CoverImage from '../components/common/CoverImage';
 import PlatformLogo from '../components/common/PlatformLogo';
+import AnimeEditModal from '../components/modals/anime/AnimeEditModal';
+import ConfirmModal from '../components/modals/common/ConfirmModal';
 import { AnimeSerie } from '../types';
 
 interface Episode {
