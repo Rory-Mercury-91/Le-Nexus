@@ -238,27 +238,6 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Logo source d'import */}
-        {anime.source_import && (
-          <div style={{
-            position: 'absolute',
-            bottom: '10px',
-            left: '10px',
-            height: '24px',
-            borderRadius: '4px',
-            overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            background: anime.source_import === 'adn' ? '#1E3A8A' : 
-                       anime.source_import === 'adkami' ? '#8B5CF6' : 
-                       '#F47521',
-            padding: '0 6px',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <PlatformLogo platform={anime.source_import} height={20} />
-          </div>
-        )}
 
         {/* Badge Statut */}
         <div style={{
@@ -358,7 +337,7 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
 
       {/* Contenu */}
       <div style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Titre + Badge Favori */}
+        {/* Titre + Badge Favori + Logo MAL */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
           <h3 style={{
             fontSize: '15px',
@@ -374,6 +353,25 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           }}>
             {anime.titre}
           </h3>
+          
+          {/* Logo MyAnimeList (fond bleu, dans le titre) */}
+          {anime.mal_id && (
+            <div style={{
+              height: '20px',
+              borderRadius: '4px',
+              background: '#2e51a2',
+              padding: '0 6px',
+              display: 'flex',
+              alignItems: 'center',
+              color: 'white',
+              fontSize: '9px',
+              fontWeight: '700',
+              flexShrink: 0,
+              marginTop: '2px'
+            }}>
+              MAL
+            </div>
+          )}
           
           {/* Badge favori à côté du titre */}
           {anime.is_favorite && (

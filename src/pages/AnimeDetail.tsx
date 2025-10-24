@@ -22,6 +22,16 @@ export default function AnimeDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
+  // Traduction des statuts de diffusion
+  const translateStatus = (status: string) => {
+    const translations: Record<string, string> = {
+      'Currently Airing': 'En cours de diffusion',
+      'Finished Airing': 'Terminé',
+      'Not yet aired': 'Pas encore diffusé'
+    };
+    return translations[status] || status;
+  };
+
   useEffect(() => {
     if (id) {
       loadAnime();
@@ -390,7 +400,7 @@ export default function AnimeDetail() {
             <div className="card" style={{ padding: '16px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Statut</div>
               <div style={{ fontSize: '16px', fontWeight: '600' }}>
-                {anime.statut_diffusion}
+                {anime.statut_diffusion ? translateStatus(anime.statut_diffusion) : 'Non renseigné'}
               </div>
             </div>
 
@@ -438,7 +448,7 @@ export default function AnimeDetail() {
           <div className="card" style={{ padding: '20px', marginBottom: '20px' }}>
             <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>Informations</h3>
             
-            <div style={{ display: 'grid', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
               {/* Genres */}
               {anime.genres && (
                 <div>
