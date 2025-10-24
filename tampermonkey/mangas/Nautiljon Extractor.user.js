@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Nautiljon → Ma Mangathèque
 // @namespace    http://tampermonkey.net/
-// @version      1.4.0
-// @description  Importe automatiquement vos mangas depuis Nautiljon vers Ma Mangathèque avec déduplication intelligente et délai anti-rate-limit optimisé (350-1500ms)
+// @version      1.5.0
+// @description  Importe automatiquement vos mangas/scans depuis Nautiljon vers Ma Mangathèque avec support chapitres (Manhwa/Manhua) et déduplication intelligente (350-1500ms)
 // @author       Rory-Mercury91
 // @match        https://www.nautiljon.com/mangas/*
 // @grant        none
@@ -436,7 +436,7 @@
         const container = document.createElement('div');
         container.style.cssText = `
             position: fixed;
-            bottom: 20px;
+            bottom: 100px;
             right: 20px;
             display: flex;
             gap: 10px;
@@ -664,7 +664,7 @@
         notification.innerHTML = message;
         notification.style.cssText = `
             position: fixed;
-            bottom: 95px;
+            bottom: 175px;
             right: 20px;
             background: ${type === 'success' ? '#10b981' : type === 'info' ? '#3b82f6' : '#ef4444'};
             color: white;
