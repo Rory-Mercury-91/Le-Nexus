@@ -6,7 +6,7 @@ import PlatformLogo from '../components/common/PlatformLogo';
 import AnimeEditModal from '../components/modals/anime/AnimeEditModal';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
 import { AnimeSerie } from '../types';
-import { translateGenres, translateThemes, translateDemographic, translateSource, translateStatus, translateRating, translateSeason } from '../utils/translations';
+import { translateDemographic, translateGenres, translateRating, translateSeason, translateSource, translateStatus, translateThemes } from '../utils/translations';
 
 interface Episode {
   numero: number;

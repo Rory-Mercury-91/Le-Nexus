@@ -757,21 +757,65 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       
       const stmt = db.prepare(`
         UPDATE anime_series 
-        SET titre = ?, description = ?, genres = ?, studios = ?, annee = ?,
-            rating = ?, type = ?, nb_episodes = ?, couverture_url = ?, updated_at = CURRENT_TIMESTAMP
+        SET titre = ?, 
+            titre_romaji = ?,
+            titre_natif = ?,
+            titre_anglais = ?,
+            titres_alternatifs = ?,
+            description = ?, 
+            genres = ?, 
+            themes = ?,
+            demographics = ?,
+            studios = ?, 
+            producteurs = ?,
+            diffuseurs = ?,
+            annee = ?,
+            saison_diffusion = ?,
+            date_debut = ?,
+            date_fin = ?,
+            duree = ?,
+            rating = ?, 
+            type = ?, 
+            source = ?,
+            nb_episodes = ?, 
+            couverture_url = ?,
+            score = ?,
+            statut_diffusion = ?,
+            en_cours_diffusion = ?,
+            liens_externes = ?,
+            liens_streaming = ?,
+            updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `);
       
       stmt.run(
         animeData.titre,
+        animeData.titre_romaji || null,
+        animeData.titre_natif || null,
+        animeData.titre_anglais || null,
+        animeData.titres_alternatifs || null,
         animeData.description,
         animeData.genres,
+        animeData.themes || null,
+        animeData.demographics || null,
         animeData.studios,
+        animeData.producteurs || null,
+        animeData.diffuseurs || null,
         animeData.annee,
+        animeData.saison_diffusion || null,
+        animeData.date_debut || null,
+        animeData.date_fin || null,
+        animeData.duree || null,
         animeData.rating,
         animeData.type,
+        animeData.source || null,
         animeData.nb_episodes,
         animeData.couverture_url || null,
+        animeData.score || null,
+        animeData.statut_diffusion || null,
+        animeData.en_cours_diffusion ? 1 : 0,
+        animeData.liens_externes || null,
+        animeData.liens_streaming || null,
         id
       );
 

@@ -192,4 +192,3 @@ export function translateRating(rating: string): string {
 export function translateSeason(season: string): string {
   return seasonTranslations[season.trim()] || season;
 }
-
