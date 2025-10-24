@@ -92,7 +92,9 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         
         // Réinitialiser la base de données vers le nouvel emplacement
         console.log('🔄 Réinitialisation de la base de données vers le nouvel emplacement...');
-        reloadDb();
+        if (typeof initDatabase === 'function') {
+          initDatabase();
+        }
         console.log('✅ Base de données réinitialisée avec succès !');
       }
       return result;
