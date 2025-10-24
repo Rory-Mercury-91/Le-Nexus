@@ -458,7 +458,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: '600' }}>
                     <input
                       type="checkbox"
                       checked={enCoursDiffusion}

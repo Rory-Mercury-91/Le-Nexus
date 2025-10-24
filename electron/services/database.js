@@ -22,6 +22,7 @@ function initDatabase(dbPath) {
       annee_publication INTEGER,
       genres TEXT,
       nb_chapitres INTEGER,
+      chapitres_lus INTEGER DEFAULT 0,
       langue_originale TEXT,
       demographie TEXT,
       editeur TEXT,
@@ -192,6 +193,8 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_anime_tags_tag ON anime_tags(tag);
   `);
 
+  // ========== MIGRATIONS ==========
+  
   console.log('✅ Schéma de base de données créé/vérifié');
   
   return db;

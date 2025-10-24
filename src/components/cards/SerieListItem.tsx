@@ -126,31 +126,39 @@ export default function SerieListItem({ serie, onUpdate }: SerieListItemProps) {
           fontSize: '13px',
           color: 'var(--text-secondary)'
         }}>
-          <span>{totalTomes} tome{totalTomes > 1 ? 's' : ''}</span>
-          {totalTomes > 0 && (
+          {serie.type_contenu === 'chapitre' ? (
+            // Pour les scans/webcomics: afficher le nombre de chapitres
+            <span>{serie.nb_chapitres || 0} chapitre{(serie.nb_chapitres || 0) > 1 ? 's' : ''}</span>
+          ) : (
+            // Pour les volumes: afficher la progression
             <>
-              <span>•</span>
-              <span>{tomesLus} lu{tomesLus > 1 ? 's' : ''}</span>
-              <span>•</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '200px' }}>
-                <div style={{
-                  flex: 1,
-                  height: '6px',
-                  background: 'var(--background)',
-                  borderRadius: '3px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${progression}%`,
-                    height: '100%',
-                    background: progression === 100 ? 'var(--success)' : 'var(--primary)',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-                <span style={{ fontSize: '12px', fontWeight: '600', minWidth: '40px' }}>
-                  {progression}%
-                </span>
-              </div>
+              <span>{totalTomes} tome{totalTomes > 1 ? 's' : ''}</span>
+              {totalTomes > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{tomesLus} lu{tomesLus > 1 ? 's' : ''}</span>
+                  <span>•</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '200px' }}>
+                    <div style={{
+                      flex: 1,
+                      height: '6px',
+                      background: 'var(--background)',
+                      borderRadius: '3px',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${progression}%`,
+                        height: '100%',
+                        background: progression === 100 ? 'var(--success)' : 'var(--primary)',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '600', minWidth: '40px' }}>
+                      {progression}%
+                    </span>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -170,4 +178,3 @@ export default function SerieListItem({ serie, onUpdate }: SerieListItemProps) {
     </div>
   );
 }
-

@@ -13,6 +13,7 @@ export interface Serie {
   annee_publication?: number | null;
   genres?: string | null;
   nb_chapitres?: number | null;
+  chapitres_lus?: number | null;
   langue_originale?: string | null;
   demographie?: string | null;
   editeur?: string | null;
@@ -222,6 +223,32 @@ export interface AnimeImportProgress {
   remainingPauseSeconds?: number;
 }
 
+export interface ProgressItem {
+  type: 'tome' | 'chapitre' | 'episode';
+  // Pour les tomes
+  id?: number;
+  numero?: number;
+  // Pour tous
+  serieId?: number;
+  serieTitre?: string;
+  animeId?: number;
+  animeTitre?: string;
+  couvertureUrl?: string;
+  dateProgression: string;
+  // Pour chapitres
+  chapitresLus?: number;
+  nbChapitres?: number;
+  // Pour épisodes
+  episodesVus?: number;
+  nbEpisodes?: number;
+}
+
+export interface RecentProgress {
+  tomes: ProgressItem[];
+  chapitres: ProgressItem[];
+  episodes: ProgressItem[];
+}
+
 export interface User {
   id: number;
   name: string;
@@ -290,6 +317,7 @@ declare global {
       toggleTomeLu: (tomeId: number, lu: boolean) => Promise<{ success: boolean }>;
       marquerSerieLue: (serieId: number) => Promise<{ success: boolean; tomesMarques: number }>;
       getLectureStatistics: () => Promise<LectureStatistics>;
+      getRecentProgress: () => Promise<RecentProgress>;
       addAnimeByMalId: (malIdOrUrl: string | number) => Promise<{ success: boolean; animeId?: number; anime?: AnimeSerie; relatedAnimes?: Array<{ mal_id: number; title: string; relation: string }>; error?: string }>;
       importAnimeXml: (xmlContent: string) => Promise<AnimeImportResult>;
       onAnimeImportProgress: (callback: (progress: AnimeImportProgress) => void) => () => void;
@@ -304,6 +332,8 @@ declare global {
       deleteAllData: () => Promise<{ success: boolean }>;
       onMangaImportStart?: (callback: (data: { message: string }) => void) => () => void;
       onMangaImportComplete?: (callback: () => void) => () => void;
+      onMangaImported?: (callback: (event: any, data: { id: number; titre: string; tomesCreated: number }) => void) => () => void;
+      offMangaImported?: (callback: any) => void;
       getAllUsers: () => Promise<User[]>;
       createUser: (userData: { name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
       updateUser: (userData: { id: number; name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;

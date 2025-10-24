@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import CoverImage from '../components/common/CoverImage';
-import { AnimeSerie, EvolutionStatistics, LectureStatistics, Statistics } from '../types';
+import { AnimeSerie, EvolutionStatistics, LectureStatistics, ProgressItem, RecentProgress, Statistics } from '../types';
 
 // Schéma de couleurs cohérent
 const COLORS = {
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const location = useLocation();
   const [stats, setStats] = useState<Statistics | null>(null);
   const [lectureStats, setLectureStats] = useState<LectureStatistics | null>(null);
+  const [recentProgress, setRecentProgress] = useState<RecentProgress | null>(null);
   const [animes, setAnimes] = useState<AnimeSerie[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -48,10 +49,12 @@ export default function Dashboard() {
     setLoading(true);
     const data = await window.electronAPI.getStatistics();
     const lectureData = await window.electronAPI.getLectureStatistics();
+    const progressData = await window.electronAPI.getRecentProgress();
     const animesData = await window.electronAPI.getAnimeSeries({});
     const evolutionData = await window.electronAPI.getEvolutionStatistics();
     setStats(data);
     setLectureStats(lectureData);
+    setRecentProgress(progressData);
     setAnimes(animesData);
     setEvolutionStats(evolutionData);
     setLoading(false);
@@ -144,85 +147,100 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Derniers tomes lus */}
-            {lectureStats.derniersTomesLus && lectureStats.derniersTomesLus.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
-                    📖 Derniers tomes lus :
-                  </p>
-                  <div 
-                    className="horizontal-scroll"
-                    style={{ 
-                      display: 'flex',
-                      gap: '12px',
-                      overflowX: 'auto',
-                      paddingBottom: '8px'
-                    }}>
-                    {lectureStats.derniersTomesLus.slice(0, 5).map((tome, index) => (
-                    <Link
-                      key={tome.id}
-                      to={`/serie/${tome.serieId}`}
-                      className="card"
-                      style={{
-                        flex: '0 0 auto',
-                        width: '120px',
-                        background: 'var(--surface)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        overflow: 'hidden',
-                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        color: 'inherit'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                    >
-                      <CoverImage 
-                        src={tome.couvertureUrl} 
-                        alt={`${tome.serieTitre} - Tome ${tome.numero}`}
-                        style={{
-                          width: '100%',
-                          height: '168px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                      <div style={{ padding: '8px' }}>
-                        <p style={{ 
-                          fontSize: '11px', 
-                          fontWeight: '600',
-                          color: 'var(--text)',
-                          marginBottom: '2px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          {tome.serieTitre}
-                        </p>
-                        <p style={{ 
-                          fontSize: '10px', 
-                          color: 'var(--text-secondary)',
-                          marginBottom: '4px'
-                        }}>
-                          Tome {tome.numero}
-                        </p>
-                        <p style={{ 
-                          fontSize: '9px', 
-                          color: 'var(--text-secondary)'
-                        }}>
-                          {new Date(tome.dateLecture).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
+            {/* Progression récente (tomes + chapitres + épisodes) */}
+            {recentProgress && (
+              (() => {
+                // Fusionner et trier par date toutes les progressions
+                const allProgress: ProgressItem[] = [
+                  ...recentProgress.tomes,
+                  ...recentProgress.chapitres,
+                  ...recentProgress.episodes
+                ].sort((a, b) => new Date(b.dateProgression).getTime() - new Date(a.dateProgression).getTime());
+
+                if (allProgress.length === 0) return null;
+
+                return (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
+                      📖 Progression récente :
+                    </p>
+                    <div 
+                      className="horizontal-scroll"
+                      style={{ 
+                        display: 'flex',
+                        gap: '12px',
+                        overflowX: 'auto',
+                        paddingBottom: '8px'
+                      }}>
+                      {allProgress.slice(0, 10).map((item, index) => (
+                        <Link
+                          key={`${item.type}-${item.serieId || item.animeId}-${index}`}
+                          to={item.type === 'episode' ? `/anime/${item.animeId}` : `/serie/${item.serieId}`}
+                          className="card"
+                          style={{
+                            flex: '0 0 auto',
+                            width: '120px',
+                            background: 'var(--surface)',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            overflow: 'hidden',
+                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            color: 'inherit'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <CoverImage 
+                            src={item.couvertureUrl} 
+                            alt={item.serieTitre || item.animeTitre || ''}
+                            style={{
+                              width: '100%',
+                              height: '168px',
+                              objectFit: 'cover'
+                            }}
+                          />
+                          <div style={{ padding: '8px' }}>
+                            <p style={{ 
+                              fontSize: '11px', 
+                              fontWeight: '600',
+                              color: 'var(--text)',
+                              marginBottom: '2px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {item.serieTitre || item.animeTitre}
+                            </p>
+                            <p style={{ 
+                              fontSize: '10px', 
+                              color: 'var(--text-secondary)',
+                              marginBottom: '4px'
+                            }}>
+                              {item.type === 'tome' && `Tome ${item.numero}`}
+                              {item.type === 'chapitre' && `${item.chapitresLus}/${item.nbChapitres} ch.`}
+                              {item.type === 'episode' && `${item.episodesVus}/${item.nbEpisodes} ep.`}
+                            </p>
+                            <p style={{ 
+                              fontSize: '9px', 
+                              color: 'var(--text-secondary)'
+                            }}>
+                              {new Date(item.dateProgression).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()
             )}
 
             {/* Barre de progression globale */}
@@ -262,19 +280,6 @@ export default function Dashboard() {
           }).length;
           const progression = episodesTotal > 0 ? (episodesVus / episodesTotal) * 100 : 0;
 
-          const animesEnCoursListe = animes
-            .filter(a => {
-              const epVus = a.nb_episodes_vus || 0;
-              return epVus > 0; // Afficher tous les animes avec au moins un épisode vu
-            })
-            .sort((a, b) => {
-              // Trier par date de mise à jour (les plus récents en premier)
-              const dateA = new Date(a.updated_at || a.created_at || 0);
-              const dateB = new Date(b.updated_at || b.created_at || 0);
-              return dateB.getTime() - dateA.getTime();
-            })
-            .slice(0, 5);
-
           return (
             <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', gap: '10px', marginBottom: '16px' }}>
@@ -298,106 +303,6 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-
-              {/* Carrousel d'animes en cours */}
-              {animesEnCoursListe.length > 0 && (
-                <div style={{ marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
-                    🎬 Derniers animes visionnés :
-                  </p>
-                  <div 
-                    className="horizontal-scroll"
-                    style={{ 
-                      display: 'flex',
-                      gap: '12px',
-                      overflowX: 'auto',
-                      paddingBottom: '8px'
-                    }}>
-                    {animesEnCoursListe.map(anime => (
-                      <Link
-                        key={anime.id}
-                        to={`/animes/${anime.id}`}
-                        className="card"
-                        style={{
-                          flex: '0 0 auto',
-                          width: '120px',
-                          background: 'var(--surface)',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                          overflow: 'hidden',
-                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                          cursor: 'pointer',
-                          textDecoration: 'none',
-                          color: 'inherit'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                          e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = 'none';
-                        }}
-                      >
-                        <div style={{ position: 'relative' }}>
-                          <CoverImage 
-                            src={anime.couverture_url} 
-                            alt={anime.titre}
-                            style={{
-                              width: '100%',
-                              height: '168px',
-                              objectFit: 'cover'
-                            }}
-                          />
-                          {/* Badge progression */}
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '8px',
-                            left: '8px',
-                            right: '8px',
-                            background: 'rgba(0, 0, 0, 0.8)',
-                            backdropFilter: 'blur(8px)',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            fontWeight: '600',
-                            color: 'white',
-                            textAlign: 'center'
-                          }}>
-                            {anime.nb_episodes_vus || 0}/{anime.nb_episodes_total || 0} ép.
-                          </div>
-                        </div>
-                        <div style={{ padding: '8px' }}>
-                          <p style={{ 
-                            fontSize: '11px', 
-                            fontWeight: '600',
-                            color: 'var(--text)',
-                            marginBottom: '4px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            minHeight: '30px'
-                          }}>
-                            {anime.titre}
-                          </p>
-                          {anime.type && (
-                            <p style={{ 
-                              fontSize: '9px', 
-                              color: 'var(--text-secondary)',
-                              textTransform: 'uppercase',
-                              fontWeight: '600'
-                            }}>
-                              {anime.type}
-                            </p>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Barre de progression globale */}
               <div>

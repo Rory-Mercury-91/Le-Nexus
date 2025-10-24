@@ -1,8 +1,8 @@
 import { ArrowLeft, Ban, BookMarked, BookOpen, CheckCircle2, Edit, Heart, Plus, Trash2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import AddTomeModal from '../components/modals/manga/AddTomeModal';
 import CoverImage from '../components/common/CoverImage';
+import AddTomeModal from '../components/modals/manga/AddTomeModal';
 import EditSerieModal from '../components/modals/manga/EditSerieModal';
 import EditTomeModal from '../components/modals/manga/EditTomeModal';
 import { useConfirm } from '../hooks/useConfirm';
@@ -39,6 +39,23 @@ export default function SerieDetail() {
     loadProfileImages();
     loadCurrentUser();
     window.electronAPI.getAllUsers().then(setUsers);
+
+    // Écouter l'événement d'import pour rafraîchir la série si elle est mise à jour
+    const handleMangaImported = (event: any, data: { id: number; titre: string }) => {
+      if (data.id === Number(id)) {
+        console.log('📚 Série mise à jour, rechargement...');
+        loadSerie(true); // Recharger avec préservation du scroll
+      }
+    };
+
+    window.electronAPI.onMangaImported(handleMangaImported);
+
+    return () => {
+      // Nettoyer le listener quand le composant est démonté
+      if (window.electronAPI.offMangaImported) {
+        window.electronAPI.offMangaImported(handleMangaImported);
+      }
+    };
   }, [id]);
 
   const loadCurrentUser = async () => {
@@ -526,12 +543,6 @@ export default function SerieDetail() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                <span
-                  className="badge"
-                  style={{ background: `${getStatutColor(serie.statut)}22`, color: getStatutColor(serie.statut) }}
-                >
-                  {serie.statut}
-                </span>
                 <span className="badge badge-primary">
                   {serie.type_volume}
                 </span>
@@ -575,6 +586,13 @@ export default function SerieDetail() {
                 <div style={{ marginBottom: '16px' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Éditeur VF : </span>
                   <span style={{ fontSize: '12px', color: 'var(--text)' }}>{serie.editeur}</span>
+                </div>
+              )}
+
+              {serie.type_contenu === 'chapitre' && serie.nb_chapitres && (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Nombre de chapitres : </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700' }}>{serie.nb_chapitres} chapitre{serie.nb_chapitres > 1 ? 's' : ''}</span>
                 </div>
               )}
 
@@ -683,20 +701,23 @@ export default function SerieDetail() {
                       {cost.toFixed(2)}€
                     </span>
                     
-                    {/* Nombre de tomes */}
+                    {/* Nombre de tomes/chapitres */}
                     <span style={{ 
                       fontSize: '12px',
                       color: 'var(--text-secondary)'
                     }}>
-                      {tomesCount} tome{tomesCount > 1 ? 's' : ''}
+                      {serie.type_contenu === 'chapitre' 
+                        ? `${serie.nb_chapitres || 0} chapitre${(serie.nb_chapitres || 0) > 1 ? 's' : ''}`
+                        : `${tomesCount} tome${tomesCount > 1 ? 's' : ''}`
+                      }
                     </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Progression de lecture */}
-            {tomes.length > 0 && (() => {
+            {/* Progression de lecture (uniquement pour les volumes) */}
+            {serie.type_contenu !== 'chapitre' && tomes.length > 0 && (() => {
               const tomesLus = tomes.filter(t => t.lu === 1).length;
               const progression = (tomesLus / tomes.length) * 100;
               
@@ -768,22 +789,115 @@ export default function SerieDetail() {
           </div>
         </div>
 
-        {/* Liste des tomes - Pleine largeur */}
-        <div className="card" style={{ padding: '24px', marginTop: '32px' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px'
-          }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700' }}>
-              Tomes ({tomes.length})
-            </h2>
-            <button onClick={() => setShowAddTome(true)} className="btn btn-primary">
-              <Plus size={18} />
-              Ajouter un tome
-            </button>
+        {/* Progression chapitres (uniquement pour les scans/webcomics) */}
+        {serie.type_contenu === 'chapitre' && (
+          <div className="card" style={{ padding: '24px', marginTop: '32px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📖 Progression de lecture
+            </h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>
+                  Chapitres lus : {serie.chapitres_lus || 0} / {serie.nb_chapitres || 0}
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>
+                  {serie.nb_chapitres ? Math.round(((serie.chapitres_lus || 0) / serie.nb_chapitres) * 100) : 0}%
+                </span>
+              </div>
+              
+              {/* Barre de progression */}
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: 'var(--surface)',
+                borderRadius: '4px',
+                overflow: 'hidden',
+                border: '1px solid var(--border)',
+                marginBottom: '16px'
+              }}>
+                <div style={{
+                  width: `${serie.nb_chapitres ? Math.round(((serie.chapitres_lus || 0) / serie.nb_chapitres) * 100) : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              
+              {/* Message de félicitations */}
+              {serie.chapitres_lus === serie.nb_chapitres && serie.nb_chapitres > 0 && (
+                <div style={{
+                  padding: '8px',
+                  background: 'var(--success)22',
+                  border: '1px solid var(--success)',
+                  borderRadius: '6px',
+                  color: 'var(--success)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  marginBottom: '16px'
+                }}>
+                  🎉 Tous les chapitres lus !
+                </div>
+              )}
+              
+              {/* Input pour modifier le nombre de chapitres lus */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '120px' }}>
+                  Modifier progression :
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={serie.nb_chapitres || 0}
+                  value={serie.chapitres_lus || 0}
+                  onChange={async (e) => {
+                    const newValue = Math.min(Math.max(0, parseInt(e.target.value) || 0), serie.nb_chapitres || 0);
+                    await window.electronAPI.updateSerie(serie.id, { chapitres_lus: newValue });
+                    loadSerie(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '6px',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+                <button
+                  onClick={async () => {
+                    await window.electronAPI.updateSerie(serie.id, { chapitres_lus: serie.nb_chapitres || 0 });
+                    loadSerie(true);
+                  }}
+                  className="btn btn-primary"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  ✓ Tout marquer comme lu
+                </button>
+              </div>
+            </div>
           </div>
+        )}
+
+        {/* Liste des tomes - Pleine largeur (uniquement pour les volumes) */}
+        {serie.type_contenu !== 'chapitre' && (
+          <div className="card" style={{ padding: '24px', marginTop: '32px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700' }}>
+                Tomes ({tomes.length})
+              </h2>
+              <button onClick={() => setShowAddTome(true)} className="btn btn-primary">
+                <Plus size={18} />
+                Ajouter un tome
+              </button>
+            </div>
 
           {tomes.length > 0 ? (
             <div style={{
@@ -1065,6 +1179,7 @@ export default function SerieDetail() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {showAddTome && (

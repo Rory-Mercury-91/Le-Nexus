@@ -801,6 +801,13 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             {(() => {
               const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
               const totalTomes = serie.tomes?.length || 0;
+              
+              // Si type_contenu = 'chapitre', afficher "X chapitres"
+              if (serie.type_contenu === 'chapitre') {
+                return `${serie.nb_chapitres || 0} chapitre${(serie.nb_chapitres || 0) > 1 ? 's' : ''}`;
+              }
+              
+              // Sinon afficher "X sur Y tome(s)" classique
               return `${tomesLus} sur ${totalTomes} tome${totalTomes > 1 ? 's' : ''}`;
             })()}
           </span>

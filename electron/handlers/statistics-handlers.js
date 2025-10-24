@@ -266,6 +266,109 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
     }
   });
 
+  // Récupérer toutes les progressions récentes (tomes + chapitres + épisodes)
+  ipcMain.handle('get-recent-progress', () => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      const currentUser = store.get('currentUser', '');
+      if (!currentUser) {
+        return {
+          tomes: [],
+          chapitres: [],
+          episodes: []
+        };
+      }
+
+      // 1. Derniers tomes lus (mangas classiques)
+      const derniersTomesLus = db.prepare(`
+        SELECT t.id, t.numero, t.couverture_url, s.titre as serie_titre, s.id as serie_id, lt.date_lecture
+        FROM lecture_tomes lt
+        JOIN tomes t ON lt.tome_id = t.id
+        JOIN series s ON t.serie_id = s.id
+        WHERE lt.utilisateur = ? AND lt.lu = 1
+        ORDER BY lt.date_lecture DESC
+        LIMIT 10
+      `).all(currentUser);
+
+      // 2. Dernières progressions de chapitres (scans/manhwa)
+      const dernieresProgressionsChapitres = db.prepare(`
+        SELECT 
+          s.id as serie_id,
+          s.titre as serie_titre,
+          s.couverture_url,
+          s.chapitres_lus,
+          s.nb_chapitres,
+          s.updated_at as date_progression
+        FROM series s
+        WHERE s.type_contenu = 'chapitre' 
+          AND s.chapitres_lus > 0
+        ORDER BY s.updated_at DESC
+        LIMIT 10
+      `).all();
+
+      // 3. Dernières progressions d'épisodes (animes)
+      const dernieresProgressionsEpisodes = db.prepare(`
+        SELECT 
+          a.id as anime_id,
+          a.titre as anime_titre,
+          a.couverture_url,
+          (SELECT COUNT(*) FROM anime_episodes_vus aev 
+           WHERE aev.anime_id = a.id 
+           AND aev.utilisateur = ? 
+           AND aev.vu = 1) as episodes_vus,
+          a.nb_episodes,
+          (SELECT MAX(aev2.date_visionnage) FROM anime_episodes_vus aev2 
+           WHERE aev2.anime_id = a.id 
+           AND aev2.utilisateur = ? 
+           AND aev2.vu = 1) as date_progression
+        FROM anime_series a
+        WHERE (SELECT COUNT(*) FROM anime_episodes_vus aev 
+               WHERE aev.anime_id = a.id 
+               AND aev.utilisateur = ? 
+               AND aev.vu = 1) > 0
+        ORDER BY date_progression DESC
+        LIMIT 10
+      `).all(currentUser, currentUser, currentUser);
+
+      return {
+        tomes: derniersTomesLus.map(tome => ({
+          type: 'tome',
+          id: tome.id,
+          serieId: tome.serie_id,
+          serieTitre: tome.serie_titre,
+          numero: tome.numero,
+          couvertureUrl: tome.couverture_url,
+          dateProgression: tome.date_lecture
+        })),
+        chapitres: dernieresProgressionsChapitres.map(serie => ({
+          type: 'chapitre',
+          serieId: serie.serie_id,
+          serieTitre: serie.serie_titre,
+          couvertureUrl: serie.couverture_url,
+          chapitresLus: serie.chapitres_lus,
+          nbChapitres: serie.nb_chapitres,
+          dateProgression: serie.date_progression
+        })),
+        episodes: dernieresProgressionsEpisodes.map(anime => ({
+          type: 'episode',
+          animeId: anime.anime_id,
+          animeTitre: anime.anime_titre,
+          couvertureUrl: anime.couverture_url,
+          episodesVus: anime.episodes_vus,
+          nbEpisodes: anime.nb_episodes,
+          dateProgression: anime.date_progression
+        }))
+      };
+    } catch (error) {
+      console.error('Erreur get-recent-progress:', error);
+      throw error;
+    }
+  });
+
   // Marquer toute une série comme lue
   ipcMain.handle('marquer-serie-lue', (event, serieId) => {
     try {

@@ -11,7 +11,6 @@ interface EditSerieModalProps {
 
 export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieModalProps) {
   const [titre, setTitre] = useState(serie.titre);
-  const [statut, setStatut] = useState(serie.statut);
   const [typeVolume, setTypeVolume] = useState(serie.type_volume);
   const [couvertureUrl, setCouvertureUrl] = useState(serie.couverture_url || '');
   const [description, setDescription] = useState(serie.description || '');
@@ -60,7 +59,6 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
     try {
       await window.electronAPI.updateSerie(serie.id, {
         titre: titre.trim(),
-        statut,
         type_volume: typeVolume,
         couverture_url: couvertureUrl || null,
         description: description || null,
@@ -183,22 +181,7 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Statut
-              </label>
-              <select
-                value={statut}
-                onChange={(e) => setStatut(e.target.value as any)}
-                className="select"
-              >
-                <option value="En cours">En cours</option>
-                <option value="Terminée">Terminée</option>
-                <option value="Abandonnée">Abandonnée</option>
-              </select>
-            </div>
-
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginBottom: '20px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
                 Type de volume

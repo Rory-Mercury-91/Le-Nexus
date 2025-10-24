@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Nautiljon → Ma Mangathèque
 // @namespace    http://tampermonkey.net/
-// @version      1.5.0
+// @version      1.6.1
 // @description  Importe automatiquement vos mangas/scans depuis Nautiljon vers Ma Mangathèque avec support chapitres (Manhwa/Manhua) et déduplication intelligente (350-1500ms)
 // @author       Rory-Mercury91
 // @match        https://www.nautiljon.com/mangas/*
@@ -271,16 +271,21 @@
             
             console.log('🖼️ Couverture série:', couverture_url ? 'Trouvée' : 'Non trouvée');
 
-            // 13. STATUT
+            // 13. STATUT (récupéré depuis la version VF)
             let statut = 'En cours';
-            const statutMatch = allText.match(/Nb volumes VO\s*:\s*\d+\s*\((.*?)\)/i);
+            // Priorité 1: Chercher dans "Nb chapitres VF" pour les scans
+            let statutMatch = allText.match(/Nb chapitres VF\s*:\s*\d+\s*\((.*?)\)/i);
+            if (!statutMatch) {
+                // Priorité 2: Chercher dans "Nb volumes VF" pour les tomes
+                statutMatch = allText.match(/Nb volumes VF\s*:\s*\d+\s*\((.*?)\)/i);
+            }
             if (statutMatch) {
                 const statutText = statutMatch[1].toLowerCase();
                 if (statutText.includes('terminé') || statutText.includes('fini')) {
                     statut = 'Terminée';
                 }
             }
-            console.log('📊 Statut:', statut);
+            console.log('📊 Statut publication VF:', statut);
 
             // 14. DÉTECTION DES VOLUMES
             console.log('\n📚 Recherche des volumes...');
@@ -367,12 +372,30 @@
                 console.log(`✅ ${volumes.length} tome(s) unique(s) récupéré(s) (${allTomeDetails.length - volumes.length} doublon(s) éliminé(s))`);
             }
 
+            // Déterminer le type_volume automatiquement
+            let type_volume = 'Broché'; // Défaut pour les mangas classiques
+            
+            if (type_contenu === 'chapitre') {
+                // Pour les scans en ligne → toujours Numérique
+                type_volume = 'Numérique';
+            } else if (type_demographie === 'Manhwa' || type_demographie === 'Manhua') {
+                // Pour les Manhwa/Manhua
+                if (volumes.length > 0) {
+                    type_volume = 'Webtoon Physique'; // Éditions physiques disponibles
+                } else {
+                    type_volume = 'Webtoon'; // En ligne uniquement
+                }
+            }
+            // Sinon reste 'Broché' pour les mangas japonais classiques
+            
+            console.log(`📦 Type de volume détecté: ${type_volume} (démographie: ${type_demographie}, ${volumes.length} volume(s))`);
+
             // Construire l'objet de données
             const mangaData = {
                 titre: titre.trim(),
                 titre_alternatif: titre_alternatif,
                 statut: statut,
-                type_volume: type_contenu === 'chapitre' ? 'Numérique' : 'Broché',
+                type_volume: type_volume,
                 type_contenu: type_contenu, // 'volume' ou 'chapitre'
                 couverture_url: couverture_url,
                 description: description || null,

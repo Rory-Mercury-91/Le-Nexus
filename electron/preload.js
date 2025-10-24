@@ -89,6 +89,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleTomeLu: (tomeId, lu) => ipcRenderer.invoke('toggle-tome-lu', tomeId, lu),
   marquerSerieLue: (serieId) => ipcRenderer.invoke('marquer-serie-lue', serieId),
   getLectureStatistics: () => ipcRenderer.invoke('get-lecture-statistics'),
+  getRecentProgress: () => ipcRenderer.invoke('get-recent-progress'),
   
   // Animes
   createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),
@@ -120,5 +121,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const subscription = () => callback();
     ipcRenderer.on('manga-import-complete', subscription);
     return () => ipcRenderer.removeListener('manga-import-complete', subscription);
+  },
+  onMangaImported: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('manga-imported', subscription);
+    return () => ipcRenderer.removeListener('manga-imported', subscription);
+  },
+  offMangaImported: (callback) => {
+    ipcRenderer.removeListener('manga-imported', callback);
   }
 });

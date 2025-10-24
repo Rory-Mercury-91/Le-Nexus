@@ -170,6 +170,7 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
     }
     
     const fullPath = path.join(targetDirectory, fileName);
+    console.log(`📁 Téléchargement vers: ${fullPath}`);
 
     // Headers pour contourner les protections anti-scraping (Nautiljon, etc.)
     const headers = {

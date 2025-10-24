@@ -351,6 +351,10 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         fields.push('nb_chapitres = ?');
         values.push(serie.nb_chapitres || null);
       }
+      if (serie.chapitres_lus !== undefined) {
+        fields.push('chapitres_lus = ?');
+        values.push(serie.chapitres_lus || null);
+      }
       if (serie.langue_originale !== undefined) {
         fields.push('langue_originale = ?');
         values.push(serie.langue_originale || null);
