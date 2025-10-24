@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, Check, Clock, Edit, ExternalLink, Globe, Play, Star, Trash2, Tv, TvMinimalPlay } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, Clock, Edit, ExternalLink, Globe, Play, Star, Trash2, Tv } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
@@ -155,7 +155,7 @@ export default function AnimeDetail() {
           {liensStreaming.length > 0 && (
             <div style={{ marginTop: '16px' }}>
               <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                <TvMinimalPlay size={16} style={{ display: 'inline', marginRight: '6px' }} />
+                <Play size={16} style={{ display: 'inline', marginRight: '6px' }} />
                 Regarder sur
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
