@@ -94,7 +94,7 @@ function initDatabase(dbPath) {
 
     CREATE TABLE IF NOT EXISTS anime_series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      mal_id INTEGER UNIQUE NOT NULL,
+      mal_id INTEGER UNIQUE,
       mal_url TEXT,
       titre TEXT NOT NULL,
       titre_romaji TEXT,
@@ -267,6 +267,104 @@ function initDatabase(dbPath) {
   };
   
   migrateSeriesMalFields();
+
+  // Migration: Rendre mal_id nullable dans anime_series
+  const migrateAnimeMalIdNullable = () => {
+    try {
+      // Vérifier si la colonne mal_id existe et a une contrainte NOT NULL
+      const tableInfo = db.prepare('PRAGMA table_info(anime_series)').all();
+      const malIdColumn = tableInfo.find(col => col.name === 'mal_id');
+      
+      if (malIdColumn && malIdColumn.notnull === 1) {
+        console.log('🔄 Migration: Rendre mal_id nullable dans anime_series...');
+        
+        // Désactiver temporairement les foreign keys
+        db.exec('PRAGMA foreign_keys = OFF;');
+        db.exec('BEGIN TRANSACTION;');
+        
+        // Créer une nouvelle table sans la contrainte NOT NULL
+        db.exec(`
+          CREATE TABLE anime_series_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mal_id INTEGER UNIQUE,
+            mal_url TEXT,
+            titre TEXT NOT NULL,
+            titre_romaji TEXT,
+            titre_natif TEXT,
+            titre_anglais TEXT,
+            titres_alternatifs TEXT,
+            type TEXT NOT NULL,
+            source TEXT,
+            nb_episodes INTEGER NOT NULL DEFAULT 0,
+            couverture_url TEXT,
+            description TEXT,
+            statut_diffusion TEXT,
+            en_cours_diffusion BOOLEAN DEFAULT 0,
+            date_debut TEXT,
+            date_fin TEXT,
+            duree TEXT,
+            annee INTEGER,
+            saison_diffusion TEXT,
+            genres TEXT,
+            themes TEXT,
+            demographics TEXT,
+            studios TEXT,
+            producteurs TEXT,
+            diffuseurs TEXT,
+            rating TEXT,
+            score REAL,
+            liens_externes TEXT,
+            liens_streaming TEXT,
+            franchise_name TEXT,
+            franchise_order INTEGER DEFAULT 1,
+            prequel_mal_id INTEGER,
+            sequel_mal_id INTEGER,
+            source_import TEXT DEFAULT 'manual',
+            utilisateur_ajout TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+        
+        // Copier les données
+        db.exec(`
+          INSERT INTO anime_series_new 
+          SELECT * FROM anime_series;
+        `);
+        
+        // Supprimer l'ancienne table
+        db.exec('DROP TABLE anime_series;');
+        
+        // Renommer la nouvelle table
+        db.exec('ALTER TABLE anime_series_new RENAME TO anime_series;');
+        
+        // Recréer les index
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_anime_series_mal_id ON anime_series(mal_id);
+          CREATE INDEX IF NOT EXISTS idx_anime_series_franchise ON anime_series(franchise_name);
+          CREATE INDEX IF NOT EXISTS idx_anime_series_type ON anime_series(type);
+          CREATE INDEX IF NOT EXISTS idx_anime_series_annee ON anime_series(annee);
+        `);
+        
+        // Terminer la transaction et réactiver les foreign keys
+        db.exec('COMMIT;');
+        db.exec('PRAGMA foreign_keys = ON;');
+        
+        console.log('✅ Migration: mal_id est maintenant nullable dans anime_series');
+      }
+    } catch (error) {
+      console.warn('⚠️ Migration anime_series mal_id déjà appliquée ou erreur:', error.message);
+      // En cas d'erreur, annuler la transaction et réactiver les foreign keys
+      try {
+        db.exec('ROLLBACK;');
+        db.exec('PRAGMA foreign_keys = ON;');
+      } catch (e) {
+        // Ignorer les erreurs de rollback
+      }
+    }
+  };
+  
+  migrateAnimeMalIdNullable();
   
   // ========================================
   // TABLES AVN (ADULT VISUAL NOVELS)
