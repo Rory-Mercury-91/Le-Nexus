@@ -2162,11 +2162,11 @@ export default function Settings() {
                 💡 Tous les utilisateurs partagent cette base de données. Idéal pour une utilisation cloud (Proton Drive, OneDrive, etc.).
               </p>
 
-              {/* Import/Export intégré */}
+              {/* Export/Import intégré */}
               <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Download size={18} />
-                  Import / Export
+                  Export / Import
                 </h3>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
