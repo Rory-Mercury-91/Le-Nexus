@@ -254,7 +254,7 @@ async function getBaseDirectory() {
 
   // Premier lancement : utiliser automatiquement le chemin par défaut
   // L'utilisateur choisira l'emplacement définitif dans l'OnboardingWizard
-  const defaultPath = path.join(userDataPath, 'Ma Mangatheque');
+  const defaultPath = path.join(userDataPath, 'Le Nexus');
   store.set('baseDirectory', defaultPath);
 
   return defaultPath;
