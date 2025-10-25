@@ -408,6 +408,7 @@ declare global {
       setCurrentUser: (userName: string) => Promise<void>;
       setContentPreferences: (userName: string, preferences: { showMangas: boolean; showAnimes: boolean; showAvn: boolean }) => Promise<void>;
       getContentPreferences: (userName: string) => Promise<{ showMangas: boolean; showAnimes: boolean; showAvn: boolean }>;
+      onContentPreferencesChanged: (callback: (userName: string, preferences: { showMangas: boolean; showAnimes: boolean; showAvn: boolean }) => void) => () => void;
       saveUserDatabase: () => Promise<void>;
       quitApp: (options?: { shouldRelaunch?: boolean }) => Promise<void>;
       minimizeToTray: () => Promise<void>;

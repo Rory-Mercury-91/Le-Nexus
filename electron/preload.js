@@ -139,6 +139,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setCurrentUser: (userName) => ipcRenderer.invoke('set-current-user', userName),
   setContentPreferences: (userName, preferences) => ipcRenderer.invoke('set-content-preferences', userName, preferences),
   getContentPreferences: (userName) => ipcRenderer.invoke('get-content-preferences', userName),
+  onContentPreferencesChanged: (callback) => {
+    const subscription = (event, userName, preferences) => callback(userName, preferences);
+    ipcRenderer.on('content-preferences-changed', subscription);
+    return () => ipcRenderer.removeListener('content-preferences-changed', subscription);
+  },
   saveUserDatabase: () => ipcRenderer.invoke('save-user-database'),
   quitApp: (options) => ipcRenderer.invoke('quit-app', options),
   minimizeToTray: () => ipcRenderer.invoke('minimize-to-tray'),

@@ -46,6 +46,18 @@ export default function Dashboard() {
   useEffect(() => {
     loadStats();
     loadContentPreferences();
+    
+    // Écouter les changements de préférences en temps réel
+    const unsubscribe = window.electronAPI.onContentPreferencesChanged(async (userName, preferences) => {
+      const currentUser = await window.electronAPI.getCurrentUser();
+      if (userName === currentUser) {
+        setContentPrefs(preferences);
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [location.pathname]); // Recharge quand on revient sur la page
   
   const loadContentPreferences = async () => {

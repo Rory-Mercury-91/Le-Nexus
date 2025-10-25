@@ -384,6 +384,12 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     const userPrefs = store.get('contentPreferences', {});
     userPrefs[userName] = preferences;
     store.set('contentPreferences', userPrefs);
+    
+    // Notifier tous les renderers du changement
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send('content-preferences-changed', userName, preferences);
+    }
   });
 
   ipcMain.handle('get-content-preferences', (event, userName) => {

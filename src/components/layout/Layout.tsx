@@ -21,6 +21,18 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   useEffect(() => {
     loadUserData();
     loadContentPreferences();
+    
+    // Écouter les changements de préférences en temps réel
+    const unsubscribe = window.electronAPI.onContentPreferencesChanged((userName, preferences) => {
+      // Mettre à jour uniquement si c'est pour l'utilisateur actuel
+      if (userName === currentUser) {
+        setContentPrefs(preferences);
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, [currentUser]);
 
   const loadUserData = async () => {
