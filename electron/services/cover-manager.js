@@ -273,6 +273,8 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
       refererUrl = 'https://www.nautiljon.com/';
     } else if (imageUrl.includes('f95zone')) {
       refererUrl = 'https://f95zone.to/';
+    } else if (imageUrl.includes('lewdcorner')) {
+      refererUrl = 'https://lewdcorner.com/';
     }
 
     // Pour F95Zone, utiliser net.request (Chromium) au lieu de node-fetch

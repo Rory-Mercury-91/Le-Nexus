@@ -75,9 +75,6 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
           } else if (statut === 'Abandonné') {
             backgroundColor = '#6b7280'; // Abandonné (gris)
             label = 'Abandonné';
-          } else if (statut === 'En attente') {
-            backgroundColor = '#6366f1'; // En attente (bleu)
-            label = 'En attente';
           }
           
           return (
@@ -158,7 +155,7 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
                     <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                       STATUT
                     </div>
-                    {['En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'].map(status => (
+                    {['En cours', 'Terminé', 'Abandonné', 'À regarder'].map(status => (
                       <button
                         key={status}
                         onClick={(e) => {
@@ -280,9 +277,6 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
           } else if (statut === 'Abandonné') {
             backgroundColor = '#6b7280'; // Abandonné (gris)
             label = 'Abandonné';
-          } else if (statut === 'En attente') {
-            backgroundColor = '#6366f1'; // En attente (bleu)
-            label = 'En attente';
           }
           
           return (
@@ -365,7 +359,7 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
                   <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     STATUT
                   </div>
-                  {['En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'].map(status => (
+                  {['En cours', 'Terminé', 'Abandonné', 'À regarder'].map(status => (
                     <button
                       key={status}
                       onClick={(e) => {

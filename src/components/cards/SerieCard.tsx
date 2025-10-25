@@ -1,4 +1,4 @@
-import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, Tag } from 'lucide-react';
+import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, MoreVertical, Tag } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -317,7 +317,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           }}
           className="tag-btn"
         >
-          <Tag size={18} />
+          <MoreVertical size={18} />
         </button>
 
         {/* Dropdown de tags */}
@@ -610,7 +610,7 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           }}
           className="tag-btn"
         >
-          <Tag size={18} />
+          <MoreVertical size={18} />
         </button>
 
         {/* Dropdown de tags */}
@@ -734,28 +734,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             </button>
           </div>
         )}
-
-        {/* Bouton masquer/démasquer */}
-        <button
-          onClick={handleToggleMasquer}
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            left: '12px',
-            background: isMasquee ? 'rgba(59, 130, 246, 0.9)' : 'rgba(249, 115, 22, 0.9)',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px',
-            cursor: 'pointer',
-            color: 'white',
-            opacity: 0,
-            transition: 'opacity 0.2s'
-          }}
-          className="delete-btn"
-          title={isMasquee ? 'Démasquer' : 'Masquer'}
-        >
-          {isMasquee ? <Eye size={18} /> : <EyeOff size={18} />}
-        </button>
       </div>
 
       {/* Informations */}
@@ -854,9 +832,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
       </div>
 
       <style>{`
-        .card:hover .delete-btn {
-          opacity: 1;
-        }
         .card:hover .tag-btn {
           opacity: 1;
         }

@@ -151,7 +151,7 @@ function initDatabase(dbPath) {
       date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (anime_id, utilisateur),
       FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'))
+      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'À regarder'))
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -365,6 +365,64 @@ function initDatabase(dbPath) {
   };
   
   migrateAnimeMalIdNullable();
+  
+  // Migration: Corriger CHECK constraint pour statut_visionnage (remplacer "En attente" par "À regarder")
+  const migrateAnimeStatutCheck = () => {
+    try {
+      // Vérifier si la table existe
+      const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='anime_statut_utilisateur'").get();
+      
+      if (tableExists) {
+        console.log('🔄 Migration: Mise à jour contrainte CHECK statut_visionnage...');
+        
+        // Désactiver temporairement les foreign keys
+        db.exec('PRAGMA foreign_keys = OFF;');
+        db.exec('BEGIN TRANSACTION;');
+        
+        // Créer une nouvelle table avec la bonne contrainte
+        db.exec(`
+          CREATE TABLE anime_statut_utilisateur_new (
+            anime_id INTEGER NOT NULL,
+            utilisateur TEXT NOT NULL,
+            statut_visionnage TEXT CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'À regarder')),
+            is_favorite BOOLEAN DEFAULT 0,
+            date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (anime_id, utilisateur),
+            FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE
+          );
+        `);
+        
+        // Copier les données en convertissant "En attente" en "À regarder"
+        db.exec(`
+          INSERT INTO anime_statut_utilisateur_new (anime_id, utilisateur, statut_visionnage, is_favorite, date_modification)
+          SELECT 
+            anime_id, 
+            utilisateur, 
+            CASE WHEN statut_visionnage = 'En attente' THEN 'À regarder' ELSE statut_visionnage END,
+            is_favorite,
+            date_modification
+          FROM anime_statut_utilisateur;
+        `);
+        
+        // Supprimer l'ancienne table et renommer
+        db.exec('DROP TABLE anime_statut_utilisateur;');
+        db.exec('ALTER TABLE anime_statut_utilisateur_new RENAME TO anime_statut_utilisateur;');
+        
+        db.exec('COMMIT;');
+        db.exec('PRAGMA foreign_keys = ON;');
+        
+        console.log('✅ Migration: Contrainte CHECK statut_visionnage mise à jour ("En attente" → "À regarder")');
+      }
+    } catch (error) {
+      console.warn('⚠️ Migration anime_statut_utilisateur CHECK déjà appliquée ou erreur:', error.message);
+      try {
+        db.exec('ROLLBACK;');
+        db.exec('PRAGMA foreign_keys = ON;');
+      } catch (e) {}
+    }
+  };
+  
+  migrateAnimeStatutCheck();
   
   // ========================================
   // TABLES AVN (ADULT VISUAL NOVELS)
