@@ -26,8 +26,9 @@ function base64urlEncode(buffer) {
  * @returns {Object} { code_verifier, code_challenge }
  */
 function generatePKCEChallenge() {
-  // Caractères valides pour code_verifier selon RFC 7636: [A-Z] [a-z] [0-9] - . _ ~
-  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  // Utiliser UNIQUEMENT des caractères alphanumériques (plus sûr pour l'encodage)
+  // Certains serveurs OAuth peuvent rejeter -, ., _, ~
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   
   // Générer un code_verifier de 128 caractères (longueur max recommandée)
   let code_verifier = '';
