@@ -58,7 +58,7 @@ function downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl) {
             return;
           }
 
-          // Vérifier les magic bytes
+          // Vérifier les magic bytes et déterminer l'extension
           const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8;
           const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50;
           const isWEBP = buffer[8] === 0x57 && buffer[9] === 0x45;
@@ -67,14 +67,27 @@ function downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl) {
             buffer.toString('utf8', 4, 12).includes('avif')
           );
 
-          if (!isJPEG && !isPNG && !isWEBP && !isAVIF) {
+          let detectedExt = '';
+          if (isPNG) detectedExt = '.png';
+          else if (isJPEG) detectedExt = '.jpg';
+          else if (isWEBP) detectedExt = '.webp';
+          else if (isAVIF) detectedExt = '.avif';
+
+          if (!detectedExt) {
             console.warn(`⚠️ Format non reconnu. Premiers octets:`, buffer.slice(0, 16));
             reject(new Error('Format d\'image non reconnu'));
             return;
           }
 
-          console.log(`✅ Image valide détectée`);
-          fs.writeFileSync(fullPath, buffer);
+          // Ajouter l'extension si elle n'est pas déjà présente
+          let finalPath = fullPath;
+          if (!fullPath.match(/\.(png|jpg|jpeg|webp|avif)$/i)) {
+            finalPath = fullPath + detectedExt;
+            relativePath = relativePath + detectedExt;
+          }
+
+          console.log(`✅ Image valide détectée (${detectedExt})`);
+          fs.writeFileSync(finalPath, buffer);
           resolve({ success: true, localPath: relativePath });
         } catch (error) {
           reject(error);
@@ -326,7 +339,7 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
       throw new Error(`Image trop petite: ${buffer.byteLength} bytes`);
     }
     
-    // Vérifier les magic bytes pour s'assurer que c'est une image
+    // Vérifier les magic bytes et déterminer l'extension
     const bufferView = Buffer.from(buffer);
     const isJPEG = bufferView[0] === 0xFF && bufferView[1] === 0xD8;
     const isPNG = bufferView[0] === 0x89 && bufferView[1] === 0x50;
@@ -336,13 +349,26 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
       bufferView.toString('utf8', 4, 12).includes('avif')
     );
     
-    if (!isJPEG && !isPNG && !isWEBP && !isAVIF) {
+    let detectedExt = '';
+    if (isPNG) detectedExt = '.png';
+    else if (isJPEG) detectedExt = '.jpg';
+    else if (isWEBP) detectedExt = '.webp';
+    else if (isAVIF) detectedExt = '.avif';
+    
+    if (!detectedExt) {
       console.warn(`⚠️ Format non reconnu. Premiers octets:`, bufferView.slice(0, 16));
       throw new Error('Format d\'image non reconnu');
     }
     
-    console.log(`✅ Image valide détectée`);
-    fs.writeFileSync(fullPath, bufferView);
+    // Ajouter l'extension si elle n'est pas déjà présente
+    let finalPath = fullPath;
+    if (!fullPath.match(/\.(png|jpg|jpeg|webp|avif)$/i)) {
+      finalPath = fullPath + detectedExt;
+      relativePath = relativePath + detectedExt;
+    }
+    
+    console.log(`✅ Image valide détectée (${detectedExt})`);
+    fs.writeFileSync(finalPath, bufferView);
 
     return { success: true, localPath: relativePath };
   } catch (error) {
