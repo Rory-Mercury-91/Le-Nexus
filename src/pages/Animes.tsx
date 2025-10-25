@@ -70,6 +70,32 @@ export default function Animes() {
     setSearchTerm('');
   };
 
+  const handleStatusChange = async (animeId: number, newStatus: string) => {
+    try {
+      await window.electronAPI.setAnimeStatutVisionnage(animeId, newStatus as any);
+      await loadAnimes(); // Recharger pour voir les changements
+    } catch (error) {
+      console.error('Erreur changement statut:', error);
+      alert('❌ Erreur lors du changement de statut');
+    }
+  };
+
+  const handleToggleFavorite = async (animeId: number) => {
+    try {
+      const currentUser = await window.electronAPI.getCurrentUser();
+      const users = await window.electronAPI.getAllUsers();
+      const user = users.find((u: any) => u.name === currentUser);
+      
+      if (user) {
+        await window.electronAPI.toggleAnimeFavorite(animeId, user.id);
+        await loadAnimes(); // Recharger pour voir les changements
+      }
+    } catch (error) {
+      console.error('Erreur toggle favori:', error);
+      alert('❌ Erreur lors de la modification des favoris');
+    }
+  };
+
   const hasActiveFilters = Object.keys(filters).length > 0 || searchTerm.length > 0;
 
   const filteredAnimes = animes.filter(anime => {
@@ -264,6 +290,8 @@ export default function Animes() {
             <AnimeCard 
               anime={anime} 
               onClick={() => navigate(`/animes/${anime.id}`)}
+              onStatusChange={handleStatusChange}
+              onToggleFavorite={handleToggleFavorite}
             />
           )}
           renderListItem={(anime) => (

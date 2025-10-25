@@ -431,7 +431,7 @@ declare global {
       toggleEpisodeVu: (animeId: number, episodeNumero: number, vu: boolean) => Promise<{ success: boolean }>;
       marquerAnimeComplet: (animeId: number) => Promise<{ success: boolean }>;
       deleteAnime: (animeId: number) => Promise<{ success: boolean }>;
-      setAnimeStatutVisionnage: (animeId: number, statutVisionnage: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente') => Promise<{ success: boolean }>;
+      setAnimeStatutVisionnage: (animeId: number, statutVisionnage: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente' | 'À regarder') => Promise<{ success: boolean }>;
       updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
       deleteUserData: (userName: string) => Promise<{ success: boolean }>;
       deleteAllData: () => Promise<{ success: boolean }>;
