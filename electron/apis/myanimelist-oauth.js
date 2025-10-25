@@ -8,10 +8,26 @@ const http = require('http');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 
-// Fonction pour générer PKCE challenge (alternative à pkce-challenge)
+// Fonction pour générer PKCE challenge (RFC 7636)
 function generatePKCEChallenge() {
-  const code_verifier = crypto.randomBytes(32).toString('base64url');
-  const code_challenge = crypto.createHash('sha256').update(code_verifier).digest('base64url');
+  // Générer un code_verifier de 128 caractères (longueur maximale recommandée)
+  // Doit contenir uniquement [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  const randomValues = crypto.randomBytes(128);
+  let code_verifier = '';
+  for (let i = 0; i < 128; i++) {
+    code_verifier += possible[randomValues[i] % possible.length];
+  }
+  
+  // Générer le code_challenge en hashant le code_verifier avec SHA256
+  const hash = crypto.createHash('sha256').update(code_verifier).digest();
+  
+  // Convertir en base64url (base64 standard avec +/ remplacés par -_ et sans padding =)
+  const code_challenge = hash.toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
   return { code_verifier, code_challenge };
 }
 
