@@ -1011,18 +1011,45 @@ export default function SerieDetail() {
                 </div>
               )}
               
-              {/* Input pour modifier le nombre de chapitres lus */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {/* Input pour définir le nombre total de chapitres */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
                 <label style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '120px' }}>
-                  Modifier progression :
+                  Nombre total :
                 </label>
                 <input
                   type="number"
                   min="0"
-                  max={serie.nb_chapitres || 0}
+                  value={serie.nb_chapitres || 0}
+                  onChange={async (e) => {
+                    const newValue = Math.max(0, parseInt(e.target.value) || 0);
+                    await window.electronAPI.updateSerie(serie.id, { nb_chapitres: newValue });
+                    loadSerie(true);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '6px',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                  placeholder="Nombre de chapitres..."
+                />
+              </div>
+
+              {/* Input pour modifier le nombre de chapitres lus */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '120px' }}>
+                  Chapitres lus :
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={serie.nb_chapitres || 9999}
                   value={serie.chapitres_lus || 0}
                   onChange={async (e) => {
-                    const newValue = Math.min(Math.max(0, parseInt(e.target.value) || 0), serie.nb_chapitres || 0);
+                    const newValue = Math.min(Math.max(0, parseInt(e.target.value) || 0), serie.nb_chapitres || 9999);
                     await window.electronAPI.updateSerie(serie.id, { chapitres_lus: newValue });
                     loadSerie(true);
                   }}
@@ -1043,8 +1070,9 @@ export default function SerieDetail() {
                   }}
                   className="btn btn-primary"
                   style={{ whiteSpace: 'nowrap' }}
+                  disabled={!serie.nb_chapitres}
                 >
-                  ✓ Tout marquer comme lu
+                  ✓ Tout lu
                 </button>
               </div>
             </div>
