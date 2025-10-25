@@ -2112,13 +2112,9 @@ export default function Settings() {
 
           {/* Section Base de données */}
           <div className="card" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               💾 Emplacement de la base
             </h2>
-            
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
-              Configuration globale partagée par tous les utilisateurs.
-            </p>
             
             <div>
               <div style={{
@@ -2163,7 +2159,7 @@ export default function Settings() {
                 borderRadius: '8px',
                 borderLeft: '3px solid var(--primary)'
               }}>
-                💡 <strong>Configuration globale :</strong> Tous les utilisateurs partagent la même base de données. Ce chemin est commun à l'ensemble de l'application.
+                💡 Tous les utilisateurs partagent cette base de données. Idéal pour une utilisation cloud (Proton Drive, OneDrive, etc.).
               </p>
 
               {/* Import/Export intégré */}
