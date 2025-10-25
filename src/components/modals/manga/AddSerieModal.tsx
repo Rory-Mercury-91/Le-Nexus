@@ -513,7 +513,7 @@ export default function AddSerieModal({ onClose, onSuccess }: AddSerieModalProps
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Nb de volumes
+                {typeVolume === 'Scan Manga' || typeVolume === 'Scan Webtoon' ? 'Nb de chapitres' : 'Nb de volumes'}
               </label>
               <input
                 type="number"

@@ -24,6 +24,7 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
   const [rating, setRating] = useState(serie.rating || '');
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Fermer le modal avec la touche Échap
   useEffect(() => {
@@ -51,31 +52,35 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
 
   const handleTranslate = async () => {
     if (!description || !description.trim()) {
-      alert('❌ Aucune description à traduire');
+      setMessage({ type: 'error', text: 'Aucune description à traduire' });
+      setTimeout(() => setMessage(null), 3000);
       return;
     }
 
     if (description.includes('traduit automatiquement') || description.includes('Synopsis français')) {
-      alert('⚠️ Cette description semble déjà traduite');
+      setMessage({ type: 'error', text: 'Cette description semble déjà traduite' });
+      setTimeout(() => setMessage(null), 3000);
       return;
     }
 
-    const confirm = window.confirm('🤖 Traduire la description avec l\'IA ?\n\nCela remplacera la description actuelle.');
-    if (!confirm) return;
-
     setTranslating(true);
+    setMessage(null);
+    
     try {
       const result = await window.electronAPI.translateSerieDescription(serie.id);
       
       if (result.success && result.translatedDescription) {
         setDescription(result.translatedDescription);
-        alert('✅ Description traduite avec succès !');
+        setMessage({ type: 'success', text: 'Description traduite avec succès !' });
+        setTimeout(() => setMessage(null), 3000);
       } else {
-        alert(`❌ ${result.error || 'Erreur lors de la traduction'}`);
+        setMessage({ type: 'error', text: result.error || 'Erreur lors de la traduction' });
+        setTimeout(() => setMessage(null), 5000);
       }
     } catch (error: any) {
       console.error('Erreur traduction:', error);
-      alert(`❌ ${error.message || 'Erreur lors de la traduction'}`);
+      setMessage({ type: 'error', text: error.message || 'Erreur lors de la traduction' });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setTranslating(false);
     }
@@ -136,6 +141,22 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
             <X size={24} />
           </button>
         </div>
+
+        {/* Message de feedback */}
+        {message && (
+          <div style={{
+            padding: '12px 16px',
+            marginBottom: '16px',
+            borderRadius: '8px',
+            background: message.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
+            color: message.type === 'success' ? '#10b981' : '#ef4444',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}>
+            {message.type === 'success' ? '✅' : '❌'} {message.text}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'flex', gap: '24px' }}>
@@ -287,7 +308,7 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Nb de volumes
+                {typeVolume === 'Scan Manga' || typeVolume === 'Scan Webtoon' ? 'Nb de chapitres' : 'Nb de volumes'}
               </label>
               <input
                 type="number"
