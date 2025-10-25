@@ -1902,7 +1902,7 @@ export default function Settings() {
             lineHeight: '1.6'
           }}>
             <strong style={{ color: 'var(--primary)' }}>ℹ️ Comment ça fonctionne ?</strong><br />
-            L'API F95List vérifie les versions de 1950+ jeux AVN. Si une nouvelle version est disponible, un badge violet "🔄 MAJ" s'affiche sur la carte du jeu. Vous serez notifié des mises à jour pour rester à jour facilement.
+            Le système scrape directement les pages F95Zone de vos jeux pour détecter les nouvelles versions. Si une mise à jour est disponible, un badge violet "🔄 MAJ" s'affiche sur la carte du jeu et toutes les données (version, statut, tags, image) sont automatiquement actualisées.
           </div>
         </div>
 
