@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const appName = 'ma-mangatheque';
+const appName = 'le-nexus';
 const platform = os.platform();
 
 let cachePath;
