@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText, Info, Settings, Flag, Clock, Users, Link2, Download, Languages, Tag } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText, Info, Settings, Flag, Clock, Users, Link2, Download, Languages, Tag, CheckCircle2, PlayCircle, XCircle, Ban } from 'lucide-react';
 import type { AvnGame } from '../types';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
 import EditAvnModal from '../components/modals/avn/EditAvnModal';
@@ -13,6 +13,7 @@ export default function AvnDetail() {
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showStatutDropdown, setShowStatutDropdown] = useState(false);
 
   useEffect(() => {
     loadGame();
@@ -53,6 +54,19 @@ export default function AvnDetail() {
     } catch (error) {
       console.error('Erreur suppression jeu:', error);
       alert('❌ Erreur lors de la suppression du jeu');
+    }
+  };
+
+  const handleChangeStatut = async (newStatut: 'Complété' | 'En cours' | 'À jouer' | 'Abandonné') => {
+    if (!game?.id) return;
+
+    try {
+      await window.electronAPI.updateAvnGame(game.id, { statut_perso: newStatut });
+      setShowStatutDropdown(false);
+      await loadGame();
+    } catch (error) {
+      console.error('Erreur changement statut:', error);
+      alert('❌ Erreur lors du changement de statut');
     }
   };
 
@@ -180,7 +194,7 @@ export default function AvnDetail() {
       )}
 
       {/* Badges en haut */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
         {game.statut_perso && (
           <div style={{
             padding: '12px 24px',
@@ -208,6 +222,128 @@ export default function AvnDetail() {
             🔄 Mise à jour disponible !
           </div>
         )}
+
+        {/* Sélecteur de statut rapide */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowStatutDropdown(!showStatutDropdown)}
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              fontSize: '13px'
+            }}
+          >
+            <Flag size={14} />
+            Changer statut
+          </button>
+
+          {showStatutDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              marginTop: '8px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+              zIndex: 1000,
+              minWidth: '200px',
+              overflow: 'hidden'
+            }}>
+              <button
+                onClick={() => handleChangeStatut('À jouer')}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: game.statut_perso === 'À jouer' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: 'var(--text)',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = game.statut_perso === 'À jouer' ? 'rgba(59, 130, 246, 0.1)' : 'transparent'}
+              >
+                <PlayCircle size={16} style={{ color: '#3b82f6' }} />
+                À jouer
+              </button>
+
+              <button
+                onClick={() => handleChangeStatut('En cours')}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: game.statut_perso === 'En cours' ? 'rgba(245, 158, 11, 0.1)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: 'var(--text)',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = game.statut_perso === 'En cours' ? 'rgba(245, 158, 11, 0.1)' : 'transparent'}
+              >
+                <Clock size={16} style={{ color: '#f59e0b' }} />
+                En cours
+              </button>
+
+              <button
+                onClick={() => handleChangeStatut('Complété')}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: game.statut_perso === 'Complété' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: 'var(--text)',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = game.statut_perso === 'Complété' ? 'rgba(16, 185, 129, 0.1)' : 'transparent'}
+              >
+                <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+                Complété
+              </button>
+
+              <button
+                onClick={() => handleChangeStatut('Abandonné')}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: game.statut_perso === 'Abandonné' ? 'rgba(107, 114, 128, 0.1)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: 'var(--text)',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107, 114, 128, 0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = game.statut_perso === 'Abandonné' ? 'rgba(107, 114, 128, 0.1)' : 'transparent'}
+              >
+                <Ban size={16} style={{ color: '#6b7280' }} />
+                Abandonné
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Informations */}

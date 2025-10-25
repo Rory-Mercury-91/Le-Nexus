@@ -89,7 +89,7 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
         className="card"
         style={{
           width: '100%',
-          maxWidth: '800px',
+          maxWidth: '1100px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
@@ -135,216 +135,285 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
             padding: '24px'
           }}
         >
-          <div style={{ display: 'grid', gap: '20px' }}>
-            {/* Titre */}
-            <div>
-              <label htmlFor="titre" className="label">
-                Titre <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="text"
-                id="titre"
-                value={titre}
-                onChange={(e) => setTitre(e.target.value)}
-                className="input"
-                required
-              />
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            {/* ========== COLONNE GAUCHE ========== */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Section : Informations principales */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  📋 Informations principales
+                </h3>
 
-            {/* Version */}
-            <div>
-              <label htmlFor="version" className="label">
-                Version
-              </label>
-              <input
-                type="text"
-                id="version"
-                value={version}
-                onChange={(e) => setVersion(e.target.value)}
-                className="input"
-                placeholder="ex: v0.5.2"
-              />
-            </div>
+                {/* Titre */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="titre" className="label">
+                    Titre <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="titre"
+                    value={titre}
+                    onChange={(e) => setTitre(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
 
-            {/* Statut du jeu */}
-            <div>
-              <label htmlFor="statut_jeu" className="label">
-                Statut du jeu
-              </label>
-              <select
-                id="statut_jeu"
-                value={statutJeu}
-                onChange={(e) => setStatutJeu(e.target.value as AvnStatutJeu | '')}
-                className="select"
-              >
-                <option value="">-- Non défini --</option>
-                <option value="EN COURS">EN COURS</option>
-                <option value="TERMINÉ">TERMINÉ</option>
-                <option value="ABANDONNÉ">ABANDONNÉ</option>
-              </select>
-            </div>
+                {/* Version */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="version" className="label">
+                    Version
+                  </label>
+                  <input
+                    type="text"
+                    id="version"
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    className="input"
+                    placeholder="ex: v0.5.2"
+                  />
+                </div>
 
-            {/* Moteur */}
-            <div>
-              <label htmlFor="moteur" className="label">
-                Moteur
-              </label>
-              <select
-                id="moteur"
-                value={moteur}
-                onChange={(e) => setMoteur(e.target.value as AvnMoteur | '')}
-                className="select"
-              >
-                <option value="">-- Non défini --</option>
-                <option value="RenPy">RenPy</option>
-                <option value="Unity">Unity</option>
-                <option value="RPGM">RPGM</option>
-                <option value="Unreal">Unreal</option>
-                <option value="HTML">HTML</option>
-                <option value="Flash">Flash</option>
-                <option value="QSP">QSP</option>
-                <option value="Autre">Autre</option>
-              </select>
-            </div>
+                {/* Statut du jeu */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="statut_jeu" className="label">
+                    Statut du jeu
+                  </label>
+                  <select
+                    id="statut_jeu"
+                    value={statutJeu}
+                    onChange={(e) => setStatutJeu(e.target.value as AvnStatutJeu | '')}
+                    className="select"
+                  >
+                    <option value="">-- Non défini --</option>
+                    <option value="EN COURS">EN COURS</option>
+                    <option value="TERMINÉ">TERMINÉ</option>
+                    <option value="ABANDONNÉ">ABANDONNÉ</option>
+                  </select>
+                </div>
 
-            {/* Statut personnel */}
-            <div>
-              <label htmlFor="statut_perso" className="label">
-                Mon statut
-              </label>
-              <select
-                id="statut_perso"
-                value={statutPerso}
-                onChange={(e) => setStatutPerso(e.target.value as AvnStatutPerso | '')}
-                className="select"
-              >
-                <option value="">-- Non défini --</option>
-                <option value="À jouer">À jouer</option>
-                <option value="En cours">En cours</option>
-                <option value="Complété">Complété</option>
-                <option value="Abandonné">Abandonné</option>
-              </select>
-            </div>
+                {/* Moteur */}
+                <div>
+                  <label htmlFor="moteur" className="label">
+                    Moteur
+                  </label>
+                  <select
+                    id="moteur"
+                    value={moteur}
+                    onChange={(e) => setMoteur(e.target.value as AvnMoteur | '')}
+                    className="select"
+                  >
+                    <option value="">-- Non défini --</option>
+                    <option value="RenPy">RenPy</option>
+                    <option value="Unity">Unity</option>
+                    <option value="RPGM">RPGM</option>
+                    <option value="Unreal">Unreal</option>
+                    <option value="HTML">HTML</option>
+                    <option value="Flash">Flash</option>
+                    <option value="QSP">QSP</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              </div>
 
-            {/* Couverture URL */}
-            <div>
-              <label htmlFor="couverture_url" className="label">
-                URL de la couverture
-              </label>
-              <input
-                type="url"
-                id="couverture_url"
-                value={couvertureUrl}
-                onChange={(e) => setCouvertureUrl(e.target.value)}
-                className="input"
-                placeholder="https://..."
-              />
-            </div>
+              {/* Section : Couverture */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  🖼️ Couverture
+                </h3>
 
-            {/* Lien F95Zone */}
-            <div>
-              <label htmlFor="lien_f95" className="label">
-                Lien F95Zone
-              </label>
-              <input
-                type="url"
-                id="lien_f95"
-                value={lienF95}
-                onChange={(e) => setLienF95(e.target.value)}
-                className="input"
-                placeholder="https://f95zone.to/threads/..."
-              />
-            </div>
+                {/* Aperçu */}
+                {couvertureUrl && (
+                  <div style={{
+                    marginBottom: '12px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '2px solid var(--border)'
+                  }}>
+                    <img
+                      src={couvertureUrl}
+                      alt="Aperçu couverture"
+                      style={{
+                        width: '100%',
+                        maxHeight: '250px',
+                        objectFit: 'cover'
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
 
-            {/* Lien traduction */}
-            <div>
-              <label htmlFor="lien_traduction" className="label">
-                Lien traduction française
-              </label>
-              <input
-                type="url"
-                id="lien_traduction"
-                value={lienTraduction}
-                onChange={(e) => setLienTraduction(e.target.value)}
-                className="input"
-                placeholder="https://..."
-              />
-            </div>
+                {/* URL Couverture */}
+                <div>
+                  <label htmlFor="couverture_url" className="label">
+                    URL de la couverture
+                  </label>
+                  <input
+                    type="url"
+                    id="couverture_url"
+                    value={couvertureUrl}
+                    onChange={(e) => setCouvertureUrl(e.target.value)}
+                    className="input"
+                    placeholder="https://..."
+                  />
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    💡 Collez une URL d'image HD pour remplacer la couverture
+                  </p>
+                </div>
+              </div>
 
-            {/* Lien download */}
-            <div>
-              <label htmlFor="lien_jeu" className="label">
-                Lien de téléchargement
-              </label>
-              <input
-                type="url"
-                id="lien_jeu"
-                value={lienJeu}
-                onChange={(e) => setLienJeu(e.target.value)}
-                className="input"
-                placeholder="https://..."
-              />
-            </div>
+              {/* Section : Tags */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  🏷️ Tags
+                </h3>
 
-            {/* Chemin executable */}
-            <div>
-              <label htmlFor="chemin_executable" className="label">
-                Chemin de l'exécutable
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  id="chemin_executable"
-                  value={cheminExecutable}
-                  onChange={(e) => setCheminExecutable(e.target.value)}
-                  className="input"
-                  placeholder="C:\Games\MyGame\game.exe"
-                  style={{ flex: 1 }}
-                />
-                <button
-                  type="button"
-                  onClick={handleChooseExecutable}
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                  <FolderOpen size={16} />
-                  Parcourir
-                </button>
+                <div>
+                  <label htmlFor="tags" className="label">
+                    Tags (séparés par des virgules)
+                  </label>
+                  <input
+                    type="text"
+                    id="tags"
+                    value={tagsInput}
+                    onChange={(e) => setTagsInput(e.target.value)}
+                    className="input"
+                    placeholder="3DCG, Romance, Incest, ..."
+                  />
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    Exemple : 3DCG, Romance, Harem, Milf
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Tags */}
-            <div>
-              <label htmlFor="tags" className="label">
-                Tags (séparés par des virgules)
-              </label>
-              <input
-                type="text"
-                id="tags"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                className="input"
-                placeholder="3DCG, Romance, Incest, ..."
-              />
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Exemple : 3DCG, Romance, Harem, Milf
-              </p>
-            </div>
+            {/* ========== COLONNE DROITE ========== */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Section : Liens */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  🔗 Liens
+                </h3>
 
-            {/* Notes privées */}
-            <div>
-              <label htmlFor="notes_privees" className="label">
-                Notes privées
-              </label>
-              <textarea
-                id="notes_privees"
-                value={notesPrivees}
-                onChange={(e) => setNotesPrivees(e.target.value)}
-                className="input"
-                rows={4}
-                placeholder="Vos notes personnelles sur ce jeu..."
-                style={{ resize: 'vertical', fontFamily: 'inherit' }}
-              />
+                {/* Lien F95Zone */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="lien_f95" className="label">
+                    Lien F95Zone
+                  </label>
+                  <input
+                    type="url"
+                    id="lien_f95"
+                    value={lienF95}
+                    onChange={(e) => setLienF95(e.target.value)}
+                    className="input"
+                    placeholder="https://f95zone.to/threads/..."
+                  />
+                </div>
+
+                {/* Lien traduction */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="lien_traduction" className="label">
+                    Lien traduction française
+                  </label>
+                  <input
+                    type="url"
+                    id="lien_traduction"
+                    value={lienTraduction}
+                    onChange={(e) => setLienTraduction(e.target.value)}
+                    className="input"
+                    placeholder="https://..."
+                  />
+                </div>
+
+                {/* Lien download */}
+                <div>
+                  <label htmlFor="lien_jeu" className="label">
+                    Lien de téléchargement
+                  </label>
+                  <input
+                    type="url"
+                    id="lien_jeu"
+                    value={lienJeu}
+                    onChange={(e) => setLienJeu(e.target.value)}
+                    className="input"
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+
+              {/* Section : Paramètres personnels */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  👤 Paramètres personnels
+                </h3>
+
+                {/* Statut personnel */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="statut_perso" className="label">
+                    Mon statut
+                  </label>
+                  <select
+                    id="statut_perso"
+                    value={statutPerso}
+                    onChange={(e) => setStatutPerso(e.target.value as AvnStatutPerso | '')}
+                    className="select"
+                  >
+                    <option value="">-- Non défini --</option>
+                    <option value="À jouer">À jouer</option>
+                    <option value="En cours">En cours</option>
+                    <option value="Complété">Complété</option>
+                    <option value="Abandonné">Abandonné</option>
+                  </select>
+                </div>
+
+                {/* Chemin executable */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="chemin_executable" className="label">
+                    Chemin de l'exécutable
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      id="chemin_executable"
+                      value={cheminExecutable}
+                      onChange={(e) => setCheminExecutable(e.target.value)}
+                      className="input"
+                      placeholder="C:\Games\MyGame\game.exe"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleChooseExecutable}
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <FolderOpen size={16} />
+                      Parcourir
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    💡 Permet de lancer le jeu directement depuis l'app
+                  </p>
+                </div>
+
+                {/* Notes privées */}
+                <div>
+                  <label htmlFor="notes_privees" className="label">
+                    Notes privées
+                  </label>
+                  <textarea
+                    id="notes_privees"
+                    value={notesPrivees}
+                    onChange={(e) => setNotesPrivees(e.target.value)}
+                    className="input"
+                    rows={6}
+                    placeholder="Vos notes personnelles sur ce jeu..."
+                    style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </form>
