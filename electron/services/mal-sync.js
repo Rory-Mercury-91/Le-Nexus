@@ -286,8 +286,8 @@ async function syncAnimeProgress(db, malAnimes, currentUser, onProgress = null) 
         const insertResult = db.prepare(`
           INSERT INTO anime_series (
             mal_id, titre, type, nb_episodes, description, couverture_url,
-            genres, mal_url, studios, statut_diffusion, annee_diffusion
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            genres, mal_url, studios, statut_diffusion, annee, utilisateur_ajout
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           malId,
           titre,
@@ -299,7 +299,8 @@ async function syncAnimeProgress(db, malAnimes, currentUser, onProgress = null) 
           mal_url,
           studios,
           statut_diffusion,
-          annee_diffusion
+          annee_diffusion,
+          currentUser
         );
         
         anime = { id: insertResult.lastInsertRowid, titre };
