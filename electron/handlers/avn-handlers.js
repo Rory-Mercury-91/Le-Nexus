@@ -34,13 +34,18 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       let query = `
         SELECT 
           g.*,
+          ug.chemin_executable,
+          ug.notes_privees as notes_privees_user,
+          ug.statut_perso as statut_perso_user,
+          ug.derniere_session as derniere_session_user,
           GROUP_CONCAT(p.utilisateur) as proprietaires
         FROM avn_games g
         LEFT JOIN avn_proprietaires p ON g.id = p.game_id
+        LEFT JOIN avn_user_games ug ON g.id = ug.game_id AND ug.utilisateur = ?
       `;
       
       const conditions = [];
-      const params = [];
+      const params = [currentUser]; // Pour la jointure avn_user_games
       
       // Filtre par utilisateur (propriétaire)
       if (filters.utilisateur) {
@@ -48,9 +53,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         params.push(filters.utilisateur);
       }
       
-      // Filtre par statut personnel
+      // Filtre par statut personnel (utiliser les données utilisateur)
       if (filters.statut_perso) {
-        conditions.push(`g.statut_perso = ?`);
+        conditions.push(`COALESCE(ug.statut_perso, g.statut_perso) = ?`);
         params.push(filters.statut_perso);
       }
       
@@ -115,6 +120,11 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         
         return {
           ...game,
+          // Utiliser les données par utilisateur si disponibles, sinon fallback sur les données globales
+          chemin_executable: game.chemin_executable,
+          notes_privees: game.notes_privees_user || game.notes_privees,
+          statut_perso: game.statut_perso_user || game.statut_perso,
+          derniere_session: game.derniere_session_user || game.derniere_session,
           tags: tags,
           proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
         };
@@ -133,16 +143,22 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   ipcMain.handle('get-avn-game', (event, id) => {
     try {
       const db = getDb();
+      const currentUser = store.get('currentUser', '');
       
       const game = db.prepare(`
         SELECT 
           g.*,
+          ug.chemin_executable,
+          ug.notes_privees as notes_privees_user,
+          ug.statut_perso as statut_perso_user,
+          ug.derniere_session as derniere_session_user,
           GROUP_CONCAT(p.utilisateur) as proprietaires
         FROM avn_games g
         LEFT JOIN avn_proprietaires p ON g.id = p.game_id
+        LEFT JOIN avn_user_games ug ON g.id = ug.game_id AND ug.utilisateur = ?
         WHERE g.id = ?
         GROUP BY g.id
-      `).get(id);
+      `).get(currentUser, id);
       
       if (!game) {
         throw new Error(`Jeu AVN non trouvé (ID: ${id})`);
@@ -177,6 +193,11 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       
       return {
         ...game,
+        // Utiliser les données par utilisateur si disponibles
+        chemin_executable: game.chemin_executable,
+        notes_privees: game.notes_privees_user || game.notes_privees,
+        statut_perso: game.statut_perso_user || game.statut_perso,
+        derniere_session: game.derniere_session_user || game.derniere_session,
         tags: tags,
         proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
       };
@@ -200,16 +221,15 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         throw new Error('Aucun utilisateur actuel sélectionné');
       }
       
-      // Insérer le jeu
+      // Insérer le jeu (données globales uniquement)
       const result = db.prepare(`
         INSERT INTO avn_games (
           f95_thread_id, titre, version, statut_jeu, moteur,
           couverture_url, tags, lien_f95, lien_traduction, lien_jeu,
-          statut_perso, notes_privees, chemin_executable,
-          derniere_session, version_traduction, statut_traduction, type_traduction,
+          version_traduction, statut_traduction, type_traduction,
           version_disponible, maj_disponible,
           derniere_verif, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `).run(
         gameData.f95_thread_id || null,
         gameData.titre,
@@ -221,10 +241,6 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         gameData.lien_f95 || null,
         gameData.lien_traduction || null,
         gameData.lien_jeu || null,
-        gameData.statut_perso || 'À jouer',
-        gameData.notes_privees || null,
-        gameData.chemin_executable || null,
-        gameData.derniere_session || null,
         gameData.version_traduction || null,
         gameData.statut_traduction || null,
         gameData.type_traduction || null,
@@ -243,6 +259,19 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           VALUES (?, ?)
         `).run(gameId, user);
       }
+      
+      // Créer les données utilisateur pour le créateur du jeu
+      db.prepare(`
+        INSERT INTO avn_user_games (game_id, utilisateur, statut_perso, notes_privees, chemin_executable, derniere_session)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        gameId,
+        currentUser,
+        gameData.statut_perso || 'À jouer',
+        gameData.notes_privees || null,
+        gameData.chemin_executable || null,
+        gameData.derniere_session || null
+      );
       
       console.log(`✅ Jeu AVN créé: "${gameData.titre}" (ID: ${gameId})`);
       
@@ -300,9 +329,11 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           
           console.log(`📥 Téléchargement de l'image...`);
           const result = await coverManager.downloadCover(
+            pathManager,
             jsonData.image, 
+            titre,
             'avn', 
-            gameSlug,
+            null,
             lien_f95 // referer
           );
           
@@ -394,80 +425,96 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   ipcMain.handle('update-avn-game', (event, id, gameData) => {
     try {
       const db = getDb();
+      const currentUser = store.get('currentUser', '');
       
-      const fields = [];
-      const values = [];
+      // Séparer les champs globaux et les champs utilisateur
+      const globalFields = [];
+      const globalValues = [];
+      const userFields = {};
       
       if (gameData.titre !== undefined) {
-        fields.push('titre = ?');
-        values.push(gameData.titre);
+        globalFields.push('titre = ?');
+        globalValues.push(gameData.titre);
       }
       if (gameData.version !== undefined) {
-        fields.push('version = ?');
-        values.push(gameData.version);
+        globalFields.push('version = ?');
+        globalValues.push(gameData.version);
       }
       if (gameData.statut_jeu !== undefined) {
-        fields.push('statut_jeu = ?');
-        values.push(gameData.statut_jeu);
+        globalFields.push('statut_jeu = ?');
+        globalValues.push(gameData.statut_jeu);
       }
       if (gameData.moteur !== undefined) {
-        fields.push('moteur = ?');
-        values.push(gameData.moteur);
+        globalFields.push('moteur = ?');
+        globalValues.push(gameData.moteur);
       }
       if (gameData.couverture_url !== undefined) {
-        fields.push('couverture_url = ?');
-        values.push(gameData.couverture_url);
+        globalFields.push('couverture_url = ?');
+        globalValues.push(gameData.couverture_url);
       }
       if (gameData.tags !== undefined) {
-        fields.push('tags = ?');
-        values.push(JSON.stringify(gameData.tags));
+        globalFields.push('tags = ?');
+        globalValues.push(JSON.stringify(gameData.tags));
       }
       if (gameData.lien_f95 !== undefined) {
-        fields.push('lien_f95 = ?');
-        values.push(gameData.lien_f95);
+        globalFields.push('lien_f95 = ?');
+        globalValues.push(gameData.lien_f95);
       }
       if (gameData.lien_traduction !== undefined) {
-        fields.push('lien_traduction = ?');
-        values.push(gameData.lien_traduction);
+        globalFields.push('lien_traduction = ?');
+        globalValues.push(gameData.lien_traduction);
       }
       if (gameData.lien_jeu !== undefined) {
-        fields.push('lien_jeu = ?');
-        values.push(gameData.lien_jeu);
-      }
-      if (gameData.statut_perso !== undefined) {
-        fields.push('statut_perso = ?');
-        values.push(gameData.statut_perso);
-      }
-      if (gameData.notes_privees !== undefined) {
-        fields.push('notes_privees = ?');
-        values.push(gameData.notes_privees);
-      }
-      if (gameData.chemin_executable !== undefined) {
-        fields.push('chemin_executable = ?');
-        values.push(gameData.chemin_executable);
-      }
-      if (gameData.derniere_session !== undefined) {
-        fields.push('derniere_session = ?');
-        values.push(gameData.derniere_session);
+        globalFields.push('lien_jeu = ?');
+        globalValues.push(gameData.lien_jeu);
       }
       if (gameData.version_traduction !== undefined) {
-        fields.push('version_traduction = ?');
-        values.push(gameData.version_traduction);
+        globalFields.push('version_traduction = ?');
+        globalValues.push(gameData.version_traduction);
       }
       if (gameData.statut_traduction !== undefined) {
-        fields.push('statut_traduction = ?');
-        values.push(gameData.statut_traduction);
+        globalFields.push('statut_traduction = ?');
+        globalValues.push(gameData.statut_traduction);
       }
       if (gameData.type_traduction !== undefined) {
-        fields.push('type_traduction = ?');
-        values.push(gameData.type_traduction);
+        globalFields.push('type_traduction = ?');
+        globalValues.push(gameData.type_traduction);
       }
       
-      fields.push('updated_at = datetime(\'now\')');
-      values.push(id);
+      // Champs spécifiques à l'utilisateur
+      if (gameData.statut_perso !== undefined) {
+        userFields.statut_perso = gameData.statut_perso;
+      }
+      if (gameData.notes_privees !== undefined) {
+        userFields.notes_privees = gameData.notes_privees;
+      }
+      if (gameData.chemin_executable !== undefined) {
+        userFields.chemin_executable = gameData.chemin_executable;
+      }
+      if (gameData.derniere_session !== undefined) {
+        userFields.derniere_session = gameData.derniere_session;
+      }
       
-      const query = `UPDATE avn_games SET ${fields.join(', ')} WHERE id = ?`;
-      db.prepare(query).run(...values);
+      // Mettre à jour les données globales si nécessaire
+      if (globalFields.length > 0) {
+        globalFields.push('updated_at = datetime(\'now\')');
+        globalValues.push(id);
+        const query = `UPDATE avn_games SET ${globalFields.join(', ')} WHERE id = ?`;
+        db.prepare(query).run(...globalValues);
+      }
+      
+      // Mettre à jour/insérer les données utilisateur si nécessaire
+      if (Object.keys(userFields).length > 0) {
+        const userFieldNames = Object.keys(userFields);
+        const userFieldValues = Object.values(userFields);
+        
+        db.prepare(`
+          INSERT INTO avn_user_games (game_id, utilisateur, ${userFieldNames.join(', ')})
+          VALUES (?, ?, ${userFieldNames.map(() => '?').join(', ')})
+          ON CONFLICT(game_id, utilisateur) DO UPDATE SET
+            ${userFieldNames.map(f => `${f} = excluded.${f}`).join(', ')}
+        `).run(id, currentUser, ...userFieldValues);
+      }
       
       // Mettre à jour les propriétaires si fourni
       if (gameData.proprietaires !== undefined) {
@@ -542,37 +589,45 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   ipcMain.handle('launch-avn-game', async (event, id) => {
     try {
       const db = getDb();
+      const currentUser = store.get('currentUser', '');
       
-      const game = db.prepare('SELECT chemin_executable, titre FROM avn_games WHERE id = ?').get(id);
+      // Récupérer le chemin depuis avn_user_games
+      const userGame = db.prepare(`
+        SELECT ug.chemin_executable, g.titre
+        FROM avn_games g
+        LEFT JOIN avn_user_games ug ON g.id = ug.game_id AND ug.utilisateur = ?
+        WHERE g.id = ?
+      `).get(currentUser, id);
       
-      if (!game || !game.chemin_executable) {
+      if (!userGame || !userGame.chemin_executable) {
         throw new Error('Aucun exécutable défini pour ce jeu');
       }
       
       // Vérifier que le fichier existe
       const fs = require('fs');
-      if (!fs.existsSync(game.chemin_executable)) {
-        throw new Error(`L'exécutable n'existe pas: ${game.chemin_executable}`);
+      if (!fs.existsSync(userGame.chemin_executable)) {
+        throw new Error(`L'exécutable n'existe pas: ${userGame.chemin_executable}`);
       }
       
       // Lancer le jeu
-      const gamePath = path.resolve(game.chemin_executable);
+      const gamePath = path.resolve(userGame.chemin_executable);
       const gameDir = path.dirname(gamePath);
       
       exec(`"${gamePath}"`, { cwd: gameDir }, (error) => {
         if (error) {
-          console.error(`❌ Erreur lancement jeu "${game.titre}":`, error);
+          console.error(`❌ Erreur lancement jeu "${userGame.titre}":`, error);
         } else {
-          console.log(`🎮 Jeu lancé: "${game.titre}"`);
+          console.log(`🎮 Jeu lancé: "${userGame.titre}"`);
         }
       });
       
-      // Mettre à jour la dernière session
+      // Mettre à jour la dernière session dans avn_user_games
       db.prepare(`
-        UPDATE avn_games 
-        SET derniere_session = datetime('now'), updated_at = datetime('now')
-        WHERE id = ?
-      `).run(id);
+        INSERT INTO avn_user_games (game_id, utilisateur, derniere_session)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(game_id, utilisateur) DO UPDATE SET
+          derniere_session = datetime('now')
+      `).run(id, currentUser);
       
       return { success: true };
       
@@ -590,8 +645,13 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
     try {
       const db = getDb();
       
-      // Récupérer tous les jeux avec un f95_thread_id
-      const games = db.prepare('SELECT id, f95_thread_id, titre, version, statut_jeu, moteur, tags, couverture_url, maj_disponible FROM avn_games WHERE f95_thread_id IS NOT NULL').all();
+      // Récupérer tous les jeux avec un f95_thread_id ET liens F95Zone uniquement (pas LewdCorner)
+      const games = db.prepare(`
+        SELECT id, f95_thread_id, titre, version, statut_jeu, moteur, tags, couverture_url, maj_disponible, lien_f95 
+        FROM avn_games 
+        WHERE f95_thread_id IS NOT NULL 
+          AND (lien_f95 IS NULL OR lien_f95 NOT LIKE '%lewdcorner%')
+      `).all();
       
       if (games.length === 0) {
         console.log('⚠️ Aucun jeu AVN à vérifier (aucun f95_thread_id)');
@@ -724,9 +784,19 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             image = image.replace('/thumb/', '/');
           }
           
+          // Normaliser les statuts pour comparaison (FR → EN)
+          const normalizeStatus = (statutJeu) => {
+            if (!statutJeu) return 'Ongoing';
+            const upper = statutJeu.toUpperCase();
+            if (upper === 'EN COURS' || upper === 'ONGOING') return 'Ongoing';
+            if (upper === 'TERMINÉ' || upper === 'COMPLETED') return 'Completed';
+            if (upper === 'ABANDONNÉ' || upper === 'ABANDONED') return 'Abandoned';
+            return statutJeu;
+          };
+          
           // Vérifier si des données ont changé
           const versionChanged = version && version !== game.version;
-          const statusChanged = status !== game.statut_jeu;
+          const statusChanged = normalizeStatus(status) !== normalizeStatus(game.statut_jeu);
           const engineChanged = engine !== game.moteur;
           const tagsChanged = tags.join(',') !== (game.tags || '');
           const imageChanged = image !== game.couverture_url;

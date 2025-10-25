@@ -93,27 +93,42 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         
         // Récupérer les tomes avec leur statut de lecture pour l'utilisateur actuel
         let tomesWithLecture = [];
-        if (currentUser && serie.tome_count > 0) {
-          tomesWithLecture = db.prepare(`
-            SELECT 
-              t.id,
-              t.numero,
-              CASE WHEN lt.lu = 1 THEN 1 ELSE 0 END as lu
-            FROM tomes t
-            LEFT JOIN lecture_tomes lt ON t.id = lt.tome_id AND lt.utilisateur = ?
-            WHERE t.serie_id = ?
-            ORDER BY t.numero ASC
-          `).all(currentUser, serie.id);
-          
-          // Calculer automatiquement les tags en_cours et lu
-          const nbTomesLus = tomesWithLecture.filter(t => t.lu === 1).length;
-          
-          // Si pas de tag manuel (a_lire ou abandonne), calculer automatiquement
-          if (!serie.manual_tag || serie.manual_tag === null) {
-            if (nbTomesLus === serie.tome_count && nbTomesLus > 0) {
-              effectiveTag = 'lu';
-            } else if (nbTomesLus > 0) {
-              effectiveTag = 'en_cours';
+        if (currentUser) {
+          if (serie.type_contenu === 'chapitre') {
+            // Pour les séries en chapitres, calculer automatiquement le tag basé sur chapitres_lus
+            if (!serie.manual_tag || serie.manual_tag === null) {
+              const chapitresLus = serie.chapitres_lus || 0;
+              const nbChapitres = serie.nb_chapitres || 0;
+              
+              if (chapitresLus === nbChapitres && chapitresLus > 0) {
+                effectiveTag = 'lu';
+              } else if (chapitresLus > 0) {
+                effectiveTag = 'en_cours';
+              }
+            }
+          } else if (serie.tome_count > 0) {
+            // Pour les séries en volumes
+            tomesWithLecture = db.prepare(`
+              SELECT 
+                t.id,
+                t.numero,
+                CASE WHEN lt.lu = 1 THEN 1 ELSE 0 END as lu
+              FROM tomes t
+              LEFT JOIN lecture_tomes lt ON t.id = lt.tome_id AND lt.utilisateur = ?
+              WHERE t.serie_id = ?
+              ORDER BY t.numero ASC
+            `).all(currentUser, serie.id);
+            
+            // Calculer automatiquement les tags en_cours et lu
+            const nbTomesLus = tomesWithLecture.filter(t => t.lu === 1).length;
+            
+            // Si pas de tag manuel (a_lire ou abandonne), calculer automatiquement
+            if (!serie.manual_tag || serie.manual_tag === null) {
+              if (nbTomesLus === serie.tome_count && nbTomesLus > 0) {
+                effectiveTag = 'lu';
+              } else if (nbTomesLus > 0) {
+                effectiveTag = 'en_cours';
+              }
             }
           }
         }

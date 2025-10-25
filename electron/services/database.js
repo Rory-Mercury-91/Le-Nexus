@@ -414,9 +414,23 @@ function initDatabase(dbPath) {
       FOREIGN KEY (game_id) REFERENCES avn_games(id) ON DELETE CASCADE
     );
     
+    CREATE TABLE IF NOT EXISTS avn_user_games (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id INTEGER NOT NULL,
+      utilisateur TEXT NOT NULL,
+      chemin_executable TEXT,
+      notes_privees TEXT,
+      statut_perso TEXT,
+      derniere_session DATETIME,
+      FOREIGN KEY (game_id) REFERENCES avn_games(id) ON DELETE CASCADE,
+      UNIQUE(game_id, utilisateur)
+    );
+    
     CREATE INDEX IF NOT EXISTS idx_avn_f95_id ON avn_games(f95_thread_id);
     CREATE INDEX IF NOT EXISTS idx_avn_statut ON avn_games(statut_perso);
     CREATE INDEX IF NOT EXISTS idx_avn_maj ON avn_games(maj_disponible);
+    CREATE INDEX IF NOT EXISTS idx_avn_user_games_user ON avn_user_games(utilisateur);
+    CREATE INDEX IF NOT EXISTS idx_avn_user_games_game ON avn_user_games(game_id);
   `);
   
   // ========================================

@@ -106,6 +106,9 @@ export default function AnimeDetail() {
   const liensStreaming = anime.liens_streaming ? JSON.parse(anime.liens_streaming) : [];
   const liensExternes = anime.liens_externes ? JSON.parse(anime.liens_externes) : [];
   const episodesVus = episodes.filter(ep => ep.vu).length;
+  
+  // Déterminer si l'affichage doit être en colonne (Crunchyroll) ou en grille
+  const isCrunchyroll = anime.source_import === 'crunchyroll';
 
   return (
     <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto' }} className="fade-in">
@@ -119,10 +122,33 @@ export default function AnimeDetail() {
         Retour aux animes
       </button>
 
-      {/* Layout principal */}
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', marginBottom: '24px' }}>
-        {/* Colonne gauche : Couverture */}
-        <div>
+      {/* Image Crunchyroll en pleine largeur */}
+      {isCrunchyroll && anime.couverture_url && (
+        <div style={{
+          width: '100%',
+          maxHeight: '400px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          marginBottom: '24px',
+          border: '2px solid var(--border)',
+          background: 'var(--surface)'
+        }}>
+          <CoverImage
+            src={anime.couverture_url}
+            alt={anime.titre}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain'
+            }}
+          />
+        </div>
+      )}
+
+      {/* Layout principal : Crunchyroll = colonne simple, autres = grille 2 colonnes */}
+      <div style={isCrunchyroll ? { display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '24px' } : { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', marginBottom: '24px' }}>
+        {/* Colonne gauche : Couverture (uniquement si pas Crunchyroll) */}
+        {!isCrunchyroll && <div>
           <div style={{
             borderRadius: '12px',
             overflow: 'hidden',
@@ -229,7 +255,7 @@ export default function AnimeDetail() {
               <ExternalLink size={14} />
             </a>
           )}
-        </div>
+        </div>}
 
         {/* Colonne droite : Informations */}
         <div>
