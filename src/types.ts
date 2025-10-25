@@ -190,7 +190,7 @@ export interface AnimeSerie {
   date_debut?: string;
   date_fin?: string;
   duree?: string;
-  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente';
+  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente' | 'À regarder';
   annee?: number;
   saison_diffusion?: string;
   genres?: string;

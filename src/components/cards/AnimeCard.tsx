@@ -1,16 +1,20 @@
-import { Eye, Heart, Tv } from 'lucide-react';
+import { Eye, Heart, MoreVertical, Tv } from 'lucide-react';
+import { useState } from 'react';
 import { AnimeSerie } from '../../types';
 import CoverImage from '../common/CoverImage';
 
 interface AnimeCardProps {
   anime: AnimeSerie;
   onClick: () => void;
+  onStatusChange?: (animeId: number, newStatus: string) => Promise<void>;
+  onToggleFavorite?: (animeId: number) => Promise<void>;
   imageObjectFit?: 'cover' | 'contain';
   presentationMode?: boolean;
   imageOnly?: boolean;
 }
 
-export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', presentationMode = false, imageOnly = false }: AnimeCardProps) {
+export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavorite, imageObjectFit = 'cover', presentationMode = false, imageOnly = false }: AnimeCardProps) {
+  const [showMenu, setShowMenu] = useState(false);
   const cardHeight = imageOnly ? '300px' : (presentationMode ? '560px' : '420px');
   const coverHeight = imageOnly ? '300px' : (presentationMode ? '420px' : '280px');
 
@@ -57,27 +61,23 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Bannières diagonales pour les tags En cours / Terminé / Abandonné */}
+        {/* Bannières diagonales pour les statuts En cours / Terminé / Abandonné */}
         {(() => {
-          if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
-          
-          const episodesVus = anime.episodes_vus || 0;
-          const episodesTotal = anime.nb_episodes || 0;
-          const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
-          const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
-          const isAbandoned = anime.tag === 'abandonne';
-          
-          if (!isComplete && !isWatching && !isAbandoned) return null;
+          const statut = anime.statut_visionnage;
+          if (!statut || statut === 'À regarder') return null;
           
           let backgroundColor = '#f59e0b'; // En cours (orange)
           let label = 'En cours';
           
-          if (isComplete) {
+          if (statut === 'Terminé') {
             backgroundColor = '#10b981'; // Terminé (vert)
             label = 'Terminé';
-          } else if (isAbandoned) {
+          } else if (statut === 'Abandonné') {
             backgroundColor = '#6b7280'; // Abandonné (gris)
             label = 'Abandonné';
+          } else if (statut === 'En attente') {
+            backgroundColor = '#6366f1'; // En attente (bleu)
+            label = 'En attente';
           }
           
           return (
@@ -115,30 +115,103 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           );
         })()}
 
-        {/* Badge favori en haut à droite */}
-        {anime.is_favorite && (
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            title="Favori"
-            style={{
-              position: 'absolute',
-              top: '12px',
-              right: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.95)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-              flexShrink: 0,
-              zIndex: 4
-            }}
-          >
-            <Heart size={18} fill="#ef4444" color="#ef4444" />
+        {/* Menu actions en haut à droite */}
+        {(onStatusChange || onToggleFavorite) && (
+          <div style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 5 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu(!showMenu);
+              }}
+              style={{
+                background: 'rgba(0, 0, 0, 0.7)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white'
+              }}
+            >
+              <MoreVertical size={18} />
+            </button>
+
+            {showMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '40px',
+                  right: '0',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  minWidth: '180px',
+                  zIndex: 1000
+                }}
+              >
+                {onStatusChange && (
+                  <>
+                    <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                      STATUT
+                    </div>
+                    {['En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'].map(status => (
+                      <button
+                        key={status}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStatusChange(anime.id, status);
+                          setShowMenu(false);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 16px',
+                          background: anime.statut_visionnage === status ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                          border: 'none',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          color: anime.statut_visionnage === status ? 'var(--primary)' : 'var(--text)'
+                        }}
+                      >
+                        {anime.statut_visionnage === status && '✓ '}{status}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {onToggleFavorite && (
+                  <>
+                    <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleFavorite(anime.id);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 16px',
+                        background: 'transparent',
+                        border: 'none',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: 'var(--text)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <Heart size={14} fill={anime.is_favorite ? '#ef4444' : 'none'} color={anime.is_favorite ? '#ef4444' : 'currentColor'} />
+                      {anime.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -193,28 +266,23 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
           </div>
         )}
 
-        {/* Bannières diagonales pour les tags En cours / Terminé / Abandonné */}
+        {/* Bannières diagonales pour les statuts En cours / Terminé / Abandonné */}
         {(() => {
-          // Afficher pour "en_cours", "termine" et "abandonne"
-          if (anime.tag !== 'en_cours' && anime.tag !== 'termine' && anime.tag !== 'abandonne') return null;
-          
-          const episodesVus = anime.episodes_vus || 0;
-          const episodesTotal = anime.nb_episodes || 0;
-          const isComplete = anime.tag === 'termine' || (episodesTotal > 0 && episodesVus === episodesTotal);
-          const isWatching = anime.tag === 'en_cours' || (episodesVus > 0 && episodesVus < episodesTotal);
-          const isAbandoned = anime.tag === 'abandonne';
-          
-          if (!isComplete && !isWatching && !isAbandoned) return null;
+          const statut = anime.statut_visionnage;
+          if (!statut || statut === 'À regarder') return null;
           
           let backgroundColor = '#f59e0b'; // En cours (orange)
           let label = 'En cours';
           
-          if (isComplete) {
+          if (statut === 'Terminé') {
             backgroundColor = '#10b981'; // Terminé (vert)
             label = 'Terminé';
-          } else if (isAbandoned) {
+          } else if (statut === 'Abandonné') {
             backgroundColor = '#6b7280'; // Abandonné (gris)
             label = 'Abandonné';
+          } else if (statut === 'En attente') {
+            backgroundColor = '#6366f1'; // En attente (bleu)
+            label = 'En attente';
           }
           
           return (
@@ -253,6 +321,106 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
         })()}
 
       </div>
+
+      {/* Menu actions en haut à droite */}
+      {(onStatusChange || onToggleFavorite) && (
+        <div style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 5 }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            style={{
+              background: 'rgba(0, 0, 0, 0.7)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'white'
+            }}
+          >
+            <MoreVertical size={18} />
+          </button>
+
+          {showMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '40px',
+                right: '0',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                minWidth: '180px',
+                zIndex: 1000
+              }}
+            >
+              {onStatusChange && (
+                <>
+                  <div style={{ padding: '8px 12px', fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                    STATUT
+                  </div>
+                  {['En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'].map(status => (
+                    <button
+                      key={status}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStatusChange(anime.id, status);
+                        setShowMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px 16px',
+                        background: anime.statut_visionnage === status ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                        border: 'none',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: anime.statut_visionnage === status ? 'var(--primary)' : 'var(--text)'
+                      }}
+                    >
+                      {anime.statut_visionnage === status && '✓ '}{status}
+                    </button>
+                  ))}
+                </>
+              )}
+              {onToggleFavorite && (
+                <>
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}></div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(anime.id);
+                      setShowMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      color: 'var(--text)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <Heart size={14} fill={anime.is_favorite ? '#ef4444' : 'none'} color={anime.is_favorite ? '#ef4444' : 'currentColor'} />
+                    {anime.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Contenu */}
       <div style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
