@@ -1210,6 +1210,137 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       return;
     }
 
+    // Route: POST /import-avn (importer un jeu AVN depuis F95Zone)
+    if (req.method === 'POST' && req.url === '/import-avn') {
+      let body = '';
+
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+
+      req.on('end', async () => {
+        try {
+          const avnData = JSON.parse(body);
+          console.log('🎮 Import AVN:', avnData.titre || avnData.name);
+
+          const db = getDb();
+          const currentUser = store.get('currentUser', '');
+
+          if (!currentUser) {
+            throw new Error('Aucun utilisateur actuel sélectionné');
+          }
+
+          // Normaliser les données (compatible avec Tool Extractor format)
+          const gameData = {
+            f95_thread_id: avnData.id || avnData.f95_thread_id,
+            titre: avnData.name || avnData.titre,
+            version: avnData.version,
+            statut_jeu: avnData.status || avnData.statut_jeu || 'EN COURS',
+            moteur: avnData.type || avnData.moteur,
+            couverture_url: avnData.image || avnData.couverture_url,
+            tags: avnData.tags || [],
+            lien_f95: avnData.link || avnData.lien_f95,
+            lien_traduction: avnData.lien_traduction || null,
+            lien_jeu: avnData.lien_jeu || null,
+            statut_perso: avnData.statut_perso || 'À jouer',
+            notes_privees: avnData.notes_privees || null,
+            chemin_executable: avnData.chemin_executable || null
+          };
+
+          // Vérifier si le jeu existe déjà
+          let existingGame = null;
+          if (gameData.f95_thread_id) {
+            existingGame = db.prepare('SELECT * FROM avn_games WHERE f95_thread_id = ?').get(gameData.f95_thread_id);
+          }
+
+          if (existingGame) {
+            // Mise à jour du jeu existant
+            db.prepare(`
+              UPDATE avn_games 
+              SET version = ?,
+                  statut_jeu = ?,
+                  moteur = ?,
+                  couverture_url = ?,
+                  tags = ?,
+                  lien_f95 = ?,
+                  updated_at = datetime('now')
+              WHERE id = ?
+            `).run(
+              gameData.version,
+              gameData.statut_jeu,
+              gameData.moteur,
+              gameData.couverture_url,
+              JSON.stringify(gameData.tags),
+              gameData.lien_f95,
+              existingGame.id
+            );
+
+            console.log(`✅ Jeu AVN mis à jour: "${gameData.titre}" (ID: ${existingGame.id})`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              success: true, 
+              message: `Jeu mis à jour: ${gameData.titre}`,
+              id: existingGame.id,
+              action: 'updated'
+            }));
+          } else {
+            // Créer un nouveau jeu
+            const result = db.prepare(`
+              INSERT INTO avn_games (
+                f95_thread_id, titre, version, statut_jeu, moteur,
+                couverture_url, tags, lien_f95, lien_traduction, lien_jeu,
+                statut_perso, notes_privees, chemin_executable,
+                created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            `).run(
+              gameData.f95_thread_id,
+              gameData.titre,
+              gameData.version,
+              gameData.statut_jeu,
+              gameData.moteur,
+              gameData.couverture_url,
+              JSON.stringify(gameData.tags),
+              gameData.lien_f95,
+              gameData.lien_traduction,
+              gameData.lien_jeu,
+              gameData.statut_perso,
+              gameData.notes_privees,
+              gameData.chemin_executable
+            );
+
+            const gameId = result.lastInsertRowid;
+
+            // Ajouter le propriétaire actuel
+            db.prepare(`
+              INSERT INTO avn_proprietaires (game_id, utilisateur)
+              VALUES (?, ?)
+            `).run(gameId, currentUser);
+
+            console.log(`✅ Jeu AVN créé: "${gameData.titre}" (ID: ${gameId})`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+              success: true, 
+              message: `Jeu ajouté: ${gameData.titre}`,
+              id: gameId,
+              action: 'created'
+            }));
+          }
+
+        } catch (error) {
+          console.error('❌ Erreur import AVN:', error);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            success: false, 
+            error: error.message 
+          }));
+        }
+      });
+
+      return;
+    }
+
     // Route: GET / (healthcheck)
     if (req.method === 'GET' && req.url === '/') {
       res.writeHead(200, { 'Content-Type': 'application/json' });

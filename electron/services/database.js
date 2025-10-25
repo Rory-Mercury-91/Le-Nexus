@@ -268,7 +268,55 @@ function initDatabase(dbPath) {
   
   migrateSeriesMalFields();
   
-  console.log('✅ Schéma de base de données créé/vérifié');
+  // ========================================
+  // TABLES AVN (ADULT VISUAL NOVELS)
+  // ========================================
+  
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS avn_games (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      
+      -- Données F95Zone
+      f95_thread_id INTEGER UNIQUE,
+      titre TEXT NOT NULL,
+      version TEXT,
+      statut_jeu TEXT, -- TERMINÉ, ABANDONNÉ, EN COURS
+      moteur TEXT, -- RenPy, Unity, RPGM, Unreal, HTML, etc.
+      couverture_url TEXT,
+      tags TEXT, -- JSON array
+      lien_f95 TEXT,
+      lien_traduction TEXT,
+      lien_jeu TEXT, -- Lien download/MEGA/etc
+      
+      -- Données utilisateur
+      statut_perso TEXT, -- Complété, En cours, À jouer, Abandonné
+      notes_privees TEXT,
+      chemin_executable TEXT, -- Pour lancer le jeu
+      derniere_session DATETIME,
+      
+      -- Contrôle de version
+      version_disponible TEXT, -- Version détectée via API
+      maj_disponible BOOLEAN DEFAULT 0,
+      derniere_verif DATETIME,
+      
+      -- Métadonnées
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS avn_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id INTEGER NOT NULL,
+      utilisateur TEXT NOT NULL,
+      FOREIGN KEY (game_id) REFERENCES avn_games(id) ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_avn_f95_id ON avn_games(f95_thread_id);
+    CREATE INDEX IF NOT EXISTS idx_avn_statut ON avn_games(statut_perso);
+    CREATE INDEX IF NOT EXISTS idx_avn_maj ON avn_games(maj_disponible);
+  `);
+  
+  console.log('✅ Schéma de base de données créé/vérifié (Mangas, Animes, AVN)');
   
   return db;
 }

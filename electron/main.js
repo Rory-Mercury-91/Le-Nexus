@@ -18,6 +18,7 @@ const { registerSettingsHandlers } = require('./handlers/settings-handlers');
 const { registerSearchHandlers } = require('./handlers/search-handlers');
 const { registerUserHandlers } = require('./handlers/user-handlers');
 const { registerMalSyncHandlers } = require('./handlers/mal-sync-handlers');
+const { registerAvnHandlers } = require('./handlers/avn-handlers');
 
 // Configuration
 const store = new Store();
@@ -313,6 +314,7 @@ app.whenReady().then(async () => {
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow);
+  registerAvnHandlers(ipcMain, getDb, store);
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     // Recharger le baseDirectory depuis le store
     const newBaseDirectory = store.get('baseDirectory');
