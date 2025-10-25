@@ -50,6 +50,7 @@ export default function Dashboard() {
     const data = await window.electronAPI.getStatistics();
     const lectureData = await window.electronAPI.getLectureStatistics();
     const progressData = await window.electronAPI.getRecentProgress();
+    console.log('🔍 Dashboard - progressData reçu:', progressData);
     const animesData = await window.electronAPI.getAnimeSeries({});
     const evolutionData = await window.electronAPI.getEvolutionStatistics();
     setStats(data);
@@ -150,14 +151,32 @@ export default function Dashboard() {
             {/* Progression récente (tomes + chapitres + épisodes) */}
             {recentProgress && (
               (() => {
+                // Debug: Afficher les données reçues
+                console.log('📊 recentProgress:', recentProgress);
+                console.log('  - Tomes:', recentProgress.tomes?.length || 0);
+                console.log('  - Chapitres:', recentProgress.chapitres?.length || 0);
+                console.log('  - Episodes:', recentProgress.episodes?.length || 0);
+                
                 // Fusionner et trier par date toutes les progressions
                 const allProgress: ProgressItem[] = [
-                  ...recentProgress.tomes,
-                  ...recentProgress.chapitres,
-                  ...recentProgress.episodes
-                ].sort((a, b) => new Date(b.dateProgression).getTime() - new Date(a.dateProgression).getTime());
+                  ...(recentProgress.tomes || []),
+                  ...(recentProgress.chapitres || []),
+                  ...(recentProgress.episodes || [])
+                ].sort((a, b) => {
+                  // Gestion sécurisée des dates
+                  const dateA = a.dateProgression ? new Date(a.dateProgression).getTime() : 0;
+                  const dateB = b.dateProgression ? new Date(b.dateProgression).getTime() : 0;
+                  return dateB - dateA;
+                });
 
-                if (allProgress.length === 0) return null;
+                console.log('  ✅ Total fusionné:', allProgress.length);
+
+                if (allProgress.length === 0) {
+                  console.log('  ⚠️ Aucune progression à afficher');
+                  return null;
+                }
+                
+                console.log('  🎨 Affichage du carrousel avec', allProgress.length, 'éléments');
 
                 return (
                   <div style={{ marginBottom: '16px' }}>
