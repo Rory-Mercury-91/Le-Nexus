@@ -30,12 +30,19 @@ function generatePKCEChallenge() {
   const code_verifier = base64urlEncode(verifierBuffer);
   
   // Générer le challenge: SHA256(code_verifier) en base64url
-  const challengeBuffer = crypto.createHash('sha256').update(code_verifier).digest();
+  // IMPORTANT: Spécifier 'ascii' pour l'encodage (pas UTF-8 par défaut)
+  const challengeBuffer = crypto.createHash('sha256').update(code_verifier, 'ascii').digest();
   const code_challenge = base64urlEncode(challengeBuffer);
   
   console.log('🔑 PKCE Debug:');
+  console.log('  code_verifier:', code_verifier.substring(0, 20) + '...');
   console.log('  code_verifier length:', code_verifier.length);
+  console.log('  code_challenge:', code_challenge.substring(0, 20) + '...');
   console.log('  code_challenge length:', code_challenge.length);
+  
+  // Test de vérification
+  const testChallenge = base64urlEncode(crypto.createHash('sha256').update(code_verifier, 'ascii').digest());
+  console.log('  Vérification OK:', testChallenge === code_challenge ? '✅' : '❌');
   
   return { code_verifier, code_challenge };
 }
@@ -193,6 +200,7 @@ function startOAuthFlow(onSuccess, onError) {
 async function exchangeCodeForTokens(code, codeVerifier) {
   console.log('🔄 Échange du code contre les tokens...');
   console.log('  Code:', code ? `${code.substring(0, 10)}...` : 'MANQUANT');
+  console.log('  Code verifier:', codeVerifier ? `${codeVerifier.substring(0, 20)}...` : 'MANQUANT');
   console.log('  Code verifier length:', codeVerifier ? codeVerifier.length : 'MANQUANT');
   console.log('  Redirect URI:', MAL_REDIRECT_URI);
   
@@ -202,6 +210,8 @@ async function exchangeCodeForTokens(code, codeVerifier) {
   params.set('code', code);
   params.set('redirect_uri', MAL_REDIRECT_URI);
   params.set('code_verifier', codeVerifier);
+  
+  console.log('📤 Body envoyé:', params.toString().substring(0, 150) + '...');
   
   const response = await fetch(MAL_TOKEN_URL, {
     method: 'POST',
