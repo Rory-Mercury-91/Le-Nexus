@@ -41,14 +41,7 @@ export default function AVN() {
   const handleCheckUpdates = async () => {
     try {
       setLoading(true);
-      const result = await window.electronAPI.checkAvnUpdates();
-      
-      if (result.updated > 0) {
-        alert(`✅ ${result.updated} mise(s) à jour détectée(s) sur ${result.checked} jeux !`);
-      } else {
-        alert(`✅ Aucune mise à jour. ${result.checked} jeux vérifiés.`);
-      }
-      
+      await window.electronAPI.checkAvnUpdates();
       await loadGames();
     } catch (error) {
       console.error('Erreur vérification MAJ:', error);

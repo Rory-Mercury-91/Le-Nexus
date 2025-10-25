@@ -211,15 +211,39 @@ export default function AvnDetail() {
 
         {game.maj_disponible && (
           <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
             padding: '12px 24px',
             borderRadius: '8px',
             background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
-            border: '2px solid #a855f7',
-            fontSize: '14px',
-            fontWeight: '700',
-            color: '#a855f7'
+            border: '2px solid #a855f7'
           }}>
-            🔄 Mise à jour disponible !
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '700',
+              color: '#a855f7',
+              flex: 1
+            }}>
+              🔄 Mise à jour disponible !
+            </div>
+            <button
+              onClick={async () => {
+                await window.electronAPI.markAvnUpdateSeen(game.id);
+                await loadGame();
+              }}
+              className="btn"
+              style={{
+                padding: '8px 16px',
+                fontSize: '13px',
+                background: 'rgba(168, 85, 247, 0.3)',
+                border: '1px solid rgba(168, 85, 247, 0.5)',
+                color: '#fff',
+                fontWeight: '600'
+              }}
+            >
+              Marquer comme vu
+            </button>
           </div>
         )}
 

@@ -338,6 +338,31 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   });
   
   // ========================================
+  // MARQUER COMME VU - Réinitialiser le flag MAJ
+  // ========================================
+  
+  ipcMain.handle('mark-avn-update-seen', (event, id) => {
+    try {
+      const db = getDb();
+      
+      db.prepare(`
+        UPDATE avn_games 
+        SET maj_disponible = 0,
+            updated_at = datetime('now')
+        WHERE id = ?
+      `).run(id);
+      
+      console.log(`✅ MAJ marquée comme vue pour jeu AVN (ID: ${id})`);
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('Erreur mark-avn-update-seen:', error);
+      throw error;
+    }
+  });
+  
+  // ========================================
   // LANCEMENT - Lancer un jeu AVN
   // ========================================
   
@@ -418,7 +443,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           
           console.log(`🌐 Vérif MAJ [${i + 1}/${games.length}]: ${game.titre} (${f95Id})`);
           
-          // Scraper la page F95Zone
+          // Scraper la page F95Zone (scraping complet comme dans search-avn-by-f95-id)
           const response = await fetch(threadUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -432,41 +457,154 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           
           const html = await response.text();
           
-          // Extraire le titre complet (contient la version)
+          // === Fonction de décodage HTML entities ===
+          const decodeHTML = (text) => {
+            return text
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/&#039;/g, "'")
+              .replace(/&nbsp;/g, ' ');
+          };
+          
+          // Extraire le titre complet
           const titleMatch = html.match(/<title>(.*?)<\/title>/i);
           if (!titleMatch) {
             console.warn(`⚠️ Titre non trouvé pour "${game.titre}"`);
             continue;
           }
           
-          const fullTitle = titleMatch[1];
+          const fullTitle = decodeHTML(titleMatch[1]);
           
-          // Extraire la version avec le même regex que dans search-avn-by-f95-id
+          // Parser le titre pour extraire infos
+          const regTitle = /([\w\\']+)(?=\s-)/gi;
+          const titleWords = Array.from(fullTitle.matchAll(regTitle)).map(m => m[0]);
+          
+          // Extraire nom du jeu
+          const regName = /-\s(.*?)\s\[/i;
+          const nameMatch = fullTitle.match(regName);
+          const name = nameMatch ? decodeHTML(nameMatch[1]) : game.titre;
+          
+          // Extraire version
           const versionMatch = fullTitle.matchAll(/\[([^\]]+)\]/gi);
-          const versions = Array.from(versionMatch).map(m => m[1]);
-          const version = versions.length > 0 ? `[${versions[versions.length - 1]}]` : null;
+          const allBrackets = Array.from(versionMatch).map(m => m[1]);
+          const validVersions = allBrackets.filter(v => 
+            v.toLowerCase().startsWith('v') || 
+            /^\d+\.\d+/.test(v)
+          );
+          const version = validVersions.length > 0 ? `[${validVersions[validVersions.length - 1]}]` : null;
           
-          if (version) {
-            const versionApi = version.trim();
-            const versionLocale = (game.version || '').trim();
-            
-            // Comparer les versions
-            const majDisponible = versionApi !== versionLocale && versionApi !== '';
-            
-            if (majDisponible) {
-              console.log(`🔄 MAJ disponible: "${game.titre}" (${versionLocale} → ${versionApi})`);
-              updatedCount++;
+          // Extraire statut et moteur
+          let status = 'Ongoing';
+          let engine = game.moteur || 'Autre';
+          
+          for (const word of titleWords) {
+            switch (word) {
+              case 'Abandoned':
+                status = 'Abandoned';
+                break;
+              case 'Completed':
+                status = 'Completed';
+                break;
             }
             
-            // Mettre à jour la DB
+            switch (word) {
+              case "Ren'Py":
+              case 'RenPy':
+                engine = 'RenPy';
+                break;
+              case 'RPGM':
+                engine = 'RPGM';
+                break;
+              case 'Unity':
+                engine = 'Unity';
+                break;
+              case 'Unreal':
+                engine = 'Unreal';
+                break;
+              case 'Flash':
+                engine = 'Flash';
+                break;
+              case 'HTML':
+                engine = 'HTML';
+                break;
+              case 'QSP':
+                engine = 'QSP';
+                break;
+              case 'Others':
+                engine = 'Autre';
+                break;
+            }
+          }
+          
+          // Extraire les tags
+          const tagsMatches = html.matchAll(/<a[^>]*class="[^"]*tagItem[^"]*"[^>]*>(.*?)<\/a>/gi);
+          const tags = Array.from(tagsMatches).map(m => decodeHTML(m[1])).filter(t => t.length > 0);
+          
+          // Extraire l'image
+          const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
+                           html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+          let image = imgMatch ? imgMatch[1] : game.couverture_url;
+          
+          if (image && image.includes('/thumb/')) {
+            image = image.replace('/thumb/', '/');
+          }
+          
+          // Vérifier si des données ont changé
+          const versionChanged = version && version !== game.version;
+          const statusChanged = status !== game.statut_jeu;
+          const engineChanged = engine !== game.moteur;
+          const tagsChanged = tags.join(',') !== (game.tags || '');
+          const imageChanged = image !== game.couverture_url;
+          
+          const hasChanges = versionChanged || statusChanged || engineChanged || tagsChanged || imageChanged;
+          
+          if (hasChanges) {
+            console.log(`🔄 MAJ détectée pour "${game.titre}":`);
+            if (versionChanged) console.log(`  - Version: ${game.version} → ${version}`);
+            if (statusChanged) console.log(`  - Statut: ${game.statut_jeu} → ${status}`);
+            if (engineChanged) console.log(`  - Moteur: ${game.moteur} → ${engine}`);
+            if (tagsChanged) console.log(`  - Tags mis à jour`);
+            if (imageChanged) console.log(`  - Image mise à jour`);
+            
+            updatedCount++;
+            
+            // Mapper le statut pour la DB
+            let statutJeu;
+            switch (status) {
+              case 'Completed':
+                statutJeu = 'TERMINÉ';
+                break;
+              case 'Abandoned':
+                statutJeu = 'ABANDONNÉ';
+                break;
+              default:
+                statutJeu = 'EN COURS';
+            }
+            
+            // Mettre à jour TOUTES les données dans la DB
             db.prepare(`
               UPDATE avn_games 
-              SET version_disponible = ?,
-                  maj_disponible = ?,
+              SET titre = ?,
+                  version = ?,
+                  statut_jeu = ?,
+                  moteur = ?,
+                  tags = ?,
+                  couverture_url = ?,
+                  maj_disponible = 1,
                   derniere_verif = datetime('now'),
                   updated_at = datetime('now')
               WHERE id = ?
-            `).run(versionApi, majDisponible ? 1 : 0, game.id);
+            `).run(name, version, statutJeu, engine, tags.join(','), image, game.id);
+          } else {
+            // Aucun changement, réinitialiser le flag MAJ
+            db.prepare(`
+              UPDATE avn_games 
+              SET maj_disponible = 0,
+                  derniere_verif = datetime('now')
+              WHERE id = ?
+            `).run(game.id);
           }
           
           // Pause pour éviter le rate limiting F95Zone
