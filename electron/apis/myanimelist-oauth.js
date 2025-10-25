@@ -6,7 +6,7 @@
 const { shell } = require('electron');
 const http = require('http');
 const crypto = require('crypto');
-const pkceChallenge = require('pkce-challenge').default;
+const pkceChallenge = require('pkce-challenge');
 const fetch = require('node-fetch');
 
 // Configuration OAuth MAL
@@ -23,7 +23,9 @@ const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
  */
 function startOAuthFlow(onSuccess, onError) {
   // Générer le challenge PKCE
-  const { code_verifier, code_challenge } = pkceChallenge();
+  const challenge = pkceChallenge();
+  const code_verifier = challenge.code_verifier;
+  const code_challenge = challenge.code_challenge;
   
   // State pour prévenir CSRF
   const state = crypto.randomBytes(16).toString('hex');
