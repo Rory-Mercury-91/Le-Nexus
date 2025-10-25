@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Download, Edit2, Eye, EyeOff, Folder, FolderOpen, Moon, Plus, RefreshCw, Sun, Trash2, Tv, Upload, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Download, Edit2, Eye, EyeOff, Folder, FolderOpen, Moon, Plus, RefreshCw, Sun, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
