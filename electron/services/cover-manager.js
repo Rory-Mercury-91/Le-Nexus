@@ -1,7 +1,99 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const { net } = require('electron');
 const { createSlug } = require('../utils/slug');
+
+/**
+ * Télécharge une image en utilisant Electron.net.request (moteur Chromium)
+ * Utilisé pour contourner les protections anti-scraping de certains sites
+ */
+function downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl) {
+  return new Promise((resolve, reject) => {
+    console.log(`🌐 Téléchargement via Electron.net: ${imageUrl}`);
+    
+    const request = net.request({
+      url: imageUrl,
+      method: 'GET',
+      redirect: 'follow'
+    });
+
+    // Ajouter les headers
+    request.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    request.setHeader('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8');
+    request.setHeader('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7');
+    if (refererUrl) {
+      request.setHeader('Referer', refererUrl);
+    }
+
+    const chunks = [];
+
+    request.on('response', (response) => {
+      console.log(`📡 Status: ${response.statusCode} ${response.statusMessage}`);
+      console.log(`📋 Content-Type: ${response.headers['content-type']}`);
+
+      if (response.statusCode !== 200) {
+        reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+        return;
+      }
+
+      response.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+
+      response.on('end', () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+          console.log(`📦 Taille du buffer: ${buffer.byteLength} bytes`);
+
+          if (buffer.byteLength === 0) {
+            reject(new Error('Le buffer téléchargé est vide'));
+            return;
+          }
+
+          if (buffer.byteLength < 1000) {
+            const preview = buffer.toString('utf8', 0, Math.min(200, buffer.byteLength));
+            console.log(`⚠️ Buffer trop petit, aperçu: ${preview}`);
+            reject(new Error(`Image trop petite: ${buffer.byteLength} bytes`));
+            return;
+          }
+
+          // Vérifier les magic bytes
+          const isJPEG = buffer[0] === 0xFF && buffer[1] === 0xD8;
+          const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50;
+          const isWEBP = buffer[8] === 0x57 && buffer[9] === 0x45;
+          const isAVIF = buffer.byteLength > 12 && (
+            buffer.toString('utf8', 4, 12).includes('ftyp') ||
+            buffer.toString('utf8', 4, 12).includes('avif')
+          );
+
+          if (!isJPEG && !isPNG && !isWEBP && !isAVIF) {
+            console.warn(`⚠️ Format non reconnu. Premiers octets:`, buffer.slice(0, 16));
+            reject(new Error('Format d\'image non reconnu'));
+            return;
+          }
+
+          console.log(`✅ Image valide détectée`);
+          fs.writeFileSync(fullPath, buffer);
+          resolve({ success: true, localPath: relativePath });
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      response.on('error', (error) => {
+        reject(error);
+      });
+    });
+
+    request.on('error', (error) => {
+      console.error(`❌ Erreur requête Electron.net:`, error);
+      reject(error);
+    });
+
+    request.end();
+  });
+}
 
 /**
  * Renomme le dossier d'une série et met à jour les chemins en base de données
@@ -128,25 +220,26 @@ function renameSerieCover(pathManager, couvertureUrl, serieTitre) {
  * @param {number} identifier - Numéro du tome (pour 'tome') ou ID de l'anime (pour 'anime')
  * @returns {Promise<{success: boolean, localPath?: string, error?: string}>}
  */
-async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', identifier = null) {
+async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', identifier = null, referer = null) {
   try {
     const slug = createSlug(serieTitre);
     let targetDirectory;
     let fileName;
     let relativePath;
 
-    if (type === 'anime') {
-      // Pour les animes : dossier animes/<slug>/
-      const animesBasePath = path.join(pathManager.getPaths().covers, 'animes');
-      const animePath = path.join(animesBasePath, slug);
+    if (type === 'anime' || type === 'avn') {
+      // Pour les animes et AVN : dossier animes/<slug>/ ou avn/<slug>/
+      const typeFolder = type === 'anime' ? 'animes' : 'avn';
+      const typeBasePath = path.join(pathManager.getPaths().covers, typeFolder);
+      const itemPath = path.join(typeBasePath, slug);
       
-      if (!fs.existsSync(animesBasePath)) fs.mkdirSync(animesBasePath, { recursive: true });
-      if (!fs.existsSync(animePath)) fs.mkdirSync(animePath, { recursive: true });
+      if (!fs.existsSync(typeBasePath)) fs.mkdirSync(typeBasePath, { recursive: true });
+      if (!fs.existsSync(itemPath)) fs.mkdirSync(itemPath, { recursive: true });
       
-      targetDirectory = animePath;
+      targetDirectory = itemPath;
       const ext = path.extname(imageUrl).split('?')[0] || '.jpg';
       fileName = `cover${ext}`;
-      relativePath = `animes/${slug}/${fileName}`;
+      relativePath = `${typeFolder}/${slug}/${fileName}`;
     } else {
       // Pour les mangas : structure existante
       const seriesPath = pathManager.getSeriesPath(slug);
@@ -172,21 +265,81 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
     const fullPath = path.join(targetDirectory, fileName);
     console.log(`📁 Téléchargement vers: ${fullPath}`);
 
-    // Headers pour contourner les protections anti-scraping (Nautiljon, etc.)
+    // Déterminer le Referer approprié
+    let refererUrl;
+    if (referer) {
+      refererUrl = referer;
+    } else if (imageUrl.includes('nautiljon')) {
+      refererUrl = 'https://www.nautiljon.com/';
+    } else if (imageUrl.includes('f95zone')) {
+      refererUrl = 'https://f95zone.to/';
+    }
+
+    // Pour F95Zone, utiliser net.request (Chromium) au lieu de node-fetch
+    if (imageUrl.includes('f95zone')) {
+      console.log(`🌐 Utilisation de Electron.net pour F95Zone`);
+      return await downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl);
+    }
+
+    // Headers pour contourner les protections anti-scraping
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': imageUrl.includes('nautiljon') ? 'https://www.nautiljon.com/' : undefined,
+      'Referer': refererUrl,
       'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Sec-Fetch-Dest': 'image',
+      'Sec-Fetch-Mode': 'no-cors',
+      'Sec-Fetch-Site': 'same-origin',
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache'
     };
 
     const response = await fetch(imageUrl, { headers });
-    if (!response.ok) throw new Error(`Failed to download image: ${response.statusText}`);
+    
+    console.log(`📡 Status: ${response.status} ${response.statusText}`);
+    console.log(`📡 URL finale: ${response.url}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+    }
 
+    const contentType = response.headers.get('content-type');
+    console.log(`📋 Content-Type: ${contentType}`);
+    
     const buffer = await response.arrayBuffer();
-    fs.writeFileSync(fullPath, Buffer.from(buffer));
+    console.log(`📦 Taille du buffer: ${buffer.byteLength} bytes`);
+    
+    // Vérifier la taille minimum (pas un buffer vide)
+    if (buffer.byteLength === 0) {
+      throw new Error('Le buffer téléchargé est vide');
+    }
+    
+    // Si la taille est trop petite (< 1KB), c'est probablement une erreur
+    if (buffer.byteLength < 1000) {
+      const preview = Buffer.from(buffer).toString('utf8', 0, Math.min(200, buffer.byteLength));
+      console.log(`⚠️ Buffer trop petit, aperçu: ${preview}`);
+      throw new Error(`Image trop petite: ${buffer.byteLength} bytes`);
+    }
+    
+    // Vérifier les magic bytes pour s'assurer que c'est une image
+    const bufferView = Buffer.from(buffer);
+    const isJPEG = bufferView[0] === 0xFF && bufferView[1] === 0xD8;
+    const isPNG = bufferView[0] === 0x89 && bufferView[1] === 0x50;
+    const isWEBP = bufferView[8] === 0x57 && bufferView[9] === 0x45;
+    const isAVIF = buffer.byteLength > 12 && (
+      bufferView.toString('utf8', 4, 12).includes('ftyp') ||
+      bufferView.toString('utf8', 4, 12).includes('avif')
+    );
+    
+    if (!isJPEG && !isPNG && !isWEBP && !isAVIF) {
+      console.warn(`⚠️ Format non reconnu. Premiers octets:`, bufferView.slice(0, 16));
+      throw new Error('Format d\'image non reconnu');
+    }
+    
+    console.log(`✅ Image valide détectée`);
+    fs.writeFileSync(fullPath, bufferView);
 
     return { success: true, localPath: relativePath };
   } catch (error) {

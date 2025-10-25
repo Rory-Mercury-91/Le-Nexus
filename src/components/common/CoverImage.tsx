@@ -24,8 +24,8 @@ export default function CoverImage({ src, alt, style, onError }: CoverImageProps
 
     setLoading(true);
 
-    // Si c'est un chemin relatif (covers/..., series/..., ou animes/...)
-    if (src.startsWith('covers/') || src.startsWith('series/') || src.startsWith('animes/')) {
+    // Si c'est un chemin relatif (covers/..., series/..., animes/..., ou avn/...)
+    if (src.startsWith('covers/') || src.startsWith('series/') || src.startsWith('animes/') || src.startsWith('avn/')) {
       const fullPath = await window.electronAPI.getCoverFullPath(src);
       if (fullPath) {
         // getCoverFullPath retourne déjà manga:// ou https://

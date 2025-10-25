@@ -2,6 +2,7 @@ const { ipcMain, dialog } = require('electron');
 const fetch = require('node-fetch');
 const { exec } = require('child_process');
 const path = require('path');
+const coverManager = require('../services/cover-manager');
 
 /**
  * URL de l'API F95List pour le contrôle de version
@@ -13,8 +14,9 @@ const F95LIST_API_URL = 'https://script.google.com/macros/s/AKfycbwb8C1478tnW30d
  * @param {Electron.IpcMain} ipcMain 
  * @param {Function} getDb 
  * @param {Object} store 
+ * @param {Function} getPathManager - Fonction pour récupérer le PathManager
  */
-function registerAvnHandlers(ipcMain, getDb, store) {
+function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   
   // ========================================
   // GET - Récupérer tous les jeux AVN
@@ -400,22 +402,34 @@ function registerAvnHandlers(ipcMain, getDb, store) {
       
       console.log(`🔍 Vérification des MAJ pour ${games.length} jeux AVN via API F95List...`);
       
+      // Récupérer toutes les données de l'API en une seule fois
+      const response = await fetch(F95LIST_API_URL);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result || !result.data || !result.data.games) {
+        throw new Error('Format de réponse API invalide');
+      }
+      
+      const apiGames = result.data.games;
       let updatedCount = 0;
       
       for (const game of games) {
         try {
-          // Appel à l'API F95List pour récupérer les données du jeu
-          const response = await fetch(`${F95LIST_API_URL}?action=getGame&id=${game.f95_thread_id}`);
+          // Chercher le jeu dans les données de l'API
+          const apiGame = apiGames.find(g => g.id === parseInt(game.f95_thread_id));
           
-          if (!response.ok) {
-            console.warn(`⚠️ API error pour ${game.titre} (${game.f95_thread_id}):`, response.status);
+          if (!apiGame) {
+            console.warn(`⚠️ Jeu "${game.titre}" (${game.f95_thread_id}) introuvable dans F95List`);
             continue;
           }
           
-          const data = await response.json();
-          
-          if (data && data.version) {
-            const versionApi = data.version.trim();
+          if (apiGame.version) {
+            const versionApi = apiGame.version.trim();
             const versionLocale = (game.version || '').trim();
             
             // Comparer les versions
@@ -436,9 +450,6 @@ function registerAvnHandlers(ipcMain, getDb, store) {
               WHERE id = ?
             `).run(versionApi, majDisponible ? 1 : 0, game.id);
           }
-          
-          // Rate limiting: attendre 500ms entre chaque requête
-          await new Promise(resolve => setTimeout(resolve, 500));
           
         } catch (error) {
           console.error(`❌ Erreur vérif MAJ "${game.titre}":`, error.message);
@@ -463,31 +474,163 @@ function registerAvnHandlers(ipcMain, getDb, store) {
     try {
       console.log(`🔍 Recherche jeu F95 ID: ${f95Id}`);
       
-      const response = await fetch(`${F95LIST_API_URL}?id=${f95Id}`);
+      // Scraping direct depuis F95Zone (même logique que le script Tampermonkey)
+      const threadUrl = `https://f95zone.to/threads/${f95Id}/`;
+      console.log(`🌐 Scraping: ${threadUrl}`);
+      
+      const response = await fetch(threadUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
       
       if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
+        throw new Error(`Thread F95Zone introuvable: ${response.status}`);
       }
       
-      const data = await response.json();
+      const html = await response.text();
       
-      if (!data || !data.name) {
-        throw new Error('Jeu introuvable');
+      // Fonction pour décoder les entités HTML
+      const decodeHTML = (str) => {
+        return str
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/<[^>]*>/g, '') // Supprimer les balises HTML
+          .trim();
+      };
+      
+      // Extraire le titre complet (comme dans le script Tampermonkey)
+      const titleTag = html.match(/<title[^>]*>(.*?)<\/title>/i);
+      const fullTitle = titleTag ? decodeHTML(titleTag[1]) : '';
+      
+      // Parser le titre comme le fait Tampermonkey
+      // Format: [Prefix] - [Moteur] [Statut] Nom [Version] [Auteur]
+      const regName = /.*-\s(.*?)\s\[/i;
+      const regTitle = /([\w\\']+)(?=\s-)/gi; // Tous les mots avant " -"
+      const regVersion = /\[([^\]]+)\]/gi;
+      
+      const titleMatch = fullTitle.match(regTitle) || [];
+      const nameMatch = fullTitle.match(regName) || [];
+      const versionMatches = fullTitle.match(regVersion) || [];
+      
+      const name = nameMatch[1] || fullTitle.split(' - ')[1]?.split(' [')[0] || 'Titre inconnu';
+      const version = versionMatches[0] || null;
+      
+      console.log(`🔍 Parsing titre: "${fullTitle}"`);
+      console.log(`📝 Mots trouvés:`, titleMatch);
+      
+      // Déterminer le statut et le moteur depuis les mots du titre (EXACTEMENT comme Tampermonkey)
+      let status = 'Ongoing'; // Par défaut (en anglais pour le mapping frontend)
+      let engine = 'Autre'; // Par défaut
+      
+      // Parser tous les mots pour trouver statut ET moteur
+      for (const word of titleMatch) {
+        // Détection du statut (en anglais pour correspondre au mapping frontend)
+        switch (word) {
+          case 'Abandoned':
+            status = 'Abandoned';
+            break;
+          case 'Completed':
+            status = 'Completed';
+            break;
+          // Si ce n'est ni Abandoned ni Completed, on garde "Ongoing" (défaut)
+        }
+        
+        // Détection du moteur
+        switch (word) {
+          case "Ren'Py":
+          case 'RenPy':
+            engine = 'RenPy';
+            break;
+          case 'RPGM':
+            engine = 'RPGM';
+            break;
+          case 'Unity':
+            engine = 'Unity';
+            break;
+          case 'Unreal':
+            engine = 'Unreal';
+            break;
+          case 'Flash':
+            engine = 'Flash';
+            break;
+          case 'HTML':
+            engine = 'HTML';
+            break;
+          case 'QSP':
+            engine = 'QSP';
+            break;
+          case 'Others':
+            engine = 'Autre';
+            break;
+        }
       }
       
-      console.log(`✅ Jeu trouvé: ${data.name}`);
+      console.log(`📊 Statut détecté: ${status}`);
+      console.log(`🛠️ Moteur détecté: ${engine}`);
+      
+      // Extraire l'image comme dans le script Tampermonkey
+      // Chercher LA PREMIÈRE img.bbImage avec src
+      const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
+                       html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+      
+      let image = imgMatch ? imgMatch[1] : null;
+      
+      console.log(`🖼️ Image trouvée (brute):`, image);
+      
+      // Pour Electron, on garde l'URL attachments car preview peut être bloqué
+      // On retire juste /thumb/ pour avoir la pleine résolution
+      if (image && image.includes('/thumb/')) {
+        image = image.replace('/thumb/', '/');
+        console.log(`🖼️ Image convertie (sans thumb):`, image);
+      }
+      
+      // Extraire les tags
+      const tagsMatches = html.matchAll(/<a[^>]*class="[^"]*tagItem[^"]*"[^>]*>(.*?)<\/a>/gi);
+      const tags = Array.from(tagsMatches).map(m => decodeHTML(m[1])).filter(t => t.length > 0);
+      
+      console.log(`✅ Jeu trouvé: ${name}`);
+      
+      // Télécharger l'image et la sauvegarder localement pour éviter les problèmes CORS
+      let localImage = null;
+      if (image) {
+        try {
+          console.log(`📥 Téléchargement de l'image...`);
+          const downloadResult = await coverManager.downloadCover(
+            getPathManager(),
+            image,
+            name,
+            'avn',
+            parseInt(f95Id),
+            threadUrl // Passer l'URL du thread comme referer
+          );
+          
+          if (downloadResult.success && downloadResult.localPath) {
+            localImage = downloadResult.localPath;
+            console.log(`✅ Image téléchargée: ${localImage}`);
+          } else {
+            console.warn(`⚠️ Échec du téléchargement de l'image:`, downloadResult.error);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur téléchargement image:`, error);
+        }
+      }
       
       return {
         success: true,
         data: {
-          id: data.id,
-          name: data.name,
-          version: data.version,
-          status: data.status,
-          engine: data.engine,
-          tags: data.tags,
-          image: data.image,
-          thread_url: data.thread_url
+          id: parseInt(f95Id),
+          name: name,
+          version: version,
+          status: status,
+          engine: engine,
+          tags: tags,
+          image: localImage || image, // Utiliser l'image locale si disponible, sinon l'URL externe
+          thread_url: threadUrl
         }
       };
       

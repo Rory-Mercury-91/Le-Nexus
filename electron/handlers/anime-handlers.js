@@ -407,8 +407,8 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           };
 
           // Insérer dans la DB
-          const stmt = db.prepare(`
-            INSERT INTO anime_series (
+      const stmt = db.prepare(`
+        INSERT INTO anime_series (
               mal_id, mal_url, titre, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
               type, source, nb_episodes, couverture_url, description, statut_diffusion, en_cours_diffusion,
               date_debut, date_fin, duree, annee, saison_diffusion, genres, themes, demographics,
@@ -424,7 +424,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           `);
           
           const result = stmt.run(animeData);
-          const animeId = result.lastInsertRowid;
+      const animeId = result.lastInsertRowid;
 
           // Créer les épisodes vus depuis le XML
           if (watchedEpisodes > 0) {
@@ -458,7 +458,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           imported++;
           console.log(`✅ ${titre} importé avec succès`);
 
-        } catch (error) {
+    } catch (error) {
           console.error(`❌ Erreur pour ${titre}:`, error.message);
           errors++;
         }

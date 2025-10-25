@@ -464,7 +464,7 @@ export default function Dashboard() {
                   }}
                   formatter={(value, name) => {
                     if (name === 'tomes') {
-                      return [`${value} tome${value > 1 ? 's' : ''}`, 'Tomes achetés'];
+                      return [`${value} tome${Number(value) > 1 ? 's' : ''}`, 'Tomes achetés'];
                     } else {
                       return [`${Number(value).toFixed(2)}€`, 'Montant dépensé'];
                     }
@@ -599,7 +599,7 @@ export default function Dashboard() {
                   }}
                   formatter={(value, name) => {
                     if (name === 'tomes') {
-                      return [`${value} tome${value > 1 ? 's' : ''}`, filtreType];
+                      return [`${value} tome${Number(value) > 1 ? 's' : ''}`, filtreType];
                     } else {
                       return [`${Number(value).toFixed(2)}€`, 'Coût total'];
                     }

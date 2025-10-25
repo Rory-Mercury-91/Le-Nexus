@@ -78,6 +78,7 @@ export default function Settings() {
     const unsubscribeMal = window.electronAPI.onMalSyncProgress?.((_event, progress) => {
       // Convertir le format MAL sync vers le format AnimeImportProgress
       setAnimeImportProgress({
+        phase: 'anime',
         total: progress.total,
         currentIndex: progress.current,
         imported: 0, // Pas de distinction créé/mis à jour dans le progress
@@ -86,8 +87,8 @@ export default function Settings() {
         errors: 0,
         currentAnime: progress.item,
         elapsedMs: Date.now() - importStartTime,
-        etaMs: null,
-        speed: null
+        etaMs: undefined,
+        speed: undefined
       });
     });
     
@@ -166,10 +167,18 @@ export default function Settings() {
     try {
       await window.electronAPI.setGroqApiKey(newApiKey);
       setGroqApiKey(newApiKey);
-      showToast(newApiKey ? 'Clé API Groq enregistrée' : 'Clé API Groq supprimée', 'success');
+      showToast({
+        title: newApiKey ? 'Clé API Groq enregistrée' : 'Clé API Groq supprimée',
+        message: '',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Erreur sauvegarde clé API Groq:', error);
-      showToast('Erreur lors de la sauvegarde', 'error');
+      showToast({
+        title: 'Erreur lors de la sauvegarde',
+        message: '',
+        type: 'error'
+      });
     }
   };
 
@@ -393,21 +402,34 @@ export default function Settings() {
       if (result.success) {
         setAutoLaunch(enabled);
         if (result.message) {
-          showToast(result.message, 'info');
+          showToast({
+            title: result.message,
+            message: '',
+            type: 'info'
+          });
         } else {
-          showToast(
-            enabled 
+          showToast({
+            title: enabled 
               ? 'Démarrage automatique activé' 
               : 'Démarrage automatique désactivé',
-            'success'
-          );
+            message: '',
+            type: 'success'
+          });
         }
       } else {
-        showToast(result.error || 'Erreur lors de la modification', 'error');
+        showToast({
+          title: result.error || 'Erreur lors de la modification',
+          message: '',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('Erreur auto-launch:', error);
-      showToast('Erreur lors de la modification', 'error');
+      showToast({
+        title: 'Erreur lors de la modification',
+        message: '',
+        type: 'error'
+      });
     }
   };
 
@@ -507,19 +529,6 @@ export default function Settings() {
     }
   };
 
-  const handleSetUserAvatar = async (userId: number) => {
-    const result = await window.electronAPI.setUserAvatar(userId);
-    if (result.success) {
-      await loadSettings();
-    }
-  };
-
-  const handleRemoveUserAvatar = async (userId: number) => {
-    const result = await window.electronAPI.removeUserAvatar(userId);
-    if (result.success) {
-      await loadSettings();
-    }
-  };
 
   const handleEditUser = (user: UserData) => {
     setEditingUser(user);
@@ -1561,8 +1570,8 @@ export default function Settings() {
               <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
                 <p>✅ <strong>{animeImportResult.imported}</strong> animes importés</p>
                 <p>🔄 <strong>{animeImportResult.updated}</strong> animes mis à jour</p>
-                <p>⏭️ <strong>{animeImportResult.skipped}</strong> animes ignorés</p>
-                <p>📊 <strong>{animeImportResult.total || (animeImportResult.imported + animeImportResult.updated + animeImportResult.skipped)}</strong> animes au total</p>
+                <p>⏭️ <strong>{animeImportResult.skipped || 0}</strong> animes ignorés</p>
+                <p>📊 <strong>{animeImportResult.total || (animeImportResult.imported + animeImportResult.updated + (animeImportResult.skipped || 0))}</strong> animes au total</p>
                 {animeImportResult.totalTimeMs && (
                   <>
                     <p>⏱️ <strong>{(animeImportResult.totalTimeMs / 60000).toFixed(2)}</strong> minutes</p>

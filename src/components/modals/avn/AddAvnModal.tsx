@@ -1,7 +1,7 @@
-import { useState, FormEvent } from 'react';
-import { X, Search, Plus } from 'lucide-react';
-import type { AvnStatutPerso, AvnStatutJeu, AvnMoteur } from '../../../types';
+import { Plus, Search, X } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import '../../../index.css';
+import type { AvnMoteur, AvnStatutJeu, AvnStatutPerso } from '../../../types';
 
 interface AddAvnModalProps {
   onClose: () => void;
@@ -25,11 +25,11 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
   const [moteur, setMoteur] = useState<AvnMoteur | ''>('');
   const [couvertureUrl, setCouvertureUrl] = useState('');
   const [statutPerso, setStatutPerso] = useState<AvnStatutPerso | ''>('');
-  const [lienF95, setLienF95] = useState('');
-  const [lienTraduction, setLienTraduction] = useState('');
-  const [lienJeu, setLienJeu] = useState('');
-  const [cheminExecutable, setCheminExecutable] = useState('');
-  const [notesPrivees, setNotesPrivees] = useState('');
+  const [lienF95] = useState('');
+  const [lienTraduction] = useState('');
+  const [lienJeu] = useState('');
+  const [cheminExecutable] = useState('');
+  const [notesPrivees] = useState('');
   const [tagsInput, setTagsInput] = useState('');
 
   const handleFetchF95 = async () => {
@@ -48,7 +48,6 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
       }
 
       setF95Data(result.data);
-      alert(`✅ Données récupérées: ${result.data.name}`);
     } catch (error: any) {
       console.error('Erreur fetch F95:', error);
       alert(`❌ ${error.message || 'Impossible de récupérer les données'}`);
@@ -69,9 +68,12 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
     try {
       setLoading(true);
 
-      const tagsArray = f95Data.tags
-        ? f95Data.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0)
-        : [];
+      // Les tags sont déjà un tableau depuis l'API F95List
+      const tagsArray = Array.isArray(f95Data.tags) 
+        ? f95Data.tags.filter((t: string) => t && t.trim().length > 0)
+        : (typeof f95Data.tags === 'string' 
+            ? f95Data.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0)
+            : []);
 
       await window.electronAPI.createAvnGame({
         f95_thread_id: f95Data.id || Number(f95Id),
@@ -85,7 +87,6 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
         statut_perso: 'À jouer'
       });
 
-      alert(`✅ Jeu ajouté: ${f95Data.name}`);
       onSuccess();
       onClose();
     } catch (error) {
@@ -303,8 +304,8 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
                     <div><strong>Version:</strong> {f95Data.version || 'N/A'}</div>
                     <div><strong>Statut:</strong> {f95Data.status || 'N/A'}</div>
                     <div><strong>Moteur:</strong> {f95Data.engine || 'N/A'}</div>
-                    {f95Data.tags && (
-                      <div><strong>Tags:</strong> {f95Data.tags}</div>
+                    {f95Data.tags && f95Data.tags.length > 0 && (
+                      <div><strong>Tags:</strong> {Array.isArray(f95Data.tags) ? f95Data.tags.join(', ') : f95Data.tags}</div>
                     )}
                   </div>
                 </div>
@@ -464,4 +465,3 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
     </div>
   );
 }
-

@@ -314,7 +314,7 @@ app.whenReady().then(async () => {
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow);
-  registerAvnHandlers(ipcMain, getDb, store);
+  registerAvnHandlers(ipcMain, getDb, store, getPathManager);
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     // Recharger le baseDirectory depuis le store
     const newBaseDirectory = store.get('baseDirectory');

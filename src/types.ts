@@ -437,7 +437,6 @@ declare global {
       setUserAvatarFromPath: (userId: number, sourcePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
       setUserAvatar: (userId: number) => Promise<{ success: boolean; path?: string; error?: string }>;
       removeUserAvatar: (userId: number) => Promise<{ success: boolean; error?: string }>;
-      getUserAvatar: (userId: number) => Promise<string | null>;
       
       // AVN (Adult Visual Novels)
       getAvnGames: (filters?: AvnFilters) => Promise<AvnGame[]>;
