@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, shell, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, shell, Tray, Menu, session } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 
@@ -115,7 +115,9 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       // Vider le cache en mode dev pour éviter les erreurs de cache
-      cache: isDev ? false : true
+      cache: isDev ? false : true,
+      // Utiliser explicitement la session par défaut pour partager les cookies
+      session: session.defaultSession
     },
     autoHideMenuBar: true,
     icon: windowIconPath
