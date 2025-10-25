@@ -10,8 +10,9 @@ const { performFullSync } = require('../services/mal-sync');
  * @param {IpcMain} ipcMain - Module ipcMain d'Electron
  * @param {Function} getDb - Fonction pour récupérer l'instance de la base de données
  * @param {Store} store - Instance d'electron-store
+ * @param {Function} getMainWindow - Fonction pour récupérer la fenêtre principale
  */
-function registerMalSyncHandlers(ipcMain, getDb, store) {
+function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null) {
   
   // Démarrer le flow OAuth pour connecter MAL
   ipcMain.handle('mal-connect', () => {
@@ -96,6 +97,7 @@ function registerMalSyncHandlers(ipcMain, getDb, store) {
     try {
       const db = getDb();
       const currentUser = store.get('currentUser', '');
+      const mainWindow = getMainWindow ? getMainWindow() : null;
       
       if (!currentUser) {
         throw new Error('Aucun utilisateur actuel sélectionné');
@@ -108,7 +110,14 @@ function registerMalSyncHandlers(ipcMain, getDb, store) {
       
       console.log(`🔄 Synchronisation manuelle MAL pour l'utilisateur: ${currentUser}`);
       
-      const result = await performFullSync(db, store, currentUser);
+      // Callback pour notifier la progression
+      const onProgress = (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('mal-sync-progress', progress);
+        }
+      };
+      
+      const result = await performFullSync(db, store, currentUser, onProgress);
       
       return result;
       

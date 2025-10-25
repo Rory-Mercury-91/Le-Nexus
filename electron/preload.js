@@ -64,6 +64,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malSyncNow: () => ipcRenderer.invoke('mal-sync-now'),
   malSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('mal-set-auto-sync', enabled, intervalHours),
   malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
+  onMalSyncProgress: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-sync-progress', subscription);
+    return () => ipcRenderer.removeListener('mal-sync-progress', subscription);
+  },
   onMalSyncCompleted: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-completed', subscription);
