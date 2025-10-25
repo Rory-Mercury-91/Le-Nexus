@@ -542,7 +542,7 @@ export default function AvnDetail() {
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
           confirmText="Supprimer"
-          confirmVariant="danger"
+          isDanger={true}
         />
       )}
 

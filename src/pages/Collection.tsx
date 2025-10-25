@@ -6,7 +6,7 @@ import SerieCard from '../components/cards/SerieCard';
 import SerieListItem from '../components/cards/SerieListItem';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
-type ViewMode = 'grid' | 'carousel' | 'list' | 'presentation';
+type ViewMode = 'grid' | 'list' | 'images';
 
 export default function Collection() {
   const [series, setSeries] = useState<Serie[]>([]);
