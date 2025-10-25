@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText } from 'lucide-react';
 import type { AvnGame } from '../types';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
+import EditAvnModal from '../components/modals/avn/EditAvnModal';
 import '../index.css';
 
 export default function AvnDetail() {
@@ -399,24 +400,13 @@ export default function AvnDetail() {
         />
       )}
 
-      {/* TODO: EditAvnModal */}
-      {showEditModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="card" style={{ padding: '24px', maxWidth: '600px', width: '90%' }}>
-            <p>EditAvnModal à implémenter (cliquez dehors pour fermer)</p>
-            <button onClick={() => setShowEditModal(false)} className="btn btn-primary" style={{ marginTop: '16px' }}>
-              Fermer
-            </button>
-          </div>
-        </div>
+      {/* Modal d'édition */}
+      {showEditModal && game && (
+        <EditAvnModal
+          game={game}
+          onClose={() => setShowEditModal(false)}
+          onSave={loadGame}
+        />
       )}
     </div>
   );
