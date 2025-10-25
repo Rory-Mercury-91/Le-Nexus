@@ -337,7 +337,7 @@ export default function AvnDetail() {
           )}
 
           {/* Tags */}
-          {game.tags && game.tags.length > 0 && (
+          {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
             <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
                 🏷️ Tags

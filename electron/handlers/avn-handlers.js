@@ -83,11 +83,28 @@ function registerAvnHandlers(ipcMain, getDb, store) {
       
       const games = db.prepare(query).all(...params);
       
-      return games.map(game => ({
-        ...game,
-        tags: game.tags ? JSON.parse(game.tags) : [],
-        proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
-      }));
+      return games.map(game => {
+        // Parser les tags (JSON string -> array)
+        let tags = [];
+        if (game.tags) {
+          try {
+            tags = JSON.parse(game.tags);
+            // Si tags est une string (au lieu d'un array), le transformer en array
+            if (typeof tags === 'string') {
+              tags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            }
+          } catch (e) {
+            console.warn(`Erreur parsing tags pour jeu ${game.id}:`, e.message);
+            tags = [];
+          }
+        }
+        
+        return {
+          ...game,
+          tags: tags,
+          proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
+        };
+      });
       
     } catch (error) {
       console.error('Erreur get-avn-games:', error);
@@ -117,9 +134,24 @@ function registerAvnHandlers(ipcMain, getDb, store) {
         throw new Error(`Jeu AVN non trouvé (ID: ${id})`);
       }
       
+      // Parser les tags (JSON string -> array)
+      let tags = [];
+      if (game.tags) {
+        try {
+          tags = JSON.parse(game.tags);
+          // Si tags est une string (au lieu d'un array), le transformer en array
+          if (typeof tags === 'string') {
+            tags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+          }
+        } catch (e) {
+          console.warn(`Erreur parsing tags pour jeu ${id}:`, e.message);
+          tags = [];
+        }
+      }
+      
       return {
         ...game,
-        tags: game.tags ? JSON.parse(game.tags) : [],
+        tags: tags,
         proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
       };
       
