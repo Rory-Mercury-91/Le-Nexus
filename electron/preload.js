@@ -183,5 +183,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offMangaImported: (callback) => {
     ipcRenderer.removeListener('manga-imported', callback);
-  }
+  },
+  
+  // Sélection de fichiers AVN
+  selectAvnExecutable: () => ipcRenderer.invoke('select-avn-executable'),
+  selectAvnCoverImage: () => ipcRenderer.invoke('select-avn-cover-image')
 });

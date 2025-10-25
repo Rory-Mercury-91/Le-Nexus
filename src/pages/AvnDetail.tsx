@@ -346,10 +346,10 @@ export default function AvnDetail() {
         </div>
       </div>
 
-      {/* Informations */}
-      <div>
+      {/* Contenu principal : Informations et Liens côte à côte */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '24px' }}>
           {/* Infos principales */}
-          <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <div className="card" style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Info size={18} />
               Informations
@@ -427,7 +427,7 @@ export default function AvnDetail() {
 
           {/* Liens */}
           {(game.lien_f95 || game.lien_traduction || game.lien_jeu) && (
-            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '24px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Link2 size={18} />
                 Liens
@@ -481,57 +481,57 @@ export default function AvnDetail() {
               </div>
             </div>
           )}
+      </div>
 
-          {/* Tags */}
-          {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
-            <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Tag size={18} />
-                Tags
-              </h2>
+      {/* Tags */}
+      {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
+        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Tag size={18} />
+            Tags
+          </h2>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {game.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    style={{
-                      padding: '6px 12px',
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)'
-                    }}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Notes privées */}
-          <div className="card" style={{ padding: '24px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={18} />
-              Notes privées
-            </h2>
-
-            {game.notes_privees ? (
-              <p style={{ 
-                fontSize: '14px', 
-                color: 'var(--text)', 
-                lineHeight: '1.6',
-                whiteSpace: 'pre-wrap' 
-              }}>
-                {game.notes_privees}
-              </p>
-            ) : (
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                Aucune note pour ce jeu
-              </p>
-            )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {game.tags.map((tag, index) => (
+              <span
+                key={index}
+                style={{
+                  padding: '6px 12px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                {tag}
+              </span>
+            ))}
           </div>
+        </div>
+      )}
+
+      {/* Notes privées */}
+      <div className="card" style={{ padding: '24px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FileText size={18} />
+          Notes privées
+        </h2>
+
+        {game.notes_privees ? (
+          <p style={{ 
+            fontSize: '14px', 
+            color: 'var(--text)', 
+            lineHeight: '1.6',
+            whiteSpace: 'pre-wrap' 
+          }}>
+            {game.notes_privees}
+          </p>
+        ) : (
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+            Aucune note pour ce jeu
+          </p>
+        )}
       </div>
 
       {/* Modals */}

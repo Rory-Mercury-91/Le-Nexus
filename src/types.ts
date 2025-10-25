@@ -439,6 +439,8 @@ declare global {
       launchAvnGame: (id: number) => Promise<{ success: boolean; error?: string }>;
       checkAvnUpdates: () => Promise<{ checked: number; updated: number }>;
       searchAvnByF95Id: (f95Id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+      selectAvnExecutable: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
+      selectAvnCoverImage: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
     };
   }
 }

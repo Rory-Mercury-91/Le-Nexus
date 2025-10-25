@@ -62,10 +62,26 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
 
   const handleChooseExecutable = async () => {
     try {
-      // TODO: Implémenter la sélection de fichier via IPC
-      alert('📁 Sélection de fichier à implémenter (file picker)');
+      const result = await window.electronAPI.selectAvnExecutable();
+      if (result.success && result.path) {
+        setCheminExecutable(result.path);
+      }
     } catch (error) {
       console.error('Erreur sélection fichier:', error);
+      alert('❌ Erreur lors de la sélection du fichier');
+    }
+  };
+
+  const handleChooseCoverImage = async () => {
+    try {
+      const result = await window.electronAPI.selectAvnCoverImage();
+      if (result.success && result.path) {
+        // Convertir le chemin local en URL locale pour l'affichage
+        setCouvertureUrl(`file://${result.path}`);
+      }
+    } catch (error) {
+      console.error('Erreur sélection image:', error);
+      alert('❌ Erreur lors de la sélection de l\'image');
     }
   };
 
@@ -250,16 +266,28 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                   <label htmlFor="couverture_url" className="label">
                     URL de la couverture
                   </label>
-                  <input
-                    type="url"
-                    id="couverture_url"
-                    value={couvertureUrl}
-                    onChange={(e) => setCouvertureUrl(e.target.value)}
-                    className="input"
-                    placeholder="https://..."
-                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="url"
+                      id="couverture_url"
+                      value={couvertureUrl}
+                      onChange={(e) => setCouvertureUrl(e.target.value)}
+                      className="input"
+                      placeholder="https://..."
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleChooseCoverImage}
+                      className="btn btn-secondary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <FolderOpen size={16} />
+                      Parcourir
+                    </button>
+                  </div>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    💡 Collez une URL d'image HD pour remplacer la couverture
+                    💡 Collez une URL ou sélectionnez une image locale HD
                   </p>
                 </div>
               </div>

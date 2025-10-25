@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, dialog } = require('electron');
 const fetch = require('node-fetch');
 const { exec } = require('child_process');
 const path = require('path');
@@ -493,6 +493,72 @@ function registerAvnHandlers(ipcMain, getDb, store) {
       
     } catch (error) {
       console.error('❌ Erreur recherche F95:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+  
+  // ========================================
+  // Sélectionner un fichier exécutable
+  // ========================================
+  
+  ipcMain.handle('select-avn-executable', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Sélectionner l\'exécutable du jeu',
+        filters: [
+          { name: 'Exécutables', extensions: ['exe'] },
+          { name: 'Tous les fichiers', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      return {
+        success: true,
+        path: result.filePaths[0]
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur sélection fichier:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+  
+  // ========================================
+  // Sélectionner une image de couverture
+  // ========================================
+  
+  ipcMain.handle('select-avn-cover-image', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Sélectionner une image de couverture',
+        filters: [
+          { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] },
+          { name: 'Tous les fichiers', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+      
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: false, canceled: true };
+      }
+      
+      return {
+        success: true,
+        path: result.filePaths[0]
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur sélection image:', error.message);
       return {
         success: false,
         error: error.message
