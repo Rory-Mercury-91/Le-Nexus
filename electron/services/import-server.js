@@ -1242,6 +1242,72 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       return;
     }
 
+    // Route: GET /api/proxy-image?url=... (Proxy pour images protégées)
+    if (req.method === 'GET' && req.url.startsWith('/api/proxy-image')) {
+      const { net } = require('electron');
+      const urlParams = new URLSearchParams(req.url.split('?')[1]);
+      const imageUrl = urlParams.get('url');
+      
+      if (!imageUrl) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'URL manquante' }));
+        return;
+      }
+
+      console.log(`🖼️ Proxy image: ${imageUrl}`);
+
+      const request = net.request({
+        url: imageUrl,
+        method: 'GET',
+        redirect: 'follow'
+      });
+
+      // Headers pour contourner les protections
+      request.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      request.setHeader('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8');
+      request.setHeader('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7');
+      
+      if (imageUrl.includes('lewdcorner')) {
+        request.setHeader('Referer', 'https://lewdcorner.com/');
+      } else if (imageUrl.includes('f95zone')) {
+        request.setHeader('Referer', 'https://f95zone.to/');
+      }
+
+      const chunks = [];
+
+      request.on('response', (response) => {
+        // Transférer les headers pertinents
+        res.writeHead(response.statusCode, {
+          'Content-Type': response.headers['content-type'] || 'image/jpeg',
+          'Access-Control-Allow-Origin': '*'
+        });
+
+        response.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+
+        response.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          res.end(buffer);
+        });
+
+        response.on('error', (error) => {
+          console.error('❌ Erreur response proxy image:', error);
+          res.writeHead(500);
+          res.end();
+        });
+      });
+
+      request.on('error', (error) => {
+        console.error('❌ Erreur request proxy image:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: error.message }));
+      });
+
+      request.end();
+      return;
+    }
+
     // Route non trouvée
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Route non trouvée' }));
