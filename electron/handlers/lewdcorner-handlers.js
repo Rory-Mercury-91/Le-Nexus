@@ -62,4 +62,3 @@ function registerLewdCornerHandlers() {
 }
 
 module.exports = { registerLewdCornerHandlers };
-

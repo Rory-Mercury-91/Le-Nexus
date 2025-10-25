@@ -291,6 +291,10 @@ app.whenReady().then(async () => {
   // Enregistrer le protocole personnalisé
   registerMangaProtocol();
 
+  // Configurer l'intercepteur LewdCorner
+  const { setupLewdCornerInterceptor } = require('./apis/lewdcorner-interceptor');
+  setupLewdCornerInterceptor();
+
   // Message de bienvenue
   console.log('\n╔════════════════════════════════════════════════════╗');
   console.log('║                                                    ║');
