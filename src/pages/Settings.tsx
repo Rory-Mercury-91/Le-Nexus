@@ -1489,7 +1489,7 @@ export default function Settings() {
                 textAlign: 'center',
                 color: 'var(--text-secondary)'
               }}>
-                ⏱️ Durée estimée restante : ~{Math.ceil((translationProgress.total - translationProgress.current) * 2.1 / 60)} min
+                ⏱️ Durée estimée restante : ~{Math.ceil((translationProgress.total - translationProgress.current) * 3.5 / 60)} min
               </div>
             </div>
           )}

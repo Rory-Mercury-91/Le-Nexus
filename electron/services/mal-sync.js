@@ -555,7 +555,7 @@ async function translateSynopsisInBackground(db, store, onProgress = null) {
       return { translated: 0, skipped: 0, total: 0 };
     }
     
-    console.log(`📝 ${total} synopsis à traduire (durée estimée: ~${Math.ceil(total * 2.1 / 60)} minutes)`);
+    console.log(`📝 ${total} synopsis à traduire (durée estimée: ~${Math.ceil(total * 3.5 / 60)} minutes)`);
     
     let translated = 0;
     let skipped = 0;
@@ -576,34 +576,55 @@ async function translateSynopsisInBackground(db, store, onProgress = null) {
           });
         }
         
-        // Respecter le rate limit Groq (30 RPM = 1 toutes les 2 secondes)
-        await new Promise(resolve => setTimeout(resolve, 2100));
+        // Respecter le rate limit Groq (délai augmenté à 3.5s pour éviter les 429)
+        await new Promise(resolve => setTimeout(resolve, 3500));
         
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${groqApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              {
-                role: 'system',
-                content: 'Tu es un traducteur professionnel spécialisé dans les animes. Traduis le synopsis suivant en français de manière naturelle et fluide. Ne traduis PAS les noms de personnages, de lieux, ou de techniques. Retourne UNIQUEMENT la traduction, sans introduction ni conclusion.'
-              },
-              {
-                role: 'user',
-                content: anime.description
-              }
-            ],
-            temperature: 0.3,
-            max_tokens: 1000
-          })
-        });
+        // Système de retry pour les erreurs 429 (rate limit)
+        let retryCount = 0;
+        const maxRetries = 2;
+        let response;
+        let success = false;
+        
+        while (retryCount <= maxRetries && !success) {
+          response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqApiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'Tu es un traducteur professionnel spécialisé dans les animes. Traduis le synopsis suivant en français de manière naturelle et fluide. Ne traduis PAS les noms de personnages, de lieux, ou de techniques. Retourne UNIQUEMENT la traduction, sans introduction ni conclusion.'
+                },
+                {
+                  role: 'user',
+                  content: anime.description
+                }
+              ],
+              temperature: 0.3,
+              max_tokens: 1000
+            })
+          });
+          
+          if (response.ok) {
+            success = true;
+          } else if (response.status === 429 && retryCount < maxRetries) {
+            // Rate limit atteint : attendre plus longtemps avant de réessayer
+            retryCount++;
+            const waitTime = 10000 * retryCount; // 10s, 20s
+            console.warn(`⚠️ Rate limit (429) pour "${anime.titre}", retry ${retryCount}/${maxRetries} dans ${waitTime/1000}s...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          } else {
+            // Autre erreur ou max retries atteint
+            break;
+          }
+        }
         
         if (!response.ok) {
-          console.warn(`⚠️ Erreur traduction "${anime.titre}": ${response.status}`);
+          console.warn(`⚠️ Erreur traduction "${anime.titre}": ${response.status} (après ${retryCount} retry)`);
           skipped++;
           continue;
         }
