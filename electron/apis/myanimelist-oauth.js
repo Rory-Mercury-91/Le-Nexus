@@ -26,8 +26,11 @@ function base64urlEncode(buffer) {
  * @returns {Object} { code_verifier, code_challenge }
  */
 function generatePKCEChallenge() {
-  // Utiliser UNIQUEMENT des caractères alphanumériques (plus sûr pour l'encodage)
-  // Certains serveurs OAuth peuvent rejeter -, ., _, ~
+  // IMPORTANT: MyAnimeList ne supporte que la méthode "plain" (pas S256)
+  // Documentation: https://myanimelist.net/apiconfig/references/authorization
+  // "NOTE: Currently, only the plain method is supported."
+  
+  // Charset alphanumérique (A-Z, a-z, 0-9)
   const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   
   // Générer un code_verifier de 128 caractères (longueur max recommandée)
@@ -37,19 +40,13 @@ function generatePKCEChallenge() {
     code_verifier += charset[randomBytes[i] % charset.length];
   }
   
-  // Générer le challenge: BASE64URL(SHA256(ASCII(code_verifier)))
-  const challengeBuffer = crypto.createHash('sha256').update(code_verifier, 'ascii').digest();
-  const code_challenge = base64urlEncode(challengeBuffer);
+  // MÉTHODE PLAIN: code_challenge = code_verifier (pas de hash !)
+  const code_challenge = code_verifier;
   
-  console.log('🔑 PKCE Debug:');
+  console.log('🔑 PKCE Debug (méthode PLAIN):');
   console.log('  code_verifier:', code_verifier.substring(0, 30) + '...');
   console.log('  code_verifier length:', code_verifier.length);
-  console.log('  code_challenge:', code_challenge);
-  console.log('  code_challenge length:', code_challenge.length);
-  
-  // Test de vérification locale
-  const testChallenge = base64urlEncode(crypto.createHash('sha256').update(code_verifier, 'ascii').digest());
-  console.log('  Vérification interne:', testChallenge === code_challenge ? '✅' : '❌');
+  console.log('  code_challenge = code_verifier:', code_challenge === code_verifier ? '✅' : '❌');
   
   return { code_verifier, code_challenge };
 }
@@ -175,7 +172,7 @@ function startOAuthFlow(onSuccess, onError) {
     authUrl.searchParams.set('redirect_uri', MAL_REDIRECT_URI);
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', code_challenge);
-    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('code_challenge_method', 'plain'); // MAL ne supporte que 'plain'
     
     // Ouvrir le navigateur pour autorisation
     // Note: shell.openExternal ouvre dans le navigateur par défaut
