@@ -69,7 +69,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
     e.preventDefault();
 
     if (!f95Data) {
-      alert('❌ Veuillez d'abord rechercher un jeu');
+      alert('❌ Veuillez d\'abord rechercher un jeu');
       return;
     }
 
