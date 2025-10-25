@@ -1,4 +1,4 @@
-const { ipcMain } = require('electron');
+const { ipcMain, BrowserWindow } = require('electron');
 const { 
   openLewdCornerLogin, 
   checkLewdCornerSession, 
@@ -14,7 +14,15 @@ function registerLewdCornerHandlers() {
     
     return new Promise((resolve, reject) => {
       openLewdCornerLogin(
-        (result) => resolve(result),
+        (result) => {
+          // Recharger la fenêtre principale pour appliquer les cookies
+          const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.webContents.getURL().includes('localhost'));
+          if (mainWindow) {
+            console.log('🔄 Rechargement de la fenêtre principale pour appliquer les cookies...');
+            mainWindow.webContents.reload();
+          }
+          resolve(result);
+        },
         (error) => reject(error)
       );
     });

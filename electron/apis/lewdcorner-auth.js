@@ -47,11 +47,11 @@ function openLewdCornerLogin(onSuccess, onError) {
       
       if (cookies.length > 0) {
         console.log(`🍪 ${cookies.length} cookies LewdCorner trouvés`);
-        authWindow.close();
         onSuccess({ 
           success: true, 
           cookiesCount: cookies.length 
         });
+        authWindow.close();
       }
     }
   });
