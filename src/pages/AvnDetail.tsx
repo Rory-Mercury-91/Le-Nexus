@@ -1,6 +1,7 @@
 import { ArrowLeft, Ban, CheckCircle2, Clock, Download, Edit, ExternalLink, FileText, Flag, Info, Languages, Link2, Play, PlayCircle, Settings, Tag, Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import CoverImage from '../components/common/CoverImage';
 import EditAvnModal from '../components/modals/avn/EditAvnModal';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
 import '../index.css';
@@ -165,7 +166,7 @@ export default function AvnDetail() {
 
       {/* Couverture pleine largeur */}
       {game.couverture_url ? (
-        <img
+        <CoverImage
           src={game.couverture_url}
           alt={game.titre}
           style={{
