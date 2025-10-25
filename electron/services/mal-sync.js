@@ -127,6 +127,11 @@ async function syncMangaProgress(db, malMangas, currentUser, onProgress = null) 
   let processed = 0;
   
   for (const malEntry of malMangas) {
+    // Pause pour éviter le gel de l'UI
+    if (processed % 5 === 0) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    
     processed++;
     
     // Notifier la progression
@@ -330,6 +335,11 @@ async function syncAnimeProgress(db, malAnimes, currentUser, onProgress = null) 
   let processed = 0;
   
   for (const malEntry of malAnimes) {
+    // Pause pour éviter le gel de l'UI
+    if (processed % 5 === 0) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    
     processed++;
     
     // Notifier la progression
@@ -563,6 +573,9 @@ async function translateSynopsisInBackground(db, store, onProgress = null) {
     
     for (let i = 0; i < animesToTranslate.length; i++) {
       const anime = animesToTranslate[i];
+      
+      // Pause pour éviter le gel de l'UI
+      await new Promise(resolve => setImmediate(resolve));
       
       try {
         // Notifier la progression

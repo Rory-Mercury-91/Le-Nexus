@@ -284,6 +284,11 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       let errors = 0;
 
       for (let i = 0; i < animeMatches.length; i++) {
+        // Pause pour éviter le gel de l'UI (laisse respirer le processus principal)
+        if (i % 5 === 0) {
+          await new Promise(resolve => setImmediate(resolve));
+        }
+        
         const animeXml = animeMatches[i][1];
         
         // Extraire les données XML

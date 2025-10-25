@@ -400,36 +400,54 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         return { checked: 0, updated: 0 };
       }
       
-      console.log(`🔍 Vérification des MAJ pour ${games.length} jeux AVN via API F95List...`);
+      console.log(`🔍 Vérification des MAJ pour ${games.length} jeux AVN via scraping F95Zone...`);
       
-      // Récupérer toutes les données de l'API en une seule fois
-      const response = await fetch(F95LIST_API_URL);
-      
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result || !result.data || !result.data.games) {
-        throw new Error('Format de réponse API invalide');
-      }
-      
-      const apiGames = result.data.games;
       let updatedCount = 0;
       
-      for (const game of games) {
+      for (let i = 0; i < games.length; i++) {
+        // Pause pour éviter le gel de l'UI
+        if (i % 3 === 0) {
+          await new Promise(resolve => setImmediate(resolve));
+        }
+        
+        const game = games[i];
+        
         try {
-          // Chercher le jeu dans les données de l'API
-          const apiGame = apiGames.find(g => g.id === parseInt(game.f95_thread_id));
+          const f95Id = game.f95_thread_id;
+          const threadUrl = `https://f95zone.to/threads/${f95Id}/`;
           
-          if (!apiGame) {
-            console.warn(`⚠️ Jeu "${game.titre}" (${game.f95_thread_id}) introuvable dans F95List`);
+          console.log(`🌐 Vérif MAJ [${i + 1}/${games.length}]: ${game.titre} (${f95Id})`);
+          
+          // Scraper la page F95Zone
+          const response = await fetch(threadUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            console.warn(`⚠️ Erreur HTTP ${response.status} pour "${game.titre}"`);
             continue;
           }
           
-          if (apiGame.version) {
-            const versionApi = apiGame.version.trim();
+          const html = await response.text();
+          
+          // Extraire le titre complet (contient la version)
+          const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+          if (!titleMatch) {
+            console.warn(`⚠️ Titre non trouvé pour "${game.titre}"`);
+            continue;
+          }
+          
+          const fullTitle = titleMatch[1];
+          
+          // Extraire la version avec le même regex que dans search-avn-by-f95-id
+          const versionMatch = fullTitle.matchAll(/\[([^\]]+)\]/gi);
+          const versions = Array.from(versionMatch).map(m => m[1]);
+          const version = versions.length > 0 ? `[${versions[versions.length - 1]}]` : null;
+          
+          if (version) {
+            const versionApi = version.trim();
             const versionLocale = (game.version || '').trim();
             
             // Comparer les versions
@@ -450,6 +468,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
               WHERE id = ?
             `).run(versionApi, majDisponible ? 1 : 0, game.id);
           }
+          
+          // Pause pour éviter le rate limiting F95Zone
+          await new Promise(resolve => setTimeout(resolve, 500));
           
         } catch (error) {
           console.error(`❌ Erreur vérif MAJ "${game.titre}":`, error.message);
