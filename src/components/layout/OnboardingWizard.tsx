@@ -207,7 +207,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              Bienvenue dans Ma Mangathèque
+              Bienvenue dans Le Nexus
             </h1>
             <p style={{
               fontSize: '18px',

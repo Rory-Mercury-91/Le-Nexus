@@ -1,8 +1,9 @@
-import { Plus, RefreshCw } from 'lucide-react';
+import { FileJson, Plus, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
 import AddAvnModal from '../components/modals/avn/AddAvnModal';
+import ImportAvnJsonModal from '../components/modals/avn/ImportAvnJsonModal';
 import '../index.css';
 import type { AvnFilters, AvnGame, AvnMoteur, AvnStatutPerso } from '../types';
 
@@ -14,6 +15,7 @@ export default function AVN() {
   const [selectedMoteur, setSelectedMoteur] = useState<AvnMoteur | 'all'>('all');
   const [showMajOnly, setShowMajOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportJsonModal, setShowImportJsonModal] = useState(false);
 
   useEffect(() => {
     loadGames();
@@ -48,6 +50,24 @@ export default function AVN() {
       alert('❌ Erreur lors de la vérification des mises à jour');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImportJson = async (jsonData: any) => {
+    try {
+      const result = await window.electronAPI.importAvnFromJson(jsonData);
+      
+      if (result.success) {
+        if (result.created) {
+          alert(`✅ Jeu ajouté avec succès !`);
+        } else if (result.updated) {
+          alert(`✅ Jeu mis à jour avec succès !`);
+        }
+        await loadGames();
+      }
+    } catch (error: any) {
+      console.error('Erreur import JSON:', error);
+      alert(`❌ Erreur lors de l'import: ${error.message || 'Erreur inconnue'}`);
     }
   };
 
@@ -105,6 +125,14 @@ export default function AVN() {
             >
               <RefreshCw size={20} />
               Vérifier MAJ
+            </button>
+            
+            <button
+              onClick={() => setShowImportJsonModal(true)}
+              className="btn btn-secondary"
+            >
+              <FileJson size={20} />
+              Import JSON
             </button>
             
             <button
@@ -354,6 +382,14 @@ export default function AVN() {
           <AddAvnModal
             onClose={() => setShowAddModal(false)}
             onSuccess={loadGames}
+          />
+        )}
+
+        {/* Modal d'import JSON */}
+        {showImportJsonModal && (
+          <ImportAvnJsonModal
+            onClose={() => setShowImportJsonModal(false)}
+            onImport={handleImportJson}
           />
         )}
       </div>

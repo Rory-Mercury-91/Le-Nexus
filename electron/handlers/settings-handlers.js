@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
 const { cleanEmptyFolders, deleteImageWithCleanup } = require('../utils/file-utils');
 const { downloadCover, uploadCustomCover, saveCoverFromPath, saveCoverFromBuffer } = require('../services/cover-manager');
 const { translateText: groqTranslate } = require('../apis/groq');
@@ -25,7 +26,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   
   // ========== EMPLACEMENT DE MA MANGATHÈQUE ==========
   
-  // Récupérer l'emplacement racine de Ma Mangathèque
+  // Récupérer l'emplacement racine de Le Nexus
   ipcMain.handle('get-base-directory', () => {
     return getPaths().base || '';
   });
@@ -34,6 +35,105 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   ipcMain.handle('get-current-user', () => {
     return store.get('currentUser', '');
   });
+
+  // Fonction helper pour fusionner deux bases de données SQLite
+  const mergeDatabases = (sourceDbPath, destDbPath) => {
+    console.log('🔄 Fusion des bases de données...');
+    console.log('  Source:', sourceDbPath);
+    console.log('  Destination:', destDbPath);
+
+    try {
+      // Ouvrir les deux bases
+      const sourceDb = new Database(sourceDbPath, { readonly: true });
+      const destDb = new Database(destDbPath);
+
+      // Commencer une transaction
+      destDb.exec('BEGIN TRANSACTION');
+
+      // Liste des tables à fusionner (ordre important pour respecter les clés étrangères)
+      const tables = [
+        { name: 'users', strategy: 'skip_duplicates' },
+        { name: 'series', strategy: 'skip_duplicates' },
+        { name: 'tomes', strategy: 'skip_duplicates' },
+        { name: 'tomes_proprietaires', strategy: 'skip_duplicates' },
+        { name: 'lecture_tomes', strategy: 'skip_duplicates' },
+        { name: 'series_masquees', strategy: 'skip_duplicates' },
+        { name: 'anime_series', strategy: 'skip_duplicates' },
+        { name: 'anime_proprietaires', strategy: 'skip_duplicates' },
+        { name: 'anime_episodes', strategy: 'skip_duplicates' },
+        { name: 'avn_games', strategy: 'skip_duplicates' },
+        { name: 'avn_proprietaires', strategy: 'skip_duplicates' }
+      ];
+
+      let totalMerged = 0;
+
+      for (const table of tables) {
+        try {
+          // Vérifier si la table existe dans les deux bases
+          const tableExistsSource = sourceDb.prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+          ).get(table.name);
+
+          const tableExistsDest = destDb.prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+          ).get(table.name);
+
+          if (!tableExistsSource) {
+            console.log(`  ⏭️  Table ${table.name} absente de la source, ignorée`);
+            continue;
+          }
+
+          if (!tableExistsDest) {
+            console.log(`  ⚠️  Table ${table.name} absente de la destination, ignorée`);
+            continue;
+          }
+
+          // Récupérer toutes les données de la source
+          const sourceRows = sourceDb.prepare(`SELECT * FROM ${table.name}`).all();
+          
+          if (sourceRows.length === 0) {
+            console.log(`  ✓ Table ${table.name}: 0 ligne(s) à fusionner`);
+            continue;
+          }
+
+          // Récupérer les colonnes de la table
+          const columns = sourceDb.pragma(`table_info(${table.name})`);
+          const columnNames = columns.map(col => col.name);
+          const placeholders = columnNames.map(() => '?').join(', ');
+
+          // Insérer les données avec INSERT OR IGNORE pour éviter les doublons
+          const insertStmt = destDb.prepare(
+            `INSERT OR IGNORE INTO ${table.name} (${columnNames.join(', ')}) VALUES (${placeholders})`
+          );
+
+          let mergedCount = 0;
+          for (const row of sourceRows) {
+            const values = columnNames.map(col => row[col]);
+            const result = insertStmt.run(...values);
+            if (result.changes > 0) mergedCount++;
+          }
+
+          totalMerged += mergedCount;
+          console.log(`  ✓ Table ${table.name}: ${mergedCount}/${sourceRows.length} ligne(s) fusionnée(s)`);
+        } catch (tableError) {
+          console.error(`  ❌ Erreur fusion table ${table.name}:`, tableError.message);
+        }
+      }
+
+      // Commit la transaction
+      destDb.exec('COMMIT');
+      
+      // Fermer les connexions
+      sourceDb.close();
+      destDb.close();
+
+      console.log(`✅ Fusion terminée: ${totalMerged} ligne(s) ajoutée(s) au total`);
+      return { success: true, merged: totalMerged };
+    } catch (error) {
+      console.error('❌ Erreur lors de la fusion des bases:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   // Fonction helper pour copier tous les fichiers vers un nouvel emplacement
   const copyAllFilesToNewLocation = (newBasePath) => {
@@ -44,40 +144,68 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     }
 
     try {
-      // Copier récursivement
-      const copyRecursive = (src, dest) => {
+      console.log('📦 Copie/fusion des fichiers...');
+      console.log('  De:', currentBasePath);
+      console.log('  Vers:', newBasePath);
+
+      // Copier récursivement SANS écraser les fichiers existants
+      const copyRecursiveNoOverwrite = (src, dest) => {
         if (fs.statSync(src).isDirectory()) {
-          if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+          if (!fs.existsSync(dest)) {
+            fs.mkdirSync(dest, { recursive: true });
+            console.log(`  📁 Dossier créé: ${path.basename(dest)}`);
+          }
           const files = fs.readdirSync(src);
           files.forEach(file => {
-            copyRecursive(path.join(src, file), path.join(dest, file));
+            copyRecursiveNoOverwrite(path.join(src, file), path.join(dest, file));
           });
         } else {
-          fs.copyFileSync(src, dest);
+          // Ne copier que si le fichier n'existe pas déjà à destination
+          if (!fs.existsSync(dest)) {
+            fs.copyFileSync(src, dest);
+            console.log(`  ✓ Fichier copié: ${path.basename(dest)}`);
+          } else {
+            console.log(`  ⏭️  Fichier existant conservé: ${path.basename(dest)}`);
+          }
         }
       };
 
-      // Copier les dossiers
+      // Copier les dossiers (configs, profiles, covers) SANS écraser
       ['configs', 'profiles', 'covers'].forEach(folder => {
         const srcFolder = path.join(currentBasePath, folder);
         const destFolder = path.join(newBasePath, folder);
         if (fs.existsSync(srcFolder)) {
-          copyRecursive(srcFolder, destFolder);
+          console.log(`📂 Copie du dossier: ${folder}`);
+          copyRecursiveNoOverwrite(srcFolder, destFolder);
         }
       });
 
-      // Copier la base de données
+      // Gérer la base de données principale (manga.db)
       const srcDb = path.join(currentBasePath, 'manga.db');
       const destDb = path.join(newBasePath, 'manga.db');
+      
       if (fs.existsSync(srcDb)) {
-        fs.copyFileSync(srcDb, destDb);
-
+        if (fs.existsSync(destDb)) {
+          // Base de données existante à destination : FUSIONNER
+          console.log('🔄 Base de données existante détectée, fusion en cours...');
+          const mergeResult = mergeDatabases(srcDb, destDb);
+          if (!mergeResult.success) {
+            console.error('❌ Échec de la fusion de la base de données');
+            return { success: false, error: 'Échec de la fusion de la base de données: ' + mergeResult.error };
+          }
+          console.log(`✅ Fusion réussie: ${mergeResult.merged} ligne(s) ajoutée(s)`);
+        } else {
+          // Pas de base à destination : simple copie
+          console.log('📋 Copie de la base de données...');
+          fs.copyFileSync(srcDb, destDb);
+          console.log('✅ Base de données copiée');
+        }
       }
 
-
+      console.log('✅ Copie/fusion terminée avec succès !');
       return { success: true, path: newBasePath };
     } catch (error) {
-      console.error('Erreur lors de la copie:', error);
+      console.error('❌ Erreur lors de la copie/fusion:', error);
       return { success: false, error: error.message };
     }
   };
@@ -104,11 +232,11 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     }
   });
 
-  // Changer l'emplacement de Ma Mangathèque
+  // Changer l'emplacement de Le Nexus
   ipcMain.handle('change-base-directory', async () => {
     try {
       const result = await dialog.showOpenDialog(getMainWindow(), {
-        title: 'Choisir un nouvel emplacement pour Ma Mangathèque',
+        title: 'Choisir un nouvel emplacement pour Le Nexus',
         properties: ['openDirectory', 'createDirectory'],
         buttonLabel: 'Sélectionner ce dossier',
         message: 'Tous vos fichiers seront déplacés vers ce dossier'
@@ -130,7 +258,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         return { 
           success: true, 
           path: newBasePath,
-          message: 'Ma Mangathèque déplacée avec succès. Redémarrez l\'application pour appliquer les changements.'
+          message: 'Le Nexus déplacé avec succès. Redémarrez l\'application pour appliquer les changements.'
         };
       }
 

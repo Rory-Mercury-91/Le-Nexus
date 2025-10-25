@@ -450,7 +450,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
               'Completed': 'Terminé',
               'On-Hold': 'En attente',
               'Dropped': 'Abandonné',
-              'Plan to Watch': 'En attente'
+              'Plan to Watch': 'À regarder'
             };
             
             const statut = statutMap[myStatus] || 'En cours';
@@ -795,7 +795,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           'plan_to_watch': 'À regarder'
         };
 
-        const statutFr = statutMap[animeData.statut] || 'À regarder';
+        const statutFr = statutMap[animeData.statut] || 'En cours';
 
         db.prepare(`
           INSERT INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage, date_modification)

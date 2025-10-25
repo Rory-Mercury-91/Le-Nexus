@@ -75,7 +75,7 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
         }}>
-          Ma Mangathèque
+          Le Nexus
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>
           Qui êtes-vous ?

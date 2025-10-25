@@ -49,7 +49,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Afficher Ma Mangathèque',
+      label: 'Afficher Le Nexus',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -69,7 +69,7 @@ function createTray() {
     }
   ]);
 
-  tray.setToolTip('Ma Mangathèque');
+  tray.setToolTip('Le Nexus');
   tray.setContextMenu(contextMenu);
 
   // Double-clic sur l'icône pour afficher la fenêtre
@@ -191,7 +191,7 @@ function createWindow() {
       if (!store.get('trayNotificationShown') && process.platform === 'win32') {
         try {
           tray.displayBalloon({
-            title: 'Ma Mangathèque',
+            title: 'Le Nexus',
             content: 'L\'application continue de fonctionner en arrière-plan. Clic droit sur l\'icône pour quitter.',
             iconType: 'info'
           });
@@ -291,7 +291,7 @@ app.whenReady().then(async () => {
   // Message de bienvenue
   console.log('\n╔════════════════════════════════════════════════════╗');
   console.log('║                                                    ║');
-  console.log('║        📚 Bienvenue dans Ma Mangathèque ! 📚       ║');
+  console.log('║              🌐 Bienvenue dans Le Nexus ! 🌐           ║');
   console.log('║                                                    ║');
   console.log('║        Votre collection de mangas & animes         ║');
   console.log('║           organisée avec passion ! ✨              ║');

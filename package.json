@@ -1,7 +1,8 @@
 {
-  "name": "ma-mangatheque",
+  "name": "le-nexus",
   "version": "1.0.0",
-  "description": "Application de gestion de collection de mangas",
+  "description": "Application de gestion de collections multimédias (Mangas, Animés, AVN)",
+  "author": "Le Nexus Team",
   "main": "electron/main.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--no-deprecation concurrently \"npm run start:react\" \"wait-on http://localhost:3000 && npm run start:electron\"",
@@ -13,8 +14,8 @@
     "clear-cache": "node scripts/clear-cache.js"
   },
   "build": {
-    "appId": "com.mangatheque.app",
-    "productName": "Ma Mangathèque",
+    "appId": "com.lenexus.app",
+    "productName": "Le Nexus",
     "files": [
       "dist/**/*",
       "electron/**/*",

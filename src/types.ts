@@ -295,6 +295,8 @@ export interface User {
 export type AvnStatutPerso = 'Complété' | 'En cours' | 'À jouer' | 'Abandonné';
 export type AvnStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
 export type AvnMoteur = 'RenPy' | 'Unity' | 'RPGM' | 'Unreal' | 'HTML' | 'Flash' | 'QSP' | 'Autre';
+export type AvnStatutTraduction = 'Traduction' | 'Traduction (Mod inclus)' | 'Traduction intégré' | '';
+export type AvnTypeTraduction = 'Manuelle' | 'Semi-automatique' | 'Automatique' | 'VO française' | '';
 
 export interface AvnGame {
   id: number;
@@ -314,6 +316,11 @@ export interface AvnGame {
   notes_privees?: string | null;
   chemin_executable?: string | null;
   derniere_session?: string | null;
+  
+  // Informations de traduction
+  version_traduction?: string | null;
+  statut_traduction?: AvnStatutTraduction | null;
+  type_traduction?: AvnTypeTraduction | null;
   
   // Contrôle de version
   version_disponible?: string | null;
@@ -445,6 +452,7 @@ declare global {
       getAvnGames: (filters?: AvnFilters) => Promise<AvnGame[]>;
       getAvnGame: (id: number) => Promise<AvnGame | null>;
       createAvnGame: (gameData: Partial<AvnGame>) => Promise<{ success: boolean; id?: number }>;
+      importAvnFromJson: (jsonData: any) => Promise<{ success: boolean; id?: number; created?: boolean; updated?: boolean }>;
       updateAvnGame: (id: number, gameData: Partial<AvnGame>) => Promise<{ success: boolean }>;
       deleteAvnGame: (id: number) => Promise<{ success: boolean }>;
       markAvnUpdateSeen: (id: number) => Promise<{ success: boolean }>;

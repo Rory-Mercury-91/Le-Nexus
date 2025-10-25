@@ -127,6 +127,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAvnGames: (filters) => ipcRenderer.invoke('get-avn-games', filters),
   getAvnGame: (id) => ipcRenderer.invoke('get-avn-game', id),
   createAvnGame: (gameData) => ipcRenderer.invoke('create-avn-game', gameData),
+  importAvnFromJson: (jsonData) => ipcRenderer.invoke('import-avn-from-json', jsonData),
   updateAvnGame: (id, gameData) => ipcRenderer.invoke('update-avn-game', id, gameData),
   deleteAvnGame: (id) => ipcRenderer.invoke('delete-avn-game', id),
   markAvnUpdateSeen: (id) => ipcRenderer.invoke('mark-avn-update-seen', id),

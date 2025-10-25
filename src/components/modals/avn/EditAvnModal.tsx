@@ -1,7 +1,7 @@
 import { FolderOpen, X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import '../../../index.css';
-import type { AvnGame, AvnMoteur, AvnStatutJeu, AvnStatutPerso } from '../../../types';
+import type { AvnGame, AvnMoteur, AvnStatutJeu, AvnStatutPerso, AvnStatutTraduction, AvnTypeTraduction } from '../../../types';
 
 interface EditAvnModalProps {
   game: AvnGame;
@@ -23,6 +23,11 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
   const [notesPrivees, setNotesPrivees] = useState(game.notes_privees || '');
   const [tagsInput, setTagsInput] = useState(game.tags?.join(', ') || '');
   const [saving, setSaving] = useState(false);
+  
+  // Champs de traduction
+  const [versionTraduction, setVersionTraduction] = useState(game.version_traduction || '');
+  const [statutTraduction, setStatutTraduction] = useState<AvnStatutTraduction | ''>(game.statut_traduction || '');
+  const [typeTraduction, setTypeTraduction] = useState<AvnTypeTraduction | ''>(game.type_traduction || '');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,7 +52,10 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
         lien_traduction: lienTraduction || null,
         lien_jeu: lienJeu || null,
         chemin_executable: cheminExecutable || null,
-        notes_privees: notesPrivees || null
+        notes_privees: notesPrivees || null,
+        version_traduction: versionTraduction || null,
+        statut_traduction: statutTraduction || null,
+        type_traduction: typeTraduction || null
       });
 
       onSave();
@@ -368,6 +376,65 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                     className="input"
                     placeholder="https://..."
                   />
+                </div>
+              </div>
+
+              {/* Section : Traduction */}
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)' }}>
+                  🌐 Traduction
+                </h3>
+
+                {/* Version de la traduction */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="version_traduction" className="label">
+                    Version de la traduction
+                  </label>
+                  <input
+                    type="text"
+                    id="version_traduction"
+                    value={versionTraduction}
+                    onChange={(e) => setVersionTraduction(e.target.value)}
+                    className="input"
+                    placeholder="v1.0 FR"
+                  />
+                </div>
+
+                {/* Statut de traduction */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label htmlFor="statut_traduction" className="label">
+                    Statut de traduction
+                  </label>
+                  <select
+                    id="statut_traduction"
+                    value={statutTraduction}
+                    onChange={(e) => setStatutTraduction(e.target.value as AvnStatutTraduction | '')}
+                    className="select"
+                  >
+                    <option value="">-- Non défini --</option>
+                    <option value="Traduction">Traduction</option>
+                    <option value="Traduction (Mod inclus)">Traduction (Mod inclus)</option>
+                    <option value="Traduction intégré">Traduction intégré</option>
+                  </select>
+                </div>
+
+                {/* Type de traduction */}
+                <div>
+                  <label htmlFor="type_traduction" className="label">
+                    Type de traduction
+                  </label>
+                  <select
+                    id="type_traduction"
+                    value={typeTraduction}
+                    onChange={(e) => setTypeTraduction(e.target.value as AvnTypeTraduction | '')}
+                    className="select"
+                  >
+                    <option value="">-- Non défini --</option>
+                    <option value="Manuelle">Manuelle</option>
+                    <option value="Semi-automatique">Semi-automatique</option>
+                    <option value="Automatique">Automatique</option>
+                    <option value="VO française">VO française</option>
+                  </select>
                 </div>
               </div>
 

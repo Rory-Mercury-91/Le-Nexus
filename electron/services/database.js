@@ -151,7 +151,7 @@ function initDatabase(dbPath) {
       date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (anime_id, utilisateur),
       FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'En attente'))
+      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'En attente', 'À regarder'))
     );
 
     CREATE TABLE IF NOT EXISTS users (
@@ -294,6 +294,11 @@ function initDatabase(dbPath) {
       chemin_executable TEXT, -- Pour lancer le jeu
       derniere_session DATETIME,
       
+      -- Informations de traduction
+      version_traduction TEXT,
+      statut_traduction TEXT, -- Traduction, Traduction (Mod inclus), Traduction intégré
+      type_traduction TEXT, -- Manuelle, Semi-automatique, Automatique, VO française
+      
       -- Contrôle de version
       version_disponible TEXT, -- Version détectée via API
       maj_disponible BOOLEAN DEFAULT 0,
@@ -315,6 +320,31 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_avn_statut ON avn_games(statut_perso);
     CREATE INDEX IF NOT EXISTS idx_avn_maj ON avn_games(maj_disponible);
   `);
+  
+  // ========================================
+  // MIGRATIONS POUR BASES EXISTANTES
+  // ========================================
+  
+  // Migration: Ajouter les colonnes de traduction AVN si elles n'existent pas
+  try {
+    const columns = db.prepare("PRAGMA table_info(avn_games)").all();
+    const columnNames = columns.map(col => col.name);
+    
+    if (!columnNames.includes('version_traduction')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN version_traduction TEXT');
+      console.log('✅ Colonne version_traduction ajoutée');
+    }
+    if (!columnNames.includes('statut_traduction')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN statut_traduction TEXT');
+      console.log('✅ Colonne statut_traduction ajoutée');
+    }
+    if (!columnNames.includes('type_traduction')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN type_traduction TEXT');
+      console.log('✅ Colonne type_traduction ajoutée');
+    }
+  } catch (error) {
+    console.log('ℹ️ Migration traduction AVN déjà appliquée ou erreur:', error.message);
+  }
   
   console.log('✅ Schéma de base de données créé/vérifié (Mangas, Animes, AVN)');
   

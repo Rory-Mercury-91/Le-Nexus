@@ -1,6 +1,6 @@
-# Ma Mangathèque
+# Le Nexus
 
-Application de gestion de collection de mangas et animes développée avec Electron et React.
+Application de gestion de collections multimédias (Mangas, Animés, AVN) développée avec Electron et React.
 
 ## ✨ Fonctionnalités
 

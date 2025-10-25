@@ -421,6 +421,39 @@ export default function AvnDetail() {
                 </div>
               )}
 
+              {/* Informations de traduction */}
+              {(game.version_traduction || game.statut_traduction || game.type_traduction) && (
+                <div style={{
+                  padding: '12px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(139, 92, 246, 0.3)'
+                }}>
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Languages size={14} />
+                    Traduction
+                  </span>
+                  
+                  {game.version_traduction && (
+                    <p style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '4px' }}>
+                      <strong>Version :</strong> {game.version_traduction}
+                    </p>
+                  )}
+                  
+                  {game.statut_traduction && (
+                    <p style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '4px' }}>
+                      <strong>Statut :</strong> {game.statut_traduction}
+                    </p>
+                  )}
+                  
+                  {game.type_traduction && (
+                    <p style={{ fontSize: '14px', color: 'var(--text)' }}>
+                      <strong>Type :</strong> {game.type_traduction}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Dernière session */}
               {game.derniere_session && (
                 <div>

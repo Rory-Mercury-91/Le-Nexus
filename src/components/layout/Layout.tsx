@@ -1,4 +1,4 @@
-import { BookOpen, ChevronLeft, ChevronRight, Home, LogOut, Minimize2, Settings, Tv, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Minimize2, Settings, User } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -149,7 +149,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             backgroundClip: 'text',
             whiteSpace: 'nowrap'
           }}>
-            Ma Mangathèque
+            Le Nexus
           </h1>
         </div>
 
@@ -235,7 +235,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             }}
             title={isCollapsed ? 'Tableau de bord' : ''}
           >
-            <Home size={20} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '20px', flexShrink: 0 }}>🏠</span>
             <span style={{ 
               whiteSpace: 'nowrap',
               opacity: isCollapsed ? 0 : 1,
@@ -264,7 +264,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
               }}
               title={isCollapsed ? 'Mangas' : ''}
             >
-              <BookOpen size={20} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '20px', flexShrink: 0 }}>📚</span>
               <span style={{ 
                 whiteSpace: 'nowrap',
                 opacity: isCollapsed ? 0 : 1,
@@ -294,7 +294,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             }}
             title={isCollapsed ? 'Animes' : ''}
           >
-            <Tv size={20} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '20px', flexShrink: 0 }}>🎬</span>
             <span style={{ 
               whiteSpace: 'nowrap',
               opacity: isCollapsed ? 0 : 1,

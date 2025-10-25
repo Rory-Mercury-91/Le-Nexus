@@ -84,7 +84,7 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
         WebkitTextFillColor: 'transparent',
         backgroundClip: 'text'
       }}>
-        Ma Mangathèque
+        Le Nexus
       </h1>
 
       {/* Statut */}

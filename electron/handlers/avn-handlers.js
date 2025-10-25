@@ -90,14 +90,26 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         let tags = [];
         if (game.tags) {
           try {
-            tags = JSON.parse(game.tags);
-            // Si tags est une string (au lieu d'un array), le transformer en array
-            if (typeof tags === 'string') {
-              tags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            // Si c'est déjà un array, l'utiliser directement
+            if (Array.isArray(game.tags)) {
+              tags = game.tags;
+            }
+            // Si c'est une string qui commence par [, c'est du JSON
+            else if (typeof game.tags === 'string' && game.tags.trim().startsWith('[')) {
+              tags = JSON.parse(game.tags);
+            }
+            // Sinon, c'est une string CSV
+            else if (typeof game.tags === 'string') {
+              tags = game.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
             }
           } catch (e) {
             console.warn(`Erreur parsing tags pour jeu ${game.id}:`, e.message);
-            tags = [];
+            // En cas d'erreur, essayer de splitter en CSV
+            if (typeof game.tags === 'string') {
+              tags = game.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            } else {
+              tags = [];
+            }
           }
         }
         
@@ -140,14 +152,26 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       let tags = [];
       if (game.tags) {
         try {
-          tags = JSON.parse(game.tags);
-          // Si tags est une string (au lieu d'un array), le transformer en array
-          if (typeof tags === 'string') {
-            tags = tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+          // Si c'est déjà un array, l'utiliser directement
+          if (Array.isArray(game.tags)) {
+            tags = game.tags;
+          }
+          // Si c'est une string qui commence par [, c'est du JSON
+          else if (typeof game.tags === 'string' && game.tags.trim().startsWith('[')) {
+            tags = JSON.parse(game.tags);
+          }
+          // Sinon, c'est une string CSV
+          else if (typeof game.tags === 'string') {
+            tags = game.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
           }
         } catch (e) {
           console.warn(`Erreur parsing tags pour jeu ${id}:`, e.message);
-          tags = [];
+          // En cas d'erreur, essayer de splitter en CSV
+          if (typeof game.tags === 'string') {
+            tags = game.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+          } else {
+            tags = [];
+          }
         }
       }
       
@@ -182,9 +206,10 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           f95_thread_id, titre, version, statut_jeu, moteur,
           couverture_url, tags, lien_f95, lien_traduction, lien_jeu,
           statut_perso, notes_privees, chemin_executable,
-          derniere_session, version_disponible, maj_disponible,
+          derniere_session, version_traduction, statut_traduction, type_traduction,
+          version_disponible, maj_disponible,
           derniere_verif, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `).run(
         gameData.f95_thread_id || null,
         gameData.titre,
@@ -200,6 +225,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         gameData.notes_privees || null,
         gameData.chemin_executable || null,
         gameData.derniere_session || null,
+        gameData.version_traduction || null,
+        gameData.statut_traduction || null,
+        gameData.type_traduction || null,
         gameData.version_disponible || null,
         gameData.maj_disponible || 0,
         gameData.derniere_verif || null
@@ -222,6 +250,139 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       
     } catch (error) {
       console.error('Erreur create-avn-game:', error);
+      throw error;
+    }
+  });
+  
+  // ========================================
+  // POST - Import depuis JSON (LC Extractor / F95 Extractor)
+  // ========================================
+  
+  ipcMain.handle('import-avn-from-json', async (event, jsonData) => {
+    try {
+      const db = getDb();
+      const currentUser = store.get('currentUser', '');
+      
+      if (!currentUser) {
+        throw new Error('Aucun utilisateur actuel sélectionné');
+      }
+      
+      console.log(`📥 Import JSON AVN:`, jsonData);
+      
+      // Mapper les données selon le format LC Extractor / F95 Extractor
+      const titre = jsonData.name;
+      const version = jsonData.version || null;
+      const statut_jeu = jsonData.status || 'EN COURS';
+      const moteur = jsonData.type || jsonData.engine || null;
+      const tags = typeof jsonData.tags === 'string' 
+        ? jsonData.tags.split(',').map(t => t.trim()).filter(t => t)
+        : (Array.isArray(jsonData.tags) ? jsonData.tags : []);
+      
+      // Lien F95Zone ou LewdCorner
+      let f95_thread_id = null;
+      let lien_f95 = null;
+      
+      if (jsonData.domain === 'F95z' || jsonData.domain === 'F95Zone') {
+        f95_thread_id = jsonData.id;
+        lien_f95 = jsonData.link || `https://f95zone.to/threads/${jsonData.id}`;
+      } else if (jsonData.domain === 'LewdCorner') {
+        f95_thread_id = jsonData.id; // On garde l'ID pour référence
+        lien_f95 = jsonData.link || `https://lewdcorner.com/threads/${jsonData.id}`;
+      }
+      
+      // Télécharger la couverture
+      let couverture_url = null;
+      if (jsonData.image) {
+        try {
+          const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
+          const slugify = require('../utils/slug');
+          const gameSlug = slugify(titre);
+          
+          console.log(`📥 Téléchargement de l'image...`);
+          const result = await coverManager.downloadCover(
+            jsonData.image, 
+            'avn', 
+            gameSlug,
+            lien_f95 // referer
+          );
+          
+          if (result.success) {
+            couverture_url = result.localPath;
+            console.log(`✅ Image téléchargée: ${couverture_url}`);
+          }
+        } catch (imgError) {
+          console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
+          couverture_url = jsonData.image; // Fallback sur l'URL distante
+        }
+      }
+      
+      // Vérifier si le jeu existe déjà
+      const existing = db.prepare(`
+        SELECT id FROM avn_games 
+        WHERE f95_thread_id = ? OR (titre = ? AND lien_f95 = ?)
+        LIMIT 1
+      `).get(f95_thread_id, titre, lien_f95);
+      
+      if (existing) {
+        // Mettre à jour le jeu existant
+        db.prepare(`
+          UPDATE avn_games SET
+            titre = ?,
+            version = ?,
+            statut_jeu = ?,
+            moteur = ?,
+            couverture_url = COALESCE(?, couverture_url),
+            tags = ?,
+            lien_f95 = ?,
+            updated_at = datetime('now')
+          WHERE id = ?
+        `).run(
+          titre,
+          version,
+          statut_jeu,
+          moteur,
+          couverture_url,
+          JSON.stringify(tags),
+          lien_f95,
+          existing.id
+        );
+        
+        console.log(`✅ Jeu AVN mis à jour: "${titre}" (ID: ${existing.id})`);
+        return { success: true, id: existing.id, updated: true };
+      } else {
+        // Créer un nouveau jeu
+        const result = db.prepare(`
+          INSERT INTO avn_games (
+            f95_thread_id, titre, version, statut_jeu, moteur,
+            couverture_url, tags, lien_f95,
+            statut_perso, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(
+          f95_thread_id,
+          titre,
+          version,
+          statut_jeu,
+          moteur,
+          couverture_url,
+          JSON.stringify(tags),
+          lien_f95,
+          'À jouer'
+        );
+        
+        const gameId = result.lastInsertRowid;
+        
+        // Ajouter le propriétaire
+        db.prepare(`
+          INSERT INTO avn_proprietaires (game_id, utilisateur)
+          VALUES (?, ?)
+        `).run(gameId, currentUser);
+        
+        console.log(`✅ Jeu AVN créé depuis JSON: "${titre}" (ID: ${gameId})`);
+        return { success: true, id: gameId, created: true };
+      }
+      
+    } catch (error) {
+      console.error('Erreur import-avn-from-json:', error);
       throw error;
     }
   });
@@ -288,6 +449,18 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       if (gameData.derniere_session !== undefined) {
         fields.push('derniere_session = ?');
         values.push(gameData.derniere_session);
+      }
+      if (gameData.version_traduction !== undefined) {
+        fields.push('version_traduction = ?');
+        values.push(gameData.version_traduction);
+      }
+      if (gameData.statut_traduction !== undefined) {
+        fields.push('statut_traduction = ?');
+        values.push(gameData.statut_traduction);
+      }
+      if (gameData.type_traduction !== undefined) {
+        fields.push('type_traduction = ?');
+        values.push(gameData.type_traduction);
       }
       
       fields.push('updated_at = datetime(\'now\')');

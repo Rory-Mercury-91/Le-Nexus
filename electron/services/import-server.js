@@ -589,7 +589,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             db.prepare(`
               UPDATE anime_series 
               SET titre = ?, titre_natif = ?, couverture_url = ?, description = ?, 
-                  statut = ?, type = ?, genres = ?, studios = ?, annee = ?, 
+                  statut_diffusion = ?, type = ?, genres = ?, studios = ?, annee = ?, 
                   mal_id = ?, updated_at = CURRENT_TIMESTAMP
               WHERE id = ?
             `).run(
@@ -626,9 +626,9 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             
             const insertResult = db.prepare(`
               INSERT INTO anime_series (
-                titre, titre_natif, couverture_url, description, statut, type, 
-                genres, studios, annee, mal_id, source_import, utilisateur_ajout
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                titre, titre_natif, couverture_url, description, statut_diffusion, type, 
+                nb_episodes, genres, studios, annee, mal_id, source_import, utilisateur_ajout
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               animeData.titre,
               animeData.titre_natif || null,
@@ -636,6 +636,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
               animeData.description || null,
               animeData.statut || 'En cours',
               animeData.type || 'TV',
+              animeData.nb_episodes || 0,
               animeData.genres || null,
               animeData.studios || null,
               animeData.annee || null,
@@ -1346,7 +1347,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ 
         status: 'ok', 
-        message: 'Ma Mangathèque Import Server',
+        message: 'Le Nexus Import Server',
         version: '1.0.0'
       }));
       return;

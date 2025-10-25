@@ -1,7 +1,7 @@
 import { Plus, Search, X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import '../../../index.css';
-import type { AvnMoteur, AvnStatutJeu, AvnStatutPerso } from '../../../types';
+import type { AvnMoteur, AvnStatutJeu, AvnStatutPerso, AvnStatutTraduction, AvnTypeTraduction } from '../../../types';
 
 interface AddAvnModalProps {
   onClose: () => void;
@@ -31,6 +31,11 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
   const [cheminExecutable] = useState('');
   const [notesPrivees] = useState('');
   const [tagsInput, setTagsInput] = useState('');
+  
+  // Champs de traduction
+  const [versionTraduction, setVersionTraduction] = useState('');
+  const [statutTraduction, setStatutTraduction] = useState<AvnStatutTraduction | ''>('');
+  const [typeTraduction, setTypeTraduction] = useState<AvnTypeTraduction | ''>('');
 
   const handleFetchF95 = async () => {
     if (!f95Id.trim()) {
@@ -120,7 +125,10 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
         lien_traduction: lienTraduction || null,
         lien_jeu: lienJeu || null,
         chemin_executable: cheminExecutable || null,
-        notes_privees: notesPrivees || null
+        notes_privees: notesPrivees || null,
+        version_traduction: versionTraduction || null,
+        statut_traduction: statutTraduction || null,
+        type_traduction: typeTraduction || null
       });
 
       alert(`✅ Jeu ajouté: ${titre}`);
@@ -428,6 +436,71 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
                     className="input"
                     placeholder="3DCG, Romance, Incest, ..."
                   />
+                </div>
+
+                {/* Section Traduction */}
+                <div style={{ 
+                  padding: '16px', 
+                  background: 'rgba(139, 92, 246, 0.1)', 
+                  borderRadius: '8px',
+                  border: '1px solid rgba(139, 92, 246, 0.3)'
+                }}>
+                  <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: 'var(--primary)' }}>
+                    🌐 Informations de traduction (optionnel)
+                  </h4>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label htmlFor="version_traduction" className="label">
+                        Version de la traduction
+                      </label>
+                      <input
+                        type="text"
+                        id="version_traduction"
+                        value={versionTraduction}
+                        onChange={(e) => setVersionTraduction(e.target.value)}
+                        className="input"
+                        placeholder="v1.0 FR"
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label htmlFor="statut_traduction" className="label">
+                          Statut de traduction
+                        </label>
+                        <select
+                          id="statut_traduction"
+                          value={statutTraduction}
+                          onChange={(e) => setStatutTraduction(e.target.value as AvnStatutTraduction | '')}
+                          className="select"
+                        >
+                          <option value="">-- Non défini --</option>
+                          <option value="Traduction">Traduction</option>
+                          <option value="Traduction (Mod inclus)">Traduction (Mod inclus)</option>
+                          <option value="Traduction intégré">Traduction intégré</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="type_traduction" className="label">
+                          Type de traduction
+                        </label>
+                        <select
+                          id="type_traduction"
+                          value={typeTraduction}
+                          onChange={(e) => setTypeTraduction(e.target.value as AvnTypeTraduction | '')}
+                          className="select"
+                        >
+                          <option value="">-- Non défini --</option>
+                          <option value="Manuelle">Manuelle</option>
+                          <option value="Semi-automatique">Semi-automatique</option>
+                          <option value="Automatique">Automatique</option>
+                          <option value="VO française">VO française</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </form>

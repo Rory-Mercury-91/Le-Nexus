@@ -52,7 +52,7 @@ function generatePKCEChallenge() {
 }
 
 // Configuration OAuth MAL
-const MAL_CLIENT_ID = 'e72b02a7bb078afbca8c4184caa53477'; // Client ID de l'app Ma Mangathèque
+const MAL_CLIENT_ID = 'e72b02a7bb078afbca8c4184caa53477'; // Client ID de l'app Le Nexus
 const MAL_REDIRECT_URI = 'http://localhost:8888/callback';
 const MAL_AUTH_URL = 'https://myanimelist.net/v1/oauth2/authorize';
 const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
@@ -300,4 +300,3 @@ module.exports = {
   getUserInfo,
   MAL_CLIENT_ID
 };
-
