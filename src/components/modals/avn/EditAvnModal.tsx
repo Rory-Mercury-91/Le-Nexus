@@ -276,12 +276,12 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <input
-                      type="url"
+                      type="text"
                       id="couverture_url"
                       value={couvertureUrl}
                       onChange={(e) => setCouvertureUrl(e.target.value)}
                       className="input"
-                      placeholder="https://..."
+                      placeholder="https://... ou chemin local"
                       style={{ flex: 1 }}
                     />
                     <button

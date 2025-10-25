@@ -646,21 +646,39 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   ipcMain.handle('check-avn-updates', async () => {
     try {
       const db = getDb();
+      const { session } = require('electron');
       
-      // Récupérer tous les jeux avec un f95_thread_id ET liens F95Zone uniquement (pas LewdCorner)
-      const games = db.prepare(`
+      // Vérifier la session LewdCorner
+      const lewdCornerCookies = await session.defaultSession.cookies.get({ 
+        domain: '.lewdcorner.com' 
+      });
+      const isLewdCornerConnected = lewdCornerCookies.length > 0;
+      
+      if (isLewdCornerConnected) {
+        console.log('🍪 Session LewdCorner active : les jeux LewdCorner seront vérifiés');
+      } else {
+        console.log('⚠️ Session LewdCorner inactive : seuls les jeux F95Zone seront vérifiés');
+      }
+      
+      // Récupérer tous les jeux avec un f95_thread_id (F95Zone ET LewdCorner si connecté)
+      let query = `
         SELECT id, f95_thread_id, titre, version, statut_jeu, moteur, tags, couverture_url, maj_disponible, lien_f95 
         FROM avn_games 
-        WHERE f95_thread_id IS NOT NULL 
-          AND (lien_f95 IS NULL OR lien_f95 NOT LIKE '%lewdcorner%')
-      `).all();
+        WHERE f95_thread_id IS NOT NULL`;
+      
+      if (!isLewdCornerConnected) {
+        // Exclure LewdCorner si pas connecté
+        query += ` AND (lien_f95 IS NULL OR lien_f95 NOT LIKE '%lewdcorner%')`;
+      }
+      
+      const games = db.prepare(query).all();
       
       if (games.length === 0) {
         console.log('⚠️ Aucun jeu AVN à vérifier (aucun f95_thread_id)');
         return { checked: 0, updated: 0 };
       }
       
-      console.log(`🔍 Vérification des MAJ pour ${games.length} jeux AVN via scraping F95Zone...`);
+      console.log(`🔍 Vérification des MAJ pour ${games.length} jeux AVN via scraping...`);
       
       let updatedCount = 0;
       
@@ -674,11 +692,17 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         
         try {
           const f95Id = game.f95_thread_id;
-          const threadUrl = `https://f95zone.to/threads/${f95Id}/`;
           
-          console.log(`🌐 Vérif MAJ [${i + 1}/${games.length}]: ${game.titre} (${f95Id})`);
+          // Déterminer le domaine (F95Zone ou LewdCorner)
+          const isLewdCorner = game.lien_f95 && game.lien_f95.includes('lewdcorner');
+          const domain = isLewdCorner ? 'LewdCorner' : 'F95Zone';
+          const threadUrl = isLewdCorner 
+            ? `https://lewdcorner.com/threads/${f95Id}/`
+            : `https://f95zone.to/threads/${f95Id}/`;
           
-          // Scraper la page F95Zone (scraping complet comme dans search-avn-by-f95-id)
+          console.log(`🌐 Vérif MAJ [${i + 1}/${games.length}]: ${game.titre} (${domain})`);
+          
+          // Scraper la page (l'intercepteur ajoute les cookies pour LewdCorner)
           const response = await fetch(threadUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -796,12 +820,16 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             return statutJeu;
           };
           
+          // Détecter si on a déjà une image locale (ne pas l'écraser)
+          const hasLocalImage = game.couverture_url && !game.couverture_url.startsWith('http://') && !game.couverture_url.startsWith('https://');
+          
           // Vérifier si des données ont changé
           const versionChanged = version && version !== game.version;
           const statusChanged = normalizeStatus(status) !== normalizeStatus(game.statut_jeu);
           const engineChanged = engine !== game.moteur;
           const tagsChanged = tags.join(',') !== (game.tags || '');
-          const imageChanged = image !== game.couverture_url;
+          // Ne pas vérifier l'image si on a déjà une image locale
+          const imageChanged = !hasLocalImage && (image !== game.couverture_url);
           
           const hasChanges = versionChanged || statusChanged || engineChanged || tagsChanged || imageChanged;
           
@@ -812,6 +840,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             if (engineChanged) console.log(`  - Moteur: ${game.moteur} → ${engine}`);
             if (tagsChanged) console.log(`  - Tags mis à jour`);
             if (imageChanged) console.log(`  - Image mise à jour`);
+            if (hasLocalImage) console.log(`  ℹ️ Image locale conservée (non écrasée)`);
             
             // Ne compter que les NOUVELLES mises à jour (maj_disponible passant de 0 à 1)
             if (game.maj_disponible === 0) {
@@ -834,6 +863,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
                 statutJeu = 'EN COURS';
             }
             
+            // Utiliser l'image locale si elle existe, sinon l'URL distante
+            const imageToSave = hasLocalImage ? game.couverture_url : image;
+            
             // Mettre à jour TOUTES les données dans la DB
             db.prepare(`
               UPDATE avn_games 
@@ -847,7 +879,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
                   derniere_verif = datetime('now'),
                   updated_at = datetime('now')
               WHERE id = ?
-            `).run(name, version, statutJeu, engine, tags.join(','), image, game.id);
+            `).run(name, version, statutJeu, engine, tags.join(','), imageToSave, game.id);
           } else {
             // Aucun changement, réinitialiser le flag MAJ
             db.prepare(`
@@ -859,11 +891,15 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             console.log(`  ✅ Aucun changement détecté`);
           }
           
-          // Pause pour éviter le rate limiting F95Zone
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Pause pour éviter le rate limiting (plus long pour LewdCorner)
+          const delay = isLewdCorner ? 1000 : 500;
+          await new Promise(resolve => setTimeout(resolve, delay));
           
         } catch (error) {
-          console.error(`❌ Erreur vérif MAJ "${game.titre}":`, error.message);
+          const errorMsg = isLewdCorner && error.message.includes('403') 
+            ? `${error.message} (Vous devez être connecté à LewdCorner)`
+            : error.message;
+          console.error(`❌ Erreur vérif MAJ "${game.titre}":`, errorMsg);
         }
       }
       
