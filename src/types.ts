@@ -327,6 +327,7 @@ declare global {
       malDisconnect: () => Promise<{ success: boolean }>;
       malGetStatus: () => Promise<{ connected: boolean; user?: any; connectedAt?: string; lastSync?: any }>;
       malSyncNow: () => Promise<{ success: boolean; duration?: string; manga?: any; anime?: any; total?: any; error?: string }>;
+      malTranslateSynopsis: () => Promise<{ translated: number; skipped: number; total: number; error?: string }>;
       malSetAutoSync: (enabled: boolean, intervalHours?: number) => Promise<{ success: boolean }>;
       malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;

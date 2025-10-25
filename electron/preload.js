@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malDisconnect: () => ipcRenderer.invoke('mal-disconnect'),
   malGetStatus: () => ipcRenderer.invoke('mal-get-status'),
   malSyncNow: () => ipcRenderer.invoke('mal-sync-now'),
+  malTranslateSynopsis: () => ipcRenderer.invoke('mal-translate-synopsis'),
   malSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('mal-set-auto-sync', enabled, intervalHours),
   malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
   onMalSyncProgress: (callback) => {

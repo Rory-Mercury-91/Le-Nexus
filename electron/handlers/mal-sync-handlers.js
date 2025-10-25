@@ -119,41 +119,53 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null) {
       
       const result = await performFullSync(db, store, currentUser, onProgress);
       
-      // Lancer la traduction des synopsis en arrière-plan (ne pas bloquer la réponse)
-      setTimeout(() => {
-        console.log('🤖 Lancement de la traduction des synopsis en arrière-plan...');
-        
-        // Notifier le frontend du démarrage
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('mal-translation-started');
-        }
-        
-        // Callback pour la progression
-        const onTranslationProgress = (progress) => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('mal-translation-progress', progress);
-          }
-        };
-        
-        translateSynopsisInBackground(db, store, onTranslationProgress).then((translationResult) => {
-          console.log(`🎉 Traduction terminée: ${translationResult.translated} synopsis traduits`);
-          
-          // Notifier le frontend si disponible
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('mal-translation-completed', translationResult);
-          }
-        }).catch((error) => {
-          console.error('❌ Erreur traduction synopsis:', error);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('mal-translation-error', { error: error.message });
-          }
-        });
-      }, 1000); // Délai de 1 seconde après la sync
-      
       return result;
       
     } catch (error) {
       console.error('❌ Erreur synchronisation manuelle MAL:', error);
+      throw error;
+    }
+  });
+  
+  // Déclencher la traduction manuelle des synopsis
+  ipcMain.handle('mal-translate-synopsis', async () => {
+    try {
+      const db = getDb();
+      const mainWindow = getMainWindow ? getMainWindow() : null;
+      
+      console.log('🤖 Lancement manuel de la traduction des synopsis...');
+      
+      // Notifier le frontend du démarrage
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('mal-translation-started');
+      }
+      
+      // Callback pour la progression
+      const onTranslationProgress = (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('mal-translation-progress', progress);
+        }
+      };
+      
+      const translationResult = await translateSynopsisInBackground(db, store, onTranslationProgress);
+      
+      console.log(`🎉 Traduction terminée: ${translationResult.translated} synopsis traduits`);
+      
+      // Notifier le frontend
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('mal-translation-completed', translationResult);
+      }
+      
+      return translationResult;
+      
+    } catch (error) {
+      console.error('❌ Erreur traduction synopsis:', error);
+      
+      const mainWindow = getMainWindow ? getMainWindow() : null;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('mal-translation-error', { error: error.message });
+      }
+      
       throw error;
     }
   });

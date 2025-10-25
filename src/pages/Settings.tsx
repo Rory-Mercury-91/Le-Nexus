@@ -290,6 +290,36 @@ export default function Settings() {
     }
   };
 
+  const handleMalTranslateSynopsis = async () => {
+    if (translating) return;
+
+    try {
+      setTranslating(true);
+      setTranslationProgress(null);
+
+      const result = await window.electronAPI.malTranslateSynopsis();
+
+      if (result.translated !== undefined) {
+        showToast({
+          title: 'Traduction terminée !',
+          message: `✅ ${result.translated} synopsis traduits | ⏭️ ${result.skipped} ignorés`,
+          type: 'success',
+          duration: 5000
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur traduction synopsis:', error);
+      showToast({
+        title: 'Erreur de traduction',
+        message: error.message || 'Impossible de traduire les synopsis',
+        type: 'error'
+      });
+    } finally {
+      setTranslating(false);
+      setTranslationProgress(null);
+    }
+  };
+
   const handleMalAutoSyncChange = async (enabled: boolean) => {
     try {
       await window.electronAPI.malSetAutoSync(enabled, malAutoSyncInterval);
@@ -1113,7 +1143,7 @@ export default function Settings() {
                 className="btn btn-primary"
                 style={{
                   width: '100%',
-                  marginBottom: '16px',
+                  marginBottom: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1123,6 +1153,28 @@ export default function Settings() {
               >
                 <RefreshCw size={18} style={{ animation: malSyncing ? 'spin 1s linear infinite' : 'none' }} />
                 {malSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
+              </button>
+
+              {/* Bouton Traduction manuelle */}
+              <button
+                onClick={handleMalTranslateSynopsis}
+                disabled={translating}
+                className="btn btn-secondary"
+                style={{
+                  width: '100%',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: translating ? 0.6 : 1,
+                  background: translating ? 'var(--surface)' : 'linear-gradient(135deg, #667eea, #764ba2)',
+                  border: 'none',
+                  color: 'white'
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>🤖</span>
+                {translating ? 'Traduction en cours...' : 'Traduire les synopsis'}
               </button>
 
               {/* Synchronisation automatique */}
