@@ -99,7 +99,11 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
         await window.electronAPI.deleteCoverImage(couvertureUrl);
       }
       
-      const result = await window.electronAPI.saveCoverFromPath(imageFile.path, serieTitre, 'tome');
+      // Convertir le File en Uint8Array pour l'envoyer au processus principal
+      const arrayBuffer = await imageFile.arrayBuffer();
+      const buffer = new Uint8Array(arrayBuffer);
+      
+      const result = await window.electronAPI.saveCoverFromBuffer(buffer, imageFile.name, serieTitre, 'tome');
       if (result.success && result.localPath) {
         setCouvertureUrl(result.localPath);
       }
