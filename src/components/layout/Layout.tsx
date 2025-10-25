@@ -277,6 +277,34 @@ export default function Layout({ children, currentUser }: LayoutProps) {
               transition: 'opacity 0.2s ease, width 0.2s ease'
             }}>Animes</span>
           </Link>
+
+          {/* AVN (Adult Visual Novels) */}
+          <Link
+            to="/avn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              color: isActive('/avn') ? 'var(--primary)' : 'var(--text-secondary)',
+              background: isActive('/avn') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+              fontWeight: isActive('/avn') ? '600' : '400',
+              transition: 'all 0.2s',
+              minHeight: '44px'
+            }}
+            title={isCollapsed ? 'AVN' : ''}
+          >
+            <span style={{ fontSize: '20px', flexShrink: 0 }}>🎮</span>
+            <span style={{ 
+              whiteSpace: 'nowrap',
+              opacity: isCollapsed ? 0 : 1,
+              width: isCollapsed ? '0' : 'auto',
+              overflow: 'hidden',
+              transition: 'opacity 0.2s ease, width 0.2s ease'
+            }}>AVN</span>
+          </Link>
         </nav>
 
         <div style={{ padding: isCollapsed ? '12px' : '16px', borderTop: '1px solid var(--border)' }}>
