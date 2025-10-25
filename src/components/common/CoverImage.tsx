@@ -36,13 +36,7 @@ export default function CoverImage({ src, alt, style, onError }: CoverImageProps
       }
     } else {
       // C'est une URL en ligne
-      // Si c'est LewdCorner, utiliser le proxy local
-      if (src.includes('lewdcorner.com')) {
-        const proxyUrl = `http://localhost:51234/api/proxy-image?url=${encodeURIComponent(src)}`;
-        setImageSrc(proxyUrl);
-      } else {
-        setImageSrc(src);
-      }
+      setImageSrc(src);
     }
 
     setLoading(false);
