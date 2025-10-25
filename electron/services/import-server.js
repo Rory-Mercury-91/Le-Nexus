@@ -687,61 +687,20 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             // Trouver le numéro de saison le plus élevé
             const maxSeasonNumber = Math.max(...animeData.saisons.map(s => s.numero_saison));
             console.log(`🔢 Numéro de saison max détecté: ${maxSeasonNumber}`);
-            console.log(`🔄 Création des saisons de 1 à ${maxSeasonNumber}...`);
-            
-            // Créer toutes les saisons de 1 à maxSeasonNumber
+            // Calculer le nombre total d'épisodes à partir des saisons
+            let totalEpisodes = 0;
             for (let seasonNum = 1; seasonNum <= maxSeasonNumber; seasonNum++) {
-              console.log(`\n🔍 Traitement de la saison ${seasonNum}...`);
-              // Vérifier si la saison existe déjà
-              const existingSaison = db.prepare(
-                'SELECT * FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?'
-              ).get(animeId, seasonNum);
-
-              if (!existingSaison) {
-                // Trouver les données de cette saison dans les données envoyées
-                const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
-                
-                // Utiliser les données de la saison si disponibles, sinon valeurs par défaut
-                const nbEpisodes = saisonData?.nb_episodes || 12; // 12 épisodes par défaut
-                const titre = saisonData?.titre || `Saison ${seasonNum}`;
-                const annee = saisonData?.annee || animeData.annee || null;
-                
-                db.prepare(`
-                  INSERT INTO anime_saisons (serie_id, numero_saison, titre, nb_episodes, annee)
-                  VALUES (?, ?, ?, ?, ?)
-                `).run(
-                  animeId,
-                  seasonNum,
-                  titre,
-                  nbEpisodes,
-                  annee
-                );
-                saisonsCreated++;
-                
-                if (saisonData) {
-                  console.log(`✅ Saison ${seasonNum} créée (${nbEpisodes} épisodes)`);
-                } else {
-                  console.log(`✅ Saison ${seasonNum} créée automatiquement (${nbEpisodes} épisodes par défaut)`);
-                }
-              } else {
-                // Si la saison existe déjà, mettre à jour le nombre d'épisodes si on a des données plus précises
-                const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
-                if (saisonData && saisonData.nb_episodes && saisonData.nb_episodes > existingSaison.nb_episodes) {
-                  db.prepare(`
-                    UPDATE anime_saisons 
-                    SET nb_episodes = ?, annee = ?
-                    WHERE id = ?
-                  `).run(
-                    saisonData.nb_episodes,
-                    saisonData.annee || existingSaison.annee,
-                    existingSaison.id
-                  );
-                  console.log(`♻️ Saison ${seasonNum} mise à jour (${existingSaison.nb_episodes} → ${saisonData.nb_episodes} épisodes)`);
-                } else {
-                  console.log(`ℹ️ Saison ${seasonNum} existe déjà (${existingSaison.nb_episodes} épisodes)`);
-                }
-              }
+              const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
+              const nbEpisodes = saisonData?.nb_episodes || 12;
+              totalEpisodes += nbEpisodes;
+              console.log(`📊 Saison ${seasonNum}: ${nbEpisodes} épisodes`);
             }
+            
+            // Mettre à jour le nombre total d'épisodes dans anime_series
+            db.prepare('UPDATE anime_series SET nb_episodes = ? WHERE id = ?')
+              .run(totalEpisodes, animeId);
+            
+            console.log(`✅ Nombre total d'épisodes: ${totalEpisodes}`);
           } else {
             console.log('📋 Aucune saison fournie lors de l\'import (seront créées au marquage d\'épisode)');
           }
@@ -884,119 +843,69 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             return;
           }
 
-      // Chercher la saison (ou la créer si elle n'existe pas)
-      let saison = db.prepare(
-        'SELECT * FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?'
-      ).get(anime.id, episodeInfo.saison_numero);
-
-      if (!saison) {
-        console.log(`⚠️ Saison ${episodeInfo.saison_numero} non trouvée, création automatique...`);
-        
-        // Créer toutes les saisons de 1 à la saison demandée
-        for (let seasonNum = 1; seasonNum <= episodeInfo.saison_numero; seasonNum++) {
-          const existingSeason = db.prepare(
-            'SELECT * FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?'
-          ).get(anime.id, seasonNum);
-          
-          if (!existingSeason) {
-            // Créer la saison avec le nombre d'épisodes correspondant à l'épisode marqué
-            // (pour la saison demandée) ou un minimum de 1 pour les saisons précédentes
-            const nbEpisodes = (seasonNum === episodeInfo.saison_numero) 
-              ? episodeInfo.episode_numero  // Pour la saison actuelle : le numéro de l'épisode marqué
-              : 1;  // Pour les saisons précédentes : 1 épisode minimum (sera étendu si besoin)
-            
-            db.prepare(`
-              INSERT INTO anime_saisons (serie_id, numero_saison, titre, nb_episodes, annee)
-              VALUES (?, ?, ?, ?, ?)
-            `).run(
-              anime.id,
-              seasonNum,
-              `Saison ${seasonNum}`,
-              nbEpisodes,
-              anime.annee || new Date().getFullYear()
-            );
-            console.log(`✅ Saison ${seasonNum} créée automatiquement (${nbEpisodes} épisode${nbEpisodes > 1 ? 's' : ''})`);
-          }
-        }
-        
-        // Récupérer la saison qui vient d'être créée
-        saison = db.prepare(
-          'SELECT * FROM anime_saisons WHERE serie_id = ? AND numero_saison = ?'
-        ).get(anime.id, episodeInfo.saison_numero);
-        
-        if (!saison) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ 
-            success: false, 
-            error: `Impossible de créer la saison ${episodeInfo.saison_numero}` 
-          }));
-          return;
-        }
-      }
-
       // Étendre automatiquement le nombre d'épisodes si nécessaire
-      if (episodeInfo.episode_numero > saison.nb_episodes) {
-        console.log(`📈 Extension de la saison ${episodeInfo.saison_numero}: ${saison.nb_episodes} → ${episodeInfo.episode_numero} épisodes`);
+      if (episodeInfo.episode_numero > anime.nb_episodes) {
+        console.log(`📈 Extension du nombre d'épisodes: ${anime.nb_episodes} → ${episodeInfo.episode_numero} épisodes`);
         db.prepare(`
-          UPDATE anime_saisons 
+          UPDATE anime_series 
           SET nb_episodes = ? 
           WHERE id = ?
-        `).run(episodeInfo.episode_numero, saison.id);
+        `).run(episodeInfo.episode_numero, anime.id);
         
-        // Mettre à jour l'objet saison pour refléter le changement
-        saison.nb_episodes = episodeInfo.episode_numero;
+        anime.nb_episodes = episodeInfo.episode_numero;
       }
 
-          // Auto-incrémentation : marquer tous les épisodes précédents comme vus
-          const baseDate = new Date();
-          
-          if (episodeInfo.episode_numero > 1) {
-            console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
-            
-            // Marquer tous les épisodes précédents avec des timestamps espacés
-            for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
-              const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000)); // +1 seconde par épisode
-              const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
-              db.prepare(`
-                INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
-                VALUES (?, ?, ?, 1, ?)
-              `).run(saison.id, currentUser, ep, dateVisionnageStr);
-            }
-            
-            console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
-          }
-          
-          // Marquer l'épisode actuel comme vu
-          const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
-          const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
+      // Auto-incrémentation : marquer tous les épisodes précédents comme vus
+      const baseDate = new Date();
+      
+      if (episodeInfo.episode_numero > 1) {
+        console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
+        
+        // Marquer tous les épisodes précédents avec des timestamps espacés
+        for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
+          const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000)); // +1 seconde par épisode
+          const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
           db.prepare(`
-            INSERT OR REPLACE INTO anime_episodes_vus (saison_id, utilisateur, episode_numero, vu, date_visionnage)
+            INSERT OR REPLACE INTO anime_episodes_vus (anime_id, utilisateur, episode_numero, vu, date_visionnage)
             VALUES (?, ?, ?, 1, ?)
-          `).run(saison.id, currentUser, episodeInfo.episode_numero, dateVisionnageActuelStr);
+          `).run(anime.id, currentUser, ep, dateVisionnageStr);
+        }
+        
+        console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
+      }
+      
+      // Marquer l'épisode actuel comme vu
+      const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
+      const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
+      db.prepare(`
+        INSERT OR REPLACE INTO anime_episodes_vus (anime_id, utilisateur, episode_numero, vu, date_visionnage)
+        VALUES (?, ?, ?, 1, ?)
+      `).run(anime.id, currentUser, episodeInfo.episode_numero, dateVisionnageActuelStr);
 
-          console.log(`✅ Épisode ${episodeInfo.episode_numero} de "${anime.titre}" marqué comme vu`);
+      console.log(`✅ Épisode ${episodeInfo.episode_numero} de "${anime.titre}" marqué comme vu`);
 
-          // Vérifier si tous les épisodes de la série sont vus pour mettre à jour le statut
-          const stats = db.prepare(`
-            SELECT 
-              (SELECT SUM(nb_episodes) FROM anime_saisons WHERE serie_id = ?) as nb_episodes_total,
-              (
-                SELECT COUNT(*) 
-                FROM anime_episodes_vus ev 
-                JOIN anime_saisons s ON ev.saison_id = s.id 
-                WHERE s.serie_id = ? AND ev.utilisateur = ? AND ev.vu = 1
-              ) as nb_episodes_vus
-          `).get(anime.id, anime.id, currentUser);
+      // Vérifier si tous les épisodes de la série sont vus pour mettre à jour le statut
+      const stats = db.prepare(`
+        SELECT 
+          a.nb_episodes as nb_episodes_total,
+          (
+            SELECT COUNT(*) 
+            FROM anime_episodes_vus 
+            WHERE anime_id = ? AND utilisateur = ? AND vu = 1
+          ) as nb_episodes_vus
+        FROM anime_series a
+        WHERE a.id = ?
+      `).get(anime.id, currentUser, anime.id);
 
-          const isComplete = stats.nb_episodes_total > 0 && stats.nb_episodes_vus === stats.nb_episodes_total;
+      const isComplete = stats.nb_episodes_total > 0 && stats.nb_episodes_vus === stats.nb_episodes_total;
 
-          if (isComplete) {
-            db.prepare(`
-              INSERT OR REPLACE INTO anime_statut_utilisateur (serie_id, utilisateur, statut_visionnage, date_modification)
-              VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
-            `).run(anime.id, currentUser);
-            console.log(`🎉 Anime "${anime.titre}" marqué comme "Terminé" automatiquement`);
-          }
+      if (isComplete) {
+        db.prepare(`
+          INSERT OR REPLACE INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage, date_modification)
+          VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
+        `).run(anime.id, currentUser);
+        console.log(`🎉 Anime "${anime.titre}" marqué comme "Terminé" automatiquement`);
+      }
 
           // Succès
           const totalMarked = episodeInfo.episode_numero > 1 ? episodeInfo.episode_numero : 1;
@@ -1071,35 +980,15 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
 
           // Mettre à jour les saisons si fournies
           if (animeData.saisons && Array.isArray(animeData.saisons)) {
+            // Calculer le nombre total d'épisodes
+            let totalEpisodes = 0;
             for (const saison of animeData.saisons) {
-              if (saison.id) {
-                // Mise à jour d'une saison existante
-                db.prepare(`
-                  UPDATE anime_saisons 
-                  SET numero_saison = ?, titre = ?, nb_episodes = ?, annee = ?
-                  WHERE id = ?
-                `).run(
-                  saison.numero_saison,
-                  saison.titre || `Saison ${saison.numero_saison}`,
-                  saison.nb_episodes,
-                  saison.annee || animeData.annee,
-                  saison.id
-                );
-                console.log(`✅ Saison ${saison.numero_saison} mise à jour`);
-              } else {
-                // Création d'une nouvelle saison
-                db.prepare(`
-                  INSERT INTO anime_saisons (serie_id, numero_saison, titre, nb_episodes, annee)
-                  VALUES (?, ?, ?, ?, ?)
-                `).run(
-                  animeData.id,
-                  saison.numero_saison,
-                  saison.titre || `Saison ${saison.numero_saison}`,
-                  saison.nb_episodes,
-                  saison.annee || animeData.annee
-                );
-                console.log(`✅ Saison ${saison.numero_saison} créée`);
-              }
+              totalEpisodes += saison.nb_episodes || 0;
+            }
+            if (totalEpisodes > 0) {
+              db.prepare('UPDATE anime_series SET nb_episodes = ? WHERE id = ?')
+                .run(totalEpisodes, animeData.id);
+              console.log(`✅ Nombre total d'épisodes mis à jour: ${totalEpisodes}`);
             }
           }
 

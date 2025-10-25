@@ -295,8 +295,8 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       if (jsonData.image) {
         try {
           const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
-          const slugify = require('../utils/slug');
-          const gameSlug = slugify(titre);
+          const { createSlug } = require('../utils/slug');
+          const gameSlug = createSlug(titre);
           
           console.log(`📥 Téléchargement de l'image...`);
           const result = await coverManager.downloadCover(
