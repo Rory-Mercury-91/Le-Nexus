@@ -377,7 +377,18 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   // Définir l'utilisateur actuel
   ipcMain.handle('set-current-user', (event, userName) => {
     store.set('currentUser', userName);
+  });
 
+  // Gérer les préférences de contenu
+  ipcMain.handle('set-content-preferences', (event, userName, preferences) => {
+    const userPrefs = store.get('contentPreferences', {});
+    userPrefs[userName] = preferences;
+    store.set('contentPreferences', userPrefs);
+  });
+
+  ipcMain.handle('get-content-preferences', (event, userName) => {
+    const userPrefs = store.get('contentPreferences', {});
+    return userPrefs[userName] || { showMangas: true, showAnimes: true, showAvn: true };
   });
 
   // Sauvegarder la base de données pour l'utilisateur actuel

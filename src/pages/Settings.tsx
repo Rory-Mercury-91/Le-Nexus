@@ -16,6 +16,7 @@ export default function Settings() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [autoLaunch, setAutoLaunch] = useState(false);
   const [groqApiKey, setGroqApiKey] = useState('');
+  const [contentPrefs, setContentPrefs] = useState({ showMangas: true, showAnimes: true, showAvn: true });
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
   
   // MyAnimeList Sync
@@ -68,6 +69,7 @@ export default function Settings() {
     loadGroqApiKey();
     loadMalStatus();
     loadMalAutoSyncSettings();
+    loadContentPreferences();
     
     // Écouter les mises à jour de progression de l'import XML
     const unsubscribeXml = window.electronAPI.onAnimeImportProgress((progress) => {
@@ -160,6 +162,32 @@ export default function Settings() {
       setGroqApiKey(apiKey || '');
     } catch (error) {
       console.error('Erreur chargement clé API Groq:', error);
+    }
+  };
+  
+  const loadContentPreferences = async () => {
+    try {
+      const currentUser = await window.electronAPI.getCurrentUser();
+      if (currentUser) {
+        const prefs = await window.electronAPI.getContentPreferences(currentUser);
+        setContentPrefs(prefs);
+      }
+    } catch (error) {
+      console.error('Erreur chargement préférences de contenu:', error);
+    }
+  };
+
+  const handleContentPrefChange = async (pref: 'showMangas' | 'showAnimes' | 'showAvn', value: boolean) => {
+    try {
+      const newPrefs = { ...contentPrefs, [pref]: value };
+      setContentPrefs(newPrefs);
+      
+      const currentUser = await window.electronAPI.getCurrentUser();
+      if (currentUser) {
+        await window.electronAPI.setContentPreferences(currentUser, newPrefs);
+      }
+    } catch (error) {
+      console.error('Erreur modification préférences de contenu:', error);
     }
   };
 
@@ -953,6 +981,153 @@ export default function Settings() {
             </p>
           </div>
           </div>
+        </div>
+
+        {/* Section Préférences de contenu */}
+        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
+            🎨 Préférences de contenu
+          </h2>
+          
+          <p style={{
+            fontSize: '14px',
+            color: 'var(--text-secondary)',
+            marginBottom: '24px',
+            lineHeight: '1.6'
+          }}>
+            Choisissez les types de contenu (Manga, Animé, AVN) qui s'affichent sur votre page d'accueil. Vous pouvez choisir les trois, un seul, ou une combinaison.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Mangas */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '20px',
+                background: contentPrefs.showMangas ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                border: contentPrefs.showMangas ? '2px solid var(--primary)' : '2px solid var(--border)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onClick={() => handleContentPrefChange('showMangas', !contentPrefs.showMangas)}
+            >
+              <input
+                type="checkbox"
+                checked={contentPrefs.showMangas}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleContentPrefChange('showMangas', e.target.checked);
+                }}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                  📚 Mangas
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Afficher les nouveautés, suivis et recommandations de mangas
+                </div>
+              </div>
+            </label>
+
+            {/* Animes */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '20px',
+                background: contentPrefs.showAnimes ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                border: contentPrefs.showAnimes ? '2px solid var(--primary)' : '2px solid var(--border)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onClick={() => handleContentPrefChange('showAnimes', !contentPrefs.showAnimes)}
+            >
+              <input
+                type="checkbox"
+                checked={contentPrefs.showAnimes}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleContentPrefChange('showAnimes', e.target.checked);
+                }}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                  🎬 Animes
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Afficher les nouveautés, suivis et recommandations d'animes
+                </div>
+              </div>
+            </label>
+
+            {/* AVN */}
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '20px',
+                background: contentPrefs.showAvn ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                border: contentPrefs.showAvn ? '2px solid var(--primary)' : '2px solid var(--border)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onClick={() => handleContentPrefChange('showAvn', !contentPrefs.showAvn)}
+            >
+              <input
+                type="checkbox"
+                checked={contentPrefs.showAvn}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  handleContentPrefChange('showAvn', e.target.checked);
+                }}
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  cursor: 'pointer',
+                  accentColor: 'var(--primary)'
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                  🎮 AVN (Adult Visual Novels)
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Afficher les nouveautés, suivis et recommandations d'AVN
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <p style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            marginTop: '16px',
+            padding: '12px',
+            background: 'var(--surface)',
+            borderRadius: '8px',
+            borderLeft: '3px solid var(--primary)'
+          }}>
+            💡 Les modifications sont appliquées immédiatement sur la page d'accueil
+          </p>
         </div>
 
         {/* Section Intelligence Artificielle */}

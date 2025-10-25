@@ -23,6 +23,11 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [baseDirectory, setBaseDirectory] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Préférences de contenu
+  const [showMangas, setShowMangas] = useState(true);
+  const [showAnimes, setShowAnimes] = useState(true);
+  const [showAvn, setShowAvn] = useState(true);
 
   const handleNext = () => {
     if (step === 1) {
@@ -36,6 +41,14 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       setStep(3);
     } else if (step === 3) {
       handleChooseDirectory();
+    } else if (step === 4) {
+      // Valider qu'au moins un type de contenu est sélectionné
+      if (!showMangas && !showAnimes && !showAvn) {
+        setError('Veuillez sélectionner au moins un type de contenu');
+        return;
+      }
+      setError('');
+      setStep(5);
     }
   };
 
@@ -50,7 +63,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     const result = await window.electronAPI.changeBaseDirectory();
     if (result.success && result.path) {
       setBaseDirectory(result.path);
-      setStep(4);
+      setStep(4); // Passer à l'étape des préférences
     }
   };
 
@@ -103,7 +116,15 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
       }
 
       // Définir l'utilisateur actuel
-      await window.electronAPI.setCurrentUser(name.trim());
+      const userName = name.trim();
+      await window.electronAPI.setCurrentUser(userName);
+      
+      // Sauvegarder les préférences de contenu
+      await window.electronAPI.setContentPreferences(userName, {
+        showMangas,
+        showAnimes,
+        showAvn
+      });
 
       // Compléter l'onboarding
       setTimeout(() => {
@@ -141,7 +162,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         gap: '12px',
         alignItems: 'center'
       }}>
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3, 4, 5].map((s) => (
           <div
             key={s}
             style={{
@@ -484,8 +505,176 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           </div>
         )}
 
-        {/* Étape 4 : Terminé */}
+        {/* Étape 4 : Préférences de contenu */}
         {step === 4 && (
+          <div>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(139, 92, 246, 0.15)',
+              border: '3px solid var(--primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px'
+            }}>
+              <Palette size={40} style={{ color: 'var(--primary)' }} />
+            </div>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              marginBottom: '12px'
+            }}>
+              Personnalisez votre accueil
+            </h2>
+            <p style={{
+              fontSize: '16px',
+              color: 'var(--text-secondary)',
+              marginBottom: '32px',
+              lineHeight: '1.6',
+              maxWidth: '500px',
+              margin: '0 auto 32px'
+            }}>
+              Choisissez les types de contenu que vous souhaitez voir sur votre page d'accueil. Vous pourrez modifier ce choix à tout moment dans les paramètres.
+            </p>
+
+            {/* Options de contenu */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              maxWidth: '500px',
+              margin: '0 auto',
+              textAlign: 'left'
+            }}>
+              {/* Mangas */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  padding: '20px',
+                  background: showMangas ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                  border: showMangas ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => setShowMangas(!showMangas)}
+              >
+                <input
+                  type="checkbox"
+                  checked={showMangas}
+                  onChange={(e) => setShowMangas(e.target.checked)}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                    📚 Mangas
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Afficher les nouveautés, suivis et recommandations de mangas
+                  </div>
+                </div>
+              </label>
+
+              {/* Animes */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  padding: '20px',
+                  background: showAnimes ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                  border: showAnimes ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => setShowAnimes(!showAnimes)}
+              >
+                <input
+                  type="checkbox"
+                  checked={showAnimes}
+                  onChange={(e) => setShowAnimes(e.target.checked)}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                    🎬 Animes
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Afficher les nouveautés, suivis et recommandations d'animes
+                  </div>
+                </div>
+              </label>
+
+              {/* AVN */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  padding: '20px',
+                  background: showAvn ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
+                  border: showAvn ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => setShowAvn(!showAvn)}
+              >
+                <input
+                  type="checkbox"
+                  checked={showAvn}
+                  onChange={(e) => setShowAvn(e.target.checked)}
+                  style={{
+                    width: '24px',
+                    height: '24px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
+                    🎮 AVN (Adult Visual Novels)
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Afficher les nouveautés, suivis et recommandations d'AVN
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {error && (
+              <div style={{
+                marginTop: '24px',
+                padding: '12px 16px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                color: '#ef4444',
+                fontSize: '14px'
+              }}>
+                {error}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Étape 5 : Terminé */}
+        {step === 5 && (
           <div>
             <div style={{
               width: '80px',
@@ -595,6 +784,61 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                   📁 {baseDirectory}
                 </div>
               )}
+              
+              {/* Préférences de contenu */}
+              <div style={{
+                marginTop: '16px',
+                padding: '12px',
+                background: 'var(--background)',
+                borderRadius: '8px'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '8px'
+                }}>
+                  Contenu affiché sur l'accueil :
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {showMangas && (
+                    <span style={{
+                      padding: '4px 12px',
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: 'var(--primary)'
+                    }}>
+                      📚 Mangas
+                    </span>
+                  )}
+                  {showAnimes && (
+                    <span style={{
+                      padding: '4px 12px',
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: 'var(--primary)'
+                    }}>
+                      🎬 Animes
+                    </span>
+                  )}
+                  {showAvn && (
+                    <span style={{
+                      padding: '4px 12px',
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: 'var(--primary)'
+                    }}>
+                      🎮 AVN
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -621,7 +865,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           marginTop: '32px',
           justifyContent: step === 1 ? 'center' : 'space-between'
         }}>
-          {step > 1 && step < 4 && (
+          {step > 1 && step < 5 && (
             <button
               onClick={handleBack}
               className="btn btn-outline"
@@ -635,7 +879,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             </button>
           )}
 
-          {step < 4 ? (
+          {step < 5 ? (
             <button
               onClick={handleNext}
               className="btn btn-primary"
@@ -649,6 +893,11 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <>
                   <Folder size={20} />
                   Choisir l'emplacement
+                </>
+              ) : step === 4 ? (
+                <>
+                  Valider mes choix
+                  <ArrowRight size={20} />
                 </>
               ) : (
                 <>

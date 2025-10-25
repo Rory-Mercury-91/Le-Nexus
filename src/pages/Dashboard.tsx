@@ -39,10 +39,22 @@ export default function Dashboard() {
   const [periodeEvolution, setPeriodeEvolution] = useState<'mois' | 'annee'>('mois'); // Par mois ou par année
   const [showEvolution, setShowEvolution] = useState(false); // Afficher/masquer graphique évolution
   const [showRepartition, setShowRepartition] = useState(false); // Afficher/masquer graphique répartition
+  
+  // Préférences de contenu
+  const [contentPrefs, setContentPrefs] = useState({ showMangas: true, showAnimes: true, showAvn: true });
 
   useEffect(() => {
     loadStats();
+    loadContentPreferences();
   }, [location.pathname]); // Recharge quand on revient sur la page
+  
+  const loadContentPreferences = async () => {
+    const currentUser = await window.electronAPI.getCurrentUser();
+    if (currentUser) {
+      const prefs = await window.electronAPI.getContentPreferences(currentUser);
+      setContentPrefs(prefs);
+    }
+  };
 
   const loadStats = async () => {
     setLoading(true);
@@ -108,7 +120,7 @@ export default function Dashboard() {
         {/* Progressions Mangas et Animes */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(500px, 100%), 1fr))', gap: '24px', marginBottom: '32px' }}>
         {/* Progression de lecture */}
-        {lectureStats && lectureStats.tomesTotal > 0 && (
+        {contentPrefs.showMangas && lectureStats && lectureStats.tomesTotal > 0 && (
           <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', width: '100%', gap: '10px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
