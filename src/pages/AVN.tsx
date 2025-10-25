@@ -16,6 +16,7 @@ export default function AVN() {
   const [showMajOnly, setShowMajOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportJsonModal, setShowImportJsonModal] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadGames();
@@ -43,11 +44,20 @@ export default function AVN() {
   const handleCheckUpdates = async () => {
     try {
       setLoading(true);
-      await window.electronAPI.checkAvnUpdates();
+      setMessage(null);
+      const result = await window.electronAPI.checkAvnUpdates();
       await loadGames();
+      
+      if (result.updated > 0) {
+        setMessage({ type: 'success', text: `${result.updated} mise(s) à jour détectée(s) !` });
+      } else {
+        setMessage({ type: 'success', text: 'Aucune mise à jour disponible' });
+      }
+      setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Erreur vérification MAJ:', error);
-      alert('❌ Erreur lors de la vérification des mises à jour');
+      setMessage({ type: 'error', text: 'Erreur lors de la vérification des mises à jour' });
+      setTimeout(() => setMessage(null), 5000);
     } finally {
       setLoading(false);
     }
@@ -59,15 +69,17 @@ export default function AVN() {
       
       if (result.success) {
         if (result.created) {
-          alert(`✅ Jeu ajouté avec succès !`);
+          setMessage({ type: 'success', text: 'Jeu ajouté avec succès !' });
         } else if (result.updated) {
-          alert(`✅ Jeu mis à jour avec succès !`);
+          setMessage({ type: 'success', text: 'Jeu mis à jour avec succès !' });
         }
+        setTimeout(() => setMessage(null), 5000);
         await loadGames();
       }
     } catch (error: any) {
       console.error('Erreur import JSON:', error);
-      alert(`❌ Erreur lors de l'import: ${error.message || 'Erreur inconnue'}`);
+      setMessage({ type: 'error', text: `Erreur lors de l'import: ${error.message || 'Erreur inconnue'}` });
+      setTimeout(() => setMessage(null), 5000);
     }
   };
 
@@ -144,6 +156,28 @@ export default function AVN() {
             </button>
           </div>
         </div>
+
+        {/* Message de feedback */}
+        {message && (
+          <div style={{
+            padding: '16px 20px',
+            marginBottom: '24px',
+            borderRadius: '12px',
+            background: message.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            border: `2px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
+            color: message.type === 'success' ? '#10b981' : '#ef4444',
+            fontSize: '15px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '20px' }}>
+              {message.type === 'success' ? '✅' : '❌'}
+            </span>
+            {message.text}
+          </div>
+        )}
 
         {/* Recherche et filtres */}
         <div className="card" style={{ padding: '24px', marginBottom: '32px' }}>
