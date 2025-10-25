@@ -97,7 +97,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
       onClose();
     } catch (error) {
       console.error('Erreur ajout jeu F95:', error);
-      alert('❌ Erreur lors de l'ajout du jeu');
+      alert('❌ Erreur lors de l\'ajout du jeu');
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
       onClose();
     } catch (error) {
       console.error('Erreur ajout manuel:', error);
-      alert('❌ Erreur lors de l'ajout du jeu');
+      alert('❌ Erreur lors de l\'ajout du jeu');
     } finally {
       setLoading(false);
     }
