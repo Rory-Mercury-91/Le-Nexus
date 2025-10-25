@@ -16,9 +16,11 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [userColor, setUserColor] = useState('#6366f1');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [contentPrefs, setContentPrefs] = useState({ showMangas: true, showAnimes: true, showAvn: true });
 
   useEffect(() => {
     loadUserData();
+    loadContentPreferences();
   }, [currentUser]);
 
   const loadUserData = async () => {
@@ -30,6 +32,15 @@ export default function Layout({ children, currentUser }: LayoutProps) {
     const user = users.find(u => u.name === currentUser);
     if (user) {
       setUserColor(user.color);
+    }
+  };
+  
+  const loadContentPreferences = async () => {
+    try {
+      const prefs = await window.electronAPI.getContentPreferences(currentUser);
+      setContentPrefs(prefs);
+    } catch (error) {
+      console.error('Erreur chargement préférences de contenu:', error);
     }
   };
 
@@ -222,36 +233,39 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             }}>Tableau de bord</span>
           </Link>
 
-          <Link
-            to="/collection"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: isActive('/collection') ? 'var(--primary)' : 'var(--text-secondary)',
-              background: isActive('/collection') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-              fontWeight: isActive('/collection') ? '600' : '400',
-              transition: 'all 0.2s',
-              minHeight: '44px'
-            }}
-            title={isCollapsed ? 'Mangas' : ''}
-          >
-            <BookOpen size={20} style={{ flexShrink: 0 }} />
-            <span style={{ 
-              whiteSpace: 'nowrap',
-              opacity: isCollapsed ? 0 : 1,
-              width: isCollapsed ? '0' : 'auto',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s ease, width 0.2s ease'
-            }}>Mangas</span>
-          </Link>
+          {contentPrefs.showMangas && (
+            <Link
+              to="/collection"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                gap: '12px',
+                padding: '12px',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                color: isActive('/collection') ? 'var(--primary)' : 'var(--text-secondary)',
+                background: isActive('/collection') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                fontWeight: isActive('/collection') ? '600' : '400',
+                transition: 'all 0.2s',
+                minHeight: '44px'
+              }}
+              title={isCollapsed ? 'Mangas' : ''}
+            >
+              <BookOpen size={20} style={{ flexShrink: 0 }} />
+              <span style={{ 
+                whiteSpace: 'nowrap',
+                opacity: isCollapsed ? 0 : 1,
+                width: isCollapsed ? '0' : 'auto',
+                overflow: 'hidden',
+                transition: 'opacity 0.2s ease, width 0.2s ease'
+              }}>Mangas</span>
+            </Link>
+          )}
 
-          <Link
-            to="/animes"
+          {contentPrefs.showAnimes && (
+            <Link
+              to="/animes"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -276,11 +290,13 @@ export default function Layout({ children, currentUser }: LayoutProps) {
               overflow: 'hidden',
               transition: 'opacity 0.2s ease, width 0.2s ease'
             }}>Animes</span>
-          </Link>
+            </Link>
+          )}
 
           {/* AVN (Adult Visual Novels) */}
-          <Link
-            to="/avn"
+          {contentPrefs.showAvn && (
+            <Link
+              to="/avn"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -304,7 +320,8 @@ export default function Layout({ children, currentUser }: LayoutProps) {
               overflow: 'hidden',
               transition: 'opacity 0.2s ease, width 0.2s ease'
             }}>AVN</span>
-          </Link>
+            </Link>
+          )}
         </nav>
 
         <div style={{ padding: isCollapsed ? '12px' : '16px', borderTop: '1px solid var(--border)' }}>
