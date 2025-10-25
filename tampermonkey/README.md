@@ -63,7 +63,71 @@ Installez l'extension Tampermonkey pour votre navigateur :
 
 ## 📚 Scripts Mangas
 
-*(Pas encore disponibles - scripts ADKami/Crunchyroll archivés)*
+### Nautiljon Extractor
+
+**Fichier** : `mangas/Nautiljon Extractor.user.js`
+
+**Fonction** : Import complet de mangas, manhwa et scans depuis Nautiljon vers Ma Mangathèque.
+
+**Pages compatibles** : `https://www.nautiljon.com/mangas/*`
+
+#### 📋 Fonctionnalités
+
+**Données extraites** :
+- ✅ Informations série (titre, titre alternatif, genres, démographie)
+- ✅ Synopsis et couverture série
+- ✅ Statut de publication (VF prioritaire)
+- ✅ **Support volumes ET chapitres** (mangas, manhwa, webtoons, scans)
+- ✅ Détection automatique du type de contenu (volume/chapitre)
+- ✅ Extraction détaillée des tomes (image, date, ISBN, prix)
+- ✅ Déduplication intelligente (priorité éditions françaises)
+- ✅ Année de publication
+
+**Technologies** :
+- 🚀 Rate limiting adaptatif (retry automatique sur erreur 429)
+- 🎯 Système de priorisation VF > VO
+- 🔄 Extraction progressive tome par tome
+- 🛡️ Gestion robuste des erreurs
+
+#### 🎯 Utilisation
+
+1. **Naviguez vers une page manga sur Nautiljon**
+   - Exemple : `https://www.nautiljon.com/mangas/one+piece.html`
+
+2. **Deux boutons apparaissent en bas à droite** :
+   - 📚 **Import complet** : Série + tous les tomes
+   - 📖 **Tomes uniquement** : Ajouter des tomes à une série existante
+
+3. **Cliquez sur le bouton souhaité**
+   - ⏳ L'extraction démarre (progression affichée dans la console)
+   - ✅ Notification de succès/erreur apparaît
+
+4. **Résultat** :
+   - Série créée/mise à jour dans Ma Mangathèque
+   - Tomes importés avec toutes les métadonnées
+   - Couvertures téléchargées automatiquement
+
+#### ⚙️ Options
+
+**Import complet** :
+- Crée la série si elle n'existe pas
+- Importe tous les tomes détectés
+- Met à jour les métadonnées
+
+**Tomes uniquement** :
+- Ajoute des tomes à une série existante
+- Ignore les informations série
+- Idéal pour compléter une collection
+
+#### ⚠️ Prérequis
+
+- **Ma Mangathèque doit être lancé** (serveur d'import sur port 51234)
+- Connexion Internet stable
+- Navigateur compatible (Chrome, Firefox, Edge)
+
+#### 🎨 Interface
+
+Les boutons sont repositionnés en bas à droite (100px du bas) pour éviter les conflits avec les boutons "scroll-to-top" de Nautiljon.
 
 ---
 
@@ -76,11 +140,18 @@ Par défaut, les scripts communiquent avec **Ma Mangathèque** via :
 http://localhost:51234
 ```
 
-Si vous avez modifié le port dans l'application, éditez la variable dans le script :
+Si vous avez modifié le port dans l'application, éditez la variable `PORT` dans le script :
+
+**Animes** :
 ```javascript
 fetch('http://localhost:VOTRE_PORT/add-anime', {
   // ...
 })
+```
+
+**Mangas (Nautiljon)** :
+```javascript
+const PORT = VOTRE_PORT; // Ligne 15 du script
 ```
 
 ### Désactiver un script temporairement
@@ -116,6 +187,30 @@ fetch('http://localhost:VOTRE_PORT/add-anime', {
 **Solution** : Attendez que le bouton affiche "✅ Ajouté avec succès !" avant de recliquer.
 
 Le script empêche les doubles clics, mais un clic pendant le chargement créera un doublon.
+
+### Erreur "Rate limit" sur Nautiljon
+
+**Solution** : Le script gère automatiquement les erreurs 429 (rate limit).
+
+- Attente automatique : 2s → 4s → 8s
+- 3 tentatives maximum
+- Si ça échoue : attendez 30 secondes et réessayez
+
+### Les tomes ne s'extraient pas tous (Nautiljon)
+
+**Solutions** :
+1. Vérifiez la console développeur (`F12`) pour voir la progression
+2. Le script extrait tome par tome avec un délai (350-1500ms)
+3. Si une page de tome renvoie 429, elle sera réessayée automatiquement
+4. Les doublons sont automatiquement filtrés
+
+### L'import Nautiljon est lent
+
+**C'est normal** : Le script extrait chaque tome individuellement pour récupérer toutes les métadonnées (image, date, ISBN, prix).
+
+- ⏱️ Temps moyen : 350-1500ms par tome
+- 📚 Pour une série de 30 tomes : ~20-45 secondes
+- 🎯 Avantage : Données ultra-complètes
 
 ---
 
@@ -203,5 +298,5 @@ Problème avec un script ? Ouvrez une issue sur GitHub avec :
 
 ---
 
-**Dernière mise à jour** : Octobre 2024  
-**Version** : 2.0
+**Dernière mise à jour** : Octobre 2025  
+**Version** : 2.1 - Simplifié (Nautiljon uniquement)

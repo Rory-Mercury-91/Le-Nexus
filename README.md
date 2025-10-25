@@ -5,9 +5,9 @@ Application de gestion de collection de mangas et animes développée avec Elect
 ## ✨ Fonctionnalités
 
 ### 📚 Gestion des Mangas
-- Gestion complète de vos séries de mangas
-- Suivi détaillé de chaque tome
-- Import automatique depuis **MangaCollec**, **Nautiljon** et **Booknode** via scripts Tampermonkey
+- Gestion complète de vos séries de mangas (volumes ET chapitres)
+- Suivi détaillé de chaque tome et progression des scans/manhwa
+- Import automatique depuis **Nautiljon** via script Tampermonkey
 - Import complet (série + tomes) ou import de tomes uniquement
 - Masquage de séries (conserve les données pour les autres utilisateurs)
 - Recherche et filtres avancés
@@ -59,10 +59,11 @@ Application de gestion de collection de mangas et animes développée avec Elect
 - Compatible Proton Drive, OneDrive, Google Drive
 
 ### 🛠️ Import automatisé
-- Scripts Tampermonkey pour 3 sites :
-  - **MangaCollec** (violet/orange)
-  - **Nautiljon** (orange/rose)
-  - **Booknode** (bleu/violet)
+- Script Tampermonkey optimisé pour **Nautiljon** :
+  - Support mangas, manhwa, webtoons et scans
+  - Détection automatique du type de contenu (volume/chapitre)
+  - Extraction des métadonnées complètes (titre, genres, démographie, etc.)
+  - Gestion intelligente des tomes (déduplication, priorité VF)
 - 2 modes d'import :
   - 📚 **Import complet** : Série + tous les tomes
   - 📖 **Import tomes uniquement** : Compléter une série existante
@@ -179,32 +180,37 @@ Les scripts sont disponibles dans le dossier `tampermonkey/`.
 3. Cliquer sur "Installer"
 4. Le bouton d'import apparaîtra automatiquement sur les pages compatibles
 
-### Scripts disponibles
+### Script Nautiljon
 
-| Site | Bouton complet | Bouton tomes | Données |
-|------|----------------|--------------|---------|
-| **MangaCollec** | 📚 Violet | 📖 Orange | Titre, genres, éditeur, synopsis, tous les tomes avec images et dates |
-| **Nautiljon** | 📚 Orange | 📖 Rose | Titre, type, genres, auteurs, éditeur, statut, couverture |
-| **Booknode** | 📚 Bleu | 📖 Violet | Titre, auteur, thèmes, type, tous les tomes avec images et dates |
+**Données extraites** :
+- ✅ Titre, titre alternatif, genres, démographie (Manga/Manhwa/Manhua)
+- ✅ Synopsis, couverture série, année de publication
+- ✅ Statut de publication (priorité VF)
+- ✅ Support volumes ET chapitres (scans, webtoons)
+- ✅ Extraction tome par tome : image, date, ISBN, prix
+- ✅ Déduplication intelligente (priorité éditions françaises)
+
+**Boutons disponibles** :
+- 📚 **Import complet** : Crée la série + importe tous les tomes
+- 📖 **Tomes uniquement** : Ajoute des tomes à une série existante
 
 ### Utilisation
 
-**Import complet (📚)** :
-- Crée la série avec toutes ses métadonnées
-- Ajoute automatiquement tous les tomes disponibles
-- Télécharge les couvertures
+1. Naviguez vers une page manga sur **Nautiljon**  
+   Exemple : `https://www.nautiljon.com/mangas/one+piece.html`
 
-**Import tomes uniquement (📖)** :
-- Recherche la série par titre (doit exister)
-- N'ajoute que les tomes manquants
-- Parfait pour compléter une collection depuis plusieurs sources
+2. Cliquez sur le bouton souhaité (📚 ou 📖)
 
-**Exemple d'usage** :
-1. Importer "Le Huitième fils" depuis Booknode (📚) → 12 tomes, images japonaises
-2. Aller sur MangaCollec, chercher la même série
-3. Cliquer sur 📖 (tomes uniquement) → Ajoute le tome 13 avec image française
+3. L'extraction démarre automatiquement :
+   - Progression visible dans la console (`F12`)
+   - Notification de succès/erreur
+   - Rafraîchissement automatique de l'UI
 
-Voir `tampermonkey/README.md` pour plus de détails.
+**Exemple** :
+- Importer "Chainsaw Man" → Série créée avec 16 tomes, couvertures HD
+- Compléter avec le tome 17 plus tard → Cliquer sur 📖 (tomes uniquement)
+
+Voir `tampermonkey/README.md` pour le guide complet.
 
 ## 👁️ Masquage de séries
 
@@ -339,7 +345,7 @@ Dans Paramètres → Zone dangereuse → **TOUT supprimer**
 - **API externes** : 
   - MangaDex (couvertures mangas)
   - Jikan (MyAnimeList pour animes)
-  - MangaCollec, Nautiljon, Booknode (via Tampermonkey)
+  - Nautiljon (import mangas via Tampermonkey)
 - **Icônes** : Lucide React
 - **Build** : Electron Builder
 

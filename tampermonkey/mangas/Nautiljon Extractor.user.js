@@ -12,7 +12,7 @@
 (function() {
     'use strict';
     
-    const PORT = 51234; // Port du serveur local Electron (identique à MangaCollec)
+    const PORT = 51234; // Port du serveur local Electron
 
     // Fonction pour convertir une date française en ISO (YYYY-MM-DD)
     const convertToISO = (dateStr) => {
