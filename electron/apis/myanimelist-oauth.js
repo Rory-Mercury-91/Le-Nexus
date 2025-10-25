@@ -8,25 +8,34 @@ const http = require('http');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 
-// Fonction pour générer PKCE challenge (RFC 7636)
-function generatePKCEChallenge() {
-  // Générer un code_verifier de 128 caractères (longueur maximale recommandée)
-  // Doit contenir uniquement [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  const randomValues = crypto.randomBytes(128);
-  let code_verifier = '';
-  for (let i = 0; i < 128; i++) {
-    code_verifier += possible[randomValues[i] % possible.length];
-  }
-  
-  // Générer le code_challenge en hashant le code_verifier avec SHA256
-  const hash = crypto.createHash('sha256').update(code_verifier).digest();
-  
-  // Convertir en base64url (base64 standard avec +/ remplacés par -_ et sans padding =)
-  const code_challenge = hash.toString('base64')
+/**
+ * Convertit un Buffer en base64url (RFC 4648)
+ * @param {Buffer} buffer - Buffer à convertir
+ * @returns {string} String encodée en base64url
+ */
+function base64urlEncode(buffer) {
+  return buffer.toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
+}
+
+/**
+ * Génère un challenge PKCE conforme RFC 7636
+ * @returns {Object} { code_verifier, code_challenge }
+ */
+function generatePKCEChallenge() {
+  // Générer 32 bytes aléatoires (43 caractères en base64url)
+  const verifierBuffer = crypto.randomBytes(32);
+  const code_verifier = base64urlEncode(verifierBuffer);
+  
+  // Générer le challenge: SHA256(code_verifier) en base64url
+  const challengeBuffer = crypto.createHash('sha256').update(code_verifier).digest();
+  const code_challenge = base64urlEncode(challengeBuffer);
+  
+  console.log('🔑 PKCE Debug:');
+  console.log('  code_verifier length:', code_verifier.length);
+  console.log('  code_challenge length:', code_challenge.length);
   
   return { code_verifier, code_challenge };
 }
@@ -182,6 +191,11 @@ function startOAuthFlow(onSuccess, onError) {
  * @returns {Promise<Object>} { access_token, refresh_token, expires_in }
  */
 async function exchangeCodeForTokens(code, codeVerifier) {
+  console.log('🔄 Échange du code contre les tokens...');
+  console.log('  Code:', code ? `${code.substring(0, 10)}...` : 'MANQUANT');
+  console.log('  Code verifier length:', codeVerifier ? codeVerifier.length : 'MANQUANT');
+  console.log('  Redirect URI:', MAL_REDIRECT_URI);
+  
   const params = new URLSearchParams();
   params.set('client_id', MAL_CLIENT_ID);
   params.set('grant_type', 'authorization_code');
@@ -199,6 +213,7 @@ async function exchangeCodeForTokens(code, codeVerifier) {
   
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('❌ Erreur échange tokens:', response.status, errorText);
     throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
   }
   
