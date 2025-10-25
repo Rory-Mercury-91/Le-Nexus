@@ -17,6 +17,14 @@ export default function Settings() {
   const [autoLaunch, setAutoLaunch] = useState(false);
   const [groqApiKey, setGroqApiKey] = useState('');
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
+  
+  // MyAnimeList Sync
+  const [malConnected, setMalConnected] = useState(false);
+  const [malUser, setMalUser] = useState<any>(null);
+  const [malLastSync, setMalLastSync] = useState<any>(null);
+  const [malSyncing, setMalSyncing] = useState(false);
+  const [malAutoSyncEnabled, setMalAutoSyncEnabled] = useState(false);
+  const [malAutoSyncInterval, setMalAutoSyncInterval] = useState(6);
   const [baseDirectory, setBaseDirectory] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -47,6 +55,8 @@ export default function Settings() {
     loadTheme();
     loadAutoLaunch();
     loadGroqApiKey();
+    loadMalStatus();
+    loadMalAutoSyncSettings();
     
     // Écouter les mises à jour de progression de l'import
     const unsubscribe = window.electronAPI.onAnimeImportProgress((progress) => {
@@ -95,6 +105,158 @@ export default function Settings() {
     } catch (error) {
       console.error('Erreur sauvegarde clé API Groq:', error);
       showToast('Erreur lors de la sauvegarde', 'error');
+    }
+  };
+
+  // Fonctions MyAnimeList Sync
+  const loadMalStatus = async () => {
+    try {
+      const status = await window.electronAPI.malGetStatus();
+      setMalConnected(status.connected);
+      setMalUser(status.user);
+      setMalLastSync(status.lastSync);
+    } catch (error) {
+      console.error('Erreur chargement statut MAL:', error);
+    }
+  };
+
+  const loadMalAutoSyncSettings = async () => {
+    try {
+      const settings = await window.electronAPI.malGetAutoSyncSettings();
+      setMalAutoSyncEnabled(settings.enabled);
+      setMalAutoSyncInterval(settings.intervalHours);
+    } catch (error) {
+      console.error('Erreur chargement paramètres sync auto MAL:', error);
+    }
+  };
+
+  const handleMalConnect = async () => {
+    try {
+      showToast({
+        title: 'Connexion à MyAnimeList',
+        message: 'Votre navigateur va s\'ouvrir pour autoriser l\'accès...',
+        type: 'info',
+        duration: 5000
+      });
+      
+      const result = await window.electronAPI.malConnect();
+      
+      if (result.success) {
+        showToast({
+          title: 'Connecté !',
+          message: `Bienvenue ${result.user?.name}`,
+          type: 'success'
+        });
+        await loadMalStatus();
+      }
+    } catch (error: any) {
+      console.error('Erreur connexion MAL:', error);
+      showToast({
+        title: 'Erreur de connexion',
+        message: error.message || 'Impossible de se connecter à MyAnimeList',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleMalDisconnect = async () => {
+    const confirmed = await confirm({
+      title: 'Déconnexion MyAnimeList',
+      message: 'Êtes-vous sûr de vouloir vous déconnecter ? Les synchronisations automatiques seront désactivées.',
+      confirmText: 'Déconnecter',
+      cancelText: 'Annuler'
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await window.electronAPI.malDisconnect();
+      showToast({
+        title: 'Déconnecté',
+        message: 'Vous êtes déconnecté de MyAnimeList',
+        type: 'success'
+      });
+      await loadMalStatus();
+    } catch (error: any) {
+      console.error('Erreur déconnexion MAL:', error);
+      showToast({
+        title: 'Erreur',
+        message: error.message || 'Impossible de se déconnecter',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleMalSyncNow = async () => {
+    if (malSyncing) return;
+
+    try {
+      setMalSyncing(true);
+      showToast({
+        title: 'Synchronisation en cours...',
+        message: 'Récupération des données depuis MyAnimeList',
+        type: 'info',
+        duration: 10000
+      });
+
+      const result = await window.electronAPI.malSyncNow();
+
+      if (result.success) {
+        showToast({
+          title: 'Synchronisation réussie !',
+          message: `${result.total?.updated || 0} éléments mis à jour en ${result.duration}s`,
+          type: 'success',
+          duration: 5000
+        });
+        await loadMalStatus();
+      }
+    } catch (error: any) {
+      console.error('Erreur sync MAL:', error);
+      showToast({
+        title: 'Erreur de synchronisation',
+        message: error.message || 'Impossible de synchroniser avec MyAnimeList',
+        type: 'error'
+      });
+    } finally {
+      setMalSyncing(false);
+    }
+  };
+
+  const handleMalAutoSyncChange = async (enabled: boolean) => {
+    try {
+      await window.electronAPI.malSetAutoSync(enabled, malAutoSyncInterval);
+      setMalAutoSyncEnabled(enabled);
+      showToast({
+        title: enabled ? 'Sync auto activée' : 'Sync auto désactivée',
+        message: enabled ? `Synchronisation toutes les ${malAutoSyncInterval}h` : 'Les synchronisations automatiques sont désactivées',
+        type: 'success'
+      });
+    } catch (error: any) {
+      console.error('Erreur config sync auto MAL:', error);
+      showToast({
+        title: 'Erreur',
+        message: error.message || 'Impossible de modifier les paramètres',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleMalIntervalChange = async (intervalHours: number) => {
+    try {
+      await window.electronAPI.malSetAutoSync(malAutoSyncEnabled, intervalHours);
+      setMalAutoSyncInterval(intervalHours);
+      showToast({
+        title: 'Intervalle modifié',
+        message: `Synchronisation toutes les ${intervalHours}h`,
+        type: 'success'
+      });
+    } catch (error: any) {
+      console.error('Erreur modification intervalle MAL:', error);
+      showToast({
+        title: 'Erreur',
+        message: error.message || 'Impossible de modifier l\'intervalle',
+        type: 'error'
+      });
     }
   };
 
@@ -813,6 +975,208 @@ export default function Settings() {
               </p>
             </div>
           </details>
+        </div>
+
+        {/* MyAnimeList Synchronisation */}
+        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src="https://myanimelist.net/img/common/pwa/launcher-icon-3x.png" alt="MAL" style={{ width: '24px', height: '24px', borderRadius: '4px' }} />
+            Synchronisation MyAnimeList
+          </h2>
+
+          {malConnected ? (
+            <>
+              {/* Utilisateur connecté */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {malUser?.picture && (
+                    <img src={malUser.picture} alt={malUser.name} style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--primary)' }} />
+                  )}
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', marginBottom: '4px' }}>
+                      ✅ Connecté en tant que <strong>{malUser?.name}</strong>
+                    </p>
+                    {malLastSync?.timestamp && (
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Dernière sync : {new Date(malLastSync.timestamp).toLocaleString('fr-FR')}
+                        {malLastSync.success && malLastSync.total && (
+                          <> • {malLastSync.total.updated} mis à jour</>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleMalDisconnect}
+                  className="btn"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    padding: '8px 16px',
+                    fontSize: '13px'
+                  }}
+                >
+                  Déconnecter
+                </button>
+              </div>
+
+              {/* Bouton synchronisation manuelle */}
+              <button
+                onClick={handleMalSyncNow}
+                disabled={malSyncing}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: malSyncing ? 0.6 : 1
+                }}
+              >
+                <RefreshCw size={18} style={{ animation: malSyncing ? 'spin 1s linear infinite' : 'none' }} />
+                {malSyncing ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
+              </button>
+
+              {/* Synchronisation automatique */}
+              <div style={{
+                padding: '16px',
+                background: 'var(--surface)',
+                borderRadius: '8px',
+                border: '1px solid var(--border)'
+              }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  cursor: 'pointer',
+                  marginBottom: '12px'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={malAutoSyncEnabled}
+                    onChange={(e) => handleMalAutoSyncChange(e.target.checked)}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>
+                    Synchronisation automatique
+                  </span>
+                </label>
+
+                {malAutoSyncEnabled && (
+                  <div>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      marginBottom: '6px',
+                      color: 'var(--text-secondary)'
+                    }}>
+                      Fréquence de synchronisation
+                    </label>
+                    <select
+                      value={malAutoSyncInterval}
+                      onChange={(e) => handleMalIntervalChange(Number(e.target.value))}
+                      className="select"
+                      style={{ width: '100%' }}
+                    >
+                      <option value={1}>Toutes les heures</option>
+                      <option value={3}>Toutes les 3 heures</option>
+                      <option value={6}>Toutes les 6 heures</option>
+                      <option value={12}>Toutes les 12 heures</option>
+                      <option value={24}>Une fois par jour</option>
+                    </select>
+                  </div>
+                )}
+
+                <p style={{
+                  fontSize: '11px',
+                  color: 'var(--text-secondary)',
+                  marginTop: '12px',
+                  lineHeight: '1.5'
+                }}>
+                  💡 La synchronisation met à jour automatiquement vos chapitres lus et épisodes vus depuis votre compte MyAnimeList.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Non connecté */}
+              <p style={{
+                fontSize: '14px',
+                color: 'var(--text-secondary)',
+                marginBottom: '16px',
+                lineHeight: '1.6'
+              }}>
+                Connectez votre compte MyAnimeList pour synchroniser automatiquement vos chapitres lus et épisodes vus depuis vos applications mobiles (Mihon, AniList, etc.).
+              </p>
+
+              <button
+                onClick={handleMalConnect}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <img src="https://myanimelist.net/img/common/pwa/launcher-icon-3x.png" alt="MAL" style={{ width: '20px', height: '20px', borderRadius: '4px' }} />
+                Connecter mon compte MyAnimeList
+              </button>
+
+              <details style={{ marginTop: '16px' }}>
+                <summary style={{
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  transition: 'background 0.2s'
+                }}>
+                  ℹ️ Comment ça fonctionne ?
+                </summary>
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--text-secondary)',
+                  padding: '12px',
+                  background: 'var(--surface)',
+                  borderRadius: '8px',
+                  marginTop: '8px',
+                  lineHeight: '1.6'
+                }}>
+                  <ol style={{ paddingLeft: '20px', margin: '0' }}>
+                    <li>Cliquez sur "Connecter" ci-dessus</li>
+                    <li>Votre navigateur s'ouvrira sur MyAnimeList</li>
+                    <li>Autorisez l'accès à votre liste</li>
+                    <li>Revenez à l'application</li>
+                    <li>Activez la synchronisation automatique</li>
+                  </ol>
+                  <p style={{ marginTop: '12px', fontWeight: '600', color: 'var(--primary)' }}>
+                    🔐 Vos identifiants ne sont jamais stockés. Seul un jeton d'accès sécurisé est utilisé.
+                  </p>
+                </div>
+              </details>
+            </>
+          )}
         </div>
 
         {/* Formulaire d'ajout/édition (pleine largeur en dessous) */}

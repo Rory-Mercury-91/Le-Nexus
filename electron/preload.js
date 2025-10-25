@@ -57,6 +57,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setGroqApiKey: (apiKey) => ipcRenderer.invoke('set-groq-api-key', apiKey),
   translateText: (text, targetLang) => ipcRenderer.invoke('translate-text', text, targetLang),
   
+  // MyAnimeList Sync
+  malConnect: () => ipcRenderer.invoke('mal-connect'),
+  malDisconnect: () => ipcRenderer.invoke('mal-disconnect'),
+  malGetStatus: () => ipcRenderer.invoke('mal-get-status'),
+  malSyncNow: () => ipcRenderer.invoke('mal-sync-now'),
+  malSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('mal-set-auto-sync', enabled, intervalHours),
+  malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
+  onMalSyncCompleted: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-sync-completed', subscription);
+    return () => ipcRenderer.removeListener('mal-sync-completed', subscription);
+  },
+  onMalSyncError: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-sync-error', subscription);
+    return () => ipcRenderer.removeListener('mal-sync-error', subscription);
+  },
+  
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),
   uploadCustomCover: (serieTitre, type) => ipcRenderer.invoke('upload-custom-cover', serieTitre, type),
   saveCoverFromPath: (sourcePath, serieTitre, type) => ipcRenderer.invoke('save-cover-from-path', sourcePath, serieTitre, type),

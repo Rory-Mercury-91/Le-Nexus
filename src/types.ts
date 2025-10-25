@@ -300,6 +300,16 @@ declare global {
       getGroqApiKey: () => Promise<string>;
       setGroqApiKey: (apiKey: string) => Promise<{ success: boolean }>;
       translateText: (text: string, targetLang?: string) => Promise<{ success: boolean; text: string; error?: string }>;
+      
+      // MyAnimeList Sync
+      malConnect: () => Promise<{ success: boolean; user?: { id: number; name: string; picture?: string } }>;
+      malDisconnect: () => Promise<{ success: boolean }>;
+      malGetStatus: () => Promise<{ connected: boolean; user?: any; connectedAt?: string; lastSync?: any }>;
+      malSyncNow: () => Promise<{ success: boolean; duration?: string; manga?: any; anime?: any; total?: any; error?: string }>;
+      malSetAutoSync: (enabled: boolean, intervalHours?: number) => Promise<{ success: boolean }>;
+      malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
+      onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
+      onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;

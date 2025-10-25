@@ -8,6 +8,7 @@ const isDev = !app.isPackaged;
 // Services
 const { initDatabase } = require('./services/database');
 const { createImportServer } = require('./services/import-server');
+const { startScheduler, syncOnStartup } = require('./services/mal-sync-scheduler');
 
 // Handlers
 const { registerMangaHandlers } = require('./handlers/manga-handlers');
@@ -16,6 +17,7 @@ const { registerStatisticsHandlers } = require('./handlers/statistics-handlers')
 const { registerSettingsHandlers } = require('./handlers/settings-handlers');
 const { registerSearchHandlers } = require('./handlers/search-handlers');
 const { registerUserHandlers } = require('./handlers/user-handlers');
+const { registerMalSyncHandlers } = require('./handlers/mal-sync-handlers');
 
 // Configuration
 const store = new Store();
@@ -310,6 +312,7 @@ app.whenReady().then(async () => {
   registerMangaHandlers(ipcMain, getDb, getPathManager, store);
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
+  registerMalSyncHandlers(ipcMain, getDb, store);
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     // Recharger le baseDirectory depuis le store
     const newBaseDirectory = store.get('baseDirectory');
@@ -360,6 +363,18 @@ app.whenReady().then(async () => {
     importServer = createImportServer(IMPORT_PORT, getDb, store, mainWindow, pathManager);
   } catch (error) {
     console.warn('⚠️ Serveur d\'import non démarré:', error.message);
+  }
+
+  // Démarrer le scheduler de synchronisation MAL
+  try {
+    startScheduler(getDb(), store, mainWindow);
+    
+    // Effectuer une sync au démarrage si nécessaire
+    syncOnStartup(getDb(), store).catch(err => {
+      console.warn('⚠️ Sync MAL au démarrage échouée:', err.message);
+    });
+  } catch (error) {
+    console.warn('⚠️ Scheduler MAL non démarré:', error.message);
   }
 
   // Handler IPC pour minimiser dans le tray
