@@ -221,6 +221,7 @@ export interface AnimeFilters {
   mesAnimes?: boolean;
   statut?: string;
   type?: string;
+  visionnage?: 'completed' | 'watching' | 'not_started' | '';
 }
 
 export interface AnimeImportResult {
