@@ -113,15 +113,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     setShowTagDropdown(false); // Fermer le dropdown après l'action
   };
 
-  const getStatutColor = (statut: string) => {
-    switch (statut) {
-      case 'En cours': return 'var(--primary)';
-      case 'Terminée': return 'var(--success)';
-      case 'Abandonnée': return 'var(--error)';
-      default: return 'var(--text-secondary)';
-    }
-  };
-
   const getStatutBadgeClass = (statut: string) => {
     switch (statut) {
       case 'En cours': return 'badge-primary';

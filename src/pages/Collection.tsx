@@ -254,7 +254,6 @@ export default function Collection() {
             <SerieListItem
               key={serie.id}
               serie={serie}
-              onUpdate={() => { loadSeries(true); loadLectureStats(); }}
             />
           )}
           onUpdate={() => { loadSeries(true); loadLectureStats(); }}

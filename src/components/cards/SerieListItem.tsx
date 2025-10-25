@@ -3,22 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Serie } from '../../types';
 import CoverImage from '../common/CoverImage';
 
-const TAG_CONFIG = {
-  a_lire: { icon: BookOpen, label: 'À lire', color: '#3b82f6' },
-  en_cours: { icon: BookOpen, label: 'En cours', color: '#f59e0b' },
-  lu: { icon: BookOpen, label: 'Lu', color: '#10b981' },
-  abandonne: { icon: BookOpen, label: 'Abandonné', color: '#6b7280' }
-};
-
 interface SerieListItemProps {
   serie: Serie;
-  onUpdate?: () => void;
 }
 
-export default function SerieListItem({ serie, onUpdate }: SerieListItemProps) {
+export default function SerieListItem({ serie }: SerieListItemProps) {
   const navigate = useNavigate();
-  const TagIcon = serie.tag && TAG_CONFIG[serie.tag] ? TAG_CONFIG[serie.tag].icon : null;
-  const tagColor = serie.tag && TAG_CONFIG[serie.tag] ? TAG_CONFIG[serie.tag].color : null;
 
   // Calculer la progression
   const tomesLus = serie.tomes?.filter((t: any) => t?.lu).length || 0;
