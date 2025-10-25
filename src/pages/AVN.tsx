@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Grid3x3, List, Image as ImageIcon, RefreshCw } from 'lucide-react';
-import type { AvnGame, AvnFilters, AvnStatutPerso, AvnStatutJeu, AvnMoteur } from '../types';
+import type { AvnGame, AvnFilters, AvnStatutPerso, AvnMoteur } from '../types';
 import AddAvnModal from '../components/modals/avn/AddAvnModal';
 import '../index.css';
 
