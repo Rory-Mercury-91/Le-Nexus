@@ -135,6 +135,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   launchAvnGame: (id) => ipcRenderer.invoke('launch-avn-game', id),
   checkAvnUpdates: () => ipcRenderer.invoke('check-avn-updates'),
   searchAvnByF95Id: (f95Id) => ipcRenderer.invoke('search-avn-by-f95-id', f95Id),
+
+  // LewdCorner Auth
+  lewdCornerConnect: () => ipcRenderer.invoke('lewdcorner-connect'),
+  lewdCornerCheckSession: () => ipcRenderer.invoke('lewdcorner-check-session'),
+  lewdCornerDisconnect: () => ipcRenderer.invoke('lewdcorner-disconnect'),
   
   // Fusion
   mergeDatabase: () => ipcRenderer.invoke('merge-database'),

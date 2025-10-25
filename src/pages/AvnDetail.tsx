@@ -501,7 +501,7 @@ export default function AvnDetail() {
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     <ExternalLink size={16} />
-                    Page F95Zone
+                    {game.lien_f95.includes('lewdcorner') ? 'Page LewdCorner' : 'Page F95Zone'}
                   </a>
                 )}
 

@@ -462,6 +462,11 @@ declare global {
       searchAvnByF95Id: (f95Id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
       selectAvnExecutable: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
       selectAvnCoverImage: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
+
+      // LewdCorner Auth
+      lewdCornerConnect: () => Promise<{ success: boolean; cookiesCount?: number }>;
+      lewdCornerCheckSession: () => Promise<{ success: boolean; connected: boolean; error?: string }>;
+      lewdCornerDisconnect: () => Promise<{ success: boolean; error?: string }>;
     };
   }
 }
