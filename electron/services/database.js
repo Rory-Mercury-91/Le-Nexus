@@ -27,6 +27,27 @@ function initDatabase(dbPath) {
       demographie TEXT,
       editeur TEXT,
       rating TEXT,
+      
+      -- Nouveaux champs MAL
+      mal_id INTEGER UNIQUE,
+      titre_romaji TEXT,
+      titre_anglais TEXT,
+      titres_alternatifs TEXT,
+      nb_volumes INTEGER,
+      date_debut TEXT,
+      date_fin TEXT,
+      media_type TEXT,
+      themes TEXT,
+      auteurs TEXT,
+      volumes_lus INTEGER DEFAULT 0,
+      statut_lecture TEXT,
+      score_utilisateur REAL,
+      date_debut_lecture TEXT,
+      date_fin_lecture TEXT,
+      tags TEXT,
+      relations TEXT,
+      source_donnees TEXT DEFAULT 'nautiljon',
+      
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -191,9 +212,61 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_anime_tags_anime ON anime_tags(anime_id);
     CREATE INDEX IF NOT EXISTS idx_anime_tags_user ON anime_tags(user_id);
     CREATE INDEX IF NOT EXISTS idx_anime_tags_tag ON anime_tags(tag);
+    CREATE INDEX IF NOT EXISTS idx_series_mal_id ON series(mal_id);
+    CREATE INDEX IF NOT EXISTS idx_series_source ON series(source_donnees);
   `);
 
   // ========== MIGRATIONS ==========
+  
+  // Migration: Ajouter les nouveaux champs MAL à la table series
+  const migrateSeriesMalFields = () => {
+    try {
+      const tableInfo = db.prepare('PRAGMA table_info(series)').all();
+      const existingColumns = tableInfo.map(col => col.name);
+      
+      const newColumns = [
+        { name: 'mal_id', type: 'INTEGER UNIQUE' },
+        { name: 'titre_romaji', type: 'TEXT' },
+        { name: 'titre_anglais', type: 'TEXT' },
+        { name: 'titres_alternatifs', type: 'TEXT' },
+        { name: 'nb_volumes', type: 'INTEGER' },
+        { name: 'date_debut', type: 'TEXT' },
+        { name: 'date_fin', type: 'TEXT' },
+        { name: 'media_type', type: 'TEXT' },
+        { name: 'themes', type: 'TEXT' },
+        { name: 'auteurs', type: 'TEXT' },
+        { name: 'volumes_lus', type: 'INTEGER DEFAULT 0' },
+        { name: 'statut_lecture', type: 'TEXT' },
+        { name: 'score_utilisateur', type: 'REAL' },
+        { name: 'date_debut_lecture', type: 'TEXT' },
+        { name: 'date_fin_lecture', type: 'TEXT' },
+        { name: 'tags', type: 'TEXT' },
+        { name: 'relations', type: 'TEXT' },
+        { name: 'source_donnees', type: 'TEXT DEFAULT "nautiljon"' }
+      ];
+      
+      let addedCount = 0;
+      for (const col of newColumns) {
+        if (!existingColumns.includes(col.name)) {
+          // Gérer UNIQUE séparément pour mal_id
+          if (col.name === 'mal_id') {
+            db.exec(`ALTER TABLE series ADD COLUMN ${col.name} INTEGER`);
+          } else {
+            db.exec(`ALTER TABLE series ADD COLUMN ${col.name} ${col.type}`);
+          }
+          addedCount++;
+        }
+      }
+      
+      if (addedCount > 0) {
+        console.log(`✅ Migration: ${addedCount} colonnes MAL ajoutées à la table series`);
+      }
+    } catch (error) {
+      console.warn('⚠️ Migration series MAL déjà appliquée ou erreur:', error.message);
+    }
+  };
+  
+  migrateSeriesMalFields();
   
   console.log('✅ Schéma de base de données créé/vérifié');
   

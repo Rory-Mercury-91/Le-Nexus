@@ -620,6 +620,184 @@ export default function SerieDetail() {
             </div>
           </div>
 
+          {/* Section Informations MyAnimeList (si disponible) */}
+          {serie.mal_id && (
+            <div className="card" style={{ padding: '24px', marginTop: '32px' }}>
+              <h3 style={{ 
+                fontSize: '18px', 
+                fontWeight: '700', 
+                marginBottom: '20px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px',
+                color: 'var(--text)'
+              }}>
+                <span style={{
+                  background: '#2E51A2',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: 'white',
+                  fontWeight: '700'
+                }}>
+                  📊 MAL
+                </span>
+                Informations MyAnimeList
+              </h3>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                gap: '20px' 
+              }}>
+                {/* Colonne 1: Titres alternatifs */}
+                <div>
+                  {serie.titre_romaji && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Titre romaji
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)' }}>{serie.titre_romaji}</span>
+                    </div>
+                  )}
+                  
+                  {serie.titre_anglais && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Titre anglais
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)' }}>{serie.titre_anglais}</span>
+                    </div>
+                  )}
+                  
+                  {serie.media_type && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Type de média
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)', textTransform: 'capitalize' }}>
+                        {serie.media_type}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Colonne 2: Détails publication */}
+                <div>
+                  {serie.auteurs && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Auteur(s)
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)' }}>{serie.auteurs}</span>
+                    </div>
+                  )}
+                  
+                  {serie.themes && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Thèmes
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)' }}>{serie.themes}</span>
+                    </div>
+                  )}
+                  
+                  {(serie.date_debut || serie.date_fin) && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Publication
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)' }}>
+                        {serie.date_debut ? new Date(serie.date_debut).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' }) : '?'}
+                        {' → '}
+                        {serie.date_fin ? new Date(serie.date_fin).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' }) : 'En cours'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Colonne 3: Statistiques utilisateur */}
+                <div>
+                  {serie.nb_volumes && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Volumes totaux
+                      </span>
+                      <span style={{ fontSize: '14px', color: 'var(--text)', fontWeight: '700' }}>
+                        {serie.volumes_lus || 0} / {serie.nb_volumes}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {serie.statut_lecture && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Votre statut MAL
+                      </span>
+                      <span style={{ 
+                        fontSize: '13px', 
+                        fontWeight: '600',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        background: serie.statut_lecture === 'Terminée' ? 'rgba(16, 185, 129, 0.15)' : 
+                                   serie.statut_lecture === 'En cours' ? 'rgba(59, 130, 246, 0.15)' : 
+                                   'rgba(107, 114, 128, 0.15)',
+                        color: serie.statut_lecture === 'Terminée' ? '#10b981' : 
+                               serie.statut_lecture === 'En cours' ? '#3b82f6' : 
+                               '#6b7280'
+                      }}>
+                        {serie.statut_lecture}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {serie.score_utilisateur && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '4px' }}>
+                        Votre note
+                      </span>
+                      <span style={{ fontSize: '18px', color: 'var(--primary)', fontWeight: '700' }}>
+                        ⭐ {serie.score_utilisateur}/10
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Lien vers MAL */}
+              <a 
+                href={`https://myanimelist.net/manga/${serie.mal_id}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '16px',
+                  padding: '8px 14px',
+                  background: '#2E51A2',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#1e3a8a';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#2E51A2';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <span>🔗</span>
+                Voir sur MyAnimeList
+              </a>
+            </div>
+          )}
+
           {/* Section Coûts et Progression */}
           <div style={{
             borderTop: '1px solid var(--border)',

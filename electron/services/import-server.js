@@ -80,23 +80,45 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
           }
 
           // Chercher la série existante par titre (exacte ou partielle)
+          // Inclut maintenant les titres alternatifs MAL
           let serie = db.prepare('SELECT * FROM series WHERE titre = ?').get(mangaData.titre);
 
-          // Si pas trouvée exactement, chercher avec LIKE (tolérant)
+          // Si pas trouvée exactement, chercher avec les titres alternatifs MAL
           if (!serie) {
             console.log(`⚠️ Série "${mangaData.titre}" non trouvée (recherche exacte)`);
-            console.log('🔍 Recherche partielle...');
+            console.log('🔍 Recherche dans les titres alternatifs MAL...');
             
-            const similarSeries = db.prepare(
-              'SELECT * FROM series WHERE titre LIKE ? ORDER BY titre'
-            ).all(`%${mangaData.titre}%`);
+            // Recherche dans titre_romaji, titre_anglais, et titres_alternatifs (JSON)
+            const altSearch = db.prepare(`
+              SELECT * FROM series 
+              WHERE titre LIKE ? 
+                OR titre_romaji LIKE ?
+                OR titre_anglais LIKE ?
+                OR titres_alternatifs LIKE ?
+              ORDER BY 
+                CASE 
+                  WHEN titre = ? THEN 1
+                  WHEN titre_romaji = ? THEN 2
+                  WHEN titre_anglais = ? THEN 3
+                  ELSE 4
+                END
+              LIMIT 1
+            `).get(
+              `%${mangaData.titre}%`,
+              `%${mangaData.titre}%`,
+              `%${mangaData.titre}%`,
+              `%${mangaData.titre}%`,
+              mangaData.titre,
+              mangaData.titre,
+              mangaData.titre
+            );
 
-            if (similarSeries.length > 0) {
-              // Prendre la première correspondance
-              serie = similarSeries[0];
-              console.log(`✅ Série similaire trouvée: "${serie.titre}" (ID: ${serie.id})`);
+            if (altSearch) {
+              serie = altSearch;
+              console.log(`✅ Série trouvée via titres alternatifs: "${serie.titre}" (ID: ${serie.id})`);
             } else {
               // Chercher dans l'autre sens (le titre de la DB contient le titre recherché)
+              console.log('🔍 Recherche inverse...');
               const reverseSimilar = db.prepare(
                 'SELECT * FROM series WHERE ? LIKE \'%\' || titre || \'%\' ORDER BY titre'
               ).all(mangaData.titre);
@@ -217,6 +239,38 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
           }
 
           console.log(`📚 ${tomesCreated}/${tomesToAdd.length} tome(s) ajouté(s) avec succès`);
+
+          // Écraser la couverture série avec celle du tome 1 (si disponible et si série vient de MAL)
+          if (mangaData.couverture_url && serie.source_donnees === 'mal') {
+            try {
+              const coverManager = require('./cover-manager');
+              
+              // Télécharger la couverture série depuis Nautiljon
+              const serieSlug = pathManager.createSlug(serie.titre);
+              const serieDir = pathManager.getSerieDirectory(serieSlug);
+              
+              const coverResult = await coverManager.downloadCover(
+                mangaData.couverture_url,
+                serieDir,
+                `${serieSlug}-cover`
+              );
+              
+              if (coverResult.success) {
+                // Mettre à jour la base de données
+                db.prepare(`
+                  UPDATE series
+                  SET couverture_url = ?,
+                      source_donnees = 'mal+nautiljon',
+                      updated_at = datetime('now')
+                  WHERE id = ?
+                `).run(coverResult.path, serie.id);
+                
+                console.log(`📸 Couverture série écrasée par Nautiljon: ${coverResult.path}`);
+              }
+            } catch (error) {
+              console.warn('⚠️ Impossible d\'écraser la couverture série:', error.message);
+            }
+          }
 
           // Envoyer un événement IPC pour rafraîchir l'UI
           if (mainWindow && !mainWindow.isDestroyed()) {

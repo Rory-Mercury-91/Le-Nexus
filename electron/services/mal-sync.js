@@ -20,8 +20,8 @@ async function getUserMangaList(accessToken, limit = 1000) {
   
   while (hasMore) {
     const url = new URL('https://api.myanimelist.net/v2/users/@me/mangalist');
-    // Récupérer plus de détails pour pouvoir créer des entrées complètes
-    url.searchParams.set('fields', 'list_status,num_chapters,synopsis,main_picture,genres,status,start_date,end_date,media_type');
+    // Récupérer tous les détails nécessaires pour créer des entrées complètes
+    url.searchParams.set('fields', 'list_status,num_chapters,num_volumes,synopsis,main_picture,genres,themes,demographics,authors{first_name,last_name},status,start_date,end_date,media_type,alternative_titles,serialization,related_manga,related_anime,mean,rank,popularity');
     url.searchParams.set('limit', limit.toString());
     url.searchParams.set('offset', offset.toString());
     
@@ -140,73 +140,159 @@ async function syncMangaProgress(db, malMangas, currentUser, onProgress = null) 
     }
     try {
       const malId = malEntry.node.id;
-      const chaptersRead = malEntry.list_status?.num_chapters_read || 0;
-      const malStatus = malEntry.list_status?.status; // reading, completed, on_hold, dropped, plan_to_read
-      const score = malEntry.list_status?.score || 0;
+      const manga = malEntry.node;
+      const listStatus = malEntry.list_status;
+      
+      const chaptersRead = listStatus?.num_chapters_read || 0;
+      const volumesRead = listStatus?.num_volumes_read || 0;
+      const malStatus = listStatus?.status; // reading, completed, on_hold, dropped, plan_to_read
+      const score = listStatus?.score || 0;
+      const startDate = listStatus?.start_date || null;
+      const finishDate = listStatus?.finish_date || null;
+      const userTags = listStatus?.tags || [];
       
       // Chercher la série dans la DB par MAL ID
       const serie = db.prepare(`
-        SELECT id, titre, chapitres_lus, type_contenu
+        SELECT id, titre, chapitres_lus, volumes_lus, mal_id, source_donnees
         FROM series
-        WHERE description LIKE ?
-        OR description LIKE ?
+        WHERE mal_id = ?
         LIMIT 1
-      `).get(`%myanimelist.net/manga/${malId}%`, `%mal.to/manga/${malId}%`);
+      `).get(malId);
       
       if (!serie) {
         // Créer automatiquement la série depuis les données MAL
-        const manga = malEntry.node;
         const titre = manga.title;
-        const description = (manga.synopsis || '') + `\n\nMAL: https://myanimelist.net/manga/${malId}`;
+        const titre_romaji = manga.title_synonyms?.find(t => /[\u3040-\u309F\u30A0-\u30FF]/.test(t)) || null;
+        const titre_anglais = manga.alternative_titles?.en || null;
+        const titres_alternatifs = JSON.stringify(manga.alternative_titles?.synonyms || []);
+        const synopsis = manga.synopsis || '';
         const couverture_url = manga.main_picture?.large || manga.main_picture?.medium || null;
-        const genres = manga.genres ? manga.genres.map(g => g.name).join(', ') : null;
-        const nb_chapitres = manga.num_chapters || null;
-        const statut_publication = manga.status === 'finished' ? 'Terminée' : 
-                                   manga.status === 'currently_publishing' ? 'En cours' : null;
-        const annee_publication = manga.start_date ? new Date(manga.start_date).getFullYear() : null;
         
-        // Convertir le statut MAL en statut local
+        const genres = manga.genres ? manga.genres.map(g => g.name).join(', ') : null;
+        const themes = manga.themes ? manga.themes.map(t => t.name).join(', ') : null;
+        const demographics = manga.demographics ? manga.demographics.map(d => d.name).join(', ') : null;
+        const auteurs = manga.authors ? manga.authors.map(a => `${a.node.first_name} ${a.node.last_name}`.trim()).join(', ') : null;
+        
+        const nb_chapitres = manga.num_chapters || null;
+        const nb_volumes = manga.num_volumes || null;
+        const statut_publication = manga.status === 'finished' ? 'Terminée' : 
+                                   manga.status === 'currently_publishing' ? 'En cours' : 
+                                   manga.status === 'on_hiatus' ? 'En pause' : null;
+        const date_debut = manga.start_date || null;
+        const date_fin = manga.end_date || null;
+        const annee_publication = date_debut ? new Date(date_debut).getFullYear() : null;
+        const media_type = manga.media_type || 'manga'; // manga, novel, one_shot, doujinshi, manhwa, manhua
+        
+        // Relations (prequels, sequels, etc.)
+        const relations = manga.related_manga || manga.related_anime ? 
+          JSON.stringify({
+            manga: manga.related_manga || [],
+            anime: manga.related_anime || []
+          }) : null;
+        
+        // Convertir le statut MAL en statut local (pour la série, pas l'utilisateur)
         let statut = 'En cours';
         if (malStatus === 'completed') statut = 'Terminée';
         if (malStatus === 'dropped') statut = 'Abandonnée';
         
+        // Statut de lecture utilisateur
+        const statut_lecture_map = {
+          'reading': 'En cours',
+          'completed': 'Terminée',
+          'on_hold': 'En pause',
+          'dropped': 'Abandonnée',
+          'plan_to_read': 'À lire'
+        };
+        const statut_lecture = statut_lecture_map[malStatus] || 'En cours';
+        
         const insertResult = db.prepare(`
           INSERT INTO series (
-            titre, statut, type_volume, type_contenu, couverture_url, description,
-            statut_publication, annee_publication, genres, nb_chapitres, chapitres_lus
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            mal_id, titre, titre_romaji, titre_anglais, titres_alternatifs,
+            statut, type_volume, type_contenu, couverture_url, description,
+            statut_publication, annee_publication, date_debut, date_fin,
+            genres, themes, demographie, media_type, auteurs,
+            nb_chapitres, nb_volumes, chapitres_lus, volumes_lus,
+            statut_lecture, score_utilisateur, date_debut_lecture, date_fin_lecture,
+            tags, relations, source_donnees,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).run(
+          malId,
           titre,
+          titre_romaji,
+          titre_anglais,
+          titres_alternatifs,
           statut,
           'Numérique', // Type par défaut pour les mangas MAL
           'chapitre',  // Import MAL = suivi par chapitres
           couverture_url,
-          description,
+          synopsis,
           statut_publication,
           annee_publication,
+          date_debut,
+          date_fin,
           genres,
+          themes,
+          demographics,
+          media_type,
+          auteurs,
           nb_chapitres,
-          chaptersRead
+          nb_volumes,
+          chaptersRead,
+          volumesRead,
+          statut_lecture,
+          score > 0 ? score : null,
+          startDate,
+          finishDate,
+          userTags.length > 0 ? JSON.stringify(userTags) : null,
+          relations,
+          'mal'
         );
         
         stats.created++;
-        console.log(`➕ Manga créé: "${titre}" (${chaptersRead} chapitres lus)`);
+        console.log(`➕ Manga créé: "${titre}" (${chaptersRead}/${nb_chapitres} ch., ${volumesRead}/${nb_volumes} vol.)`);
         continue;
       }
       
-      // Mettre à jour si MAL a plus de chapitres lus
+      // Série existe : mettre à jour la progression et les infos utilisateur si nécessaire
       const currentChapters = serie.chapitres_lus || 0;
+      const currentVolumes = serie.volumes_lus || 0;
       
-      if (chaptersRead > currentChapters) {
+      if (chaptersRead > currentChapters || volumesRead > currentVolumes) {
+        // Convertir le statut MAL en statut de lecture
+        const statut_lecture_map = {
+          'reading': 'En cours',
+          'completed': 'Terminée',
+          'on_hold': 'En pause',
+          'dropped': 'Abandonnée',
+          'plan_to_read': 'À lire'
+        };
+        const statut_lecture = statut_lecture_map[malStatus] || null;
+        
         db.prepare(`
           UPDATE series
           SET chapitres_lus = ?,
-              updated_at = CURRENT_TIMESTAMP
+              volumes_lus = ?,
+              statut_lecture = ?,
+              score_utilisateur = ?,
+              date_debut_lecture = ?,
+              date_fin_lecture = ?,
+              tags = ?,
+              updated_at = datetime('now')
           WHERE id = ?
-        `).run(chaptersRead, serie.id);
+        `).run(
+          chaptersRead,
+          volumesRead,
+          statut_lecture,
+          score > 0 ? score : null,
+          startDate,
+          finishDate,
+          userTags.length > 0 ? JSON.stringify(userTags) : null,
+          serie.id
+        );
         
         stats.updated++;
-        console.log(`✅ Manga "${serie.titre}": ${currentChapters} → ${chaptersRead} chapitres`);
+        console.log(`✅ Manga "${serie.titre}": ${currentChapters}→${chaptersRead} ch., ${currentVolumes}→${volumesRead} vol.`);
       } else {
         stats.skipped++;
       }
@@ -559,4 +645,3 @@ module.exports = {
   performFullSync,
   translateSynopsisInBackground
 };
-

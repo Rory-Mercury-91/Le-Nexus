@@ -18,6 +18,27 @@ export interface Serie {
   demographie?: string | null;
   editeur?: string | null;
   rating?: string | null;
+  
+  // Nouveaux champs MAL
+  mal_id?: number | null;
+  titre_romaji?: string | null;
+  titre_anglais?: string | null;
+  titres_alternatifs?: string | null; // JSON string
+  nb_volumes?: number | null;
+  date_debut?: string | null;
+  date_fin?: string | null;
+  media_type?: string | null; // "Manga", "Manhwa", "Manhua", "Light Novel"
+  themes?: string | null;
+  auteurs?: string | null;
+  volumes_lus?: number | null;
+  statut_lecture?: string | null; // "En cours", "Terminée", "Abandonnée"
+  score_utilisateur?: number | null;
+  date_debut_lecture?: string | null;
+  date_fin_lecture?: string | null;
+  tags?: string | null; // Tags MAL de l'utilisateur
+  relations?: string | null; // JSON string
+  source_donnees?: 'mal' | 'nautiljon' | 'mal+nautiljon' | null;
+  
   created_at?: string;
   updated_at?: string;
   tomes?: Tome[];

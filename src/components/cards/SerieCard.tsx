@@ -174,6 +174,30 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             <BookOpen size={48} />
           </div>
         )}
+        
+        {/* Badge source de données */}
+        {serie.source_donnees && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: '700',
+            background: serie.source_donnees === 'mal' ? '#2E51A2' : 
+                        serie.source_donnees === 'nautiljon' ? '#FF6B35' : 
+                        'linear-gradient(135deg, #2E51A2, #FF6B35)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            zIndex: 2,
+            letterSpacing: '0.5px'
+          }}>
+            {serie.source_donnees === 'mal' && '📊 MAL'}
+            {serie.source_donnees === 'nautiljon' && '🇫🇷 Nautiljon'}
+            {serie.source_donnees === 'mal+nautiljon' && '📊🇫🇷'}
+          </span>
+        )}
 
         {/* Bannières diagonales pour les tags En cours / Lu / Abandonné */}
         {(() => {
@@ -482,6 +506,30 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           }}>
             <BookOpen size={48} />
           </div>
+        )}
+        
+        {/* Badge source de données */}
+        {serie.source_donnees && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: '700',
+            background: serie.source_donnees === 'mal' ? '#2E51A2' : 
+                        serie.source_donnees === 'nautiljon' ? '#FF6B35' : 
+                        'linear-gradient(135deg, #2E51A2, #FF6B35)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            zIndex: 2,
+            letterSpacing: '0.5px'
+          }}>
+            {serie.source_donnees === 'mal' && '📊 MAL'}
+            {serie.source_donnees === 'nautiljon' && '🇫🇷 Nautiljon'}
+            {serie.source_donnees === 'mal+nautiljon' && '📊🇫🇷'}
+          </span>
         )}
         
         {/* Bannières diagonales pour les tags En cours / Lu / Abandonné */}
