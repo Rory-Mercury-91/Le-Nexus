@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Grid3x3, List, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import type { AvnGame, AvnFilters, AvnStatutPerso, AvnStatutJeu, AvnMoteur } from '../types';
+import AddAvnModal from '../components/modals/avn/AddAvnModal';
 import '../index.css';
 
 type ViewMode = 'grid' | 'list' | 'images';
@@ -348,7 +349,13 @@ export default function AVN() {
         </div>
       )}
 
-      {/* TODO: Modals AddAvnModal et EditAvnModal */}
+      {/* Modal d'ajout */}
+      {showAddModal && (
+        <AddAvnModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={loadGames}
+        />
+      )}
     </div>
   );
 }
