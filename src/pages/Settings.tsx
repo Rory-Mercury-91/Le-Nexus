@@ -75,7 +75,7 @@ export default function Settings() {
     });
     
     // Écouter les mises à jour de progression MAL sync
-    const unsubscribeMal = window.electronAPI.onMalSyncProgress?.((event, progress) => {
+    const unsubscribeMal = window.electronAPI.onMalSyncProgress?.((_event, progress) => {
       // Convertir le format MAL sync vers le format AnimeImportProgress
       setAnimeImportProgress({
         total: progress.total,
@@ -98,11 +98,11 @@ export default function Settings() {
       setTranslationProgress(null);
     });
     
-    const unsubscribeTranslationProgress = window.electronAPI.onMalTranslationProgress?.((event: any, progress: any) => {
+    const unsubscribeTranslationProgress = window.electronAPI.onMalTranslationProgress?.((_event: any, progress: any) => {
       setTranslationProgress(progress);
     });
     
-    const unsubscribeTranslationCompleted = window.electronAPI.onMalTranslationCompleted?.((event: any, result: any) => {
+    const unsubscribeTranslationCompleted = window.electronAPI.onMalTranslationCompleted?.((_event: any, result: any) => {
       setTranslating(false);
       setTranslationProgress(null);
       showToast({
@@ -113,7 +113,7 @@ export default function Settings() {
       });
     });
     
-    const unsubscribeTranslationError = window.electronAPI.onMalTranslationError?.((event: any, data: any) => {
+    const unsubscribeTranslationError = window.electronAPI.onMalTranslationError?.((_event: any, data: any) => {
       setTranslating(false);
       setTranslationProgress(null);
       showToast({
