@@ -22,27 +22,33 @@ function base64urlEncode(buffer) {
 
 /**
  * Génère un challenge PKCE conforme RFC 7636
+ * Approche: Générer une string aléatoire directement (pas de conversion Buffer)
  * @returns {Object} { code_verifier, code_challenge }
  */
 function generatePKCEChallenge() {
-  // Générer 32 bytes aléatoires (43 caractères en base64url)
-  const verifierBuffer = crypto.randomBytes(32);
-  const code_verifier = base64urlEncode(verifierBuffer);
+  // Caractères valides pour code_verifier selon RFC 7636: [A-Z] [a-z] [0-9] - . _ ~
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
   
-  // Générer le challenge: SHA256(code_verifier) en base64url
-  // IMPORTANT: Spécifier 'ascii' pour l'encodage (pas UTF-8 par défaut)
+  // Générer un code_verifier de 128 caractères (longueur max recommandée)
+  let code_verifier = '';
+  const randomBytes = crypto.randomBytes(128);
+  for (let i = 0; i < 128; i++) {
+    code_verifier += charset[randomBytes[i] % charset.length];
+  }
+  
+  // Générer le challenge: BASE64URL(SHA256(ASCII(code_verifier)))
   const challengeBuffer = crypto.createHash('sha256').update(code_verifier, 'ascii').digest();
   const code_challenge = base64urlEncode(challengeBuffer);
   
   console.log('🔑 PKCE Debug:');
-  console.log('  code_verifier:', code_verifier.substring(0, 20) + '...');
+  console.log('  code_verifier:', code_verifier.substring(0, 30) + '...');
   console.log('  code_verifier length:', code_verifier.length);
-  console.log('  code_challenge:', code_challenge.substring(0, 20) + '...');
+  console.log('  code_challenge:', code_challenge);
   console.log('  code_challenge length:', code_challenge.length);
   
-  // Test de vérification
+  // Test de vérification locale
   const testChallenge = base64urlEncode(crypto.createHash('sha256').update(code_verifier, 'ascii').digest());
-  console.log('  Vérification OK:', testChallenge === code_challenge ? '✅' : '❌');
+  console.log('  Vérification interne:', testChallenge === code_challenge ? '✅' : '❌');
   
   return { code_verifier, code_challenge };
 }
