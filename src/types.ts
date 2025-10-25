@@ -280,6 +280,55 @@ export interface User {
   updated_at?: string;
 }
 
+// ========================================
+// AVN (Adult Visual Novels)
+// ========================================
+
+export type AvnStatutPerso = 'Complété' | 'En cours' | 'À jouer' | 'Abandonné';
+export type AvnStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
+export type AvnMoteur = 'RenPy' | 'Unity' | 'RPGM' | 'Unreal' | 'HTML' | 'Flash' | 'QSP' | 'Autre';
+
+export interface AvnGame {
+  id: number;
+  f95_thread_id?: number | null;
+  titre: string;
+  version?: string | null;
+  statut_jeu?: AvnStatutJeu | null;
+  moteur?: AvnMoteur | null;
+  couverture_url?: string | null;
+  tags?: string[]; // Parsé depuis JSON
+  lien_f95?: string | null;
+  lien_traduction?: string | null;
+  lien_jeu?: string | null;
+  
+  // Données utilisateur
+  statut_perso?: AvnStatutPerso | null;
+  notes_privees?: string | null;
+  chemin_executable?: string | null;
+  derniere_session?: string | null;
+  
+  // Contrôle de version
+  version_disponible?: string | null;
+  maj_disponible?: boolean;
+  derniere_verif?: string | null;
+  
+  // Métadonnées
+  created_at?: string;
+  updated_at?: string;
+  
+  // Relations
+  proprietaires?: string[]; // Liste des propriétaires
+}
+
+export interface AvnFilters {
+  utilisateur?: string;
+  statut_perso?: AvnStatutPerso;
+  statut_jeu?: AvnStatutJeu;
+  moteur?: AvnMoteur;
+  maj_disponible?: boolean;
+  search?: string;
+}
+
 declare global {
   interface Window {
     electronAPI: {
@@ -380,6 +429,15 @@ declare global {
       setUserAvatar: (userId: number) => Promise<{ success: boolean; path?: string; error?: string }>;
       removeUserAvatar: (userId: number) => Promise<{ success: boolean; error?: string }>;
       getUserAvatar: (userId: number) => Promise<string | null>;
+      
+      // AVN (Adult Visual Novels)
+      getAvnGames: (filters?: AvnFilters) => Promise<AvnGame[]>;
+      getAvnGame: (id: number) => Promise<AvnGame | null>;
+      createAvnGame: (gameData: Partial<AvnGame>) => Promise<{ success: boolean; id?: number }>;
+      updateAvnGame: (id: number, gameData: Partial<AvnGame>) => Promise<{ success: boolean }>;
+      deleteAvnGame: (id: number) => Promise<{ success: boolean }>;
+      launchAvnGame: (id: number) => Promise<{ success: boolean; error?: string }>;
+      checkAvnUpdates: () => Promise<{ checked: number; updated: number }>;
     };
   }
 }

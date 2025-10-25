@@ -122,6 +122,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeUserAvatar: (userId) => ipcRenderer.invoke('users:remove-avatar', userId),
   getUserAvatar: (userId) => ipcRenderer.invoke('users:get-avatar', userId),
   
+  // AVN (Adult Visual Novels)
+  getAvnGames: (filters) => ipcRenderer.invoke('get-avn-games', filters),
+  getAvnGame: (id) => ipcRenderer.invoke('get-avn-game', id),
+  createAvnGame: (gameData) => ipcRenderer.invoke('create-avn-game', gameData),
+  updateAvnGame: (id, gameData) => ipcRenderer.invoke('update-avn-game', id, gameData),
+  deleteAvnGame: (id) => ipcRenderer.invoke('delete-avn-game', id),
+  launchAvnGame: (id) => ipcRenderer.invoke('launch-avn-game', id),
+  checkAvnUpdates: () => ipcRenderer.invoke('check-avn-updates'),
+  
   // Fusion
   mergeDatabase: () => ipcRenderer.invoke('merge-database'),
   setCurrentUser: (userName) => ipcRenderer.invoke('set-current-user', userName),
