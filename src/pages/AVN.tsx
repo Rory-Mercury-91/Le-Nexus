@@ -266,12 +266,14 @@ export default function AVN() {
               to={`/avn/${game.id}`}
               className="card"
               style={{
-                padding: '16px',
+                padding: 0,
                 cursor: 'pointer',
                 position: 'relative',
                 overflow: 'hidden',
                 textDecoration: 'none',
-                color: 'inherit'
+                color: 'inherit',
+                display: 'flex',
+                flexDirection: 'column'
               }}
             >
               {/* Badge MAJ disponible */}
@@ -291,7 +293,7 @@ export default function AVN() {
                   fontSize: '10px',
                   fontWeight: '700',
                   color: 'white',
-                  zIndex: 1
+                  zIndex: 2
                 }}>
                   🔄 MAJ
                 </div>
@@ -314,36 +316,71 @@ export default function AVN() {
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
-                  zIndex: 1
+                  zIndex: 2
                 }}>
                   {game.statut_perso}
                 </div>
               )}
 
-              <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>
-                {game.titre}
-              </h3>
-              
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                📦 {game.version || 'N/A'}
-                {game.version_disponible && game.version_disponible !== game.version && (
-                  <span style={{ color: '#a855f7', fontWeight: '600', marginLeft: '8px' }}>
-                    → {game.version_disponible}
-                  </span>
+              {/* Image de couverture */}
+              {game.couverture_url ? (
+                <div style={{
+                  width: '100%',
+                  height: '200px',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  <img
+                    src={game.couverture_url}
+                    alt={game.titre}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                </div>
+              ) : (
+                <div style={{
+                  width: '100%',
+                  height: '200px',
+                  background: 'var(--surface)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border)'
+                }}>
+                  <span style={{ fontSize: '48px', opacity: 0.3 }}>🎮</span>
+                </div>
+              )}
+
+              {/* Contenu de la carte */}
+              <div style={{ padding: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>
+                  {game.titre}
+                </h3>
+                
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  📦 {game.version || 'N/A'}
+                  {game.version_disponible && game.version_disponible !== game.version && (
+                    <span style={{ color: '#a855f7', fontWeight: '600', marginLeft: '8px' }}>
+                      → {game.version_disponible}
+                    </span>
+                  )}
+                </div>
+                
+                {game.moteur && (
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                    🛠️ {game.moteur}
+                  </div>
+                )}
+                
+                {game.statut_jeu && (
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    📊 {game.statut_jeu}
+                  </div>
                 )}
               </div>
-              
-              {game.moteur && (
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  🛠️ {game.moteur}
-                </div>
-              )}
-              
-              {game.statut_jeu && (
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  📊 {game.statut_jeu}
-                </div>
-              )}
             </Link>
           ))}
         </div>

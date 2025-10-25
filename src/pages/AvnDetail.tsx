@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText, Info, Settings, Flag, Clock, Users, Link2, Download, Languages, Tag } from 'lucide-react';
 import type { AvnGame } from '../types';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
 import EditAvnModal from '../components/modals/avn/EditAvnModal';
@@ -149,75 +149,74 @@ export default function AvnDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
-        {/* Colonne gauche : Couverture */}
-        <div>
-          {game.couverture_url ? (
-            <img
-              src={game.couverture_url}
-              alt={game.titre}
-              style={{
-                width: '100%',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                marginBottom: '16px'
-              }}
-            />
-          ) : (
-            <div style={{
-              width: '100%',
-              aspectRatio: '3/4',
-              background: 'var(--surface)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px'
-            }}>
-              <span style={{ fontSize: '48px' }}>🎮</span>
-            </div>
-          )}
-
-          {/* Badges */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {game.statut_perso && (
-              <div style={{
-                padding: '12px',
-                borderRadius: '8px',
-                background: getStatutColor(game.statut_perso) + '22',
-                border: `2px solid ${getStatutColor(game.statut_perso)}`,
-                textAlign: 'center',
-                fontSize: '14px',
-                fontWeight: '700',
-                color: getStatutColor(game.statut_perso)
-              }}>
-                {game.statut_perso}
-              </div>
-            )}
-
-            {game.maj_disponible && (
-              <div style={{
-                padding: '12px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
-                border: '2px solid #a855f7',
-                textAlign: 'center',
-                fontSize: '14px',
-                fontWeight: '700',
-                color: '#a855f7'
-              }}>
-                🔄 Mise à jour disponible !
-              </div>
-            )}
-          </div>
+      {/* Couverture pleine largeur */}
+      {game.couverture_url ? (
+        <img
+          src={game.couverture_url}
+          alt={game.titre}
+          style={{
+            width: '100%',
+            maxHeight: '400px',
+            objectFit: 'cover',
+            borderRadius: '12px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+            marginBottom: '24px'
+          }}
+        />
+      ) : (
+        <div style={{
+          width: '100%',
+          height: '300px',
+          background: 'var(--surface)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '24px',
+          border: '2px solid var(--border)'
+        }}>
+          <span style={{ fontSize: '64px' }}>🎮</span>
         </div>
+      )}
 
-        {/* Colonne droite : Informations */}
-        <div>
+      {/* Badges en haut */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {game.statut_perso && (
+          <div style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            background: getStatutColor(game.statut_perso) + '22',
+            border: `2px solid ${getStatutColor(game.statut_perso)}`,
+            fontSize: '14px',
+            fontWeight: '700',
+            color: getStatutColor(game.statut_perso)
+          }}>
+            {game.statut_perso}
+          </div>
+        )}
+
+        {game.maj_disponible && (
+          <div style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))',
+            border: '2px solid #a855f7',
+            fontSize: '14px',
+            fontWeight: '700',
+            color: '#a855f7'
+          }}>
+            🔄 Mise à jour disponible !
+          </div>
+        )}
+      </div>
+
+      {/* Informations */}
+      <div>
           {/* Infos principales */}
           <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
-              📋 Informations
+            <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={18} />
+              Informations
             </h2>
 
             <div style={{ display: 'grid', gap: '12px' }}>
@@ -239,11 +238,12 @@ export default function AvnDetail() {
               {/* Moteur */}
               {game.moteur && (
                 <div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Settings size={14} />
                     Moteur
                   </span>
                   <p style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text)', marginTop: '4px' }}>
-                    🛠️ {game.moteur}
+                    {game.moteur}
                   </p>
                 </div>
               )}
@@ -251,11 +251,12 @@ export default function AvnDetail() {
               {/* Statut du jeu */}
               {game.statut_jeu && (
                 <div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Flag size={14} />
                     Statut du jeu
                   </span>
                   <p style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text)', marginTop: '4px' }}>
-                    📊 {game.statut_jeu}
+                    {game.statut_jeu}
                   </p>
                 </div>
               )}
@@ -263,11 +264,12 @@ export default function AvnDetail() {
               {/* Dernière session */}
               {game.derniere_session && (
                 <div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={14} />
                     Dernière session
                   </span>
                   <p style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text)', marginTop: '4px' }}>
-                    🕐 {new Date(game.derniere_session).toLocaleString('fr-FR')}
+                    {new Date(game.derniere_session).toLocaleString('fr-FR')}
                   </p>
                 </div>
               )}
@@ -275,11 +277,12 @@ export default function AvnDetail() {
               {/* Propriétaires */}
               {game.proprietaires && game.proprietaires.length > 0 && (
                 <div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users size={14} />
                     Propriétaire(s)
                   </span>
                   <p style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text)', marginTop: '4px' }}>
-                    👤 {game.proprietaires.join(', ')}
+                    {game.proprietaires.join(', ')}
                   </p>
                 </div>
               )}
@@ -289,8 +292,9 @@ export default function AvnDetail() {
           {/* Liens */}
           {(game.lien_f95 || game.lien_traduction || game.lien_jeu) && (
             <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
-                🔗 Liens
+              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Link2 size={18} />
+                Liens
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -313,10 +317,13 @@ export default function AvnDetail() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-secondary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
                   >
-                    <ExternalLink size={16} />
-                    Traduction française
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Languages size={16} />
+                      Traduction française
+                    </span>
+                    <ExternalLink size={14} />
                   </a>
                 )}
 
@@ -326,10 +333,13 @@ export default function AvnDetail() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
                   >
-                    <ExternalLink size={16} />
-                    Télécharger le jeu
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Download size={16} />
+                      Télécharger le jeu
+                    </span>
+                    <ExternalLink size={14} />
                   </a>
                 )}
               </div>
@@ -339,8 +349,9 @@ export default function AvnDetail() {
           {/* Tags */}
           {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
             <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
-                🏷️ Tags
+              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Tag size={18} />
+                Tags
               </h2>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -385,7 +396,6 @@ export default function AvnDetail() {
               </p>
             )}
           </div>
-        </div>
       </div>
 
       {/* Modals */}
