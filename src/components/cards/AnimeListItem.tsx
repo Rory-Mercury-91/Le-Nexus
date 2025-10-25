@@ -1,24 +1,14 @@
-import { BookOpen, Eye, Heart, Tv } from 'lucide-react';
+import { Heart, Tv } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimeSerie } from '../../types';
 import CoverImage from '../common/CoverImage';
 
-const TAG_CONFIG = {
-  a_regarder: { icon: BookOpen, label: 'À regarder', color: '#3b82f6' },
-  en_cours: { icon: Eye, label: 'En cours', color: '#f59e0b' },
-  termine: { icon: BookOpen, label: 'Terminé', color: '#10b981' },
-  abandonne: { icon: BookOpen, label: 'Abandonné', color: '#6b7280' }
-};
-
 interface AnimeListItemProps {
   anime: AnimeSerie;
-  onUpdate?: () => void;
 }
 
-export default function AnimeListItem({ anime, onUpdate }: AnimeListItemProps) {
+export default function AnimeListItem({ anime }: AnimeListItemProps) {
   const navigate = useNavigate();
-  const TagIcon = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].icon : null;
-  const tagColor = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].color : null;
 
   // Calculer la progression
   const episodesVus = anime.episodes_vus || 0;

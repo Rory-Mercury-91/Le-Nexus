@@ -267,7 +267,7 @@ export default function Animes() {
             />
           )}
           renderListItem={(anime) => (
-            <AnimeListItem anime={anime} onUpdate={loadAnimes} />
+            <AnimeListItem anime={anime} />
           )}
           onUpdate={loadAnimes}
           loading={loading}
