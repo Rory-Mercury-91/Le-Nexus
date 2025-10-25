@@ -69,7 +69,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     // Convertir le format API vers le format de formulaire
     let type: 'TV' | 'Movie' | 'OVA' | 'ONA' | 'Special' = 'TV';
     if (result.format) {
-      const formatMap: { [key: string]: typeof type } = {
+      const formatMap: { [key: string]: 'TV' | 'Movie' | 'OVA' | 'ONA' | 'Special' } = {
         'TV': 'TV',
         'MOVIE': 'Movie',
         'OVA': 'OVA',
@@ -98,8 +98,6 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
   };
 
   const handleUploadImage = async () => {
-    const titrePourDossier = formData.titre.trim() || 'nouvel_anime';
-    
     // Pour l'instant, on stocke juste l'URL (pas de téléchargement local pour les animes)
     // Cela pourrait être implémenté plus tard
     alert('Upload d\'image pour animes en cours de développement.\nPour l\'instant, utilisez l\'URL directement.');
@@ -138,25 +136,31 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     e.preventDefault();
     
     if (!formData.titre.trim()) {
-      showToast('Le titre est obligatoire', 'error');
+      showToast({ title: 'Le titre est obligatoire', type: 'error' });
       return;
     }
 
     setSaving(true);
     try {
-      const result = await window.electronAPI.createAnime(formData);
-      if (result.success) {
-        showToast(`✅ ${formData.titre} ajouté avec succès !`, 'success');
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 1000);
-      } else {
-        showToast(result.error || 'Erreur lors de la création de l\'anime', 'error');
-      }
+      // Note: createAnime n'existe pas encore dans l'API, utiliser addAnimeByMalId pour l'instant
+      // ou implémenter la création manuelle d'anime
+      showToast({ title: 'Création manuelle d\'anime non implémentée', message: 'Veuillez utiliser l\'import depuis MyAnimeList', type: 'warning' });
+      setSaving(false);
+      return;
+      
+      // const result = await window.electronAPI.createAnime(formData);
+      // if (result.success) {
+      //   showToast({ title: `✅ ${formData.titre} ajouté avec succès !`, type: 'success' });
+      //   setTimeout(() => {
+      //     onSuccess();
+      //     onClose();
+      //   }, 1000);
+      // } else {
+      //   showToast({ title: result.error || 'Erreur lors de la création de l\'anime', type: 'error' });
+      // }
     } catch (error) {
       console.error('Erreur:', error);
-      showToast('Une erreur est survenue lors de la création de l\'anime', 'error');
+      showToast({ title: 'Une erreur est survenue lors de la création de l\'anime', type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -190,7 +194,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
 
   const handleTranslateSynopsis = async () => {
     if (!formData.synopsis || formData.synopsis.length < 10) {
-      showToast('Synopsis trop court pour être traduit', 'error');
+      showToast({ title: 'Synopsis trop court pour être traduit', type: 'error' });
       return;
     }
 
@@ -199,13 +203,13 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
       const result = await window.electronAPI.translateText(formData.synopsis, 'fr');
       if (result.success && result.text) {
         setFormData({ ...formData, synopsis: result.text });
-        showToast('Synopsis traduit avec succès', 'success');
+        showToast({ title: 'Synopsis traduit avec succès', type: 'success' });
       } else {
-        showToast(`Erreur de traduction: ${result.error || 'Clé API manquante'}`, 'error');
+        showToast({ title: `Erreur de traduction: ${result.error || 'Clé API manquante'}`, type: 'error' });
       }
     } catch (error) {
       console.error('Erreur traduction synopsis:', error);
-      showToast('Erreur lors de la traduction', 'error');
+      showToast({ title: 'Erreur lors de la traduction', type: 'error' });
     } finally {
       setTranslating(false);
     }
@@ -213,7 +217,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
 
   const handleImportFromMAL = async () => {
     if (!malInput.trim()) {
-      showToast('Veuillez entrer un ID ou une URL MyAnimeList', 'error');
+      showToast({ title: 'Veuillez entrer un ID ou une URL MyAnimeList', type: 'error' });
       return;
     }
 
@@ -229,7 +233,7 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
       }
 
       if (isNaN(malId) || malId <= 0) {
-        showToast('ID MyAnimeList invalide', 'error');
+        showToast({ title: 'ID MyAnimeList invalide', type: 'error' });
         setImporting(false);
         return;
       }
@@ -237,19 +241,19 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
       console.log(`🎬 Import de l'anime MAL ID: ${malId}`);
       const result = await window.electronAPI.addAnimeByMalId(malId);
 
-      if (result.success) {
-        showToast(`✅ ${result.anime.titre} importé avec succès !`, 'success');
+      if (result.success && result.anime) {
+        showToast({ title: `✅ ${result.anime.titre} importé avec succès !`, type: 'success' });
         setMalInput('');
         setTimeout(() => {
           onSuccess();
           onClose();
         }, 1000);
       } else {
-        showToast(result.error || 'Erreur lors de l\'import', 'error');
+        showToast({ title: result.error || 'Erreur lors de l\'import', type: 'error' });
       }
     } catch (error) {
       console.error('Erreur import MAL:', error);
-      showToast('Erreur lors de l\'import depuis MyAnimeList', 'error');
+      showToast({ title: 'Erreur lors de l\'import depuis MyAnimeList', type: 'error' });
     } finally {
       setImporting(false);
     }

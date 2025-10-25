@@ -70,10 +70,10 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
       await window.electronAPI.deleteCoverImage(couvertureUrl);
     }
     
-    const result = await window.electronAPI.uploadCustomCover(titre, 'anime');
+    const result = await window.electronAPI.uploadCustomCover(titre);
     if (result.success && result.localPath) {
       setCouvertureUrl(result.localPath);
-      showToast('Image téléchargée avec succès', 'success');
+      showToast({ title: 'Image téléchargée avec succès', type: 'success' });
     }
   };
 
@@ -81,7 +81,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
     e.preventDefault();
     
     if (!titre.trim()) {
-      showToast('Le titre est obligatoire', 'error');
+      showToast({ title: 'Le titre est obligatoire', type: 'error' });
       return;
     }
 
@@ -118,22 +118,22 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
       });
       
       if (result.success) {
-        showToast('Anime modifié avec succès', 'success');
+        showToast({ title: 'Anime modifié avec succès', type: 'success' });
         setTimeout(() => onSuccess(), 800);
       } else {
-        showToast(`Erreur: ${result.error}`, 'error');
+        showToast({ title: 'Erreur lors de la modification', type: 'error' });
         setSaving(false);
       }
     } catch (error) {
       console.error('Erreur lors de la modification de l\'anime:', error);
-      showToast('Erreur lors de la modification', 'error');
+      showToast({ title: 'Erreur lors de la modification', type: 'error' });
       setSaving(false);
     }
   };
 
   const handleTranslateDescription = async () => {
     if (!description || description.length < 10) {
-      showToast('Description trop courte pour être traduite', 'error');
+      showToast({ title: 'Description trop courte pour être traduite', type: 'error' });
       return;
     }
 
@@ -142,13 +142,13 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
       const result = await window.electronAPI.translateText(description, 'fr');
       if (result.success && result.text) {
         setDescription(result.text);
-        showToast('Description traduite avec succès', 'success');
+        showToast({ title: 'Description traduite avec succès', type: 'success' });
       } else {
-        showToast(`Erreur de traduction: ${result.error || 'Clé API manquante'}`, 'error');
+        showToast({ title: `Erreur de traduction: ${result.error || 'Clé API manquante'}`, type: 'error' });
       }
     } catch (error) {
       console.error('Erreur traduction description:', error);
-      showToast('Erreur lors de la traduction', 'error');
+      showToast({ title: 'Erreur lors de la traduction', type: 'error' });
     } finally {
       setTranslating(false);
     }
