@@ -1892,18 +1892,30 @@ export default function Settings() {
             Vérifier maintenant
           </button>
 
-          <div style={{
-            marginTop: '16px',
-            padding: '12px',
-            background: 'rgba(99, 102, 241, 0.1)',
-            borderRadius: '6px',
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
-            lineHeight: '1.6'
-          }}>
-            <strong style={{ color: 'var(--primary)' }}>ℹ️ Comment ça fonctionne ?</strong><br />
-            Le système scrape directement les pages F95Zone de vos jeux pour détecter les nouvelles versions. Si une mise à jour est disponible, un badge violet "🔄 MAJ" s'affiche sur la carte du jeu et toutes les données (version, statut, tags, image) sont automatiquement actualisées.
-          </div>
+          <details style={{ marginTop: '16px' }}>
+            <summary style={{
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--text-secondary)',
+              padding: '8px',
+              borderRadius: '6px',
+              transition: 'background 0.2s'
+            }}>
+              ℹ️ Comment ça fonctionne ?
+            </summary>
+            <div style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              padding: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              marginTop: '8px',
+              lineHeight: '1.6'
+            }}>
+              Le système scrape directement les pages F95Zone de vos jeux pour détecter les nouvelles versions. Si une mise à jour est disponible, un badge violet "🔄 MAJ" s'affiche sur la carte du jeu et toutes les données (version, statut, tags, image) sont automatiquement actualisées.
+            </div>
+          </details>
         </div>
 
         {/* Formulaire d'ajout/édition (pleine largeur en dessous) */}
