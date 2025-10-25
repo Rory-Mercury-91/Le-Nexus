@@ -322,10 +322,10 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       // Télécharger la couverture
       let couverture_url = null;
       if (jsonData.image) {
-        // LewdCorner protège ses images : ne pas stocker l'URL (impossible d'afficher)
+        // LewdCorner : stocker l'URL directe (nécessite session active)
         if (jsonData.domain === 'LewdCorner' || jsonData.image.includes('lewdcorner')) {
-          console.log(`⚠️ LewdCorner: images protégées, pas d'affichage possible`);
-          couverture_url = null; // On ne stocke pas l'URL inutile
+          console.log(`🌐 LewdCorner: utilisation de l'URL distante (session requise)`);
+          couverture_url = jsonData.image; // Stocker l'URL, elle s'affichera si connecté
         } else {
           // Pour F95Zone, télécharger localement
           try {
