@@ -260,27 +260,47 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
 
       if (!result.canceled && result.filePaths.length > 0) {
         const newBasePath = result.filePaths[0];
-        const currentBasePath = getPaths().base;
+        
+        // IMPORTANT: Fermer la BDD avant de la copier
+        const db = getDb();
+        if (db) {
+          console.log('🔒 Fermeture de la base de données avant copie...');
+          db.close();
+        }
 
         // Copier toute la structure vers le nouvel emplacement
         const copyResult = copyAllFilesToNewLocation(newBasePath);
-        if (!copyResult.success) {
+        
+        if (copyResult.success) {
+          // Sauvegarder le nouveau chemin
+          store.set('baseDirectory', newBasePath);
+          
+          // Rouvrir la BDD au nouvel emplacement
+          if (typeof initDatabase === 'function') {
+            initDatabase();
+          }
+
+          return { 
+            success: true, 
+            path: newBasePath,
+            message: 'Le Nexus déplacé avec succès. Redémarrez l\'application pour appliquer les changements.'
+          };
+        } else {
+          // Si échec, rouvrir la BDD à l'ancien emplacement
+          if (typeof initDatabase === 'function') {
+            initDatabase();
+          }
           return copyResult;
         }
-
-        // Sauvegarder le nouveau chemin
-        store.set('baseDirectory', newBasePath);
-
-        return { 
-          success: true, 
-          path: newBasePath,
-          message: 'Le Nexus déplacé avec succès. Redémarrez l\'application pour appliquer les changements.'
-        };
       }
 
       return { success: false };
     } catch (error) {
       console.error('Erreur lors du changement d\'emplacement:', error);
+      // En cas d'erreur, rouvrir la BDD
+      if (typeof initDatabase === 'function') {
+        initDatabase();
+      }
       return { success: false, error: error.message };
     }
   });

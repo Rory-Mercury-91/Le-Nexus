@@ -104,16 +104,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         await window.electronAPI.setUserAvatarFromPath(result.user.id, avatarFile as any);
       }
 
-      // Si un nouvel emplacement a été choisi, copier MAINTENANT toute la DB avec l'utilisateur
-      if (baseDirectory) {
-        console.log('Copie de la DB vers le nouvel emplacement:', baseDirectory);
-        const copyResult = await window.electronAPI.copyToNewLocation(baseDirectory);
-        if (!copyResult.success) {
-          setError('Erreur lors de la copie vers le nouvel emplacement');
-          setLoading(false);
-          return;
-        }
-      }
+      // Note: Si un nouvel emplacement a été choisi, la copie a déjà été faite
+      // par change-base-directory lors de la sélection du dossier (étape 3)
 
       // Définir l'utilisateur actuel
       const userName = name.trim();
