@@ -1133,12 +1133,16 @@ export default function Settings() {
           </details>
         </div>
 
-        {/* MyAnimeList Synchronisation */}
+        {/* Import & Synchronisation MyAnimeList */}
         <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <img src="https://myanimelist.net/img/common/pwa/launcher-icon-3x.png" alt="MAL" style={{ width: '24px', height: '24px', borderRadius: '4px' }} />
-            Synchronisation MyAnimeList
+            Import & Synchronisation MyAnimeList
           </h2>
+          
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.6' }}>
+            Importez vos animes depuis MyAnimeList via OAuth (automatique) ou fichier XML (manuel)
+          </p>
 
           {malConnected ? (
             <>
@@ -1332,6 +1336,196 @@ export default function Settings() {
                 </div>
               </details>
             </>
+          )}
+          
+          {/* Import XML (toujours disponible) */}
+          <div style={{
+            marginTop: '24px',
+            padding: '16px',
+            background: 'var(--surface)',
+            borderRadius: '8px',
+            border: '1px solid var(--border)'
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📄 Import manuel via XML
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.6' }}>
+              Alternative : Importez votre liste depuis un fichier XML exporté de MyAnimeList
+            </p>
+            <button
+              onClick={handleImportAnimeXml}
+              className="btn"
+              disabled={importingAnimes}
+              style={{ 
+                width: '100%',
+                background: 'var(--surface-light)',
+                border: '1px solid var(--border)'
+              }}
+            >
+              <Upload size={18} />
+              {importingAnimes ? 'Import en cours...' : 'Choisir un fichier XML'}
+            </button>
+          </div>
+          
+          {/* Progression d'import (XML ou MAL Sync) */}
+          {animeImportProgress && (
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)'
+            }}>
+              {/* Titre dynamique selon le type d'import */}
+              <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: 'var(--text)' }}>
+                {importType === 'mal-sync' ? '🔄 Synchronisation MyAnimeList en cours...' : '📦 Import XML en cours...'}
+              </div>
+              
+              {/* Informations lots (uniquement pour XML) */}
+              {importType === 'xml' && animeImportProgress.currentBatch && animeImportProgress.totalBatches && (
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  📦 Lot {animeImportProgress.currentBatch}/{animeImportProgress.totalBatches}
+                </div>
+              )}
+              
+              {/* Progression globale */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>
+                  {animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated} / {animeImportProgress.total}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {Math.round(((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100)}%
+                </span>
+              </div>
+              
+              {/* Barre de progression */}
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: 'var(--surface-light)',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  height: '100%',
+                  background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                  width: `${((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100}%`,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              
+              {/* Élément en cours */}
+              {animeImportProgress.currentAnime && (
+                <p style={{ fontSize: '13px', color: 'var(--primary)', marginTop: '12px', fontWeight: '500' }}>
+                  {importType === 'mal-sync' ? '📚' : '🎬'} {animeImportProgress.currentAnime}
+                </p>
+              )}
+              
+              {/* ⏱️ Chronomètre et statistiques de performance */}
+              {animeImportProgress.elapsedMs && (
+                <div style={{ 
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(139, 92, 246, 0.2)'
+                }}>
+                  <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '12px',
+                    fontSize: '12px'
+                  }}>
+                    {/* Temps écoulé */}
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏱️ Temps écoulé</div>
+                      <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                        {Math.floor(animeImportProgress.elapsedMs / 60000)}:{String(Math.floor((animeImportProgress.elapsedMs % 60000) / 1000)).padStart(2, '0')}
+                      </div>
+                    </div>
+                    
+                    {/* Temps estimé restant */}
+                    {animeImportProgress.etaMs && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏳ Temps restant</div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                          {Math.floor(animeImportProgress.etaMs / 60000)}:{String(Math.floor((animeImportProgress.etaMs % 60000) / 1000)).padStart(2, '0')}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Vitesse */}
+                    {animeImportProgress.speed && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⚡ Vitesse</div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                          {animeImportProgress.speed.toFixed(1)} animes/min
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Statistiques temps réel */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                fontSize: '12px', 
+                color: 'var(--text-secondary)', 
+                marginTop: '8px' 
+              }}>
+                <span>✅ {animeImportProgress.imported || 0} importés</span>
+                <span>⏭️ {animeImportProgress.skipped || 0} ignorés</span>
+                {animeImportProgress.errors > 0 && (
+                  <span style={{ color: 'var(--error)' }}>⚠️ {animeImportProgress.errors} erreurs</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {animeImportResult && (
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)'
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle size={18} style={{ color: 'var(--success)' }} />
+                Import terminé !
+              </h3>
+              <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
+                <p>✅ <strong>{animeImportResult.imported}</strong> animes importés</p>
+                <p>🔄 <strong>{animeImportResult.updated}</strong> animes mis à jour</p>
+                <p>⏭️ <strong>{animeImportResult.skipped}</strong> animes ignorés</p>
+                <p>📊 <strong>{animeImportResult.total || (animeImportResult.imported + animeImportResult.updated + animeImportResult.skipped)}</strong> animes au total</p>
+                {animeImportResult.totalTimeMs && (
+                  <>
+                    <p>⏱️ <strong>{(animeImportResult.totalTimeMs / 60000).toFixed(2)}</strong> minutes</p>
+                    <p>⚡ <strong>{animeImportResult.speed?.toFixed(1)}</strong> animes/min</p>
+                  </>
+                )}
+                {animeImportResult.errors && animeImportResult.errors.length > 0 && (
+                  <details style={{ marginTop: '12px' }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--error)' }}>
+                      ⚠️ {animeImportResult.errors.length} erreur(s)
+                    </summary>
+                    <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '12px' }}>
+                      {animeImportResult.errors.slice(0, 5).map((err, i) => (
+                        <li key={i} style={{ color: 'var(--text-secondary)' }}>{err.error}</li>
+                      ))}
+                      {animeImportResult.errors.length > 5 && (
+                        <li style={{ color: 'var(--text-secondary)' }}>
+                          ... et {animeImportResult.errors.length - 5} autres
+                        </li>
+                      )}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
@@ -1650,187 +1844,6 @@ export default function Settings() {
                     <CheckCircle size={18} />
                     Import réussi ! Rechargement...
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Section Import Animes */}
-        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-            <Tv size={20} style={{ display: 'inline', marginRight: '8px' }} />
-            Import d'animes depuis MyAnimeList
-          </h2>
-
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Importez votre liste d'animes depuis un fichier XML exporté de MyAnimeList
-          </p>
-
-          <button
-            onClick={handleImportAnimeXml}
-            className="btn btn-primary"
-            disabled={importingAnimes}
-          >
-            <Upload size={18} />
-            {importingAnimes ? 'Import en cours...' : 'Choisir un fichier XML'}
-          </button>
-
-          {animeImportProgress && (
-            <div style={{
-              marginTop: '16px',
-              padding: '16px',
-              background: 'var(--surface)',
-              borderRadius: '8px',
-              border: '1px solid var(--border)'
-            }}>
-              {/* Titre dynamique selon le type d'import */}
-              <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: 'var(--text)' }}>
-                {importType === 'mal-sync' ? '🔄 Synchronisation MyAnimeList en cours...' : '📦 Import XML en cours...'}
-              </div>
-              
-              {/* Informations lots (uniquement pour XML) */}
-              {importType === 'xml' && animeImportProgress.currentBatch && animeImportProgress.totalBatches && (
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  📦 Lot {animeImportProgress.currentBatch}/{animeImportProgress.totalBatches}
-                </div>
-              )}
-              
-              {/* Progression globale */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '600' }}>
-                  {animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated} / {animeImportProgress.total}
-                </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {Math.round(((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100)}%
-                </span>
-              </div>
-              
-              {/* Barre de progression */}
-              <div style={{
-                width: '100%',
-                height: '8px',
-                background: 'var(--surface-light)',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  height: '100%',
-                  background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
-                  width: `${((animeImportProgress.currentIndex || animeImportProgress.imported + animeImportProgress.updated) / animeImportProgress.total) * 100}%`,
-                  transition: 'width 0.3s ease'
-                }} />
-              </div>
-              
-              {/* Élément en cours */}
-              {animeImportProgress.currentAnime && (
-                <p style={{ fontSize: '13px', color: 'var(--primary)', marginTop: '12px', fontWeight: '500' }}>
-                  {importType === 'mal-sync' ? '📚' : '🎬'} {animeImportProgress.currentAnime}
-                </p>
-              )}
-              
-              {/* ⏱️ Chronomètre et statistiques de performance */}
-              {animeImportProgress.elapsedMs && (
-                <div style={{ 
-                  marginTop: '12px',
-                  padding: '12px',
-                  background: 'rgba(139, 92, 246, 0.1)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(139, 92, 246, 0.2)'
-                }}>
-                  <div style={{ 
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                    gap: '12px',
-                    fontSize: '12px'
-                  }}>
-                    {/* Temps écoulé */}
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏱️ Temps écoulé</div>
-                      <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                        {Math.floor(animeImportProgress.elapsedMs / 60000)}:{String(Math.floor((animeImportProgress.elapsedMs % 60000) / 1000)).padStart(2, '0')}
-                      </div>
-                    </div>
-
-                    {/* ETA */}
-                    {animeImportProgress.etaMs && (
-                      <div>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⏳ Temps restant</div>
-                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                          {Math.floor(animeImportProgress.etaMs / 60000)}:{String(Math.floor((animeImportProgress.etaMs % 60000) / 1000)).padStart(2, '0')}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Vitesse */}
-                    {animeImportProgress.speed && (
-                      <div>
-                        <div style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>⚡ Vitesse</div>
-                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                          {animeImportProgress.speed.toFixed(1)} animes/min
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Statistiques temps réel */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '16px', 
-                fontSize: '12px', 
-                color: 'var(--text-secondary)', 
-                marginTop: '8px' 
-              }}>
-                <span>✅ {animeImportProgress.imported || 0} importés</span>
-                <span>⏭️ {animeImportProgress.skipped || 0} ignorés</span>
-                {animeImportProgress.errors > 0 && (
-                  <span style={{ color: 'var(--error)' }}>⚠️ {animeImportProgress.errors} erreurs</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {animeImportResult && (
-            <div style={{
-              marginTop: '16px',
-              padding: '16px',
-              background: 'var(--surface)',
-              borderRadius: '8px',
-              border: '1px solid var(--border)'
-            }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={18} style={{ color: 'var(--success)' }} />
-                Import terminé !
-              </h3>
-              <div style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                <p>✅ <strong>{animeImportResult.imported}</strong> animes importés</p>
-                <p>🔄 <strong>{animeImportResult.updated}</strong> animes mis à jour</p>
-                <p>⏭️ <strong>{animeImportResult.skipped}</strong> animes ignorés</p>
-                <p>📊 <strong>{animeImportResult.total || (animeImportResult.imported + animeImportResult.updated + animeImportResult.skipped)}</strong> animes au total</p>
-                {animeImportResult.totalTimeMs && (
-                  <>
-                    <p>⏱️ <strong>{(animeImportResult.totalTimeMs / 60000).toFixed(2)}</strong> minutes</p>
-                    <p>⚡ <strong>{animeImportResult.speed?.toFixed(1)}</strong> animes/min</p>
-                  </>
-                )}
-                {animeImportResult.errors && animeImportResult.errors.length > 0 && (
-                  <details style={{ marginTop: '12px' }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--error)' }}>
-                      ⚠️ {animeImportResult.errors.length} erreur(s)
-                    </summary>
-                    <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '12px' }}>
-                      {animeImportResult.errors.slice(0, 5).map((err, i) => (
-                        <li key={i} style={{ color: 'var(--text-secondary)' }}>{err.error}</li>
-                      ))}
-                      {animeImportResult.errors.length > 5 && (
-                        <li style={{ color: 'var(--text-secondary)' }}>
-                          ... et {animeImportResult.errors.length - 5} autres
-                        </li>
-                      )}
-                    </ul>
-                  </details>
                 )}
               </div>
             </div>
