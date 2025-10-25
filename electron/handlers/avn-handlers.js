@@ -322,35 +322,30 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       // Télécharger la couverture
       let couverture_url = null;
       if (jsonData.image) {
-        // LewdCorner : stocker l'URL directe (nécessite session active)
-        if (jsonData.domain === 'LewdCorner' || jsonData.image.includes('lewdcorner')) {
-          console.log(`🌐 LewdCorner: utilisation de l'URL distante (session requise)`);
-          couverture_url = jsonData.image; // Stocker l'URL, elle s'affichera si connecté
-        } else {
-          // Pour F95Zone, télécharger localement
-          try {
-            const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
-            const { createSlug } = require('../utils/slug');
-            const gameSlug = createSlug(titre);
-            
-            console.log(`📥 Téléchargement de l'image...`);
-            const result = await coverManager.downloadCover(
-              pathManager,
-              jsonData.image, 
-              titre,
-              'avn', 
-              null,
-              lien_f95 // referer
-            );
-            
-            if (result.success) {
-              couverture_url = result.localPath;
-              console.log(`✅ Image téléchargée: ${couverture_url}`);
-            }
-          } catch (imgError) {
-            console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
-            couverture_url = jsonData.image; // Fallback sur l'URL distante
+        try {
+          const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
+          const { createSlug } = require('../utils/slug');
+          const gameSlug = createSlug(titre);
+          
+          console.log(`📥 Téléchargement de l'image...`);
+          const result = await coverManager.downloadCover(
+            pathManager,
+            jsonData.image, 
+            titre,
+            'avn', 
+            null,
+            lien_f95 // referer
+          );
+          
+          if (result.success) {
+            couverture_url = result.localPath;
+            console.log(`✅ Image téléchargée localement: ${couverture_url}`);
           }
+        } catch (imgError) {
+          console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
+          // Fallback sur l'URL distante
+          couverture_url = jsonData.image;
+          console.log(`🌐 Utilisation de l'URL distante: ${jsonData.image.substring(0, 60)}...`);
         }
       }
       
