@@ -526,9 +526,8 @@ async function performFullSync(db, store, currentUser, onProgress = null) {
  */
 async function translateSynopsisInBackground(db, store, onProgress = null) {
   try {
-    // Récupérer la clé API Groq depuis les settings
-    const settingsStore = new Store({ name: 'settings' });
-    const groqApiKey = settingsStore.get('groqApiKey');
+    // Récupérer la clé API Groq depuis le store principal
+    const groqApiKey = store.get('groqApiKey');
     
     if (!groqApiKey) {
       console.log('⚠️ Clé API Groq non configurée, traduction des synopsis ignorée');
