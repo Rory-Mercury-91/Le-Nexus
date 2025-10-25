@@ -79,10 +79,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('mal-sync-error', subscription);
     return () => ipcRenderer.removeListener('mal-sync-error', subscription);
   },
+  onMalTranslationStarted: (callback) => {
+    const subscription = () => callback();
+    ipcRenderer.on('mal-translation-started', subscription);
+    return () => ipcRenderer.removeListener('mal-translation-started', subscription);
+  },
+  onMalTranslationProgress: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-translation-progress', subscription);
+    return () => ipcRenderer.removeListener('mal-translation-progress', subscription);
+  },
   onMalTranslationCompleted: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-translation-completed', subscription);
     return () => ipcRenderer.removeListener('mal-translation-completed', subscription);
+  },
+  onMalTranslationError: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-translation-error', subscription);
+    return () => ipcRenderer.removeListener('mal-translation-error', subscription);
   },
   
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),

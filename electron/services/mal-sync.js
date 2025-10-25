@@ -436,8 +436,9 @@ async function performFullSync(db, store, currentUser, onProgress = null) {
  * Traduit les synopsis des animes via Groq AI en arrière-plan
  * @param {Object} db - Instance de la base de données
  * @param {Object} store - Instance du store Electron
+ * @param {Function} onProgress - Callback pour notifier la progression (optionnel)
  */
-async function translateSynopsisInBackground(db, store) {
+async function translateSynopsisInBackground(db, store, onProgress = null) {
   try {
     // Récupérer la clé API Groq depuis les settings
     const settingsStore = new Store({ name: 'settings' });
@@ -445,35 +446,51 @@ async function translateSynopsisInBackground(db, store) {
     
     if (!groqApiKey) {
       console.log('⚠️ Clé API Groq non configurée, traduction des synopsis ignorée');
-      return { translated: 0, skipped: 0 };
+      return { translated: 0, skipped: 0, total: 0 };
     }
     
     console.log('🤖 Démarrage de la traduction des synopsis en arrière-plan...');
     
-    // Récupérer tous les animes avec synopsis en anglais non traduit
+    // Récupérer TOUS les animes avec synopsis en anglais non traduit (pas de LIMIT)
     const animesToTranslate = db.prepare(`
       SELECT id, titre, description
       FROM anime_series
       WHERE description IS NOT NULL 
         AND description != ''
         AND description NOT LIKE '%Synopsis français%'
+        AND description NOT LIKE '%traduit automatiquement%'
         AND description NOT LIKE 'https://myanimelist.net/anime/%'
       ORDER BY id DESC
-      LIMIT 50
     `).all();
     
-    if (animesToTranslate.length === 0) {
+    const total = animesToTranslate.length;
+    
+    if (total === 0) {
       console.log('✅ Aucun synopsis à traduire');
-      return { translated: 0, skipped: 0 };
+      return { translated: 0, skipped: 0, total: 0 };
     }
     
-    console.log(`📝 ${animesToTranslate.length} synopsis à traduire`);
+    console.log(`📝 ${total} synopsis à traduire (durée estimée: ~${Math.ceil(total * 2.1 / 60)} minutes)`);
     
     let translated = 0;
+    let skipped = 0;
     const updateStmt = db.prepare('UPDATE anime_series SET description = ? WHERE id = ?');
     
-    for (const anime of animesToTranslate) {
+    for (let i = 0; i < animesToTranslate.length; i++) {
+      const anime = animesToTranslate[i];
+      
       try {
+        // Notifier la progression
+        if (onProgress) {
+          onProgress({
+            current: i + 1,
+            total,
+            translated,
+            skipped,
+            currentAnime: anime.titre
+          });
+        }
+        
         // Respecter le rate limit Groq (30 RPM = 1 toutes les 2 secondes)
         await new Promise(resolve => setTimeout(resolve, 2100));
         
@@ -502,6 +519,7 @@ async function translateSynopsisInBackground(db, store) {
         
         if (!response.ok) {
           console.warn(`⚠️ Erreur traduction "${anime.titre}": ${response.status}`);
+          skipped++;
           continue;
         }
         
@@ -513,20 +531,23 @@ async function translateSynopsisInBackground(db, store) {
           const finalSynopsis = `${translatedSynopsis}\n\n(Synopsis français traduit automatiquement)`;
           updateStmt.run(finalSynopsis, anime.id);
           translated++;
-          console.log(`✅ Traduit: "${anime.titre}"`);
+          console.log(`✅ Traduit (${translated}/${total}): "${anime.titre}"`);
+        } else {
+          skipped++;
         }
       } catch (error) {
         console.warn(`⚠️ Erreur traduction "${anime.titre}":`, error.message);
+        skipped++;
       }
     }
     
-    console.log(`🎉 Traduction terminée: ${translated}/${animesToTranslate.length} synopsis traduits`);
+    console.log(`🎉 Traduction terminée: ${translated}/${total} synopsis traduits (${skipped} ignorés)`);
     
-    return { translated, skipped: animesToTranslate.length - translated };
+    return { translated, skipped, total };
     
   } catch (error) {
     console.error('❌ Erreur traduction synopsis:', error);
-    return { translated: 0, skipped: 0, error: error.message };
+    return { translated: 0, skipped: 0, total: 0, error: error.message };
   }
 }
 

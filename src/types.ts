@@ -311,7 +311,10 @@ declare global {
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
-      onMalTranslationCompleted?: (callback: (event: any, data: { translated: number; skipped: number; error?: string }) => void) => () => void;
+      onMalTranslationStarted?: (callback: () => void) => () => void;
+      onMalTranslationProgress?: (callback: (event: any, data: { current: number; total: number; translated: number; skipped: number; currentAnime: string }) => void) => () => void;
+      onMalTranslationCompleted?: (callback: (event: any, data: { translated: number; skipped: number; total: number; error?: string }) => void) => () => void;
+      onMalTranslationError?: (callback: (event: any, data: { error: string }) => void) => () => void;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;

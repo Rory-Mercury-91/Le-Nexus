@@ -25,6 +25,16 @@ export default function Settings() {
   const [malSyncing, setMalSyncing] = useState(false);
   const [malAutoSyncEnabled, setMalAutoSyncEnabled] = useState(false);
   const [malAutoSyncInterval, setMalAutoSyncInterval] = useState(6);
+  
+  // Traduction des synopsis
+  const [translating, setTranslating] = useState(false);
+  const [translationProgress, setTranslationProgress] = useState<{
+    current: number;
+    total: number;
+    translated: number;
+    skipped: number;
+    currentAnime: string;
+  } | null>(null);
   const [baseDirectory, setBaseDirectory] = useState('');
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -81,20 +91,45 @@ export default function Settings() {
       });
     });
     
-    // Listener pour la notification de traduction terminée
-    const unsubscribeTranslation = window.electronAPI.onMalTranslationCompleted?.((event: any, result: any) => {
+    // Listeners pour la traduction des synopsis
+    const unsubscribeTranslationStarted = window.electronAPI.onMalTranslationStarted?.(() => {
+      console.log('🤖 Traduction des synopsis démarrée');
+      setTranslating(true);
+      setTranslationProgress(null);
+    });
+    
+    const unsubscribeTranslationProgress = window.electronAPI.onMalTranslationProgress?.((event: any, progress: any) => {
+      setTranslationProgress(progress);
+    });
+    
+    const unsubscribeTranslationCompleted = window.electronAPI.onMalTranslationCompleted?.((event: any, result: any) => {
+      setTranslating(false);
+      setTranslationProgress(null);
       showToast({
-        title: '🤖 Traduction des synopsis terminée',
-        message: `${result.translated} synopsis traduits en français via Groq AI`,
+        title: '🎉 Traduction terminée !',
+        message: `${result.translated}/${result.total} synopsis traduits en français`,
         type: 'success',
-        duration: 4000
+        duration: 5000
+      });
+    });
+    
+    const unsubscribeTranslationError = window.electronAPI.onMalTranslationError?.((event: any, data: any) => {
+      setTranslating(false);
+      setTranslationProgress(null);
+      showToast({
+        title: 'Erreur de traduction',
+        message: data.error || 'Une erreur est survenue',
+        type: 'error'
       });
     });
     
     return () => {
       unsubscribeXml();
       if (unsubscribeMal) unsubscribeMal();
-      if (unsubscribeTranslation) unsubscribeTranslation();
+      if (unsubscribeTranslationStarted) unsubscribeTranslationStarted();
+      if (unsubscribeTranslationProgress) unsubscribeTranslationProgress();
+      if (unsubscribeTranslationCompleted) unsubscribeTranslationCompleted();
+      if (unsubscribeTranslationError) unsubscribeTranslationError();
     };
   }, [importStartTime]);
 
@@ -660,6 +695,93 @@ export default function Settings() {
     <div style={{ padding: '40px' }} className="fade-in">
       <ConfirmDialog />
       <ToastContainer />
+      
+      {/* Notification persistante de traduction */}
+      {translating && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 10000,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          minWidth: '400px',
+          maxWidth: '600px',
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ 
+              width: '24px', 
+              height: '24px', 
+              border: '3px solid rgba(255, 255, 255, 0.3)',
+              borderTop: '3px solid white',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '4px' }}>
+                🤖 Traduction des synopsis en cours...
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.9 }}>
+                Merci de ne pas quitter l'application
+              </div>
+            </div>
+          </div>
+          
+          {translationProgress && (
+            <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.6' }}>
+              <div style={{ marginBottom: '8px' }}>
+                📝 <strong>{translationProgress.current}</strong>/{translationProgress.total} synopsis traités
+                {' '}•{' '}
+                ✅ <strong>{translationProgress.translated}</strong> traduits
+                {translationProgress.skipped > 0 && (
+                  <>
+                    {' '}•{' '}
+                    ⏭️ <strong>{translationProgress.skipped}</strong> ignorés
+                  </>
+                )}
+              </div>
+              <div style={{ 
+                marginTop: '8px',
+                padding: '8px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                🎬 {translationProgress.currentAnime}
+              </div>
+              
+              {/* Barre de progression */}
+              <div style={{
+                marginTop: '12px',
+                height: '4px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '2px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  height: '100%',
+                  background: 'white',
+                  width: `${(translationProgress.current / translationProgress.total) * 100}%`,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              
+              <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', opacity: 0.8 }}>
+                Durée estimée : ~{Math.ceil((translationProgress.total - translationProgress.current) * 2.1 / 60)} min restantes
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="container">
         <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '32px' }}>
           ⚙️ Paramètres

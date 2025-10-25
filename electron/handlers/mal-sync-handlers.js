@@ -122,7 +122,20 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null) {
       // Lancer la traduction des synopsis en arrière-plan (ne pas bloquer la réponse)
       setTimeout(() => {
         console.log('🤖 Lancement de la traduction des synopsis en arrière-plan...');
-        translateSynopsisInBackground(db, store).then((translationResult) => {
+        
+        // Notifier le frontend du démarrage
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('mal-translation-started');
+        }
+        
+        // Callback pour la progression
+        const onTranslationProgress = (progress) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('mal-translation-progress', progress);
+          }
+        };
+        
+        translateSynopsisInBackground(db, store, onTranslationProgress).then((translationResult) => {
           console.log(`🎉 Traduction terminée: ${translationResult.translated} synopsis traduits`);
           
           // Notifier le frontend si disponible
@@ -131,6 +144,9 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null) {
           }
         }).catch((error) => {
           console.error('❌ Erreur traduction synopsis:', error);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('mal-translation-error', { error: error.message });
+          }
         });
       }, 1000); // Délai de 1 seconde après la sync
       
