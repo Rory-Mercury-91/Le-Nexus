@@ -79,6 +79,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('mal-sync-error', subscription);
     return () => ipcRenderer.removeListener('mal-sync-error', subscription);
   },
+  onMalTranslationCompleted: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('mal-translation-completed', subscription);
+    return () => ipcRenderer.removeListener('mal-translation-completed', subscription);
+  },
   
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),
   uploadCustomCover: (serieTitre, type) => ipcRenderer.invoke('upload-custom-cover', serieTitre, type),

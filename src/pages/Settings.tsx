@@ -81,9 +81,20 @@ export default function Settings() {
       });
     });
     
+    // Listener pour la notification de traduction terminée
+    const unsubscribeTranslation = window.electronAPI.onMalTranslationCompleted?.((event: any, result: any) => {
+      showToast({
+        title: '🤖 Traduction des synopsis terminée',
+        message: `${result.translated} synopsis traduits en français via Groq AI`,
+        type: 'success',
+        duration: 4000
+      });
+    });
+    
     return () => {
       unsubscribeXml();
       if (unsubscribeMal) unsubscribeMal();
+      if (unsubscribeTranslation) unsubscribeTranslation();
     };
   }, [importStartTime]);
 

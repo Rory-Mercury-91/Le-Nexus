@@ -3,7 +3,7 @@
  */
 
 const { startOAuthFlow, getUserInfo } = require('../apis/myanimelist-oauth');
-const { performFullSync } = require('../services/mal-sync');
+const { performFullSync, translateSynopsisInBackground } = require('../services/mal-sync');
 
 /**
  * Enregistre tous les handlers IPC pour MAL sync
@@ -118,6 +118,21 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null) {
       };
       
       const result = await performFullSync(db, store, currentUser, onProgress);
+      
+      // Lancer la traduction des synopsis en arrière-plan (ne pas bloquer la réponse)
+      setTimeout(() => {
+        console.log('🤖 Lancement de la traduction des synopsis en arrière-plan...');
+        translateSynopsisInBackground(db, store).then((translationResult) => {
+          console.log(`🎉 Traduction terminée: ${translationResult.translated} synopsis traduits`);
+          
+          // Notifier le frontend si disponible
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('mal-translation-completed', translationResult);
+          }
+        }).catch((error) => {
+          console.error('❌ Erreur traduction synopsis:', error);
+        });
+      }, 1000); // Délai de 1 seconde après la sync
       
       return result;
       

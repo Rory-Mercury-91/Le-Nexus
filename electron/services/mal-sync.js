@@ -5,6 +5,7 @@
 
 const fetch = require('node-fetch');
 const { refreshAccessToken } = require('../apis/myanimelist-oauth');
+const Store = require('electron-store');
 
 /**
  * Récupère la liste complète des mangas de l'utilisateur depuis MAL
@@ -431,11 +432,110 @@ async function performFullSync(db, store, currentUser, onProgress = null) {
   }
 }
 
+/**
+ * Traduit les synopsis des animes via Groq AI en arrière-plan
+ * @param {Object} db - Instance de la base de données
+ * @param {Object} store - Instance du store Electron
+ */
+async function translateSynopsisInBackground(db, store) {
+  try {
+    // Récupérer la clé API Groq depuis les settings
+    const settingsStore = new Store({ name: 'settings' });
+    const groqApiKey = settingsStore.get('groqApiKey');
+    
+    if (!groqApiKey) {
+      console.log('⚠️ Clé API Groq non configurée, traduction des synopsis ignorée');
+      return { translated: 0, skipped: 0 };
+    }
+    
+    console.log('🤖 Démarrage de la traduction des synopsis en arrière-plan...');
+    
+    // Récupérer tous les animes avec synopsis en anglais non traduit
+    const animesToTranslate = db.prepare(`
+      SELECT id, titre, description
+      FROM anime_series
+      WHERE description IS NOT NULL 
+        AND description != ''
+        AND description NOT LIKE '%Synopsis français%'
+        AND description NOT LIKE 'https://myanimelist.net/anime/%'
+      ORDER BY id DESC
+      LIMIT 50
+    `).all();
+    
+    if (animesToTranslate.length === 0) {
+      console.log('✅ Aucun synopsis à traduire');
+      return { translated: 0, skipped: 0 };
+    }
+    
+    console.log(`📝 ${animesToTranslate.length} synopsis à traduire`);
+    
+    let translated = 0;
+    const updateStmt = db.prepare('UPDATE anime_series SET description = ? WHERE id = ?');
+    
+    for (const anime of animesToTranslate) {
+      try {
+        // Respecter le rate limit Groq (30 RPM = 1 toutes les 2 secondes)
+        await new Promise(resolve => setTimeout(resolve, 2100));
+        
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              {
+                role: 'system',
+                content: 'Tu es un traducteur professionnel spécialisé dans les animes. Traduis le synopsis suivant en français de manière naturelle et fluide. Ne traduis PAS les noms de personnages, de lieux, ou de techniques. Retourne UNIQUEMENT la traduction, sans introduction ni conclusion.'
+              },
+              {
+                role: 'user',
+                content: anime.description
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 1000
+          })
+        });
+        
+        if (!response.ok) {
+          console.warn(`⚠️ Erreur traduction "${anime.titre}": ${response.status}`);
+          continue;
+        }
+        
+        const data = await response.json();
+        const translatedSynopsis = data.choices[0]?.message?.content?.trim();
+        
+        if (translatedSynopsis) {
+          // Ajouter une mention de traduction
+          const finalSynopsis = `${translatedSynopsis}\n\n(Synopsis français traduit automatiquement)`;
+          updateStmt.run(finalSynopsis, anime.id);
+          translated++;
+          console.log(`✅ Traduit: "${anime.titre}"`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erreur traduction "${anime.titre}":`, error.message);
+      }
+    }
+    
+    console.log(`🎉 Traduction terminée: ${translated}/${animesToTranslate.length} synopsis traduits`);
+    
+    return { translated, skipped: animesToTranslate.length - translated };
+    
+  } catch (error) {
+    console.error('❌ Erreur traduction synopsis:', error);
+    return { translated: 0, skipped: 0, error: error.message };
+  }
+}
+
 module.exports = {
   getUserMangaList,
   getUserAnimeList,
   syncMangaProgress,
   syncAnimeProgress,
-  performFullSync
+  performFullSync,
+  translateSynopsisInBackground
 };
 
