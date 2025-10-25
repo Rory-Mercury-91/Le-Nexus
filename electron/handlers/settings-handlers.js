@@ -213,21 +213,37 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   // Copier vers un nouvel emplacement sans ouvrir de dialogue
   ipcMain.handle('copy-to-new-location', async (event, newBasePath) => {
     try {
+      // IMPORTANT: Fermer la BDD avant de la copier pour éviter corruption
+      const db = getDb();
+      if (db) {
+        console.log('🔒 Fermeture de la base de données avant copie...');
+        db.close();
+      }
+      
       const result = copyAllFilesToNewLocation(newBasePath);
       if (result.success) {
         // Sauvegarder le nouveau chemin
         store.set('baseDirectory', newBasePath);
         
-        // Réinitialiser la base de données vers le nouvel emplacement
+        // Réinitialiser PathManager et rouvrir la BDD au nouvel emplacement
         console.log('🔄 Réinitialisation de la base de données vers le nouvel emplacement...');
+        if (typeof initDatabase === 'function') {
+          initDatabase(); // Callback qui recrée PathManager + rouvre la BDD
+        }
+        console.log('✅ Base de données réinitialisée avec succès !');
+      } else {
+        // Si la copie échoue, rouvrir la BDD à l'ancien emplacement
         if (typeof initDatabase === 'function') {
           initDatabase();
         }
-        console.log('✅ Base de données réinitialisée avec succès !');
       }
       return result;
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
+      // En cas d'erreur, tenter de rouvrir la BDD
+      if (typeof initDatabase === 'function') {
+        initDatabase();
+      }
       return { success: false, error: error.message };
     }
   });
