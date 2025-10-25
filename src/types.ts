@@ -308,6 +308,7 @@ declare global {
       malSyncNow: () => Promise<{ success: boolean; duration?: string; manga?: any; anime?: any; total?: any; error?: string }>;
       malSetAutoSync: (enabled: boolean, intervalHours?: number) => Promise<{ success: boolean }>;
       malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
+      onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;

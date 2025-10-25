@@ -36,6 +36,7 @@ export default function Settings() {
   const [animeImportResult, setAnimeImportResult] = useState<AnimeImportResult | null>(null);
   const [animeImportProgress, setAnimeImportProgress] = useState<AnimeImportProgress | null>(null);
   const [importStartTime, setImportStartTime] = useState<number>(0);
+  const [importType, setImportType] = useState<'xml' | 'mal-sync'>('xml'); // Type d'import en cours
   const [users, setUsers] = useState<UserData[]>([]);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [newUserName, setNewUserName] = useState('');
@@ -58,15 +59,33 @@ export default function Settings() {
     loadMalStatus();
     loadMalAutoSyncSettings();
     
-    // Écouter les mises à jour de progression de l'import
-    const unsubscribe = window.electronAPI.onAnimeImportProgress((progress) => {
+    // Écouter les mises à jour de progression de l'import XML
+    const unsubscribeXml = window.electronAPI.onAnimeImportProgress((progress) => {
       setAnimeImportProgress(progress);
     });
     
+    // Écouter les mises à jour de progression MAL sync
+    const unsubscribeMal = window.electronAPI.onMalSyncProgress?.((event, progress) => {
+      // Convertir le format MAL sync vers le format AnimeImportProgress
+      setAnimeImportProgress({
+        total: progress.total,
+        currentIndex: progress.current,
+        imported: 0, // Pas de distinction créé/mis à jour dans le progress
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        currentAnime: progress.item,
+        elapsedMs: Date.now() - importStartTime,
+        etaMs: null,
+        speed: null
+      });
+    });
+    
     return () => {
-      unsubscribe();
+      unsubscribeXml();
+      if (unsubscribeMal) unsubscribeMal();
     };
-  }, []);
+  }, [importStartTime]);
 
   const loadTheme = async () => {
     try {
@@ -192,19 +211,20 @@ export default function Settings() {
 
     try {
       setMalSyncing(true);
-      showToast({
-        title: 'Synchronisation en cours...',
-        message: 'Récupération des données depuis MyAnimeList',
-        type: 'info',
-        duration: 10000
-      });
+      setImportType('mal-sync');
+      setImportingAnimes(true); // Activer l'affichage de progression
+      setAnimeImportProgress(null);
+      setImportStartTime(Date.now());
 
       const result = await window.electronAPI.malSyncNow();
 
       if (result.success) {
+        const totalCreated = (result.manga?.created || 0) + (result.anime?.created || 0);
+        const totalUpdated = (result.manga?.updated || 0) + (result.anime?.updated || 0);
+        
         showToast({
           title: 'Synchronisation réussie !',
-          message: `${result.total?.updated || 0} éléments mis à jour en ${result.duration}s`,
+          message: `✅ ${totalCreated} créés | ${totalUpdated} mis à jour | ⏱️ ${result.duration}s`,
           type: 'success',
           duration: 5000
         });
@@ -219,6 +239,8 @@ export default function Settings() {
       });
     } finally {
       setMalSyncing(false);
+      setImportingAnimes(false);
+      setAnimeImportProgress(null);
     }
   };
 
@@ -520,6 +542,7 @@ export default function Settings() {
       if (!file) return;
 
       setImportingAnimes(true);
+      setImportType('xml'); // Type d'import XML
       setAnimeImportResult(null);
       setAnimeImportProgress(null);
       setImportStartTime(Date.now());
@@ -1528,8 +1551,13 @@ export default function Settings() {
               borderRadius: '8px',
               border: '1px solid var(--border)'
             }}>
-              {/* Informations lots */}
-              {animeImportProgress.currentBatch && animeImportProgress.totalBatches && (
+              {/* Titre dynamique selon le type d'import */}
+              <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: 'var(--text)' }}>
+                {importType === 'mal-sync' ? '🔄 Synchronisation MyAnimeList en cours...' : '📦 Import XML en cours...'}
+              </div>
+              
+              {/* Informations lots (uniquement pour XML) */}
+              {importType === 'xml' && animeImportProgress.currentBatch && animeImportProgress.totalBatches && (
                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                   📦 Lot {animeImportProgress.currentBatch}/{animeImportProgress.totalBatches}
                 </div>
@@ -1561,10 +1589,10 @@ export default function Settings() {
                 }} />
               </div>
               
-              {/* Anime en cours */}
+              {/* Élément en cours */}
               {animeImportProgress.currentAnime && (
                 <p style={{ fontSize: '13px', color: 'var(--primary)', marginTop: '12px', fontWeight: '500' }}>
-                  🎬 {animeImportProgress.currentAnime}
+                  {importType === 'mal-sync' ? '📚' : '🎬'} {animeImportProgress.currentAnime}
                 </p>
               )}
               
