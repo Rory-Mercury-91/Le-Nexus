@@ -591,7 +591,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       const db = getDb();
       
       // Récupérer tous les jeux avec un f95_thread_id
-      const games = db.prepare('SELECT id, f95_thread_id, titre, version FROM avn_games WHERE f95_thread_id IS NOT NULL').all();
+      const games = db.prepare('SELECT id, f95_thread_id, titre, version, statut_jeu, moteur, tags, couverture_url, maj_disponible FROM avn_games WHERE f95_thread_id IS NOT NULL').all();
       
       if (games.length === 0) {
         console.log('⚠️ Aucun jeu AVN à vérifier (aucun f95_thread_id)');
@@ -741,7 +741,13 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             if (tagsChanged) console.log(`  - Tags mis à jour`);
             if (imageChanged) console.log(`  - Image mise à jour`);
             
-            updatedCount++;
+            // Ne compter que les NOUVELLES mises à jour (maj_disponible passant de 0 à 1)
+            if (game.maj_disponible === 0) {
+              updatedCount++;
+              console.log(`  ✅ Nouvelle mise à jour signalée`);
+            } else {
+              console.log(`  ℹ️ Mise à jour déjà signalée, mise à jour des données uniquement`);
+            }
             
             // Mapper le statut pour la DB
             let statutJeu;
@@ -778,6 +784,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
                   derniere_verif = datetime('now')
               WHERE id = ?
             `).run(game.id);
+            console.log(`  ✅ Aucun changement détecté`);
           }
           
           // Pause pour éviter le rate limiting F95Zone

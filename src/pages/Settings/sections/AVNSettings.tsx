@@ -1,17 +1,37 @@
 import { RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 export default function AVNSettings() {
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   const handleCheckUpdates = async () => {
+    setChecking(true);
+    setMessage(null);
+    
     try {
       const result = await window.electronAPI.checkAvnUpdates();
       if (result.updated > 0) {
-        alert(`✅ ${result.updated} mise(s) à jour détectée(s) sur ${result.checked} jeux !`);
+        setMessage({ 
+          type: 'success', 
+          text: `${result.updated} nouvelle(s) mise(s) à jour détectée(s) sur ${result.checked} jeux !` 
+        });
       } else {
-        alert(`✅ Aucune mise à jour. ${result.checked} jeux vérifiés.`);
+        setMessage({ 
+          type: 'success', 
+          text: `Aucune nouvelle mise à jour. ${result.checked} jeux vérifiés.` 
+        });
       }
+      setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Erreur vérification MAJ AVN:', error);
-      alert('❌ Erreur lors de la vérification des mises à jour');
+      setMessage({ 
+        type: 'error', 
+        text: 'Erreur lors de la vérification des mises à jour' 
+      });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -106,20 +126,38 @@ export default function AVNSettings() {
         </p>
       </div>
 
+      {/* Message de feedback */}
+      {message && (
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: '16px',
+          borderRadius: '8px',
+          background: message.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${message.type === 'success' ? '#10b981' : '#ef4444'}`,
+          color: message.type === 'success' ? '#10b981' : '#ef4444',
+          fontSize: '14px',
+          fontWeight: '600'
+        }}>
+          {message.type === 'success' ? '✅' : '❌'} {message.text}
+        </div>
+      )}
+
       {/* Bouton vérification manuelle */}
       <button
         onClick={handleCheckUpdates}
+        disabled={checking}
         className="btn btn-secondary"
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '8px'
+          gap: '8px',
+          opacity: checking ? 0.6 : 1
         }}
       >
-        <RefreshCw size={18} />
-        Vérifier maintenant
+        <RefreshCw size={18} className={checking ? 'spin' : ''} />
+        {checking ? 'Vérification en cours...' : 'Vérifier maintenant'}
       </button>
 
       <details style={{ marginTop: '16px' }}>
