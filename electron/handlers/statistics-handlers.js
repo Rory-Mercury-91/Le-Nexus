@@ -276,12 +276,15 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       const currentUser = store.get('currentUser', '');
       if (!currentUser) {
+        console.log('⚠️ get-recent-progress: Aucun utilisateur connecté');
         return {
           tomes: [],
           chapitres: [],
           episodes: []
         };
       }
+
+      console.log(`📊 get-recent-progress: Chargement pour l'utilisateur "${currentUser}"`);
 
       // 1. Derniers tomes lus (mangas classiques)
       const derniersTomesLus = db.prepare(`
@@ -293,8 +296,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         ORDER BY lt.date_lecture DESC
         LIMIT 10
       `).all(currentUser);
+      
+      console.log(`  ✅ ${derniersTomesLus.length} tomes lus récents`);
 
-      // 2. Dernières progressions de chapitres (scans/manhwa)
+      // 2. Dernières progressions de chapitres (scans/manhwa + mangas MAL)
+      // Note: chapitres_lus est global (pas par utilisateur) car stocké dans la table series
       const dernieresProgressionsChapitres = db.prepare(`
         SELECT 
           s.id as serie_id,
@@ -304,11 +310,13 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           s.nb_chapitres,
           s.updated_at as date_progression
         FROM series s
-        WHERE s.type_contenu = 'chapitre' 
+        WHERE (s.type_contenu = 'chapitre' OR s.mal_id IS NOT NULL)
           AND s.chapitres_lus > 0
         ORDER BY s.updated_at DESC
         LIMIT 10
       `).all();
+      
+      console.log(`  ✅ ${dernieresProgressionsChapitres.length} progressions chapitres/mangas MAL`);
 
       // 3. Dernières progressions d'épisodes (animes)
       const dernieresProgressionsEpisodes = db.prepare(`
@@ -333,6 +341,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         ORDER BY date_progression DESC
         LIMIT 10
       `).all(currentUser, currentUser, currentUser);
+      
+      console.log(`  ✅ ${dernieresProgressionsEpisodes.length} progressions épisodes animes`);
+      
+      const totalItems = derniersTomesLus.length + dernieresProgressionsChapitres.length + dernieresProgressionsEpisodes.length;
+      console.log(`  📊 Total: ${totalItems} éléments de progression récente`);
 
       return {
         tomes: derniersTomesLus.map(tome => ({
