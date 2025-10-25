@@ -11,7 +11,6 @@ const COLORS = {
   tomes: '#d946ef'        // Magenta pour Tomes
 };
 
-const CHART_COLORS = ['#f97316', '#d946ef', '#22c55e', '#eab308', '#3b82f6', '#a855f7', '#ec4899', '#f43f5e'];
 
 // Liste des types de volumes
 const TYPES_VOLUME = [
@@ -56,7 +55,9 @@ export default function Dashboard() {
     setStats(data);
     setLectureStats(lectureData);
     setRecentProgress(progressData);
-    setAnimes(animesData);
+    if (animesData.success) {
+      setAnimes(animesData.animes);
+    }
     setEvolutionStats(evolutionData);
     setLoading(false);
   };
@@ -84,23 +85,6 @@ export default function Dashboard() {
   // Calculer le coût total dynamiquement
   const coutTotal = users.reduce((sum, user) => sum + (stats.totaux[user.id] || 0), 0);
 
-  // Préparer les données pour le graphique des propriétaires
-  const dataProprietaires = users.map(user => ({
-    name: user.name,
-    value: stats.totaux[user.id] || 0,
-    color: user.color
-  })).filter(item => item.value > 0);
-
-  const dataTypes = Object.entries(stats.parType).map(([name, data]) => ({
-    name,
-    tomes: data.count,
-    montant: data.total
-  }));
-
-  const dataStatuts = Object.entries(stats.parStatut).map(([name, count]) => ({
-    name,
-    value: count
-  }));
 
   return (
     <div style={{ padding: '40px' }} className="fade-in">
@@ -218,7 +202,7 @@ export default function Dashboard() {
                           }}
                         >
                           <CoverImage 
-                            src={item.couvertureUrl} 
+                            src={item.couvertureUrl || null} 
                             alt={item.serieTitre || item.animeTitre || ''}
                             style={{
                               width: '100%',
@@ -285,16 +269,16 @@ export default function Dashboard() {
 
         {/* Progression des Animes */}
         {animes.length > 0 && (() => {
-          const episodesVus = animes.reduce((acc, a) => acc + (a.nb_episodes_vus || 0), 0);
-          const episodesTotal = animes.reduce((acc, a) => acc + (a.nb_episodes_total || 0), 0);
+          const episodesVus = animes.reduce((acc, a) => acc + (a.episodes_vus || 0), 0);
+          const episodesTotal = animes.reduce((acc, a) => acc + (a.nb_episodes || 0), 0);
           const animesEnCours = animes.filter(a => {
-            const epVus = a.nb_episodes_vus || 0;
-            const epTotal = a.nb_episodes_total || 0;
+            const epVus = a.episodes_vus || 0;
+            const epTotal = a.nb_episodes || 0;
             return epVus > 0 && epVus < epTotal;
           }).length;
           const animesTermines = animes.filter(a => {
-            const epVus = a.nb_episodes_vus || 0;
-            const epTotal = a.nb_episodes_total || 0;
+            const epVus = a.episodes_vus || 0;
+            const epTotal = a.nb_episodes || 0;
             return epTotal > 0 && epVus === epTotal;
           }).length;
           const progression = episodesTotal > 0 ? (episodesVus / episodesTotal) * 100 : 0;

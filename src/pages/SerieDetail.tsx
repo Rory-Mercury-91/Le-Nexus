@@ -41,18 +41,20 @@ export default function SerieDetail() {
     window.electronAPI.getAllUsers().then(setUsers);
 
     // Écouter l'événement d'import pour rafraîchir la série si elle est mise à jour
-    const handleMangaImported = (event: any, data: { id: number; titre: string }) => {
+    const handleMangaImported = (_event: any, data: { id: number; titre: string }) => {
       if (data.id === Number(id)) {
         console.log('📚 Série mise à jour, rechargement...');
         loadSerie(true); // Recharger avec préservation du scroll
       }
     };
 
-    window.electronAPI.onMangaImported(handleMangaImported);
+    const unsubscribe = window.electronAPI.onMangaImported?.(handleMangaImported);
 
     return () => {
       // Nettoyer le listener quand le composant est démonté
-      if (window.electronAPI.offMangaImported) {
+      if (unsubscribe) {
+        unsubscribe();
+      } else if (window.electronAPI.offMangaImported) {
         window.electronAPI.offMangaImported(handleMangaImported);
       }
     };
@@ -291,16 +293,6 @@ export default function SerieDetail() {
 
     return { user, cost: userCost, tomesCount };
   }).filter(item => item.cost > 0 || item.tomesCount > 0);
-
-  const getStatutColor = (statut: string) => {
-    switch (statut) {
-      case 'En cours': return 'var(--primary)';
-      case 'Terminée': return 'var(--success)';
-      case 'Abandonnée': return 'var(--error)';
-      default: return 'var(--text-secondary)';
-    }
-  };
-
 
   return (
     <div style={{ padding: '40px' }} className="fade-in">
@@ -592,7 +584,7 @@ export default function SerieDetail() {
               {serie.type_contenu === 'chapitre' && serie.nb_chapitres && (
                 <div style={{ marginBottom: '16px' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Nombre de chapitres : </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700' }}>{serie.nb_chapitres} chapitre{serie.nb_chapitres > 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '700' }}>{serie.nb_chapitres || 0} chapitre{(serie.nb_chapitres || 0) > 1 ? 's' : ''}</span>
                 </div>
               )}
 
@@ -1003,7 +995,7 @@ export default function SerieDetail() {
               </div>
               
               {/* Message de félicitations */}
-              {serie.chapitres_lus === serie.nb_chapitres && serie.nb_chapitres > 0 && (
+              {serie.chapitres_lus === serie.nb_chapitres && (serie.nb_chapitres || 0) > 0 && (
                 <div style={{
                   padding: '8px',
                   background: 'var(--success)22',
