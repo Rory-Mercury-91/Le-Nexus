@@ -423,6 +423,51 @@ function registerAvnHandlers(ipcMain, getDb, store) {
     }
   });
   
+  // ========================================
+  // Rechercher un jeu par ID F95Zone
+  // ========================================
+  
+  ipcMain.handle('search-avn-by-f95-id', async (event, f95Id) => {
+    try {
+      console.log(`🔍 Recherche jeu F95 ID: ${f95Id}`);
+      
+      const response = await fetch(`${F95LIST_API_URL}?id=${f95Id}`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data || !data.name) {
+        throw new Error('Jeu introuvable');
+      }
+      
+      console.log(`✅ Jeu trouvé: ${data.name}`);
+      
+      return {
+        success: true,
+        data: {
+          id: data.id,
+          name: data.name,
+          version: data.version,
+          status: data.status,
+          engine: data.engine,
+          tags: data.tags,
+          image: data.image,
+          thread_url: data.thread_url
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur recherche F95:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+  
   console.log('✅ Handlers AVN enregistrés');
 }
 

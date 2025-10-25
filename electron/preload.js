@@ -130,6 +130,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAvnGame: (id) => ipcRenderer.invoke('delete-avn-game', id),
   launchAvnGame: (id) => ipcRenderer.invoke('launch-avn-game', id),
   checkAvnUpdates: () => ipcRenderer.invoke('check-avn-updates'),
+  searchAvnByF95Id: (f95Id) => ipcRenderer.invoke('search-avn-by-f95-id', f95Id),
   
   // Fusion
   mergeDatabase: () => ipcRenderer.invoke('merge-database'),

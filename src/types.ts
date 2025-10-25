@@ -438,6 +438,7 @@ declare global {
       deleteAvnGame: (id: number) => Promise<{ success: boolean }>;
       launchAvnGame: (id: number) => Promise<{ success: boolean; error?: string }>;
       checkAvnUpdates: () => Promise<{ checked: number; updated: number }>;
+      searchAvnByF95Id: (f95Id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     };
   }
 }

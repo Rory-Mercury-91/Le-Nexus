@@ -10,8 +10,6 @@ interface AddAvnModalProps {
 
 type TabMode = 'f95' | 'manual';
 
-const F95_API_URL = 'https://script.google.com/macros/s/AKfycbwb8C1478tnW30d77HtECYTxjJ2EpB1OrtQUueFeZ0tZPz3Uuze5s2FAQAnQOKShEzD/exec';
-
 export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
   const [activeTab, setActiveTab] = useState<TabMode>('f95');
   const [loading, setLoading] = useState(false);
@@ -43,19 +41,14 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
     try {
       setLoading(true);
       
-      const response = await fetch(`${F95_API_URL}?id=${f95Id}`);
-      if (!response.ok) {
-        throw new Error(`Erreur API: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const result = await window.electronAPI.searchAvnByF95Id(f95Id);
       
-      if (!data || !data.name) {
-        throw new Error('Jeu introuvable');
+      if (!result.success) {
+        throw new Error(result.error || 'Jeu introuvable');
       }
 
-      setF95Data(data);
-      alert(`✅ Données récupérées: ${data.name}`);
+      setF95Data(result.data);
+      alert(`✅ Données récupérées: ${result.data.name}`);
     } catch (error: any) {
       console.error('Erreur fetch F95:', error);
       alert(`❌ ${error.message || 'Impossible de récupérer les données'}`);
