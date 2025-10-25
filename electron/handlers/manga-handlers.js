@@ -259,13 +259,14 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       }
       
       const stmt = db.prepare(`
-        INSERT INTO series (titre, statut, type_volume, couverture_url, description, statut_publication, annee_publication, genres, nb_chapitres, langue_originale, demographie, editeur, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO series (titre, statut, type_volume, type_contenu, couverture_url, description, statut_publication, annee_publication, genres, nb_chapitres, langue_originale, demographie, editeur, rating)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
         serie.titre, 
         serie.statut, 
-        serie.type_volume, 
+        serie.type_volume,
+        serie.type_contenu || 'volume',
         finalCouvertureUrl,
         serie.description || null,
         serie.statut_publication || null,
@@ -1007,6 +1008,95 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
     } catch (error) {
       console.error('❌ Erreur remove-serie-tag:', error);
       throw error;
+    }
+  });
+
+  // Traduire la description d'une série avec Groq AI
+  ipcMain.handle('translate-serie-description', async (event, serieId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      // Récupérer la clé API Groq
+      const groqApiKey = store.get('groqApiKey');
+      if (!groqApiKey) {
+        throw new Error('Clé API Groq non configurée. Veuillez la définir dans les paramètres.');
+      }
+
+      // Récupérer la série
+      const serie = db.prepare('SELECT id, titre, description FROM series WHERE id = ?').get(serieId);
+      if (!serie) {
+        throw new Error('Série non trouvée');
+      }
+
+      if (!serie.description || serie.description.trim() === '') {
+        throw new Error('Aucune description à traduire');
+      }
+
+      // Vérifier si déjà traduit
+      if (serie.description.includes('traduit automatiquement') || serie.description.includes('Synopsis français')) {
+        throw new Error('Cette description semble déjà traduite');
+      }
+
+      console.log(`🤖 Traduction de la description pour: ${serie.titre}`);
+
+      // Appel à l'API Groq
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu es un traducteur professionnel spécialisé dans les mangas. Traduis le synopsis suivant en français de manière naturelle et fluide. Ne traduis PAS les noms de personnages, de lieux, ou de techniques. Retourne UNIQUEMENT la traduction, sans introduction ni conclusion.'
+            },
+            {
+              role: 'user',
+              content: serie.description
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Erreur API Groq: ${response.status} - ${errorData.error?.message || 'Erreur inconnue'}`);
+      }
+
+      const data = await response.json();
+      const translatedText = data.choices[0]?.message?.content?.trim();
+
+      if (!translatedText) {
+        throw new Error('Aucune traduction reçue de l\'API');
+      }
+
+      // Ajouter une note de traduction automatique
+      const finalDescription = `${translatedText}\n\n(Synopsis traduit automatiquement par IA)`;
+
+      // Mettre à jour la série
+      db.prepare('UPDATE series SET description = ? WHERE id = ?').run(finalDescription, serieId);
+
+      console.log(`✅ Description traduite pour: ${serie.titre}`);
+
+      return { 
+        success: true, 
+        translatedDescription: finalDescription 
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur translate-serie-description:', error);
+      return { 
+        success: false, 
+        error: error.message 
+      };
     }
   });
 }

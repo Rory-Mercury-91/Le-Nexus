@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSerie: (id) => ipcRenderer.invoke('get-serie', id),
   createSerie: (serie) => ipcRenderer.invoke('create-serie', serie),
   updateSerie: (id, serie) => ipcRenderer.invoke('update-serie', id, serie),
+  translateSerieDescription: (serieId) => ipcRenderer.invoke('translate-serie-description', serieId),
   deleteSerie: (id) => ipcRenderer.invoke('delete-serie', id),
   masquerSerie: (serieId) => ipcRenderer.invoke('masquer-serie', serieId),
   demasquerSerie: (serieId) => ipcRenderer.invoke('demasquer-serie', serieId),

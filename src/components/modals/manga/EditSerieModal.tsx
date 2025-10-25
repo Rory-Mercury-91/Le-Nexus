@@ -1,4 +1,4 @@
-import { Upload, X } from 'lucide-react';
+import { Languages, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Serie } from '../../../types';
 import CoverImage from '../../common/CoverImage';
@@ -23,6 +23,7 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
   const [editeur, setEditeur] = useState(serie.editeur || '');
   const [rating, setRating] = useState(serie.rating || '');
   const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
 
   // Fermer le modal avec la touche Échap
   useEffect(() => {
@@ -45,6 +46,38 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
     const result = await window.electronAPI.uploadCustomCover(titre, 'serie');
     if (result.success && result.localPath) {
       setCouvertureUrl(result.localPath);
+    }
+  };
+
+  const handleTranslate = async () => {
+    if (!description || !description.trim()) {
+      alert('❌ Aucune description à traduire');
+      return;
+    }
+
+    if (description.includes('traduit automatiquement') || description.includes('Synopsis français')) {
+      alert('⚠️ Cette description semble déjà traduite');
+      return;
+    }
+
+    const confirm = window.confirm('🤖 Traduire la description avec l\'IA ?\n\nCela remplacera la description actuelle.');
+    if (!confirm) return;
+
+    setTranslating(true);
+    try {
+      const result = await window.electronAPI.translateSerieDescription(serie.id);
+      
+      if (result.success && result.translatedDescription) {
+        setDescription(result.translatedDescription);
+        alert('✅ Description traduite avec succès !');
+      } else {
+        alert(`❌ ${result.error || 'Erreur lors de la traduction'}`);
+      }
+    } catch (error: any) {
+      console.error('Erreur traduction:', error);
+      alert(`❌ ${error.message || 'Erreur lors de la traduction'}`);
+    } finally {
+      setTranslating(false);
     }
   };
 
@@ -205,9 +238,29 @@ export default function EditSerieModal({ serie, onClose, onSuccess }: EditSerieM
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Description (optionnel)
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label style={{ fontWeight: '600' }}>
+                Description (optionnel)
+              </label>
+              <button
+                type="button"
+                onClick={handleTranslate}
+                disabled={translating || !description || description.trim() === ''}
+                className="btn"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: translating ? 'var(--surface)' : 'var(--primary)',
+                  opacity: translating || !description ? 0.6 : 1
+                }}
+              >
+                <Languages size={14} />
+                {translating ? 'Traduction...' : 'Traduire'}
+              </button>
+            </div>
             <textarea
               placeholder="Synopsis du manga..."
               value={description}

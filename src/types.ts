@@ -351,6 +351,7 @@ declare global {
       getSerie: (id: number) => Promise<Serie | null>;
       createSerie: (serie: Partial<Serie>) => Promise<number>;
       updateSerie: (id: number, serie: Partial<Serie>) => Promise<boolean>;
+      translateSerieDescription: (serieId: number) => Promise<{ success: boolean; translatedDescription?: string; error?: string }>;
       deleteSerie: (id: number) => Promise<boolean>;
       masquerSerie: (serieId: number) => Promise<{ success: boolean }>;
       demasquerSerie: (serieId: number) => Promise<{ success: boolean }>;

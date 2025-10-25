@@ -11,7 +11,7 @@ interface AddSerieModalProps {
 export default function AddSerieModal({ onClose, onSuccess }: AddSerieModalProps) {
   const [titre, setTitre] = useState('');
   const [statut, setStatut] = useState<'En cours' | 'Terminée' | 'Abandonnée'>('En cours');
-  const [typeVolume, setTypeVolume] = useState<'Broché' | 'Kindle' | 'Webtoon' | 'Broché Collector'>('Broché');
+  const [typeVolume, setTypeVolume] = useState<'Broché' | 'Kindle' | 'Webtoon' | 'Broché Collector' | 'Coffret' | 'Webtoon Physique' | 'Light Novel' | 'Scan Manga' | 'Scan Webtoon'>('Broché');
   const [couvertureUrl, setCouvertureUrl] = useState('');
   const [description, setDescription] = useState('');
   const [statutPublication, setStatutPublication] = useState('');
@@ -149,10 +149,14 @@ export default function AddSerieModal({ onClose, onSuccess }: AddSerieModalProps
 
     setSaving(true);
     try {
+      // Déterminer automatiquement le type_contenu selon le type_volume
+      const typeContenu = (typeVolume === 'Scan Manga' || typeVolume === 'Scan Webtoon') ? 'chapitre' : 'volume';
+
       await window.electronAPI.createSerie({
         titre: titre.trim(),
         statut,
         type_volume: typeVolume,
+        type_contenu: typeContenu,
         couverture_url: couvertureUrl || null,
         description: description || null,
         statut_publication: statutPublication || null,
