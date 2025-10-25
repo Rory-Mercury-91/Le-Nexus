@@ -228,7 +228,10 @@ export interface AnimeImportResult {
   total: number;
   imported: number;
   updated: number;
-  errors: Array<{ titre?: string;\n  skipped?: number;\n  totalTimeMs?: number;\n  speed?: number; malId?: number; error: string }>;
+  errors: Array<{ titre?: string; malId?: number; error: string }>;
+  skipped?: number;
+  totalTimeMs?: number;
+  speed?: number;
 }
 
 export interface AnimeImportProgress {
@@ -240,7 +243,11 @@ export interface AnimeImportProgress {
   total: number;
   imported: number;
   updated: number;
-  errors: number;\n  elapsedMs?: number;\n  etaMs?: number;\n  speed?: number;\n  skipped?: number;
+  errors: number;
+  elapsedMs?: number;
+  etaMs?: number;
+  speed?: number;
+  skipped?: number;
   isPausing?: boolean;
   remainingPauseSeconds?: number;
 }
