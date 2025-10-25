@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, Grid3x3, List, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import type { AvnGame, AvnFilters, AvnStatutPerso, AvnStatutJeu, AvnMoteur } from '../types';
 import '../index.css';
@@ -259,14 +260,17 @@ export default function AVN() {
           gap: '16px'
         }}>
           {filteredGames.map((game) => (
-            <div
+            <Link
               key={game.id}
+              to={`/avn/${game.id}`}
               className="card"
               style={{
                 padding: '16px',
                 cursor: 'pointer',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                textDecoration: 'none',
+                color: 'inherit'
               }}
             >
               {/* Badge MAJ disponible */}
@@ -339,7 +343,7 @@ export default function AVN() {
                   📊 {game.statut_jeu}
                 </div>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

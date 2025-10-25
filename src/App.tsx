@@ -8,6 +8,7 @@ import UserSelector from './components/common/UserSelector';
 import AnimeDetail from './pages/AnimeDetail';
 import Animes from './pages/Animes';
 import AVN from './pages/AVN';
+import AvnDetail from './pages/AvnDetail';
 import Collection from './pages/Collection';
 import Dashboard from './pages/Dashboard';
 import SerieDetail from './pages/SerieDetail';
@@ -131,6 +132,7 @@ function App() {
             <Route path="/animes" element={<Animes key={refreshTrigger} />} />
             <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
             <Route path="/avn" element={<AVN key={refreshTrigger} />} />
+            <Route path="/avn/:id" element={<AvnDetail key={refreshTrigger} />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </Layout>
