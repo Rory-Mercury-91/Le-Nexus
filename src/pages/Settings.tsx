@@ -696,91 +696,6 @@ export default function Settings() {
       <ConfirmDialog />
       <ToastContainer />
       
-      {/* Notification persistante de traduction */}
-      {translating && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 10000,
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          minWidth: '400px',
-          maxWidth: '600px',
-          animation: 'slideDown 0.3s ease-out'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ 
-              width: '24px', 
-              height: '24px', 
-              border: '3px solid rgba(255, 255, 255, 0.3)',
-              borderTop: '3px solid white',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '4px' }}>
-                🤖 Traduction des synopsis en cours...
-              </div>
-              <div style={{ fontSize: '13px', opacity: 0.9 }}>
-                Merci de ne pas quitter l'application
-              </div>
-            </div>
-          </div>
-          
-          {translationProgress && (
-            <div style={{ fontSize: '13px', opacity: 0.9, lineHeight: '1.6' }}>
-              <div style={{ marginBottom: '8px' }}>
-                📝 <strong>{translationProgress.current}</strong>/{translationProgress.total} synopsis traités
-                {' '}•{' '}
-                ✅ <strong>{translationProgress.translated}</strong> traduits
-                {translationProgress.skipped > 0 && (
-                  <>
-                    {' '}•{' '}
-                    ⏭️ <strong>{translationProgress.skipped}</strong> ignorés
-                  </>
-                )}
-              </div>
-              <div style={{ 
-                marginTop: '8px',
-                padding: '8px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '6px',
-                fontSize: '12px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis'
-              }}>
-                🎬 {translationProgress.currentAnime}
-              </div>
-              
-              {/* Barre de progression */}
-              <div style={{
-                marginTop: '12px',
-                height: '4px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '2px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  height: '100%',
-                  background: 'white',
-                  width: `${(translationProgress.current / translationProgress.total) * 100}%`,
-                  transition: 'width 0.3s ease'
-                }} />
-              </div>
-              
-              <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', opacity: 0.8 }}>
-                Durée estimée : ~{Math.ceil((translationProgress.total - translationProgress.current) * 2.1 / 60)} min restantes
-              </div>
-            </div>
-          )}
-        </div>
-      )}
       
       <div className="container">
         <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '32px' }}>
@@ -1480,6 +1395,101 @@ export default function Settings() {
                 {animeImportProgress.errors > 0 && (
                   <span style={{ color: 'var(--error)' }}>⚠️ {animeImportProgress.errors} erreurs</span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Progression traduction synopsis (après import/sync MAL) */}
+          {translating && translationProgress && (
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+              borderRadius: '8px',
+              border: '1px solid rgba(102, 126, 234, 0.3)'
+            }}>
+              <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  display: 'inline-block',
+                  width: '8px',
+                  height: '8px',
+                  background: '#667eea',
+                  borderRadius: '50%',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }} />
+                🤖 Traduction des synopsis en cours...
+              </div>
+              
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                🎯 Traduction automatique des synopsis anglais → français via Groq AI
+                <br />
+                ⏳ Merci de ne pas quitter l'application
+              </p>
+              
+              {/* Progression */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>
+                  {translationProgress.current} / {translationProgress.total}
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  {Math.round((translationProgress.current / translationProgress.total) * 100)}%
+                </span>
+              </div>
+              
+              {/* Barre de progression */}
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: 'var(--surface-light)',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #667eea, #764ba2)',
+                  width: `${(translationProgress.current / translationProgress.total) * 100}%`,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+              
+              {/* Anime en cours */}
+              <p style={{ 
+                fontSize: '13px', 
+                color: '#667eea', 
+                marginTop: '12px', 
+                fontWeight: '500',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                🎬 {translationProgress.currentAnime}
+              </p>
+              
+              {/* Statistiques */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '16px', 
+                fontSize: '12px', 
+                color: 'var(--text-secondary)', 
+                marginTop: '12px' 
+              }}>
+                <span>✅ {translationProgress.translated} traduits</span>
+                {translationProgress.skipped > 0 && (
+                  <span>⏭️ {translationProgress.skipped} ignorés</span>
+                )}
+              </div>
+              
+              {/* Temps estimé */}
+              <div style={{
+                marginTop: '12px',
+                padding: '8px',
+                background: 'rgba(102, 126, 234, 0.1)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                textAlign: 'center',
+                color: 'var(--text-secondary)'
+              }}>
+                ⏱️ Durée estimée restante : ~{Math.ceil((translationProgress.total - translationProgress.current) * 2.1 / 60)} min
               </div>
             </div>
           )}
