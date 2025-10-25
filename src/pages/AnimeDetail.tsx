@@ -34,8 +34,11 @@ export default function AnimeDetail() {
     try {
       const result = await window.electronAPI.getAnimeDetail(parseInt(id!));
       if (result.success) {
-        setAnime(result.anime);
-        setEpisodes(result.episodes || []);
+        setAnime(result.anime || null);
+        setEpisodes((result.episodes || []).map(ep => ({
+          ...ep,
+          date_visionnage: ep.date_visionnage || null
+        })));
       }
     } catch (error) {
       console.error('Erreur lors du chargement de l\'anime:', error);
