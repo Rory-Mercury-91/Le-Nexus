@@ -266,6 +266,45 @@ async function saveCoverFromPath(pathManager, sourcePath, serieTitre, type = 'se
 }
 
 /**
+ * Sauvegarde une couverture depuis un buffer
+ * @param {PathManager} pathManager - Gestionnaire de chemins
+ * @param {Buffer} buffer - Buffer contenant l'image
+ * @param {string} fileName - Nom original du fichier
+ * @param {string} serieTitre - Titre de la série
+ * @param {string} type - Type ('serie' ou 'tome')
+ * @returns {Promise<Object>}
+ */
+async function saveCoverFromBuffer(pathManager, buffer, fileName, serieTitre, type = 'serie') {
+  try {
+    const ext = path.extname(fileName).toLowerCase();
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    if (!validExtensions.includes(ext)) {
+      return { success: false, error: 'Type de fichier non supporté' };
+    }
+
+    const slug = createSlug(serieTitre);
+    const seriesPath = pathManager.getSeriesPath(slug);
+    const tomesPath = pathManager.getTomesPath(slug);
+
+    if (!fs.existsSync(seriesPath)) fs.mkdirSync(seriesPath, { recursive: true });
+    if (type === 'tome' && !fs.existsSync(tomesPath)) fs.mkdirSync(tomesPath, { recursive: true });
+
+    const targetDirectory = type === 'tome' ? tomesPath : seriesPath;
+    const timestamp = Date.now();
+    const newFileName = `custom-${timestamp}${ext}`;
+    const fullPath = path.join(targetDirectory, newFileName);
+    const relativePath = type === 'tome' ? `series/${slug}/tomes/${newFileName}` : `series/${slug}/${newFileName}`;
+
+    fs.writeFileSync(fullPath, buffer);
+
+    return { success: true, localPath: relativePath };
+  } catch (error) {
+    console.error('Erreur save-cover-from-buffer:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Récupère le chemin complet d'une couverture
  * @param {PathManager} pathManager - Gestionnaire de chemins
  * @param {string} relativePath - Chemin relatif
@@ -302,5 +341,6 @@ module.exports = {
   downloadCover,
   uploadCustomCover,
   saveCoverFromPath,
+  saveCoverFromBuffer,
   getCoverFullPath
 };

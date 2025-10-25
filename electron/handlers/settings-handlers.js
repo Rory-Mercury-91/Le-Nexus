@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { cleanEmptyFolders, deleteImageWithCleanup } = require('../utils/file-utils');
-const { downloadCover, uploadCustomCover, saveCoverFromPath } = require('../services/cover-manager');
+const { downloadCover, uploadCustomCover, saveCoverFromPath, saveCoverFromBuffer } = require('../services/cover-manager');
 const { translateText: groqTranslate } = require('../apis/groq');
 
 /**
@@ -162,6 +162,12 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     const pm = getPathManager();
     if (!pm) return { success: false, error: 'PathManager non initialisé' };
     return saveCoverFromPath(pm, sourcePath, serieTitre, type);
+  });
+
+  ipcMain.handle('save-cover-from-buffer', async (event, buffer, fileName, serieTitre, type = 'serie') => {
+    const pm = getPathManager();
+    if (!pm) return { success: false, error: 'PathManager non initialisé' };
+    return saveCoverFromBuffer(pm, buffer, fileName, serieTitre, type);
   });
 
   // Récupération du chemin complet d'une image

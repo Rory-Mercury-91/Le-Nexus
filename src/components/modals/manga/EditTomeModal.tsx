@@ -77,7 +77,17 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
         await window.electronAPI.deleteCoverImage(couvertureUrl);
       }
       
-      const result = await window.electronAPI.saveCoverFromPath(imageFile.path, serieTitre, 'tome');
+      // Convertir le fichier en Uint8Array pour l'envoyer au backend
+      const arrayBuffer = await imageFile.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      const result = await window.electronAPI.saveCoverFromBuffer(
+        uint8Array,
+        imageFile.name,
+        serieTitre,
+        'tome'
+      );
+      
       if (result.success && result.localPath) {
         setCouvertureUrl(result.localPath);
       }

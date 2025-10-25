@@ -104,6 +104,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   downloadCover: (imageUrl, fileName, type) => ipcRenderer.invoke('download-cover', imageUrl, fileName, type),
   uploadCustomCover: (serieTitre, type) => ipcRenderer.invoke('upload-custom-cover', serieTitre, type),
   saveCoverFromPath: (sourcePath, serieTitre, type) => ipcRenderer.invoke('save-cover-from-path', sourcePath, serieTitre, type),
+  saveCoverFromBuffer: (buffer, fileName, serieTitre, type) => ipcRenderer.invoke('save-cover-from-buffer', buffer, fileName, serieTitre, type),
   deleteCoverImage: (relativePath) => ipcRenderer.invoke('delete-cover-image', relativePath),
   getCoverFullPath: (relativePath) => ipcRenderer.invoke('get-cover-full-path', relativePath),
   cleanEmptyFolders: () => ipcRenderer.invoke('clean-empty-folders'),

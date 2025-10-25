@@ -389,6 +389,7 @@ declare global {
       downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
       uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
+      saveCoverFromBuffer: (buffer: Uint8Array, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
       deleteCoverImage: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
       getCoverFullPath: (relativePath: string) => Promise<string | null>;
       cleanEmptyFolders: () => Promise<{ success: boolean; count?: number; error?: string }>;

@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Play, ExternalLink, FileText, Info, Settings, Flag, Clock, Users, Link2, Download, Languages, Tag, CheckCircle2, PlayCircle, XCircle, Ban } from 'lucide-react';
-import type { AvnGame } from '../types';
-import ConfirmModal from '../components/modals/common/ConfirmModal';
+import { ArrowLeft, Ban, CheckCircle2, Clock, Download, Edit, ExternalLink, FileText, Flag, Info, Languages, Link2, Play, PlayCircle, Settings, Tag, Trash2, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import EditAvnModal from '../components/modals/avn/EditAvnModal';
+import ConfirmModal from '../components/modals/common/ConfirmModal';
 import '../index.css';
+import type { AvnGame } from '../types';
 
 export default function AvnDetail() {
   const { id } = useParams<{ id: string }>();
@@ -557,4 +557,3 @@ export default function AvnDetail() {
     </div>
   );
 }
-

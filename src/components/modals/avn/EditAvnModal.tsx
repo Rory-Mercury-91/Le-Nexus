@@ -1,7 +1,7 @@
-import { useState, useEffect, FormEvent } from 'react';
-import { X, FolderOpen } from 'lucide-react';
-import type { AvnGame, AvnStatutPerso, AvnStatutJeu, AvnMoteur } from '../../../types';
+import { FolderOpen, X } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 import '../../../index.css';
+import type { AvnGame, AvnMoteur, AvnStatutJeu, AvnStatutPerso } from '../../../types';
 
 interface EditAvnModalProps {
   game: AvnGame;
@@ -476,4 +476,3 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
     </div>
   );
 }
-
