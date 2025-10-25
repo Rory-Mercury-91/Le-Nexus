@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronUp, Download, Edit2, Eye, EyeOff, Folder, FolderOpen, Moon, Plus, RefreshCw, Sun, Trash2, Upload, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Download, Edit2, Eye, EyeOff, FolderOpen, Moon, Plus, RefreshCw, Sun, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
@@ -58,7 +58,6 @@ export default function Settings() {
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [avatarFile, setAvatarFile] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [showDatabaseSection, setShowDatabaseSection] = useState(false);
   const { confirm, ConfirmDialog } = useConfirm();
   const { showToast, ToastContainer } = useToast();
 
@@ -858,10 +857,10 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Section Apparence */}
+          {/* Section Apparence et comportement */}
           <div className="card" style={{ padding: '24px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-              🎨 Apparence
+              🎨 Apparence et comportement
             </h2>
 
           <div style={{ marginBottom: '20px' }}>
@@ -980,154 +979,151 @@ export default function Settings() {
               ℹ️ Désactivé en mode développement
             </p>
           </div>
+
+          {/* Préférences de contenu */}
+          <div style={{ marginTop: '32px', paddingTop: '32px', borderTop: '1px solid var(--border)' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>
+              Contenu affiché
+            </h3>
+            
+            <p style={{
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+              marginBottom: '20px',
+              lineHeight: '1.5'
+            }}>
+              Choisissez les types de contenu (Manga, Animé, AVN) qui s'affichent dans la navigation et sur votre page d'accueil.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Mangas */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  background: contentPrefs.showMangas ? 'rgba(139, 92, 246, 0.1)' : 'var(--surface)',
+                  border: contentPrefs.showMangas ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => handleContentPrefChange('showMangas', !contentPrefs.showMangas)}
+              >
+                <input
+                  type="checkbox"
+                  checked={contentPrefs.showMangas}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleContentPrefChange('showMangas', e.target.checked);
+                  }}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '2px' }}>
+                    📚 Mangas
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Afficher dans la navigation et sur l'accueil
+                  </div>
+                </div>
+              </label>
+
+              {/* Animes */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  background: contentPrefs.showAnimes ? 'rgba(139, 92, 246, 0.1)' : 'var(--surface)',
+                  border: contentPrefs.showAnimes ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => handleContentPrefChange('showAnimes', !contentPrefs.showAnimes)}
+              >
+                <input
+                  type="checkbox"
+                  checked={contentPrefs.showAnimes}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleContentPrefChange('showAnimes', e.target.checked);
+                  }}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '2px' }}>
+                    🎬 Animes
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Afficher dans la navigation et sur l'accueil
+                  </div>
+                </div>
+              </label>
+
+              {/* AVN */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '16px',
+                  background: contentPrefs.showAvn ? 'rgba(139, 92, 246, 0.1)' : 'var(--surface)',
+                  border: contentPrefs.showAvn ? '2px solid var(--primary)' : '2px solid var(--border)',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => handleContentPrefChange('showAvn', !contentPrefs.showAvn)}
+              >
+                <input
+                  type="checkbox"
+                  checked={contentPrefs.showAvn}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleContentPrefChange('showAvn', e.target.checked);
+                  }}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    cursor: 'pointer',
+                    accentColor: 'var(--primary)'
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '2px' }}>
+                    🎮 AVN (Adult Visual Novels)
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Afficher dans la navigation et sur l'accueil
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <p style={{
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              marginTop: '12px',
+              fontStyle: 'italic'
+            }}>
+              💡 Les modifications sont appliquées immédiatement
+            </p>
           </div>
-        </div>
-
-        {/* Section Préférences de contenu */}
-        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-            🎨 Préférences de contenu
-          </h2>
-          
-          <p style={{
-            fontSize: '14px',
-            color: 'var(--text-secondary)',
-            marginBottom: '24px',
-            lineHeight: '1.6'
-          }}>
-            Choisissez les types de contenu (Manga, Animé, AVN) qui s'affichent sur votre page d'accueil. Vous pouvez choisir les trois, un seul, ou une combinaison.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Mangas */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                padding: '20px',
-                background: contentPrefs.showMangas ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
-                border: contentPrefs.showMangas ? '2px solid var(--primary)' : '2px solid var(--border)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => handleContentPrefChange('showMangas', !contentPrefs.showMangas)}
-            >
-              <input
-                type="checkbox"
-                checked={contentPrefs.showMangas}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleContentPrefChange('showMangas', e.target.checked);
-                }}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer',
-                  accentColor: 'var(--primary)'
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
-                  📚 Mangas
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Afficher les nouveautés, suivis et recommandations de mangas
-                </div>
-              </div>
-            </label>
-
-            {/* Animes */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                padding: '20px',
-                background: contentPrefs.showAnimes ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
-                border: contentPrefs.showAnimes ? '2px solid var(--primary)' : '2px solid var(--border)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => handleContentPrefChange('showAnimes', !contentPrefs.showAnimes)}
-            >
-              <input
-                type="checkbox"
-                checked={contentPrefs.showAnimes}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleContentPrefChange('showAnimes', e.target.checked);
-                }}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer',
-                  accentColor: 'var(--primary)'
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
-                  🎬 Animes
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Afficher les nouveautés, suivis et recommandations d'animes
-                </div>
-              </div>
-            </label>
-
-            {/* AVN */}
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                padding: '20px',
-                background: contentPrefs.showAvn ? 'rgba(139, 92, 246, 0.15)' : 'var(--surface)',
-                border: contentPrefs.showAvn ? '2px solid var(--primary)' : '2px solid var(--border)',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => handleContentPrefChange('showAvn', !contentPrefs.showAvn)}
-            >
-              <input
-                type="checkbox"
-                checked={contentPrefs.showAvn}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleContentPrefChange('showAvn', e.target.checked);
-                }}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer',
-                  accentColor: 'var(--primary)'
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
-                  🎮 AVN (Adult Visual Novels)
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Afficher les nouveautés, suivis et recommandations d'AVN
-                </div>
-              </div>
-            </label>
           </div>
-
-          <p style={{
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
-            marginTop: '16px',
-            padding: '12px',
-            background: 'var(--surface)',
-            borderRadius: '8px',
-            borderLeft: '3px solid var(--primary)'
-          }}>
-            💡 Les modifications sont appliquées immédiatement sur la page d'accueil
-          </p>
         </div>
 
         {/* Section Intelligence Artificielle */}
@@ -1775,15 +1771,17 @@ export default function Settings() {
           )}
         </div>
 
-        {/* AVN - Contrôle de version automatique */}
-        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🎮 AVN - Contrôle de version automatique
-          </h2>
-          
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.6' }}>
-            Vérifiez automatiquement les mises à jour de vos jeux AVN via l'API F95List (1950+ jeux)
-          </p>
+        {/* Grille pour AVN + Base de données */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+          {/* Section AVN - Contrôle de version automatique */}
+          <div className="card" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🎮 AVN - Vérification automatique
+            </h2>
+            
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
+              Vérifiez automatiquement les mises à jour de vos jeux AVN par scraping direct de F95Zone.
+            </p>
 
           <div style={{
             padding: '16px',
@@ -2100,27 +2098,17 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Section Base de données (Collapsible) */}
-        <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-          <div
-            onClick={() => setShowDatabaseSection(!showDatabaseSection)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              marginBottom: showDatabaseSection ? '20px' : '0'
-            }}
-          >
-            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Folder size={20} />
-              Emplacement de la base de données
+          {/* Section Base de données */}
+          <div className="card" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              💾 Emplacement de la base
             </h2>
-            {showDatabaseSection ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-          </div>
-
-          {showDatabaseSection && (
-            <div style={{ marginTop: '20px' }}>
+            
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
+              Configuration globale partagée par tous les utilisateurs.
+            </p>
+            
+            <div>
               <div style={{
                 background: 'var(--surface)',
                 padding: '16px',
@@ -2226,7 +2214,7 @@ export default function Settings() {
                 )}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Section Danger Zone */}
