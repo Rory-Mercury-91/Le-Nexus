@@ -277,9 +277,10 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
       refererUrl = 'https://lewdcorner.com/';
     }
 
-    // Pour F95Zone, utiliser net.request (Chromium) au lieu de node-fetch
-    if (imageUrl.includes('f95zone')) {
-      console.log(`🌐 Utilisation de Electron.net pour F95Zone`);
+    // Pour F95Zone et LewdCorner, utiliser net.request (Chromium) au lieu de node-fetch
+    if (imageUrl.includes('f95zone') || imageUrl.includes('lewdcorner')) {
+      const siteName = imageUrl.includes('f95zone') ? 'F95Zone' : 'LewdCorner';
+      console.log(`🌐 Utilisation de Electron.net pour ${siteName}`);
       return await downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl);
     }
 

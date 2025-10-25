@@ -369,10 +369,22 @@ function initDatabase(dbPath) {
   // Migration: Corriger CHECK constraint pour statut_visionnage (remplacer "En attente" par "À regarder")
   const migrateAnimeStatutCheck = () => {
     try {
-      // Vérifier si la table existe
-      const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='anime_statut_utilisateur'").get();
+      // Vérifier si des entrées avec "En attente" existent (indique que la migration n'a pas été faite)
+      const hasEnAttente = db.prepare("SELECT COUNT(*) as count FROM anime_statut_utilisateur WHERE statut_visionnage = 'En attente'").get();
       
-      if (tableExists) {
+      // Vérifier aussi si on peut insérer "À regarder" (si échec CHECK, migration nécessaire)
+      let needsMigration = false;
+      try {
+        db.exec("INSERT INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage) VALUES (-999, 'test', 'À regarder')");
+        // Si ça marche, supprimer l'entrée de test
+        db.exec("DELETE FROM anime_statut_utilisateur WHERE anime_id = -999 AND utilisateur = 'test'");
+      } catch (checkError) {
+        if (checkError.message.includes('CHECK constraint')) {
+          needsMigration = true;
+        }
+      }
+      
+      if (needsMigration || (hasEnAttente && hasEnAttente.count > 0)) {
         console.log('🔄 Migration: Mise à jour contrainte CHECK statut_visionnage...');
         
         // Désactiver temporairement les foreign keys
@@ -412,9 +424,11 @@ function initDatabase(dbPath) {
         db.exec('PRAGMA foreign_keys = ON;');
         
         console.log('✅ Migration: Contrainte CHECK statut_visionnage mise à jour ("En attente" → "À regarder")');
+      } else {
+        console.log('ℹ️ Migration anime_statut_utilisateur déjà appliquée');
       }
     } catch (error) {
-      console.warn('⚠️ Migration anime_statut_utilisateur CHECK déjà appliquée ou erreur:', error.message);
+      console.warn('⚠️ Erreur migration anime_statut_utilisateur:', error.message);
       try {
         db.exec('ROLLBACK;');
         db.exec('PRAGMA foreign_keys = ON;');

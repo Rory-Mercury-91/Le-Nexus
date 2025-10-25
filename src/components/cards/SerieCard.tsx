@@ -298,26 +298,26 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           }}
           style={{
             position: 'absolute',
-            bottom: '12px',
-            left: '12px',
-            width: '36px',
-            height: '36px',
+            top: '8px',
+            right: '8px',
+            width: '32px',
+            height: '32px',
             borderRadius: '8px',
-            background: 'rgba(0, 0, 0, 0.6)',
+            background: 'rgba(0, 0, 0, 0.7)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            opacity: 0,
+            opacity: 1,
             transition: 'all 0.2s',
             zIndex: 10
           }}
           className="tag-btn"
         >
-          <MoreVertical size={18} />
+          <MoreVertical size={16} />
         </button>
 
         {/* Dropdown de tags */}
@@ -442,11 +442,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </div>
         )}
 
-        <style>{`
-          .card:hover .tag-btn {
-            opacity: 1;
-          }
-        `}</style>
       </Link>
     );
   }
@@ -591,26 +586,26 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           }}
           style={{
             position: 'absolute',
-            bottom: '12px',
-            left: '12px',
-            width: '36px',
-            height: '36px',
+            top: '8px',
+            right: '8px',
+            width: '32px',
+            height: '32px',
             borderRadius: '8px',
-            background: 'rgba(0, 0, 0, 0.6)',
+            background: 'rgba(0, 0, 0, 0.7)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            opacity: 0,
+            opacity: 1,
             transition: 'all 0.2s',
             zIndex: 10
           }}
           className="tag-btn"
         >
-          <MoreVertical size={18} />
+          <MoreVertical size={16} />
         </button>
 
         {/* Dropdown de tags */}
@@ -831,11 +826,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
         </div>
       </div>
 
-      <style>{`
-        .card:hover .tag-btn {
-          opacity: 1;
-        }
-      `}</style>
       </Link>
       
       <ConfirmDialog />
