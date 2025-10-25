@@ -1,13 +1,6 @@
-import { BookOpen, Eye, Heart, Tv } from 'lucide-react';
+import { Eye, Heart, Tv } from 'lucide-react';
 import { AnimeSerie } from '../../types';
 import CoverImage from '../common/CoverImage';
-
-const TAG_CONFIG = {
-  a_regarder: { icon: BookOpen, label: 'À regarder', color: '#3b82f6' },
-  en_cours: { icon: Eye, label: 'En cours', color: '#f59e0b' },
-  termine: { icon: BookOpen, label: 'Terminé', color: '#10b981' },
-  abandonne: { icon: BookOpen, label: 'Abandonné', color: '#6b7280' }
-};
 
 interface AnimeCardProps {
   anime: AnimeSerie;
@@ -18,45 +11,8 @@ interface AnimeCardProps {
 }
 
 export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', presentationMode = false, imageOnly = false }: AnimeCardProps) {
-  const TagIcon = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].icon : null;
-  const tagColor = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].color : null;
-  const tagLabel = anime.tag && TAG_CONFIG[anime.tag] ? TAG_CONFIG[anime.tag].label : null;
-
   const cardHeight = imageOnly ? '300px' : (presentationMode ? '560px' : '420px');
   const coverHeight = imageOnly ? '300px' : (presentationMode ? '420px' : '280px');
-
-  const getStatusLabel = (status: string) => {
-    const statusMap: Record<string, string> = {
-      'watching': 'En cours',
-      'completed': 'Terminé',
-      'on_hold': 'En pause',
-      'dropped': 'Abandonné',
-      'plan_to_watch': 'Prévu'
-    };
-    return statusMap[status] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    const colorMap: Record<string, string> = {
-      'watching': '#3b82f6',
-      'completed': '#10b981',
-      'on_hold': '#f59e0b',
-      'dropped': '#ef4444',
-      'plan_to_watch': '#6366f1'
-    };
-    return colorMap[status] || '#6b7280';
-  };
-
-  const getTypeLabel = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'TV': 'TV',
-      'Movie': 'Film',
-      'OVA': 'OVA',
-      'ONA': 'ONA',
-      'Special': 'Spécial'
-    };
-    return typeMap[type] || type;
-  };
 
   // Mode images uniquement : afficher seulement la couverture avec bannières et badge favori
   if (imageOnly) {
@@ -236,23 +192,6 @@ export default function AnimeCard({ anime, onClick, imageObjectFit = 'cover', pr
             <Tv size={48} style={{ color: 'var(--text-secondary)', opacity: 0.3 }} />
           </div>
         )}
-
-
-        {/* Badge Statut */}
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          right: '10px',
-          background: getStatusColor(anime.statut),
-          color: 'white',
-          padding: '4px 10px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          fontWeight: '600',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-        }}>
-          {getStatusLabel(anime.statut)}
-        </div>
 
         {/* Bannières diagonales pour les tags En cours / Terminé / Abandonné */}
         {(() => {
