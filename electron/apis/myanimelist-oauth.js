@@ -6,8 +6,14 @@
 const { shell } = require('electron');
 const http = require('http');
 const crypto = require('crypto');
-const pkceChallenge = require('pkce-challenge');
 const fetch = require('node-fetch');
+
+// Fonction pour générer PKCE challenge (alternative à pkce-challenge)
+function generatePKCEChallenge() {
+  const code_verifier = crypto.randomBytes(32).toString('base64url');
+  const code_challenge = crypto.createHash('sha256').update(code_verifier).digest('base64url');
+  return { code_verifier, code_challenge };
+}
 
 // Configuration OAuth MAL
 const MAL_CLIENT_ID = 'c1f6aa24be1077253e08321e39488a08'; // Client ID public de l'app
@@ -23,9 +29,7 @@ const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
  */
 function startOAuthFlow(onSuccess, onError) {
   // Générer le challenge PKCE
-  const challenge = pkceChallenge();
-  const code_verifier = challenge.code_verifier;
-  const code_challenge = challenge.code_challenge;
+  const { code_verifier, code_challenge } = generatePKCEChallenge();
   
   // State pour prévenir CSRF
   const state = crypto.randomBytes(16).toString('hex');
