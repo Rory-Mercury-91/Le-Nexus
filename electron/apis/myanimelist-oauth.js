@@ -139,6 +139,12 @@ function startOAuthFlow(onSuccess, onError) {
     authUrl.searchParams.set('code_challenge_method', 'S256');
     
     // Ouvrir le navigateur pour autorisation
+    // Note: shell.openExternal ouvre dans le navigateur par défaut
+    // Pour éviter les conflits de cookies, l'utilisateur devrait utiliser la navigation privée
+    console.log('📋 URL d\'autorisation OAuth:');
+    console.log(authUrl.toString());
+    console.log('💡 Si vous avez des problèmes (erreur 401), copiez cette URL et ouvrez-la en navigation privée');
+    
     shell.openExternal(authUrl.toString());
   });
   
