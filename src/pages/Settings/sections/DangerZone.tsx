@@ -8,17 +8,29 @@ interface DangerZoneProps {
 export default function DangerZone({ onDeleteUserData, onDeleteAllData }: DangerZoneProps) {
   return (
     <div style={{ marginBottom: '30px' }}>
-      <div className="settings-section" style={{
+      <details style={{
         border: '1px solid var(--error)',
-        background: 'rgba(239, 68, 68, 0.05)'
+        background: 'rgba(239, 68, 68, 0.05)',
+        borderRadius: '12px',
+        padding: '0'
       }}>
-        <div className="settings-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.2)' }}>
-          <h2 className="settings-title" style={{ color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={20} />
-            Zone dangereuse
-          </h2>
-        </div>
-        <div className="settings-content">
+        <summary style={{
+          padding: '20px',
+          cursor: 'pointer',
+          listStyle: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: 'var(--error)',
+          fontSize: '18px',
+          fontWeight: '700',
+          userSelect: 'none'
+        }}>
+          <AlertTriangle size={20} />
+          Zone dangereuse
+          <span style={{ marginLeft: 'auto', fontSize: '14px', opacity: 0.6 }}>▼ Cliquez pour afficher</span>
+        </summary>
+        <div style={{ padding: '0 20px 20px 20px', borderTop: '1px solid rgba(239, 68, 68, 0.2)' }}>
           <div style={{
         marginBottom: '16px',
         padding: '12px',
@@ -72,7 +84,7 @@ export default function DangerZone({ onDeleteUserData, onDeleteAllData }: Danger
         </button>
       </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

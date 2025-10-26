@@ -9,6 +9,7 @@ import DangerZone from './sections/DangerZone';
 import DatabaseSettings from './sections/DatabaseSettings';
 import MALSettings from './sections/MALSettings';
 import NotificationSettings from './sections/NotificationSettings';
+import PlatformConnectionsSettings from './sections/PlatformConnectionsSettings';
 import TampermonkeySettings from './sections/TampermonkeySettings';
 import UserManagement from './sections/UserManagement';
 
@@ -580,16 +581,19 @@ export default function Settings() {
           ⚙️ Paramètres
         </h1>
 
-        {/* Gestion des utilisateurs */}
-        <UserManagement
-          users={users}
-          userAvatars={userAvatars}
-          onUsersChange={loadSettings}
-          showToast={showToast}
-          confirm={confirm}
-        />
+        {/* Grid 2 colonnes : Gestion utilisateurs | Scripts Tampermonkey */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px' }}>
+          <UserManagement
+            users={users}
+            userAvatars={userAvatars}
+            onUsersChange={loadSettings}
+            showToast={showToast}
+            confirm={confirm}
+          />
+          <TampermonkeySettings showToast={showToast} />
+        </div>
 
-        {/* Apparence et comportement */}
+        {/* Apparence, comportement et notifications (pleine largeur) */}
         <AppearanceSettings
           theme={theme}
           autoLaunch={autoLaunch}
@@ -598,17 +602,18 @@ export default function Settings() {
           onAutoLaunchChange={handleAutoLaunchChange}
           onContentPrefChange={handleContentPrefChange}
         />
+        <NotificationSettings />
 
-        {/* Scripts Tampermonkey */}
-        <TampermonkeySettings showToast={showToast} />
+        {/* Grid 2 colonnes : Intelligence Artificielle | Connexions plateformes */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px' }}>
+          <AISettings
+            groqApiKey={groqApiKey}
+            onGroqApiKeyChange={handleGroqApiKeyChange}
+          />
+          <PlatformConnectionsSettings />
+        </div>
 
-        {/* Section Intelligence Artificielle */}
-        <AISettings
-          groqApiKey={groqApiKey}
-          onGroqApiKeyChange={handleGroqApiKeyChange}
-        />
-
-        {/* Import & Synchronisation MyAnimeList */}
+        {/* Import & Synchronisation MyAnimeList (pleine largeur) */}
         <MALSettings
           malConnected={malConnected}
           malUser={malUser}
@@ -633,10 +638,10 @@ export default function Settings() {
           onAnimeImageSourceChange={handleAnimeImageSourceChange}
         />
 
-        {/* AVN - Vérification automatique */}
+        {/* AVN - Gestion automatique (pleine largeur) */}
         <AVNSettings />
 
-        {/* Emplacement de la base de données */}
+        {/* Emplacement de la base de données (pleine largeur) */}
         <DatabaseSettings
           baseDirectory={baseDirectory}
           exporting={exporting}
@@ -649,10 +654,7 @@ export default function Settings() {
           onImport={handleImport}
         />
 
-        {/* Notifications desktop */}
-        <NotificationSettings />
-
-        {/* Section Danger Zone */}
+        {/* Section Danger Zone (pleine largeur, pliée par défaut) */}
         <DangerZone
           onDeleteUserData={handleDeleteUserData}
           onDeleteAllData={handleDeleteAllData}
