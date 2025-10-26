@@ -653,7 +653,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       const deleteLectureTomes = db.prepare('DELETE FROM lecture_tomes WHERE utilisateur = ?');
       const resultTomes = deleteLectureTomes.run(userName);
 
-      const deleteLectureEpisodes = db.prepare('DELETE FROM lecture_episodes WHERE utilisateur = ?');
+      const deleteLectureEpisodes = db.prepare('DELETE FROM anime_episodes_vus WHERE utilisateur = ?');
       const resultEpisodes = deleteLectureEpisodes.run(userName);
 
 

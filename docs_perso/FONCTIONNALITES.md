@@ -129,6 +129,25 @@
 - Par favori uniquement
 - Combinaisons multiples
 
+### Système de tri
+
+**Options de tri disponibles** :
+- 📖 **Titre (A → Z)** : Tri alphabétique croissant
+- 📖 **Titre (Z → A)** : Tri alphabétique décroissant
+- 🆕 **Ajout récent** : Plus récents en premier (par `created_at`)
+- 🕐 **Ajout ancien** : Plus anciens en premier (par `created_at`)
+
+**Fonctionnement** :
+- Dropdown de sélection dans la barre de filtres
+- Tri appliqué en temps réel
+- Compatible avec tous les filtres actifs
+- Réinitialisation à "Titre (A → Z)" à chaque rechargement
+
+**Disponibilité** :
+- ✅ Collection Mangas
+- ✅ Collection Animés
+- ✅ Collection AVN
+
 ### Vues collection
 
 **Grille (Grid)** :
@@ -140,7 +159,6 @@
 **Liste (List)** :
 - Vue verticale compacte
 - Miniatures + progression inline
-- Tri par titre, date ajout, progression
 - Affichage dense pour grandes collections
 - Idéal pour scan rapide
 
@@ -690,6 +708,9 @@
 - Gap 12px entre émoji et texte
 - Alignement vertical centré
 - Police 32px, bold 700
+- Icône Dashboard : 🏠 (identique sidebar)
+- Tous les boutons d'action en bleu primaire (`#6366f1`)
+- Cohérence visuelle totale interface
 
 ### Recherche globale
 
