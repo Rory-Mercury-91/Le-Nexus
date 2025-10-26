@@ -1,7 +1,9 @@
-import { LogIn, LogOut, RefreshCw } from 'lucide-react';
+import { LogIn, LogOut, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../hooks/useToast';
 
 export default function AVNSettings() {
+  const { showToast, ToastContainer } = useToast();
   const [checking, setChecking] = useState(false);
   const [platformMessage, setPlatformMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [avnMessage, setAvnMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -15,10 +17,23 @@ export default function AVNSettings() {
   const [f95zoneConnected, setF95zoneConnected] = useState(false);
   const [checkingF95zone, setCheckingF95zone] = useState(true);
   const [connectingF95zone, setConnectingF95zone] = useState(false);
+  
+  // États pour la synchronisation des traductions
+  const [tradConfig, setTradConfig] = useState({
+    enabled: false,
+    traducteurs: [] as string[],
+    sheetUrl: '',
+    syncFrequency: '6h' as '6h' | '12h' | 'daily' | 'manual',
+    lastSync: null as string | null,
+    gamesCount: 0
+  });
+  const [syncing, setSyncing] = useState(false);
+  const [newTraducteur, setNewTraducteur] = useState('');
 
   // Vérifier les sessions au chargement
   useEffect(() => {
     checkSessions();
+    loadTradConfig();
   }, []);
 
   const checkSessions = async () => {
@@ -176,6 +191,132 @@ export default function AVNSettings() {
     } finally {
       setChecking(false);
     }
+  };
+
+  // ========== FONCTIONS TRADUCTIONS ==========
+
+  const loadTradConfig = async () => {
+    try {
+      const config = await window.electronAPI.getTraductionConfig();
+      setTradConfig(config);
+    } catch (error) {
+      console.error('Erreur chargement config traductions:', error);
+    }
+  };
+
+  const handleSaveTradConfig = async () => {
+    try {
+      const result = await window.electronAPI.saveTraductionConfig(tradConfig);
+      if (result.success) {
+        showToast({
+          title: 'Configuration sauvegardée',
+          description: 'La configuration des traductions a été mise à jour',
+          type: 'success'
+        });
+      } else {
+        showToast({
+          title: 'Erreur',
+          description: result.error || 'Erreur lors de la sauvegarde',
+          type: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: 'Erreur',
+        description: error.message,
+        type: 'error'
+      });
+    }
+  };
+
+  const handleSyncTraductions = async () => {
+    if (tradConfig.traducteurs.length === 0) {
+      showToast({
+        title: 'Aucun traducteur',
+        description: 'Veuillez ajouter au moins un traducteur à suivre',
+        type: 'error'
+      });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const result = await window.electronAPI.syncTraductionsNow();
+      if (result.success) {
+        showToast({
+          title: 'Synchronisation terminée',
+          description: `${result.matched || 0} jeu(x) synchronisé(s), ${result.updated || 0} mis à jour`,
+          type: 'success'
+        });
+        // Recharger la config pour avoir les nouvelles données
+        await loadTradConfig();
+      } else {
+        showToast({
+          title: 'Erreur',
+          description: result.error || result.message || 'Erreur lors de la synchronisation',
+          type: 'error'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        title: 'Erreur',
+        description: error.message,
+        type: 'error'
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleAddTraducteur = () => {
+    if (!newTraducteur.trim()) {
+      showToast({
+        title: 'Champ vide',
+        description: 'Veuillez entrer un nom de traducteur',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (tradConfig.traducteurs.includes(newTraducteur.trim())) {
+      showToast({
+        title: 'Déjà ajouté',
+        description: 'Ce traducteur est déjà dans la liste',
+        type: 'error'
+      });
+      return;
+    }
+
+    setTradConfig({
+      ...tradConfig,
+      traducteurs: [...tradConfig.traducteurs, newTraducteur.trim()]
+    });
+    setNewTraducteur('');
+  };
+
+  const handleRemoveTraducteur = (trad: string) => {
+    setTradConfig({
+      ...tradConfig,
+      traducteurs: tradConfig.traducteurs.filter(t => t !== trad)
+    });
+  };
+
+  const formatLastSync = (lastSync: string | null) => {
+    if (!lastSync) return 'Jamais';
+    
+    const date = new Date(lastSync);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `Il y a ${diffDays}j`;
   };
 
   const renderPlatformCard = (
@@ -481,6 +622,272 @@ export default function AVNSettings() {
         </div>
       </details>
         </div>
+      </div>
+
+      {/* Section Synchronisation Traductions FR */}
+      <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
+        {ToastContainer}
+        
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          🇫🇷 Synchronisation Traductions
+        </h2>
+
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
+          Synchronisez automatiquement les traductions françaises de vos jeux AVN depuis la base collaborative Google Sheets.
+        </p>
+
+        {/* Configuration */}
+        <div style={{
+          padding: '16px',
+          background: 'var(--surface)',
+          borderRadius: '8px',
+          border: '1px solid var(--border)',
+          marginBottom: '16px'
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            cursor: 'pointer',
+            marginBottom: '16px'
+          }}>
+            <input
+              type="checkbox"
+              checked={tradConfig.enabled}
+              onChange={(e) => setTradConfig({ ...tradConfig, enabled: e.target.checked })}
+              style={{
+                width: '20px',
+                height: '20px',
+                cursor: 'pointer'
+              }}
+            />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>
+              Activer la synchronisation automatique
+            </span>
+          </label>
+
+          {/* Fréquence */}
+          {tradConfig.enabled && (
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '600',
+                marginBottom: '6px',
+                color: 'var(--text-secondary)'
+              }}>
+                Fréquence de synchronisation
+              </label>
+              <select
+                className="select"
+                value={tradConfig.syncFrequency}
+                onChange={(e) => setTradConfig({ ...tradConfig, syncFrequency: e.target.value as any })}
+                style={{ width: '100%' }}
+              >
+                <option value="6h">Toutes les 6 heures</option>
+                <option value="12h">Toutes les 12 heures</option>
+                <option value="daily">Une fois par jour</option>
+                <option value="manual">Manuel uniquement</option>
+              </select>
+            </div>
+          )}
+
+          {/* Traducteurs à suivre */}
+          <div>
+            <label style={{
+              display: 'block',
+              fontSize: '12px',
+              fontWeight: '600',
+              marginBottom: '8px',
+              color: 'var(--text-secondary)'
+            }}>
+              Traducteurs à suivre
+            </label>
+
+            {/* Liste des traducteurs */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+              {tradConfig.traducteurs.map((trad, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    background: 'var(--primary)',
+                    color: 'white',
+                    borderRadius: '16px',
+                    fontSize: '13px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {trad}
+                  <button
+                    onClick={() => handleRemoveTraducteur(trad)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      padding: '0',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              
+              {tradConfig.traducteurs.length === 0 && (
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  Aucun traducteur ajouté
+                </p>
+              )}
+            </div>
+
+            {/* Ajouter un traducteur */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="Ex: Rory-Mercury91"
+                value={newTraducteur}
+                onChange={(e) => setNewTraducteur(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddTraducteur()}
+                className="input"
+                style={{ flex: 1, fontSize: '13px' }}
+              />
+              <button
+                onClick={handleAddTraducteur}
+                className="btn btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+              >
+                <Plus size={16} />
+                Ajouter
+              </button>
+            </div>
+          </div>
+
+          <p style={{
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            marginTop: '12px',
+            lineHeight: '1.5'
+          }}>
+            💡 Seules les traductions des traducteurs sélectionnés seront synchronisées (évite d'importer les 1924 jeux du sheet).
+          </p>
+        </div>
+
+        {/* Statistiques */}
+        {tradConfig.traducteurs.length > 0 && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '12px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              padding: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
+                {tradConfig.traducteurs.length}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Traducteur(s)
+              </div>
+            </div>
+
+            <div style={{
+              padding: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--primary)', marginBottom: '4px' }}>
+                {tradConfig.gamesCount}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Jeu(x) synchronisé(s)
+              </div>
+            </div>
+
+            <div style={{
+              padding: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text)', marginBottom: '4px' }}>
+                {formatLastSync(tradConfig.lastSync)}
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                Dernière sync
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Boutons d'action */}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={handleSaveTradConfig}
+            className="btn btn-primary"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            💾 Sauvegarder la configuration
+          </button>
+
+          <button
+            onClick={handleSyncTraductions}
+            disabled={syncing || tradConfig.traducteurs.length === 0}
+            className="btn btn-primary"
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              opacity: (syncing || tradConfig.traducteurs.length === 0) ? 0.6 : 1
+            }}
+          >
+            <RefreshCw size={18} className={syncing ? 'spin' : ''} />
+            {syncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
+          </button>
+        </div>
+
+        <details style={{ marginTop: '16px' }}>
+          <summary style={{
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: 'var(--text-secondary)',
+            padding: '8px',
+            borderRadius: '6px',
+            transition: 'background 0.2s'
+          }}>
+            ℹ️ Comment ça fonctionne ?
+          </summary>
+          <div style={{
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            padding: '12px',
+            background: 'var(--surface)',
+            borderRadius: '8px',
+            marginTop: '8px',
+            lineHeight: '1.6'
+          }}>
+            L'application récupère automatiquement les traductions françaises depuis le Google Sheet collaboratif et les associe à vos jeux AVN par leur ID F95Zone. Seules les traductions de VOS pseudos traducteurs sont importées, évitant ainsi de charger les 1924 jeux du tableur. Un badge 🇫🇷 s'affiche sur les jeux traduits avec un lien direct de téléchargement.
+          </div>
+        </details>
       </div>
     </>
   );

@@ -84,6 +84,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveNotificationConfig: (config) => ipcRenderer.invoke('save-notification-config', config),
   checkNotificationsNow: () => ipcRenderer.invoke('check-notifications-now'),
   
+  // Synchronisation traductions
+  getTraductionConfig: () => ipcRenderer.invoke('get-traduction-config'),
+  saveTraductionConfig: (config) => ipcRenderer.invoke('save-traduction-config', config),
+  syncTraductionsNow: () => ipcRenderer.invoke('sync-traductions-now'),
+  updateTraductionManually: (gameId, tradData) => ipcRenderer.invoke('update-traduction-manually', gameId, tradData),
+  clearTraduction: (gameId) => ipcRenderer.invoke('clear-traduction', gameId),
+  
   onMalSyncProgress: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-progress', subscription);

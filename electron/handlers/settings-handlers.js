@@ -1036,6 +1036,98 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   
   // Appeler l'initialisation
   setTimeout(initNotificationScheduler, 3000); // Attendre après le backup scheduler
+
+  // ========== SYNCHRONISATION TRADUCTIONS ==========
+  
+  const traductionSync = require('../services/traduction-sync');
+  
+  // Récupérer la configuration des traducteurs
+  ipcMain.handle('get-traduction-config', () => {
+    const config = store.get('traductionConfig', {
+      enabled: false,
+      traducteurs: ['Rory-Mercury91'], // Par défaut
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs/export?format=csv&gid=1224125898',
+      syncFrequency: '6h', // '6h', '12h', 'daily', 'manual'
+      lastSync: null,
+      gamesCount: 0
+    });
+    return config;
+  });
+  
+  // Sauvegarder la configuration des traducteurs
+  ipcMain.handle('save-traduction-config', async (event, config) => {
+    try {
+      store.set('traductionConfig', config);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde config traductions:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Synchroniser les traductions maintenant
+  ipcMain.handle('sync-traductions-now', async () => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      
+      const config = store.get('traductionConfig', { traducteurs: [] });
+      
+      if (!config.traducteurs || config.traducteurs.length === 0) {
+        return { success: false, error: 'Aucun traducteur configuré' };
+      }
+      
+      const result = await traductionSync.syncTraductions(
+        db,
+        config.traducteurs,
+        config.sheetUrl
+      );
+      
+      // Mettre à jour la config avec la date de sync
+      if (result.success) {
+        config.lastSync = new Date().toISOString();
+        config.gamesCount = result.matched || 0;
+        store.set('traductionConfig', config);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Erreur sync traductions:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Mettre à jour manuellement une traduction
+  ipcMain.handle('update-traduction-manually', async (event, gameId, tradData) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      
+      return traductionSync.updateTraductionManually(db, gameId, tradData);
+    } catch (error) {
+      console.error('Erreur update traduction manuelle:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Réinitialiser une traduction
+  ipcMain.handle('clear-traduction', async (event, gameId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      
+      return traductionSync.clearTraduction(db, gameId);
+    } catch (error) {
+      console.error('Erreur clear traduction:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 module.exports = { registerSettingsHandlers };

@@ -420,6 +420,13 @@ declare global {
       saveNotificationConfig: (config: { enabled: boolean; checkAnimes: boolean; checkAvn: boolean; frequency: '6h' | '12h' | 'daily' | 'manual'; soundEnabled: boolean; checkOnStartup: boolean }) => Promise<{ success: boolean; error?: string }>;
       checkNotificationsNow: () => Promise<{ success: boolean; count?: number; error?: string }>;
       
+      // Synchronisation traductions
+      getTraductionConfig: () => Promise<{ enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync: string | null; gamesCount: number }>;
+      saveTraductionConfig: (config: { enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync?: string | null; gamesCount?: number }) => Promise<{ success: boolean; error?: string }>;
+      syncTraductionsNow: () => Promise<{ success: boolean; matched?: number; updated?: number; notFound?: number; total?: number; error?: string; message?: string }>;
+      updateTraductionManually: (gameId: number, tradData: { disponible: boolean; versionTraduite?: string; lienTraduction?: string; statut?: string; typeTraduction?: string; traducteur?: string }) => Promise<{ success: boolean; error?: string }>;
+      clearTraduction: (gameId: number) => Promise<{ success: boolean; error?: string }>;
+      
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
