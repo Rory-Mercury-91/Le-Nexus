@@ -975,6 +975,64 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       return { success: false, error: error.message };
     }
   });
+
+  // ========== LIENS DE STREAMING ==========
+  
+  const streamingLinks = require('../services/streaming-links');
+  
+  /**
+   * Récupérer les liens de streaming (AniList + manuels)
+   */
+  ipcMain.handle('get-streaming-links', async (event, animeId, malId) => {
+    try {
+      const db = getDb();
+      
+      // Récupérer les liens AniList
+      let anilistLinks = [];
+      if (malId) {
+        anilistLinks = await streamingLinks.getStreamingLinksFromAniList(malId);
+      }
+      
+      // Récupérer les liens manuels
+      const manualLinks = streamingLinks.getManualLinks(db, animeId);
+      
+      // Combiner les deux
+      const allLinks = [...anilistLinks, ...manualLinks];
+      
+      return { success: true, links: allLinks };
+    } catch (error) {
+      console.error('❌ Erreur get-streaming-links:', error);
+      return { success: false, error: error.message, links: [] };
+    }
+  });
+  
+  /**
+   * Ajouter un lien de streaming manuel
+   */
+  ipcMain.handle('add-streaming-link', async (event, animeId, linkData) => {
+    try {
+      const db = getDb();
+      const result = streamingLinks.addManualLink(db, animeId, linkData);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur add-streaming-link:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  /**
+   * Supprimer un lien de streaming manuel
+   */
+  ipcMain.handle('delete-streaming-link', async (event, linkId) => {
+    try {
+      const db = getDb();
+      const result = streamingLinks.deleteManualLink(db, linkId);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur delete-streaming-link:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 module.exports = { registerAnimeHandlers };

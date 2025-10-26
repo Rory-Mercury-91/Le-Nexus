@@ -971,6 +971,71 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   
   // Appeler l'initialisation
   setTimeout(initBackupScheduler, 2000); // Attendre que tout soit chargé
+
+  // ========== NOTIFICATIONS ==========
+  
+  const notificationScheduler = require('../services/notification-scheduler');
+  
+  // Récupérer la configuration des notifications
+  ipcMain.handle('get-notification-config', () => {
+    const config = store.get('notificationConfig', {
+      enabled: false,
+      checkAnimes: true,
+      checkAvn: true,
+      frequency: '12h', // '6h', '12h', 'daily', 'manual'
+      soundEnabled: true,
+      checkOnStartup: false
+    });
+    return config;
+  });
+  
+  // Sauvegarder la configuration des notifications
+  ipcMain.handle('save-notification-config', async (event, config) => {
+    try {
+      store.set('notificationConfig', config);
+      
+      // Réinitialiser le scheduler avec la nouvelle config
+      const db = getDb();
+      if (db) {
+        notificationScheduler.init(config, db, store);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde config notifications:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Vérifier manuellement les mises à jour
+  ipcMain.handle('check-notifications-now', async () => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      
+      const result = await notificationScheduler.checkForUpdates();
+      return result;
+    } catch (error) {
+      console.error('Erreur vérification manuelle notifications:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Initialiser le scheduler de notifications au démarrage
+  const initNotificationScheduler = () => {
+    const config = store.get('notificationConfig', { enabled: false });
+    if (config && config.enabled) {
+      const db = getDb();
+      if (db) {
+        notificationScheduler.init(config, db, store);
+      }
+    }
+  };
+  
+  // Appeler l'initialisation
+  setTimeout(initNotificationScheduler, 3000); // Attendre après le backup scheduler
 }
 
 module.exports = { registerSettingsHandlers };

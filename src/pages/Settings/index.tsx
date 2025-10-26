@@ -8,6 +8,7 @@ import AVNSettings from './sections/AVNSettings';
 import DangerZone from './sections/DangerZone';
 import DatabaseSettings from './sections/DatabaseSettings';
 import MALSettings from './sections/MALSettings';
+import NotificationSettings from './sections/NotificationSettings';
 import TampermonkeySettings from './sections/TampermonkeySettings';
 import UserManagement from './sections/UserManagement';
 
@@ -647,6 +648,9 @@ export default function Settings() {
           onExport={handleExport}
           onImport={handleImport}
         />
+
+        {/* Notifications desktop */}
+        <NotificationSettings />
 
         {/* Section Danger Zone */}
         <DangerZone

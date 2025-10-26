@@ -79,6 +79,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreBackup: (backupPath) => ipcRenderer.invoke('restore-backup', backupPath),
   deleteBackup: (backupPath) => ipcRenderer.invoke('delete-backup', backupPath),
   
+  // Notifications
+  getNotificationConfig: () => ipcRenderer.invoke('get-notification-config'),
+  saveNotificationConfig: (config) => ipcRenderer.invoke('save-notification-config', config),
+  checkNotificationsNow: () => ipcRenderer.invoke('check-notifications-now'),
+  
   onMalSyncProgress: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-progress', subscription);
@@ -199,6 +204,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAnime: (id, animeData) => ipcRenderer.invoke('update-anime', id, animeData),
   deleteUserData: (userName) => ipcRenderer.invoke('delete-user-data', userName),
   deleteAllData: () => ipcRenderer.invoke('delete-all-data'),
+  
+  // Liens de streaming
+  getStreamingLinks: (animeId, malId) => ipcRenderer.invoke('get-streaming-links', animeId, malId),
+  addStreamingLink: (animeId, linkData) => ipcRenderer.invoke('add-streaming-link', animeId, linkData),
+  deleteStreamingLink: (linkId) => ipcRenderer.invoke('delete-streaming-link', linkId),
   
   // Événements d'import depuis Tampermonkey
   onMangaImportStart: (callback) => {

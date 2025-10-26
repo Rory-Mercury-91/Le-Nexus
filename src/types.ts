@@ -415,6 +415,11 @@ declare global {
       restoreBackup: (backupPath: string) => Promise<{ success: boolean; message?: string; error?: string }>;
       deleteBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
       
+      // Notifications
+      getNotificationConfig: () => Promise<{ enabled: boolean; checkAnimes: boolean; checkAvn: boolean; frequency: '6h' | '12h' | 'daily' | 'manual'; soundEnabled: boolean; checkOnStartup: boolean }>;
+      saveNotificationConfig: (config: { enabled: boolean; checkAnimes: boolean; checkAvn: boolean; frequency: '6h' | '12h' | 'daily' | 'manual'; soundEnabled: boolean; checkOnStartup: boolean }) => Promise<{ success: boolean; error?: string }>;
+      checkNotificationsNow: () => Promise<{ success: boolean; count?: number; error?: string }>;
+      
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
@@ -456,6 +461,12 @@ declare global {
       updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
       deleteUserData: (userName: string) => Promise<{ success: boolean }>;
       deleteAllData: () => Promise<{ success: boolean }>;
+      
+      // Liens de streaming
+      getStreamingLinks: (animeId: number, malId?: number) => Promise<{ success: boolean; links: Array<{ source: 'anilist' | 'manual'; platform: string; url: string; language: string; id?: number; color?: string; icon?: string; createdAt?: string }> }>;
+      addStreamingLink: (animeId: number, linkData: { platform: string; url: string; language?: string }) => Promise<{ success: boolean; id?: number; error?: string }>;
+      deleteStreamingLink: (linkId: number) => Promise<{ success: boolean; error?: string }>;
+      
       onMangaImportStart?: (callback: (data: { message: string }) => void) => () => void;
       onMangaImportComplete?: (callback: () => void) => () => void;
       onMangaImported?: (callback: (event: any, data: { id: number; titre: string; tomesCreated: number }) => void) => () => void;
