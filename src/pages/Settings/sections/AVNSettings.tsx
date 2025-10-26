@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useToast } from '../../../hooks/useToast';
 
 export default function AVNSettings() {
-  const { showToast, ToastContainer } = useToast();
+  const { showToast } = useToast();
   const [checking, setChecking] = useState(false);
   const [platformMessage, setPlatformMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [avnMessage, setAvnMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -391,8 +391,6 @@ export default function AVNSettings() {
 
   return (
     <>
-      {ToastContainer}
-      
       {/* Container Grid pour les 2 colonnes */}
       <div style={{ 
         display: 'grid', 

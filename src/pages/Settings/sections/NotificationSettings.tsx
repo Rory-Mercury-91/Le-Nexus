@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useToast } from '../../../hooks/useToast';
 
 export default function NotificationSettings() {
-  const { showToast, ToastContainer } = useToast();
+  const { showToast } = useToast();
   
   const [config, setConfig] = useState({
     enabled: false,
@@ -90,8 +90,6 @@ export default function NotificationSettings() {
 
   return (
     <div>
-      {ToastContainer}
-      
       <h2 className="settings-title">
         <Bell size={20} />
         Notifications

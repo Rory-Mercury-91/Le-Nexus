@@ -573,7 +573,7 @@ export default function Settings() {
   return (
     <div style={{ padding: '40px' }} className="fade-in">
       <ConfirmDialog />
-      <ToastContainer />
+      {ToastContainer}
       
       <div className="container">
         <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '32px' }}>
