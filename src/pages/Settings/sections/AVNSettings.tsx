@@ -790,7 +790,7 @@ export default function AVNSettings() {
             L'application récupère automatiquement les traductions françaises depuis le Google Sheet collaboratif et les associe à vos jeux AVN par leur ID F95Zone. Seules les traductions de VOS pseudos traducteurs sont importées, évitant ainsi de charger les 1924 jeux du tableur. Un badge 🇫🇷 s'affiche sur les jeux traduits avec un lien direct de téléchargement.
           </div>
         </details>
-      </div> {/* Fin card AVN */}
-    </div> {/* Fin container */}
+      </div>
+    </div>
   );
 }
