@@ -1346,14 +1346,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       
       console.log(`✅ Jeu trouvé: ${name}`);
       
-      // 🧪 TEST : Afficher l'URL directement sans télécharger
-      // (pour voir si l'accès fonctionne via la session Electron)
+      // Télécharger l'image et la sauvegarder localement
       let localImage = null;
       if (image) {
-        console.log(`🧪 [TEST] Stockage URL directe (sans téléchargement): ${image}`);
-        localImage = image; // Stocker l'URL directement
-        
-        /* TEMPORAIREMENT DÉSACTIVÉ - TEST AFFICHAGE DIRECT
         try {
           console.log(`📥 Téléchargement de l'image LewdCorner...`);
           const downloadResult = await coverManager.downloadCover(
@@ -1370,11 +1365,16 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             console.log(`✅ Image téléchargée: ${localImage}`);
           } else {
             console.warn(`⚠️ Échec du téléchargement de l'image:`, downloadResult.error);
+            // Fallback : utiliser l'URL directe si le téléchargement échoue
+            localImage = image;
+            console.log(`⚠️ Fallback: utilisation URL directe`);
           }
         } catch (error) {
           console.error(`❌ Erreur téléchargement image:`, error);
+          // Fallback : utiliser l'URL directe si le téléchargement échoue
+          localImage = image;
+          console.log(`⚠️ Fallback: utilisation URL directe`);
         }
-        */
       }
       
       return {

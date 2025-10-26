@@ -16,11 +16,20 @@ function registerLewdCornerHandlers() {
       openLewdCornerLogin(
         (result) => {
           // Recharger la fenêtre principale pour appliquer les cookies
-          const mainWindow = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && w.webContents.getURL().includes('localhost'));
+          // En dev: localhost, en prod: file:// + index.html
+          const mainWindow = BrowserWindow.getAllWindows().find(w => {
+            if (w.isDestroyed()) return false;
+            const url = w.webContents.getURL();
+            return url.includes('localhost') || url.includes('index.html');
+          });
+          
           if (mainWindow) {
             console.log('🔄 Rechargement de la fenêtre principale pour appliquer les cookies...');
             mainWindow.webContents.reload();
+          } else {
+            console.warn('⚠️ Fenêtre principale introuvable pour rechargement');
           }
+          
           resolve(result);
         },
         (error) => reject(error)
