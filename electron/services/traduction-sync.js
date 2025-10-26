@@ -176,6 +176,7 @@ async function syncTraductions(db, traducteurs, sheetUrl) {
     let matched = 0;
     let updated = 0;
     let notFound = 0;
+    let created = 0;
     
     const updateStmt = db.prepare(`
       UPDATE avn_games
@@ -183,12 +184,30 @@ async function syncTraductions(db, traducteurs, sheetUrl) {
         traduction_fr_disponible = 1,
         version_traduite = ?,
         lien_traduction = ?,
-        statut_traduction = ?,
-        type_traduction = ?,
+        statut_trad_fr = ?,
+        type_trad_fr = ?,
         traducteur = ?,
         f95_trad_id = ?,
         derniere_sync_trad = datetime('now')
       WHERE id = ?
+    `);
+    
+    // Préparer la requête d'insertion pour les nouveaux jeux
+    const insertStmt = db.prepare(`
+      INSERT INTO avn_games (
+        f95_thread_id,
+        titre,
+        version,
+        lien_f95,
+        lien_traduction,
+        version_traduite,
+        statut_trad_fr,
+        type_trad_fr,
+        traducteur,
+        f95_trad_id,
+        traduction_fr_disponible,
+        derniere_sync_trad
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
     `);
     
     // Matcher et mettre à jour
@@ -221,17 +240,39 @@ async function syncTraductions(db, traducteurs, sheetUrl) {
         updated++;
         console.log(`✅ Traduction ajoutée: ${game.titre} (v${trad.versionTraduite})`);
       } else {
-        notFound++;
-        console.log(`⚠️ Jeu non trouvé en BDD: ${trad.nom} (F95 ID: ${trad.id})`);
+        // Jeu non trouvé → créer automatiquement
+        const f95Link = `https://f95zone.to/threads/${trad.id}/`;
+        
+        try {
+          insertStmt.run(
+            trad.id,                    // f95_thread_id
+            trad.nom,                   // titre
+            trad.version,               // version du jeu
+            f95Link,                    // lien_f95
+            trad.lienTraduction,        // lien_traduction
+            trad.versionTraduite,       // version_traduite
+            trad.statut,                // statut_trad_fr
+            trad.typeTraduction,        // type_trad_fr
+            trad.traducteur,            // traducteur
+            trad.id                     // f95_trad_id
+          );
+          
+          created++;
+          console.log(`🆕 Jeu créé: ${trad.nom} (F95 ID: ${trad.id}) avec traduction v${trad.versionTraduite}`);
+        } catch (error) {
+          notFound++;
+          console.log(`⚠️ Erreur création jeu: ${trad.nom} (F95 ID: ${trad.id}) - ${error.message}`);
+        }
       }
     }
     
-    console.log(`✅ Synchronisation terminée: ${matched} matchés, ${updated} mis à jour, ${notFound} non trouvés`);
+    console.log(`✅ Synchronisation terminée: ${matched} matchés, ${updated} mis à jour, ${created} créés, ${notFound} erreurs`);
     
     return {
       success: true,
       matched,
       updated,
+      created,
       notFound,
       total: filteredData.length
     };

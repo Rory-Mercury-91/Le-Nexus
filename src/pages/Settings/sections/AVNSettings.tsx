@@ -224,9 +224,14 @@ export default function AVNSettings() {
     try {
       const result = await window.electronAPI.syncTraductionsNow();
       if (result.success) {
+        const parts = [];
+        if (result.matched) parts.push(`${result.matched} synchronisé(s)`);
+        if (result.created) parts.push(`${result.created} créé(s)`);
+        if (result.updated) parts.push(`${result.updated} mis à jour`);
+        
         showToast({
-          title: 'Synchronisation terminée',
-          description: `${result.matched || 0} jeu(x) synchronisé(s), ${result.updated || 0} mis à jour`,
+          title: '✅ Synchronisation terminée',
+          message: parts.length > 0 ? parts.join(', ') : 'Aucun changement',
           type: 'success'
         });
         // Recharger la config pour avoir les nouvelles données
@@ -234,14 +239,14 @@ export default function AVNSettings() {
       } else {
         showToast({
           title: 'Erreur',
-          description: result.error || result.message || 'Erreur lors de la synchronisation',
+          message: result.error || result.message || 'Erreur lors de la synchronisation',
           type: 'error'
         });
       }
     } catch (error: any) {
       showToast({
         title: 'Erreur',
-        description: error.message,
+        message: error.message,
         type: 'error'
       });
     } finally {
