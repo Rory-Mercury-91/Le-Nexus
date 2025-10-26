@@ -395,6 +395,8 @@ declare global {
       malTranslateSynopsis: () => Promise<{ translated: number; skipped: number; total: number; error?: string }>;
       malSetAutoSync: (enabled: boolean, intervalHours?: number) => Promise<{ success: boolean }>;
       malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
+      getAnimeImageSource: () => Promise<'anilist' | 'mal'>;
+      setAnimeImageSource: (source: 'anilist' | 'mal') => Promise<{ success: boolean }>;
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;

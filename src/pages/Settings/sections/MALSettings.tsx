@@ -20,6 +20,7 @@ interface MALSettingsProps {
   animeImportProgress: AnimeImportProgress | null;
   importType: 'xml' | 'mal-sync';
   animeImportResult: AnimeImportResult | null;
+  animeImageSource: 'anilist' | 'mal';
   onMalConnect: () => void;
   onMalDisconnect: () => void;
   onMalSyncNow: () => void;
@@ -27,6 +28,7 @@ interface MALSettingsProps {
   onMalAutoSyncChange: (enabled: boolean) => void;
   onMalIntervalChange: (interval: number) => void;
   onImportAnimeXml: () => void;
+  onAnimeImageSourceChange: (source: 'anilist' | 'mal') => void;
 }
 
 export default function MALSettings({
@@ -42,6 +44,7 @@ export default function MALSettings({
   animeImportProgress,
   importType,
   animeImportResult,
+  animeImageSource,
   onMalConnect,
   onMalDisconnect,
   onMalSyncNow,
@@ -49,6 +52,7 @@ export default function MALSettings({
   onMalAutoSyncChange,
   onMalIntervalChange,
   onImportAnimeXml,
+  onAnimeImageSourceChange,
 }: MALSettingsProps) {
   return (
     <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
@@ -276,6 +280,34 @@ export default function MALSettings({
           </details>
         </>
       )}
+      
+      {/* Choix source d'images anime */}
+      <div style={{
+        marginTop: '24px',
+        padding: '16px',
+        background: 'var(--surface)',
+        borderRadius: '8px',
+        border: '1px solid var(--border)'
+      }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          🖼️ Source des images anime
+        </h3>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.6' }}>
+          Choisissez la source des images lors de l'import d'animes
+        </p>
+        <select
+          value={animeImageSource}
+          onChange={(e) => onAnimeImageSourceChange(e.target.value as 'anilist' | 'mal')}
+          className="select"
+          style={{ width: '100%', maxWidth: '300px' }}
+        >
+          <option value="anilist">AniList (Meilleure qualité - Recommandé)</option>
+          <option value="mal">MyAnimeList</option>
+        </select>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.5' }}>
+          💡 AniList offre généralement des images en meilleure résolution que MyAnimeList
+        </p>
+      </div>
       
       {/* Import XML (toujours disponible) */}
       <div style={{

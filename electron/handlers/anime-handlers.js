@@ -108,15 +108,20 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
       // ⚡ OPTIMISATION : Fetch parallèle Jikan + AniList (gain ~1-1.5s par anime)
       console.log(`🔍 Récupération des données pour MAL ID ${malId}...`);
       
-      const [anime, anilistCover] = await Promise.all([
-        fetchJikanData(malId),
-        fetchAniListCover(malId)
-      ]);
+      // Vérifier la source d'images préférée
+      const imageSource = store.get('animeImageSource', 'anilist');
+      console.log(`📸 Source d'images : ${imageSource}`);
+      
+      const anime = await fetchJikanData(malId);
+      let anilistCover = null;
+      
+      if (imageSource === 'anilist') {
+        anilistCover = await fetchAniListCover(malId);
+      }
 
-      const coverUrl = anilistCover?.coverImage?.extraLarge || 
-                      anilistCover?.coverImage?.large || 
-                      anime.images?.jpg?.large_image_url || 
-                      anime.images?.jpg?.image_url || '';
+      const coverUrl = imageSource === 'anilist' && anilistCover
+                      ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
+                      : (anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '');
 
       // Traduire le synopsis (en parallèle avec le reste du traitement)
       let description = anime.synopsis || '';
@@ -337,14 +342,19 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
           // ⚡ OPTIMISATION : Fetch parallèle Jikan + AniList (gain ~1-1.5s par anime)
           console.log(`📡 Fetch parallèle pour: ${titre} (MAL ${malId})`);
           
-          const [anime, anilistCover] = await Promise.all([
-            fetchJikanData(malId),
-            fetchAniListCover(malId, titre)
-          ]);
+          // Vérifier la source d'images préférée
+          const imageSource = store.get('animeImageSource', 'anilist');
+          
+          const anime = await fetchJikanData(malId);
+          let anilistCover = null;
+          
+          if (imageSource === 'anilist') {
+            anilistCover = await fetchAniListCover(malId, titre);
+          }
 
-          const coverUrl = anilistCover?.coverImage?.extraLarge || 
-                          anilistCover?.coverImage?.large || 
-                          anime.images?.jpg?.large_image_url || '';
+          const coverUrl = imageSource === 'anilist' && anilistCover
+                          ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
+                          : (anime.images?.jpg?.large_image_url || '');
 
           // Traduire le synopsis (en arrière-plan pendant le traitement)
           let description = anime.synopsis || '';

@@ -351,36 +351,87 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             throw new Error('Aucun utilisateur connecté');
           }
 
-          // Insérer dans la base de données
-          const stmt = db.prepare(`
-            INSERT INTO series (
-              titre, statut, type_volume, type_contenu, couverture_url, description,
-              statut_publication, annee_publication, genres, nb_chapitres,
-              langue_originale, demographie, editeur, rating
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
+          // Vérifier si la série existe déjà (par titre exact ou mal_id)
+          let existingSerie = db.prepare('SELECT id, source_donnees FROM series WHERE titre = ?').get(mangaData.titre);
+          
+          let serieId;
+          let isUpdate = false;
 
-          const result = stmt.run(
-            mangaData.titre,
-            mangaData.statut || 'En cours',
-            mangaData.type_volume || 'Broché',
-            mangaData.type_contenu || 'volume',
-            mangaData.couverture_url,
-            mangaData.description,
-            mangaData.statut_publication,
-            mangaData.annee_publication,
-            mangaData.genres,
-            mangaData.nb_chapitres,
-            mangaData.langue_originale,
-            mangaData.demographie,
-            mangaData._editeur || null,
-            mangaData.rating
-          );
+          if (existingSerie) {
+            // ========== MISE À JOUR : Écraser avec données françaises ==========
+            isUpdate = true;
+            serieId = existingSerie.id;
+            
+            console.log(`🔄 Série existante trouvée (ID ${serieId}), écrasement avec données Nautiljon...`);
+            
+            // Déterminer la nouvelle source
+            const newSource = existingSerie.source_donnees && existingSerie.source_donnees.includes('mal')
+                            ? 'mal+nautiljon'
+                            : 'nautiljon';
+            
+            // Écraser TOUTES les données françaises
+            db.prepare(`
+              UPDATE series 
+              SET titre = ?,
+                  type_volume = ?,
+                  type_contenu = ?,
+                  description = ?,
+                  statut_publication = ?,
+                  annee_publication = ?,
+                  genres = ?,
+                  nb_chapitres = ?,
+                  editeur = ?,
+                  rating = ?,
+                  source_donnees = ?,
+                  updated_at = datetime('now')
+              WHERE id = ?
+            `).run(
+              mangaData.titre, // Titre VF
+              mangaData.type_volume || 'Broché',
+              mangaData.type_contenu || 'volume',
+              mangaData.description,
+              mangaData.statut_publication,
+              mangaData.annee_publication, // Année VF
+              mangaData.genres,
+              mangaData.nb_chapitres, // Nb volumes/chapitres VF
+              mangaData._editeur || null, // Éditeur VF
+              mangaData.rating,
+              newSource,
+              serieId
+            );
+            
+            console.log(`✅ Série "${mangaData.titre}" mise à jour avec données Nautiljon (ID ${serieId})`);
+          } else {
+            // ========== CRÉATION : Nouvelle série ==========
+            const stmt = db.prepare(`
+              INSERT INTO series (
+                titre, statut, type_volume, type_contenu, couverture_url, description,
+                statut_publication, annee_publication, genres, nb_chapitres,
+                langue_originale, demographie, editeur, rating, source_donnees
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nautiljon')
+            `);
 
-          const serieId = result.lastInsertRowid;
+            const result = stmt.run(
+              mangaData.titre,
+              mangaData.statut || 'En cours',
+              mangaData.type_volume || 'Broché',
+              mangaData.type_contenu || 'volume',
+              mangaData.couverture_url,
+              mangaData.description,
+              mangaData.statut_publication,
+              mangaData.annee_publication,
+              mangaData.genres,
+              mangaData.nb_chapitres,
+              mangaData.langue_originale,
+              mangaData.demographie,
+              mangaData._editeur || null,
+              mangaData.rating
+            );
 
-          console.log(`✅ Série "${mangaData.titre}" ajoutée avec l'ID ${serieId}`);
+            serieId = result.lastInsertRowid;
+            console.log(`✅ Série "${mangaData.titre}" ajoutée avec l'ID ${serieId}`);
+          }
 
           // Télécharger la couverture de la série en local si une URL est fournie
           if (mangaData.couverture_url && pathManager) {

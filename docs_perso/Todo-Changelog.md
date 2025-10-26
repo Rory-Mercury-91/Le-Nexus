@@ -1,911 +1,1004 @@
-# 📋 TODO LIST & CHANGELOG - Ma Mangathèque
+﻿# ðŸ“‹ TODO LIST & CHANGELOG - Le Nexus
+
+**Version actuelle** : 3.0.0  
+**Date** : 26 octobre 2025  
+**Application** : Le Nexus (anciennement Ma MangathÃ¨que)
 
 ---
 
-## 📜 CHANGELOG
+## ðŸ“š Ã€ PROPOS
 
-### 🎮 **VERSION 2.3.1 - INTÉGRATION F95ZONE & HARMONISATION AVN** (25 octobre 2025)
+**Le Nexus** est une application de gestion complÃ¨te pour vos collections multimÃ©dias :
+- ðŸ“š **Mangas** : SÃ©ries, tomes, progression de lecture
+- ðŸŽ¬ **Animes** : SÃ©ries, Ã©pisodes, films, OVA avec architecture MyAnimeList pure
+- ðŸŽ® **AVN** (Adult Visual Novels) : Jeux F95Zone/LewdCorner avec scraping automatique
 
-#### **✨ Nouveautés majeures**
+### CaractÃ©ristiques principales
 
-1. **🕷️ Scraping direct F95Zone** :
-   - **Abandon de l'API invalide** : Remplacement de l'API Google Apps Script défaillante par du scraping direct
-   - **HTML parsing robuste** : Extraction des données depuis la page web avec regex optimisées
-   - **Support complet des métadonnées** :
-     - Titre, version, statut (Completed/Abandoned/Ongoing)
-     - Moteur (RenPy, RPGM, Unity, Unreal, HTML, Flash, QSP)
-     - Tags complets (3dcg, female protagonist, romance, etc.)
-     - Image de couverture haute résolution
-   - **Décodage HTML entities** : Traitement correct des caractères spéciaux (&#039; → ')
+âœ… **Multi-utilisateurs** avec avatars et couleurs personnalisÃ©es  
+âœ… **Base de donnÃ©es SQLite locale** avec support cloud (Proton Drive, OneDrive, Google Drive)  
+âœ… **Synchronisation MyAnimeList** : OAuth 2.0 + sync auto pÃ©riodique  
+âœ… **Traduction IA** : Groq AI pour synopsis anglais â†’ franÃ§ais  
+âœ… **Import automatique** : Scripts Tampermonkey pour 6 sources  
+âœ… **Scraping F95Zone/LewdCorner** : Extraction automatique donnÃ©es AVN  
+âœ… **Interface moderne** : Dark/Light mode, 4 vues (grille, liste, carrousel 3D, prÃ©sentation)  
+âœ… **Statistiques avancÃ©es** : Graphiques Recharts avec Ã©volution temporelle  
+âœ… **Performance optimisÃ©e** : Import 26 animes/min, anti-gel UI, rate limiting intelligent
 
-2. **🖼️ Téléchargement d'images optimisé** :
-   - **Electron.net.request** : Utilisation du moteur réseau Chromium au lieu de node-fetch
-   - **Contournement CORS** : Headers complets (User-Agent, Referer, Accept) pour F95Zone
-   - **Validation d'images** : Vérification des magic bytes (JPEG, PNG, WEBP, AVIF)
-   - **Stockage local** : Images sauvegardées dans `covers/avn/{slug}/cover.jpg`
-   - **Fallback intelligent** : Utilisation de l'URL distante si le téléchargement local échoue
-   - **Conversion URL automatique** : Suppression de `/thumb/` pour obtenir la pleine résolution
+---
 
-3. **🎨 Harmonisation UI AVN** :
-   - **Style cohérent avec les pages Anime** :
-     - Padding et espacement uniformes
-     - Cartes pour les sections (filtres, statistiques)
-     - Effets hover identiques sur les cartes
-   - **Composant CoverImage** : Support des chemins `avn/` pour chargement local
-   - **Suppression des popups redondantes** :
-     - Plus de popup "Données récupérées" après recherche
-     - Plus de popup "Jeu ajouté" après ajout
-     - Conservation uniquement des alertes d'erreur
+## ðŸ“œ CHANGELOG
 
-#### **🐛 Corrections**
+### ðŸš€ VERSION 3.0.0 - INTÃ‰GRATION LEWDCORNER & REFONTE AVN (26 octobre 2025)
 
-1. **API F95List invalide (404)** :
-   - **Problème** : URL Google Apps Script retournait systématiquement une erreur 404
-   - **Solution** : Scraping direct de `https://f95zone.to/threads/{id}/` avec parsing HTML
-   - **Impact** : Récupération fiable des données pour tous les jeux F95Zone
+#### âœ¨ NouveautÃ©s majeures
 
-2. **Statut mal mappé (EN COURS au lieu de TERMINÉ)** :
-   - **Problème** : Backend envoyait les statuts en français, frontend attendait l'anglais
-   - **Solution** : Statuts renvoyés en anglais ("Completed", "Abandoned", "Ongoing")
-   - **Mapping frontend** : Conversion automatique vers français dans l'interface
+**1. ðŸŒ Authentification LewdCorner**
+- **SystÃ¨me OAuth personnalisÃ©** : FenÃªtre de connexion dÃ©diÃ©e avec session partagÃ©e
+- **Gestion cookies automatique** : Intercepteur webRequest pour injection cookies
+- **VÃ©rification session** : Check automatique au dÃ©marrage des paramÃ¨tres
+- **UI intÃ©grÃ©e** : Section complÃ¨te dans ParamÃ¨tres AVN
+  - Badge statut connexion (âœ… ConnectÃ© / âš ï¸ Non connectÃ©)
+  - Boutons Se connecter / Se dÃ©connecter
+  - Section aide "Pourquoi me connecter ?"
+- **Affichage images LewdCorner** : Fix complet du 403 Forbidden
+- **Reload automatique** : Rechargement fenÃªtre principale aprÃ¨s connexion
 
-3. **Image miniature au lieu de pleine résolution** :
-   - **Problème** : URL avec `/thumb/` donnait une image 100x32 (1.5KB) au lieu de 1280x402 (106KB)
-   - **Solution** : Suppression de `/thumb/` dans l'URL pour obtenir l'image complète
-   - **Résultat** : Couvertures en haute résolution (AVIF, 106KB+)
+**2. ðŸ”„ VÃ©rification MAJ LewdCorner**
+- **Support complet LewdCorner** : VÃ©rif MAJ pour jeux LewdCorner si connectÃ©
+- **DÃ©tection session automatique** : Check cookies au dÃ©but du processus
+- **Exclusion intelligente** : Jeux LewdCorner ignorÃ©s si non connectÃ©
+- **URL dynamique** : F95Zone (95zone.to) ou LewdCorner (lewdcorner.com)
+- **DÃ©lai adaptÃ©** : 1s pour LewdCorner, 500ms pour F95Zone
+- **Message erreur explicite** : "Vous devez Ãªtre connectÃ©" si 403
 
-4. **Erreur ERR_BLOCKED_BY_CLIENT** :
-   - **Problème** : `preview.f95zone.to` bloqué, `node-fetch` retournait buffer vide
-   - **Solution** : 
-     - Utilisation de `attachments.f95zone.to` au lieu de `preview.`
-     - Remplacement de `node-fetch` par `electron.net.request` (moteur Chromium)
-   - **Impact** : Téléchargement fiable des images malgré les protections anti-scraping
+**3. ðŸ–¼ï¸ Protection images locales**
+- **DÃ©tection chemin local** : Ne pas Ã©craser les images dÃ©jÃ  tÃ©lÃ©chargÃ©es
+- **Conservation automatique** : Images locales prÃ©servÃ©es lors des MAJ
+- **Log explicite** : "Image locale conservÃ©e (non Ã©crasÃ©e)"
+- **Formulaire Ã©dition amÃ©liorÃ©** : Accepte chemins locaux (type=text)
+- **Extension automatique** : DÃ©tection magic bytes + ajout extension (.png, .jpg, .webp, .avif)
 
-5. **PathManager undefined** :
-   - **Problème** : `getPathManager()` appelé au lieu de `getPathManager` (fonction vs résultat)
-   - **Solution** : Passage de la fonction getter au lieu de l'exécuter prématurément
-   - **Impact** : Plus d'erreur "Cannot read properties of undefined (reading 'getPaths')"
+**4. ðŸ“¥ Import JSON AVN**
+- **Modal ImportAvnJsonModal** : Interface dÃ©diÃ©e pour import JSON
+- **Support LC Extractor** : Format JSON depuis script Tampermonkey LewdCorner
+- **Support F95 Extractor** : Format JSON depuis script Tampermonkey F95Zone
+- **TÃ©lÃ©chargement images local** : Tentative download avec fallback URL
+- **CrÃ©ation/MAJ automatique** : DÃ©tection doublon par 95_thread_id ou titre
+- **Instructions intÃ©grÃ©es** : Lien vers installation script dans modal
 
-#### **🔄 Améliorations**
+**5. ðŸ‘¤ DonnÃ©es AVN utilisateur-spÃ©cifiques**
+- **Table vn_user_games** : SÃ©pare donnÃ©es globales vs user-specific
+- **Champs utilisateur** :
+  - chemin_executable : Chemin .exe du jeu (par utilisateur)
+  - 
+otes_privees : Notes personnelles privÃ©es
+  - statut_perso : Statut personnel (Ã€ jouer, En cours, ComplÃ©tÃ©, AbandonnÃ©)
+  - derniere_session : Date derniÃ¨re session de jeu
+- **Queries jointes** : JOIN automatique pour rÃ©cupÃ©rer donnÃ©es user
+- **Handlers sÃ©parÃ©s** : Update global vs update user-specific
 
-1. **Parser de titre optimisé** :
-   - Regex identique au script Tampermonkey : `/([\w\\']+)(?=\s-)/gi`
-   - Détection précise du statut et moteur depuis le titre de la page
-   - Extraction du nom du jeu : `/-\s(.*?)\s\[/i`
-   - Extraction de la version : `/\[([^\]]+)\]/gi`
+**6. ðŸ  PrÃ©fÃ©rences de contenu personnalisÃ©es**
+- **Customisation Home Boarding** : Choix contenus affichÃ©s (Mangas, Animes, AVN)
+- **Configuration onboarding** : Ã‰tape dÃ©diÃ©e lors premiÃ¨re configuration
+- **Ã‰dition post-config** : Modifiable depuis ParamÃ¨tres â†’ Apparence
+- **Sidebar dynamique** : Liens navigation affichÃ©s selon prÃ©fÃ©rences
+- **Dashboard adaptatif** : Sections affichÃ©es selon choix utilisateur
+- **Real-time update** : Changements reflÃ©tÃ©s immÃ©diatement sans refresh
+- **Storage electron-store** : Sauvegarde par utilisateur
+- **Event emitter** : Communication changes entre processus
 
-2. **Gestion d'erreurs améliorée** :
-   - Logs détaillés (Content-Type, taille buffer, status HTTP)
-   - Messages d'erreur explicites pour le debugging
-   - Fallback gracieux en cas d'échec de téléchargement
+**7. âš™ï¸ Refonte complÃ¨te ParamÃ¨tres**
+- **Modularisation** : 7 composants sÃ©parÃ©s au lieu d'un fichier monolithique
+  - UserManagement.tsx : Gestion utilisateurs (ajouter, Ã©diter, supprimer)
+  - AppearanceSettings.tsx : ThÃ¨me, auto-launch, prÃ©fÃ©rences contenu
+  - AISettings.tsx : Configuration Groq API
+  - MALSettings.tsx : MyAnimeList OAuth + sync + traduction
+  - AVNSettings.tsx : VÃ©rif MAJ + LewdCorner auth
+  - DatabaseSettings.tsx : Emplacement DB + Import/Export
+  - DangerZone.tsx : Actions destructives
+- **Layout amÃ©liorÃ©** :
+  - Sections pleine largeur pour meilleure lisibilitÃ©
+  - Grid 2 colonnes dans AppearanceSettings (ThÃ¨me+Launch / Contenu)
+  - Sections collapsibles pour "Comment Ã§a fonctionne ?"
+- **Textes clarifiÃ©s** :
+  - "DÃ©marrer automatiquement Le Nexus avec Windows"
+  - "AVN - VÃ©rification automatique" : scraping direct au lieu d'API
+  - "Emplacement de la base de donnÃ©es" : texte simplifiÃ©
 
-3. **Code nettoyé** :
-   - Suppression des `alert()` redondants dans AddAvnModal
-   - Conservation uniquement des alertes d'erreur critiques
-   - Interface plus fluide sans interruptions
+**8. ðŸŽ¨ Renommage application : Le Nexus**
+- **Nom complet** : "Le Nexus" (anciennement "Ma MangathÃ¨que")
+- **Description** : "Application de gestion de collections multimÃ©dias (Mangas, AnimÃ©s, AVN)"
+- **package.json** :
+  - 
+ame: "le-nexus"
+  - productName: "Le Nexus"
+  - ppId: "com.lenexus.app"
+  - uthor: "Le Nexus Team"
+- **UI complÃ¨te** : Tous les textes interface mis Ã  jour
+- **Sidebar** : "Le Nexus" au lieu de "Ma MangathÃ¨que"
+- **Splash screen** : "Bienvenue dans Le Nexus"
+- **Onboarding** : "Bienvenue dans Le Nexus"
+- **Tray** : "Le Nexus" dans tooltip et menu
 
-#### **🛠️ Maintenance**
+**9. ðŸ—ï¸ AmÃ©liorations architecture**
+- **Intercepteur LewdCorner** : electron/apis/lewdcorner-interceptor.js
+- **Auth LewdCorner** : electron/apis/lewdcorner-auth.js
+- **Handlers LewdCorner** : electron/handlers/lewdcorner-handlers.js
+- **Magic bytes detection** : Identification format image automatique
+- **Slug utility** : electron/utils/slug.js pour chemins images
+- **Clear cache script** : scripts/clear-cache.js pour nettoyage
 
-1. **Modules mis à jour** :
-   - `electron/handlers/avn-handlers.js` : Refonte complète du scraping F95Zone
-   - `electron/services/cover-manager.js` : Nouvelle fonction `downloadWithElectronNet()`
-   - `src/components/common/CoverImage.tsx` : Support des chemins `avn/`
-   - `src/pages/AVN.tsx` : Harmonisation du style avec Animes
+#### ðŸ› Corrections
 
-2. **Nouveaux imports** :
-   - `const { net } = require('electron')` pour requêtes réseau Chromium
-   - Validation magic bytes pour JPEG, PNG, WEBP, AVIF
+**Images LewdCorner 403 Forbidden** :
+- **ProblÃ¨me** : Images protÃ©gÃ©es non accessibles sans session active
+- **Solution triple** :
+  1. Auth LewdCorner avec fenÃªtre dÃ©diÃ©e + session partagÃ©e
+  2. Reload mainWindow aprÃ¨s connexion pour appliquer cookies
+  3. Intercepteur webRequest pour injection automatique cookies
+- **RÃ©sultat** : Images LewdCorner s'affichent correctement âœ…
 
-#### **📊 Métriques**
+**Images locales Ã©crasÃ©es lors MAJ** :
+- **ProblÃ¨me** : VÃ©rif MAJ remplaÃ§ait chemins locaux par URLs distantes
+- **Solution** : DÃ©tection chemin local + conservation automatique
+- **RÃ©sultat** : Images HD locales jamais perdues âœ…
 
-| Métrique | Avant | Après | Amélioration |
+**Validation formulaire AVN** :
+- **ProblÃ¨me** : 	ype="url" refusait chemins locaux
+- **Solution** : 	ype="text" avec placeholder "https://... ou chemin local"
+- **RÃ©sultat** : Ã‰dition flexible sans contraintes âœ…
+
+**Extension fichiers images manquante** :
+- **ProblÃ¨me** : URLs sans extension (LewdCorner : image.24203/)
+- **Solution** : Magic bytes + ajout auto extension (.png, .jpg, .webp, .avif)
+- **RÃ©sultat** : Tous les fichiers ont extension correcte âœ…
+
+**DonnÃ©es AVN partagÃ©es entre users** :
+- **ProblÃ¨me** : chemin_executable, 
+otes_privees globaux
+- **Solution** : Table vn_user_games sÃ©parÃ©e
+- **RÃ©sultat** : Chaque user a ses propres donnÃ©es âœ…
+
+**Base de donnÃ©es non fusionnÃ©e** :
+- **ProblÃ¨me** : Changement emplacement DB â†’ Ã©crasement donnÃ©es
+- **Solution** : mergeDatabases() avec INSERT OR IGNORE
+- **RÃ©sultat** : DonnÃ©es conservÃ©es lors dÃ©placement âœ…
+
+**Profil recrÃ©Ã© aprÃ¨s move DB** :
+- **ProblÃ¨me** : Double copie DB + DB ouverte pendant copie
+- **Solution** : Close DB avant copy + reopen aprÃ¨s + pas de double call
+- **RÃ©sultat** : Profil persistant aprÃ¨s changement emplacement âœ…
+
+#### ðŸ“Š MÃ©triques
+
+| MÃ©trique | Avant | AprÃ¨s | AmÃ©lioration |
 |----------|-------|-------|--------------|
-| **Taux de succès F95Zone** | 0% (API 404) | 100% (scraping) | **∞** |
-| **Qualité images** | 1.5KB miniature | 106KB+ HD | **+7000%** |
-| **Taux téléchargement images** | 0% (CORS/bloqué) | ~95% (Electron.net) | **∞** |
-| **Précision statut** | 0% (mauvais mapping) | 100% (mapping corrigé) | **∞** |
-| **Popups intrusives** | 2 par ajout | 0 (sauf erreurs) | **-100%** |
-
-#### **🎯 Impact utilisateur**
-
-- **Recherche F95Zone** : Fonctionne enfin correctement avec tous les jeux
-- **Images HD** : Couvertures en pleine résolution au lieu de miniatures
-- **Statuts précis** : "TERMINÉ" affiché correctement au lieu de "EN COURS"
-- **UX améliorée** : Plus d'interruptions avec des popups de confirmation redondantes
-- **Cohérence visuelle** : Interface AVN harmonisée avec le reste de l'application
+| **Images LewdCorner fonctionnelles** | 0% (403) | 100% (auth) | **âˆž** |
+| **Images locales prÃ©servÃ©es MAJ** | 0% (Ã©crasÃ©es) | 100% (dÃ©tection) | **âˆž** |
+| **Support LewdCorner vÃ©rif MAJ** | âŒ | âœ… | **Nouveau** |
+| **Import JSON AVN** | âŒ | âœ… | **Nouveau** |
+| **DonnÃ©es AVN user-specific** | âŒ | âœ… | **Nouveau** |
+| **PrÃ©fÃ©rences contenu customisÃ©es** | âŒ | âœ… | **Nouveau** |
+| **Fichiers ParamÃ¨tres (Settings)** | 1 (2296 lignes) | 7 modules | **-67% lignes/fichier** |
 
 ---
 
-### 🚀 **VERSION 2.3.0 - SYNCHRONISATION MYANIMELIST & SYSTÈME HYBRIDE** (25 octobre 2025)
+### ðŸŽ® VERSION 2.3.1 - SCRAPING F95ZONE & HARMONISATION AVN (25 octobre 2025)
 
-#### **✨ Nouveautés majeures**
+#### âœ¨ NouveautÃ©s
 
-1. **🔄 Synchronisation automatique MyAnimeList** :
-   - **OAuth 2.0 PKCE** : Authentification sécurisée avec MyAnimeList
-   - **Sync unidirectionnelle** : Import automatique de votre liste manga/anime MAL vers l'application
-   - **Import complet** : Création automatique des entrées manquantes (mangas + animes)
-   - **Mise à jour intelligente** : Compare les données locales vs MAL et garde le maximum
-   - **Scheduler automatique** : Synchronisation périodique configurable (ex: toutes les 6h)
-   - **Progression temps réel** : Affichage détaillé (X/Y mangas, X/Y animes)
-   - **Interface dédiée** : Section "Import & Synchronisation MyAnimeList" dans Paramètres
-   - **Statut connexion** : Affichage utilisateur MAL + avatar + dernière sync
+**Scraping direct F95Zone** :
+- Abandon API Google Apps Script dÃ©faillante (404)
+- HTML parsing robuste avec regex
+- Support complet mÃ©tadonnÃ©es (titre, version, statut, moteur, tags, image)
+- DÃ©codage HTML entities (&#039; â†’ ')
 
-2. **🤖 Traduction automatique des synopsis** :
-   - **Groq AI intégré** : Traduction anglais → français via `llama-3.3-70b-versatile`
-   - **Background non-bloquant** : Lance automatiquement après sync MAL
-   - **Rate limiting intelligent** :
-     - Délai de base : 3.5 secondes entre chaque requête (~17 RPM)
-     - **Système de retry** : 2 tentatives automatiques en cas d'erreur 429
-       - Retry 1 : attendre 10s
-       - Retry 2 : attendre 20s
-     - Protection quota : Arrêt après 2 échecs consécutifs
-   - **Progression détaillée** :
-     - Compteurs : X traduits, Y ignorés, Z en cours
-     - Titre de l'anime en cours de traduction
-     - Durée estimée restante (minutes)
-     - Statistiques finales
-   - **Quota gratuit Groq** : ~14 400 traductions/jour (limite horaire ~1000)
+**TÃ©lÃ©chargement images optimisÃ©** :
+- Electron.net.request (moteur Chromium)
+- Contournement CORS (headers User-Agent, Referer, Accept)
+- Validation magic bytes (JPEG, PNG, WEBP, AVIF)
+- Stockage local covers/avn/{slug}/cover.jpg
+- Fallback URL distante si Ã©chec
 
-3. **📊 Extension MAL pour mangas** :
-   - **18 nouveaux champs** dans la table `series` :
-     - Identifiants : `mal_id` (UNIQUE), `source_donnees`
-     - Titres : `titre_romaji`, `titre_anglais`, `titres_alternatifs` (JSON)
-     - Métadonnées : `media_type`, `themes`, `auteurs`, `nb_volumes`
-     - Dates : `date_debut`, `date_fin`
-     - Progression utilisateur : `volumes_lus`, `statut_lecture`, `score_utilisateur`
-     - Suivi : `date_debut_lecture`, `date_fin_lecture`, `tags` (JSON)
-     - Relations : `relations` (JSON avec prequels/sequels/spin-offs)
-   - **Migration automatique** : Ajout des colonnes si elles n'existent pas
-   - **Index optimisés** : `idx_series_mal_id`, `idx_series_source`
+**Harmonisation UI AVN** :
+- Style cohÃ©rent avec pages Anime
+- Suppression popups redondantes
+- Composant CoverImage avec support chemins vn/
 
-4. **🎨 Système hybride MAL + Nautiljon** :
-   - **Import MAL complet** : Données internationales complètes depuis MyAnimeList
-   - **Couvertures Nautiljon prioritaires** : Écrasement auto des covers MAL par Nautiljon
-   - **Matching intelligent** : Recherche par titre + titres alternatifs (romaji, anglais, synonymes)
-   - **Source tracking** : Badges visuels `📊 MAL`, `🇫🇷 Nautiljon`, `📊🇫🇷 MAL+Nautiljon`
-   - **Meilleur des deux mondes** :
-     - MAL : Métadonnées complètes + synchronisation automatique
-     - Nautiljon : Couvertures françaises HD + détails éditions VF
+#### ðŸ› Corrections
 
-5. **📖 Section MAL dans SerieDetail** :
-   - **Affichage conditionnel** : Section visible uniquement si `serie.mal_id` existe
-   - **3 colonnes d'informations** :
-     - Titres alternatifs (romaji, anglais, type média)
-     - Publication (auteurs, thèmes, dates)
-     - Statistiques utilisateur (volumes lus, statut MAL, note)
-   - **Lien direct** : Bouton vers la fiche MyAnimeList
-   - **Design cohérent** : Badge MAL bleu (#2E51A2), grille responsive
-
-#### **🔄 Améliorations**
-
-1. **Import Nautiljon optimisé** :
-   - **Écrasement automatique des couvertures** : Si série vient de MAL, la couverture est remplacée par celle de Nautiljon
-   - **Matching par titres alternatifs** : Recherche dans `titre`, `titre_romaji`, `titre_anglais`, `titres_alternatifs`
-   - **Ordre de priorité** : Titre exact > Titre romaji > Titre anglais > Titres alternatifs
-   - **Logs détaillés** : Affiche la méthode de matching utilisée
-
-2. **Simplification des vues anime** :
-   - **Suppression de "Présentation" et "Carrousel"** : Vues redondantes retirées
-   - **3 vues restantes** : Grille, Liste, Vue Image
-   - **Code épuré** : Suppression de toute la logique 3D Cover Flow pour animes
-
-3. **Section unifiée Paramètres** :
-   - **"Import & Synchronisation MyAnimeList"** regroupe :
-     - Import XML MyAnimeList (animes)
-     - Synchronisation MAL (mangas + animes)
-     - Progression traduction synopsis
-   - **Interface consolidée** : Une seule carte pour toute la logique MAL
-
-4. **SerieCard améliorée** :
-   - **Badge source** : Affichage visuel de la provenance des données
-     - MAL : Badge bleu `📊 MAL`
-     - Nautiljon : Badge orange `🇫🇷 Nautiljon`
-     - Hybride : Badge dégradé `📊🇫🇷`
-   - **Position** : Coin supérieur droit, superposé sur la couverture
-
-#### **🐛 Corrections**
-
-1. **Rate limit Groq (429)** :
-   - **Problème** : Erreurs 429 après 5-6 traductions (délai 2.1s insuffisant)
-   - **Solution** :
-     - Délai augmenté : 2.1s → 3.5s (~17 requêtes/min au lieu de ~28)
-     - Retry automatique avec backoff : 10s puis 20s
-     - Logs détaillés des tentatives
-   - **Résultat attendu** : 99%+ de réussite au lieu de ~1%
-
-2. **Duplicate key "display"** dans `AnimeEditModal.tsx` :
-   - **Problème** : Clé CSS `display` définie deux fois dans un style object
-   - **Solution** : Suppression de la clé dupliquée
-   - **Impact** : Warning console éliminé
-
-3. **Carrousel Dashboard non fonctionnel** :
-   - **Problème** : 11 éléments récupérés en backend mais carrousel invisible
-   - **Status** : Logs de debug ajoutés pour diagnostic (à investiguer)
-   - **Décision** : Mise de côté temporairement (focus sur import/sync)
-
-#### **🛠️ Maintenance**
-
-1. **Documentation complète** :
-   - `docs_perso/SYNCHRONISATION_MAL.md` : Guide complet OAuth + sync
-   - `docs_perso/MAL_CLIENT_ID_SETUP.md` : Instructions création Client ID
-   - Guides rapides dans Proton Drive pour l'utilisateur
-
-2. **Nouveaux modules** :
-   - `electron/apis/myanimelist-oauth.js` : Gestion OAuth 2.0 PKCE
-   - `electron/services/mal-sync.js` : Sync MAL + traduction Groq
-   - `electron/services/mal-sync-scheduler.js` : Scheduler automatique
-   - `electron/handlers/mal-sync-handlers.js` : IPC handlers MAL
-
-3. **Dépendances** :
-   - `node-cron` : Scheduling automatique
-   - Utilisation native de `crypto` pour PKCE (pas de lib externe)
-
-#### **📊 Métriques**
-
-| Métrique | Avant | Après | Amélioration |
-|----------|-------|-------|--------------|
-| **Champs manga supportés** | 16 | 34 | **+112%** |
-| **Sources de données** | Nautiljon uniquement | MAL + Nautiljon | **+100%** |
-| **Sync automatique** | ❌ | ✅ OAuth + scheduler | **∞** |
-| **Traduction synopsis** | Manuelle | Automatique (Groq AI) | **∞** |
-| **Taux de réussite traduction** | ~1% (rate limit) | 99%+ (retry) | **+9800%** |
-| **Matching Nautiljon** | Titre exact uniquement | Titre + 3 alternatifs | **+300%** |
-| **Vues anime** | 5 (grille, carousel, liste, présentation, images) | 3 (grille, liste, images) | **-40%** (simplification) |
-
-#### **🎯 Impact utilisateur**
-
-- **Import initial** : Synchronisez votre liste MAL de 400+ animes en ~35 secondes
-- **Traduction** : 413 synopsis traduits automatiquement en ~24 minutes (au lieu de manuel)
-- **Maintenance** : Sync auto toutes les 6h → toujours à jour sans effort
-- **Couvertures** : Mix optimal des couvertures HD internationales (MAL) et françaises (Nautiljon)
-- **Recherche** : Retrouvez vos mangas même avec des titres alternatifs japonais/anglais
+- API F95List 404 â†’ Scraping direct âœ…
+- Statut mal mappÃ© â†’ Anglais (Completed, Abandoned, Ongoing) âœ…
+- Images miniatures â†’ Pleine rÃ©solution (suppression /thumb/) âœ…
+- ERR_BLOCKED_BY_CLIENT â†’ Electron.net au lieu de node-fetch âœ…
+- PathManager undefined â†’ Passage fonction getter âœ…
 
 ---
 
-### 🎯 **VERSION 2.2.0 - CAROUSEL UNIFIÉ & UX HARMONISÉE** (24 octobre 2025)
+### ðŸš€ VERSION 2.3.0 - SYNCHRONISATION MAL & IA (25 octobre 2025)
 
-#### **✨ Nouveautés**
+#### âœ¨ NouveautÃ©s
 
-1. **📖 Carousel de progression unifié** :
-   - Fusion des 3 types de contenu (mangas, chapitres, animes) en un seul carousel
-   - Affichage intelligent selon le type :
-     - **Mangas classiques** : "Titre - Tome 5"
-     - **Scans/Manhwa** : "Titre - 18/118 ch."
-     - **Animes** : "Titre - 12/24 ep."
-   - Tri chronologique global (les plus récents en premier)
-   - Jusqu'à 10 éléments affichés
-   - Handler IPC `get-recent-progress` centralisé
+**Synchronisation automatique MyAnimeList** :
+- OAuth 2.0 PKCE sÃ©curisÃ©
+- Sync unidirectionnelle (MAL â†’ App)
+- Import/MAJ automatique mangas + animes
+- Scheduler pÃ©riodique configurable (ex: 6h)
+- Progression temps rÃ©el (X/Y)
+- Interface dÃ©diÃ©e ParamÃ¨tres
 
-2. **🗄️ Architecture de données optimisée** :
-   - Requêtes SQL enrichies avec calcul dynamique des épisodes vus
-   - Support des sous-requêtes pour agrégation multi-tables
-   - Performances optimisées avec filtrage côté DB
+**Traduction automatique synopsis** :
+- Groq AI (llama-3.3-70b-versatile)
+- Background non-bloquant post-sync
+- Rate limiting intelligent (3.5s, retry 10s/20s)
+- Progression dÃ©taillÃ©e (compteurs, ETA, durÃ©e)
+- Quota gratuit : 14 400 trad/jour
 
-#### **🔄 Améliorations**
+**18 nouveaux champs manga MAL** :
+- mal_id, source_donnees
+- Titres : romaji, anglais, alternatifs (JSON)
+- MÃ©tadonnÃ©es : type mÃ©dia, thÃ¨mes, auteurs, nb_volumes
+- Dates : dÃ©but, fin
+- Progression : volumes lus, statut lecture, score
+- Suivi : dates lecture, tags (JSON)
+- Relations : prequels, sequels (JSON)
 
-1. **Dashboard épuré** :
-   - Suppression du carousel "📖 Derniers tomes lus" (redondant)
-   - Suppression du carousel "🎬 Derniers animes visionnés" (redondant)
-   - Remplacement par un carousel universel "📖 Progression récente"
-   - Code simplifié : -95 lignes dans `Dashboard.tsx`
+**SystÃ¨me hybride MAL + Nautiljon** :
+- Import MAL complet
+- Couvertures Nautiljon prioritaires (Ã©crasement auto)
+- Matching intelligent (titre + alternatifs)
+- Badges visuels ðŸ“Š MAL, ðŸ‡«ðŸ‡· Nautiljon, ðŸ“ŠðŸ‡«ðŸ‡· Hybride
 
-2. **Expérience utilisateur harmonisée** :
-   - Navigation unifiée entre tous les types de contenu
-   - Liens directs vers les pages de détails (mangas/animes)
-   - Dates de progression affichées uniformément (format français court)
-   - Hover effects cohérents sur toutes les cartes
+**Section MAL dans SerieDetail** :
+- Affichage conditionnel (si mal_id)
+- 3 colonnes (titres alternatifs, publication, stats user)
+- Lien direct vers fiche MAL
+- Badge bleu cohÃ©rent
 
-#### **🐛 Corrections**
+#### ðŸ› Corrections
 
-1. **Erreur `no such column: a.episodes_vus`** :
-   - Problème : La colonne n'existe pas dans `anime_series` (stockage dans `anime_episodes_vus`)
-   - Solution : Calcul dynamique avec sous-requête COUNT dans le SQL
-   - Impact : Carousel animes fonctionne correctement
-
-#### **📊 Métriques**
-
-| Métrique | Avant | Après | Amélioration |
-|----------|-------|-------|--------------|
-| **Carousels dans Dashboard** | 2 séparés | 1 unifié | **-50%** |
-| **Lignes de code Dashboard.tsx** | 810 | 715 | **-12%** |
-| **Types de progression affichés** | 2 (tomes, animes) | 3 (tomes, chapitres, épisodes) | **+50%** |
-| **Cohérence UI** | Partielle | Totale | **+100%** |
+- Rate limit Groq 429 â†’ DÃ©lai 3.5s + retry âœ…
+- Duplicate key "display" AnimeEditModal â†’ SupprimÃ© âœ…
+- Carrousel Dashboard non fonctionnel â†’ Logs debug âœ…
 
 ---
 
-### 🎨 **VERSION 2.1.0 - OPTIMISATION & INTERNATIONALISATION** (24 octobre 2025)
+### ðŸŽ¯ VERSION 2.2.0 - CAROUSEL UNIFIÃ‰ (24 octobre 2025)
 
-#### **⚡ Optimisations de performance**
+#### âœ¨ NouveautÃ©s
 
-1. **🚀 Parallélisation des requêtes API** :
-   - Jikan + AniList + Groq exécutés en parallèle via `Promise.all()`
-   - Wait unique de 800ms après toutes les requêtes au lieu de cumulatif
-   - Traduction en arrière-plan pendant traitement franchise
-   - **Performance : +118% de vitesse** (11-12 → 26.2 animes/min)
+**Carousel de progression unifiÃ©** :
+- Fusion mangas/chapitres/animes en un seul
+- Affichage intelligent selon type :
+  - Mangas : "Titre - Tome 5"
+  - Scans : "Titre - 18/118 ch."
+  - Animes : "Titre - 12/24 ep."
+- Tri chronologique (rÃ©cents en premier)
+- Jusqu'Ã  10 Ã©lÃ©ments
+- Handler get-recent-progress centralisÃ©
 
-2. **⏱️ Chronomètre temps réel** :
-   - Temps écoulé (MM:SS) affiché en direct
-   - ETA calculé dynamiquement (temps restant estimé)
-   - Vitesse d'import en temps réel (animes/min)
-   - Statistiques finales : temps total + vitesse moyenne
-   - Compteurs détaillés : importés, mis à jour, ignorés, erreurs
+**Dashboard Ã©purÃ©** :
+- Suppression carousels redondants (tomes lus, animes visionnÃ©s)
+- Remplacement par "ðŸ“– Progression rÃ©cente" universel
+- -95 lignes dans Dashboard.tsx
 
-#### **🇫🇷 Internationalisation complète**
+#### ðŸ› Corrections
 
-1. **Dictionnaire de traductions** (`src/utils/translations.ts`) :
-   - 150+ traductions françaises automatiques
-   - Genres (21) : Action, Comedy → Comédie, Fantasy → Fantastique
-   - Thèmes (60+) : Isekai, Reincarnation → Réincarnation, School → École
-   - Démographies : Shounen → Shōnen, Seinen, Josei
-   - Sources : Game → Jeu vidéo, Original → Œuvre originale
-   - Statuts : Finished Airing → Terminé
-   - Ratings : PG-13 → PG-13 - Adolescents 13 ans et +
-   - Saisons : Summer → Été, Winter → Hiver
-
-2. **Interface 100% française** :
-   - Tous les champs traduits automatiquement dans AnimeDetail
-   - Fallback intelligent sur termes originaux si pas de traduction
-   - Page détails anime entièrement localisée
-
-#### **🎨 Améliorations UI/UX**
-
-1. **Logo MyAnimeList** :
-   - Déplacé dans la zone titre avec fond bleu (#2e51a2)
-   - Badge compact "MAL" à côté du titre et du favori
-   - Meilleure lisibilité de la couverture
-
-2. **Badge TV redondant supprimé** :
-   - Badge "Type" retiré de l'overlay sur l'image
-   - Garde uniquement l'icône 📺 + texte dans le titre
-
-3. **Section Informations en 2 colonnes** :
-   - Grid responsive pour économiser l'espace vertical
-   - Meilleure lisibilité des métadonnées enrichies
-   - Gap optimisé (16px vertical, 20px horizontal)
-
-#### **🐛 Bugs corrigés**
-
-1. **Erreur `dragEvent is not defined`** :
-   - Cache Electron contenant ancienne version compilée
-   - Causait affichage d'un "0" mystérieux dans l'UI
-   - Solution : Script `clear-cache.js` + commande `npm run clear-cache`
-
-2. **Handler `update-anime` incomplet** :
-   - Supportait seulement 9 champs basiques (titre, description, genres...)
-   - Modification anime = perte de themes, demographics, producteurs, etc.
-   - Maintenant supporte les **28 champs enrichis** complets
-
-#### **🛠️ Maintenance**
-
-1. **Script de nettoyage cache** (`scripts/clear-cache.js`) :
-   - Multi-plateforme (Windows, macOS, Linux)
-   - Détection automatique du chemin cache selon OS
-   - Commande : `npm run clear-cache`
-
-2. **Nettoyage projet** :
-   - Suppression du dossier `backup-avant-refonte-mal/` (backups obsolètes)
-   - Fichiers organisés et structure propre
-
-#### **📊 Métriques**
-
-| Métrique | Avant | Après | Amélioration |
-|----------|-------|-------|--------------|
-| **Vitesse import** | 11-12 animes/min | 26.2 animes/min | **+118%** 🚀 |
-| **Temps import 331 animes** | 27-30 minutes | ~12-13 minutes | **-50%** |
-| **Champs supportés update-anime** | 9 | 28 | **+211%** |
-| **Traductions disponibles** | 0 | 150+ | **∞** |
-| **Interface française** | ~60% | 100% | **+67%** |
+- Erreur 
+o such column: a.episodes_vus â†’ Sous-requÃªte COUNT âœ…
 
 ---
 
-### 🚀 **VERSION 2.0.0 - REFONTE COMPLÈTE MYANIMELIST** (24 octobre 2025)
+### ðŸŽ¨ VERSION 2.1.0 - OPTIMISATION & I18N (24 octobre 2025)
 
-#### **⚡ BREAKING CHANGES**
+#### âš¡ Optimisations
 
-Refonte architecturale majeure du système d'animes :
-- ❌ **Supprimé** : Table `anime_saisons`, groupement ADKami, `extractBaseTitre()`
-- ✅ **Ajouté** : Architecture MyAnimeList pure, relations de franchise natives
-- ⚠️ **Migration requise** : Réinitialisation de la base de données animes
+**ParallÃ©lisation requÃªtes API** :
+- Jikan + AniList + Groq en parallÃ¨le (Promise.all())
+- Wait unique 800ms aprÃ¨s toutes requÃªtes
+- Traduction arriÃ¨re-plan pendant traitement franchise
+- **Performance : +118%** (11-12 â†’ 26.2 animes/min)
 
-#### **✨ Nouveautés**
+**ChronomÃ¨tre temps rÃ©el** :
+- Temps Ã©coulÃ© (MM:SS)
+- ETA calculÃ© dynamiquement
+- Vitesse import (animes/min)
+- Stats finales (temps total + vitesse moyenne)
+- Compteurs : importÃ©s, mis Ã  jour, ignorÃ©s, erreurs
 
-1. **🗄️ Nouveau schéma de base de données** :
-   - Chaque anime (TV, Movie, OVA) = 1 entrée distincte avec `mal_id` unique
-   - Relations de franchise : `franchise_name`, `franchise_order`, `prequel_mal_id`, `sequel_mal_id`
-   - Progression individuelle par anime (plus de saisons groupées)
+#### ðŸ‡«ðŸ‡· Internationalisation
 
-2. **📥 Ajout d'anime par MAL ID/URL** :
-   - Nouveau handler `addAnimeByMalId(59027)` ou `addAnimeByMalId('https://myanimelist.net/anime/59027/...')`
-   - Fetch automatique : Jikan (métadonnées) + AniList (couverture HD) + Groq AI (traduction)
-   - Proposition d'importer les prequels/sequels manquants
+**Dictionnaire traductions** (src/utils/translations.ts) :
+- 150+ traductions franÃ§aises auto
+- Genres (21) : Comedy â†’ ComÃ©die, Fantasy â†’ Fantastique
+- ThÃ¨mes (60+) : School â†’ Ã‰cole, Reincarnation â†’ RÃ©incarnation
+- Demographics : Shounen â†’ ShÅnen, Seinen, Josei
+- Sources : Game â†’ Jeu vidÃ©o, Original â†’ Å’uvre originale
+- Statuts : Finished Airing â†’ TerminÃ©
+- Ratings : PG-13 â†’ PG-13 - Adolescents 13 ans et +
+- Saisons : Summer â†’ Ã‰tÃ©, Winter â†’ Hiver
 
-3. **🧹 Simplification massive du code** :
-   - anime-handlers.js : ~1100 lignes → ~900 lignes (-18%)
-   - Suppression de toute la logique complexe de groupement
-   - Import XML : 1 entrée = 1 anime (plus de groupement)
+#### ðŸŽ¨ AmÃ©liorations UI
 
-#### **🐛 Bugs corrigés**
+**Logo MyAnimeList** :
+- Zone titre avec fond bleu (#2e51a2)
+- Badge compact "MAL" Ã  cÃ´tÃ© titre + favori
+- Meilleure visibilitÃ© couverture
 
-- ✅ **Duplication d'épisodes** : Chuunibyou affichait 24 épisodes sur toutes les saisons (dont Movie)
-- ✅ **Ordre inversé** : Date A Live V apparaissait avant Date A Live IV
-- ✅ **Progression linéaire ADKami** : Marquer un film marquait automatiquement tous les épisodes précédents
+**Section Informations 2 colonnes** :
+- Grid responsive
+- Ã‰conomise espace vertical
+- Gap optimisÃ© (16px vertical, 20px horizontal)
 
-#### **📦 Sécurité**
+#### ðŸ› Corrections
 
-- Backups créés dans `backup-avant-refonte-mal/` :
-  - anime-handlers.js, database.js, main.js, AddAnimeModal.tsx, tampermonkey/*
-
-#### **📖 Documentation**
-
-- Création de `REFONTE_MYANIMELIST.md` : Guide complet de migration et explications
-
-#### **🎯 Impact**
-
-| Métrique | Avant | Après | Gain |
-|----------|-------|-------|------|
-| Lignes de code | 1100 | 900 | -18% |
-| Bugs connus | 3 | 0 | -100% |
-| Tables DB | 3 | 2 | -33% |
-| Précision données | ~70% | 100% | +43% |
+- Erreur dragEvent is not defined â†’ Cache Electron âœ…
+- Handler update-anime incomplet â†’ 28 champs supportÃ©s âœ…
 
 ---
 
-## 🚀 TODO LIST
+### ðŸš€ VERSION 2.0.0 - REFONTE MYANIMELIST (24 octobre 2025)
 
-### 🎯 Priorité Haute
+#### âš¡ BREAKING CHANGES
 
-#### Configuration Utilisateurs
-- [x] **Interface de gestion des utilisateurs** dans les Paramètres
-  - [x] Ajouter/supprimer des utilisateurs dynamiquement
-  - [x] Renommer un utilisateur existant
-  - [x] Définir une couleur personnalisée par utilisateur
-  - [x] Choisir un emoji/icône par utilisateur (alternative à la photo)
-  - [x] Migrer automatiquement les données lors du renommage
-- [x] **Onboarding amélioré** : Assistant de première configuration
-  - [x] Étape 1 : Bienvenue
-  - [x] Étape 2 : Créer son profil (nom, avatar/emoji, couleur)
-  - [x] Étape 3 : Choisir le dossier de stockage
-  - [x] Étape 4 : Récapitulatif et finalisation
+- âŒ SupprimÃ© : Table nime_saisons, groupement ADKami, extractBaseTitre()
+- âœ… AjoutÃ© : Architecture MAL pure, relations franchise natives
+- âš ï¸ Migration requise : RÃ©initialisation base animes
 
-#### Import Anime Optimisé
-- [x] **Traduction automatique des synopsis** : Groq AI pour synopsis anglais → français
-- [x] **Couvertures haute résolution** : AniList GraphQL API avec fallback Jikan
-- [x] **Détection automatique source_import** : Analyse URL + MAL ID pour identifier la source
-- [x] **Gestion rate limiting** : Délais adaptatifs pour AniList (800ms) et Jikan
-- [x] **Import depuis fichier XML** : MyAnimeList/ADKami avec groupement intelligent des saisons
-- [x] **✅ RÉSOLU : Architecture MyAnimeList pure (refonte complète)** :
-  - [x] **Abandon du groupement par saisons** : Chaque anime (TV, Movie, OVA) = 1 entrée distincte
-  - [x] **1 anime = 1 MAL ID unique** : Plus de duplication d'épisodes
-  - [x] **Relations de franchise natives** : `franchise_name`, `franchise_order`, `prequel_mal_id`, `sequel_mal_id`
-  - [x] **Tri correct automatique** : Ordre chronologique par année + franchise_order
-  - [x] **Nombre d'épisodes précis** : Depuis Jikan API par entrée individuelle
-  - [x] **28 champs enrichis** : Titres multiples, themes, demographics, producteurs, diffuseurs, dates, durée, liens
-  - [x] **Suppression de `anime_saisons`** : Architecture simplifiée (2 tables au lieu de 3)
-- [x] **Optimisation vitesse d'import** :
-  - [x] Import en arrière-plan : Navigation possible pendant l'import
-  - [x] **Parallélisation intelligente** : ✅ Jikan + AniList + Groq en parallèle
-    - [x] `Promise.all()` pour requêtes concurrentes
-    - [x] Traduction en arrière-plan pendant traitement franchise
-    - [x] Wait unique de 800ms après toutes les requêtes
-  - [x] **Barre de progression complète** :
-    - [x] Affichage détaillé : "Anime X/Y" + titre actuel en temps réel
-    - [x] **⏱️ Chronomètre temps réel** :
-      - [x] Temps écoulé (format MM:SS)
-      - [x] ETA estimé (temps restant calculé dynamiquement)
-      - [x] Vitesse d'import en temps réel (animes/min)
-      - [x] Temps total affiché à la fin de l'import
-      - [x] Statistiques finales : vitesse moyenne + temps total
-      - [x] **📊 Performance mesurée** :
-        - [x] **AVANT** : 331 animes → 27-30 min (~11-12 animes/min)
-        - [x] **APRÈS** : 71 animes → 2.71 min (**26.2 animes/min**) → **+118% ! 🚀**
-        - [x] **Projection 331 animes** : ~12-13 min au lieu de 27-30 min (**-50% de temps**)
-    - [x] Compteur erreurs, succès, ignorés, mis à jour en temps réel
-- [ ] **Import automatique depuis les trackers anime**
-  - [ ] ADKami : Améliorer la détection du nombre réel d'épisodes
-  - [x] Crunchyroll : Support des multi-saisons automatique
-- [x] **Badge de plateforme de streaming** pour savoir où regarder (ADN, Crunchyroll, ADKami)
-- [ ] **Support Kitsu API** : Utiliser Kitsu comme source alternative de métadonnées
+#### âœ¨ NouveautÃ©s
 
-#### UX/UI
-- [x] **Mode sombre/clair** : Toggle dans les paramètres (thème clair pas trop clair)
-- [x] **Page Paramètres dédiée** : Remplace la modal par une vraie page avec auto-save
-- [x] **Color picker** : Sélecteur de couleur libre pour chaque utilisateur (remplace couleurs prédéfinies)
-- [x] **Sidebar collapsible** : Réduire la sidebar pour afficher uniquement les icônes
-  - [x] Transition fluide avec animations CSS (fade in/out pour les textes)
-  - [x] Positions fixes pour tous les éléments (pas de sauts verticaux)
-  - [x] Tailles cohérentes des icônes et avatar
-  - [x] Bouton toggle toujours visible et bien positionné
-  - [x] Bordure avatar dynamique selon la couleur utilisateur
-- [x] **Vues alternatives pour la collection** :
-  - [x] Vue grille responsive (actuelle, 2-6 colonnes)
-  - [x] Vue carrousel avec défilement horizontal
-    - [x] Effet 3D Cover Flow avec perspective
-    - [x] Animation fluide 60fps (requestAnimationFrame)
-    - [x] Scroll-snap pour centrage automatique
-    - [x] Navigation molette + flèches gauche/droite
-  - [x] Vue liste compacte (images petites, progression inline)
-  - [x] Mode présentation plein écran (effet hover zoom)
-  - [x] Composant `CollectionView` générique et réutilisable
-- [x] **Raccourcis clavier** :
-  - [x] `Échap` : Fermer les modals
-  - [x] `F12` : Ouvrir/fermer la console de développement
-- [x] **Démarrage automatique** : Option pour lancer l'application au démarrage de Windows
-- [x] **🇫🇷 Traductions françaises complètes** :
-  - [x] Dictionnaire `src/utils/translations.ts` avec 150+ traductions
-  - [x] **Genres** (21) : Action, Adventure → Aventure, Comedy → Comédie, Fantasy → Fantastique, etc.
-  - [x] **Thèmes** (60+) : Isekai, Reincarnation → Réincarnation, School → École, Showbiz → Show-business, etc.
-  - [x] **Démographies** : Shounen → Shōnen, Seinen, Shoujo → Shōjo, Josei, Kids → Enfants
-  - [x] **Sources** : Manga, Light novel, Game → Jeu vidéo, Original → Œuvre originale
-  - [x] **Statuts** : Finished Airing → Terminé, Currently Airing → En cours de diffusion
-  - [x] **Ratings** : PG-13 → PG-13 - Adolescents 13 ans et +, R+ → R+ - Nudité légère
-  - [x] **Saisons** : Summer → Été, Winter → Hiver, Spring → Printemps, Fall → Automne
-  - [x] Fallback intelligent sur termes originaux si pas de traduction
-- [x] **🎨 Interface anime modernisée** :
-  - [x] Logo MyAnimeList avec fond bleu (#2e51a2) dans la zone titre (pas sur l'image)
-  - [x] Badge "TV" redondant supprimé de la couverture (garde uniquement icône + texte dans titre)
-  - [x] Section Informations en 2 colonnes pour meilleure lisibilité
-  - [x] Bannières diagonales colorées : Terminé (vert), En cours (orange), Abandonné (gris)
-  - [x] Affichage complet des 28 champs enrichis MAL
-- [ ] **Visualiseur d'images en plein écran** :
-  - [ ] Clic sur n'importe quelle couverture/image pour l'agrandir
-  - [ ] Modal lightbox avec fond semi-transparent
-  - [ ] Navigation clavier (Échap pour fermer, flèches pour naviguer)
-  - [ ] Zoom et pan pour les grandes images
-  - [ ] Applicable sur toutes les pages (Collection, Détails, Dashboard)
+**Nouveau schÃ©ma BDD** :
+- 1 anime = 1 entrÃ©e distincte avec mal_id unique
+- Relations : ranchise_name, ranchise_order, prequel_mal_id, sequel_mal_id
+- Progression individuelle par anime
+
+**Ajout anime par MAL ID/URL** :
+- Handler ddAnimeByMalId(59027) ou ddAnimeByMalId('https://...')
+- Fetch auto : Jikan + AniList + Groq
+- Proposition import prequels/sequels
+
+**Simplification code** :
+- anime-handlers.js : 1100 â†’ 900 lignes (-18%)
+- Suppression logique groupement complexe
+- Import XML : 1 entrÃ©e = 1 anime
+
+#### ðŸ› Corrections
+
+- Duplication Ã©pisodes (Chuunibyou) âœ…
+- Ordre inversÃ© (Date A Live V avant IV) âœ…
+- Progression linÃ©aire ADKami âœ…
 
 ---
 
-### ⭐ Priorité Moyenne
+## ðŸš€ TODO LIST
 
-#### Statistiques Avancées
-- [x] **Graphiques de progression** (Recharts)
-  - [x] Nombre de mangas/animes par mois
-  - [x] Évolution des coûts dans le temps
-- [x] **Comparaison multi-utilisateurs**
-  - [x] Qui possède le plus de tomes ?
-  - [x] Graphique de répartition dynamique
+### ðŸŽ¯ PrioritÃ© Haute
 
-#### Tags & Statuts de Lecture
-- [x] **Tags personnalisés par série** :
-  - [x] Favori ⭐ (flag indépendant, combinable avec les autres)
-  - [x] À lire 📚 (tag manuel)
-  - [x] En cours 🔵 (tag automatique, calculé selon la progression)
-  - [x] Lu ✅ (tag automatique, calculé quand tous les tomes sont lus)
-  - [x] Abandonné 🚫 (tag manuel, ne touche pas à la progression)
-- [x] **Badges visuels compacts** : Icônes circulaires sur les cartes (32px)
-- [x] **Changement de tag rapide** depuis les cartes (dropdown au survol)
-- [x] **Interface de tag dans SerieDetail** avec séparation tags auto/manuels
-- [x] **Filtrage par tags** dans la collection (tous types confondus)
-- [x] **Migration automatique** de l'ancien système de tags vers le nouveau
-- [x] **Support des tags pour animes** : Même système que pour les mangas
-  - [x] Table `anime_tags` avec tags manuels et favoris
-  - [x] Tags manuels : 'a_regarder', 'abandonne'
-  - [x] Tags automatiques : 'en_cours', 'termine' (calculés selon progression)
-  - [x] Handlers IPC complets (set/get/toggle/remove)
-  - [x] Integration dans AnimeCard et AnimeListItem
-  - [x] Filtrage par tags dans la page Animes
+#### âœ… FonctionnalitÃ©s actuellement implÃ©mentÃ©es
 
-#### Gestion des Tomes/Épisodes
-- [x] **Marquer plusieurs tomes comme lus** en une fois (bouton "Marquer comme lu" dans SerieDetail)
-- [x] **Horodatage précis des lectures** : Date + Heure avec ordre chronologique préservé
-- [x] **Carrousel de lectures récentes** : Affichage des 5 derniers tomes/animes dans le Dashboard
+- [x] **Interface gestion utilisateurs** : Add/Edit/Delete dynamique
+- [x] **Onboarding amÃ©liorÃ©** : 4 Ã©tapes (Bienvenue, Profil, Emplacement DB, Finalisation)
+- [x] **Traduction automatique synopsis** : Groq AI (animes + mangas)
+- [x] **Couvertures HD** : AniList GraphQL API avec fallback Jikan
+- [x] **Architecture MyAnimeList pure** : 1 anime = 1 MAL ID unique
+- [x] **28 champs enrichis anime** : Titres, themes, demographics, producteurs, etc.
+- [x] **Optimisation vitesse import** :
+  - [x] ParallÃ©lisation Jikan + AniList + Groq
+  - [x] ChronomÃ¨tre temps rÃ©el avec ETA
+  - [x] 26.2 animes/min (+118%)
+- [x] **Support Tampermonkey** : 6 scripts (3 anime, 1 manga, 1 AVN, 1 MAL Quick Add)
+- [x] **Badge plateforme streaming** : ADN, Crunchyroll, ADKami
+- [x] **Mode sombre/clair** : Toggle ParamÃ¨tres
+- [x] **Page ParamÃ¨tres dÃ©diÃ©e** : 7 modules sÃ©parÃ©s
+- [x] **Sidebar collapsible** : RÃ©duction avec icÃ´nes uniquement
+- [x] **Vues collection** : Grille, Carrousel 3D, Liste, PrÃ©sentation
+- [x] **Raccourcis clavier** : Ã‰chap (fermer modals), F12 (DevTools)
+- [x] **DÃ©marrage automatique** : Lancer au boot Windows
+- [x] **Traductions franÃ§aises** : 150+ termes (genres, thÃ¨mes, demographics, etc.)
+- [x] **BanniÃ¨res diagonales** : Statuts avec couleurs (TerminÃ© vert, En cours orange, AbandonnÃ© gris)
+- [x] **Tags systÃ¨me** : Automatiques (en_cours, lu/terminÃ©) + manuels (a_lire/a_regarder, abandonne)
+- [x] **Favoris indÃ©pendants** : Flag sÃ©parÃ©, combinable avec tags
+- [x] **Horodatage prÃ©cis** : Date + heure pour lectures/visionnages
+- [x] **Carousel progression unifiÃ©** : Mangas + chapitres + animes en un
+- [x] **Statistiques avancÃ©es** : Graphiques Recharts (Ã©volution temporelle, rÃ©partition)
+- [x] **Multi-propriÃ©taires** : Dropdown multi-sÃ©lection + coÃ»ts partagÃ©s auto
+- [x] **9 types volumes** : BrochÃ©, Collector, Coffret, Kindle, Webtoon, Light Novel, Scan Manga, Scan Webtoon, NumÃ©rique
+- [x] **Synchronisation MyAnimeList** : OAuth 2.0 + sync auto pÃ©riodique
+- [x] **18 champs MAL manga** : mal_id, titres alternatifs, relations, etc.
+- [x] **SystÃ¨me hybride MAL+Nautiljon** : Matching intelligent + badges
+- [x] **TÃ©lÃ©chargement covers locales** : SÃ©ries, tomes, animes, AVN
+- [x] **Anti-rate-limiting** : DÃ©lais adaptatifs (Groq 3.5s, AniList 800ms, F95Zone 500ms, Nautiljon 350-1500ms)
+- [x] **Scraping F95Zone** : Extraction complÃ¨te (titre, version, statut, moteur, tags, image)
+- [x] **TÃ©lÃ©chargement images Electron.net** : Contournement CORS pour F95Zone
+- [x] **SystÃ¨me MAJ AVN automatique** : VÃ©rif complÃ¨te + notification badge
+- [x] **Authentification LewdCorner** : OAuth + intercepteur cookies + UI complÃ¨te
+- [x] **VÃ©rification MAJ LewdCorner** : Support complet si connectÃ©
+- [x] **Protection images locales** : Conservation auto lors MAJ
+- [x] **Import JSON AVN** : Support LC Extractor + F95 Extractor
+- [x] **DonnÃ©es AVN user-specific** : Table sÃ©parÃ©e (chemin exe, notes, statut, session)
+- [x] **PrÃ©fÃ©rences contenu** : Customisation Home Boarding (Mangas/Animes/AVN)
+- [x] **Renommage application** : "Le Nexus" avec branding complet
+- [x] **Refonte ParamÃ¨tres** : 7 modules au lieu de monolithe 2296 lignes
+- [x] **Extension images automatique** : Magic bytes + ajout .png/.jpg/.webp/.avif
+- [x] **Merge databases** : Fusion lors changement emplacement DB
 
----
+#### ðŸ“‹ Ã€ faire
 
-### 🔧 Priorité Basse
-
-#### Mobile
-- [ ] **Application Android (APK)** : Version mobile non officielle pour accès depuis smartphone
-  - [ ] Interface adaptée au tactile
-  - [ ] Connexion à la DB partagée via cloud
-  - [ ] Fonctionnalités de lecture simplifiées
-
-#### Technique
-- [ ] **Mode hors-ligne** complet (PWA-like)
-- [ ] **Migration de base de données** : Outil de migration entre versions
-- [ ] **Logs d'activité** : Journal de toutes les actions
-
-#### Import/Export
-- [ ] **Import depuis Anilist/Kitsu** (en complément de MyAnimeList)
-- [ ] **Import CSV** : Format personnalisé pour mangas
-- [ ] **Synchronisation bidirectionnelle** avec MAL/AniList
-
-#### Mangas
-- [ ] **Gestion des éditions** : Variantes d'éditions (Collector, Deluxe, Intégrale)
-
-#### Animes
-- [ ] **Lien vers les plateformes** : Ouvrir directement Crunchyroll/Netflix
-
----
-
-## 📝 CHANGELOG
-
-### [Version actuelle] - 2025-10-23
-
-#### ✨ Nouvelles fonctionnalités
-- **Page Paramètres dédiée** : Remplace la modal par une vraie page autonome avec auto-save
-- **Mode sombre/clair** : Toggle dans Paramètres avec sauvegarde automatique et thème clair adapté (pas trop clair)
-- **Vues alternatives collection** : 4 modes d'affichage (grille, carrousel, liste, présentation)
-  - **Composant `CollectionView` générique** : Réutilisable pour toutes les pages
-  - **Vue grille** : 2-6 colonnes configurables, responsive
-  - **Vue carrousel** : Défilement horizontal fluide, miniatures 280px
-    - **Effet 3D Cover Flow** : Rotation ±45°, scale 0.75-1, profondeur -150px, flou progressif
-    - **Animation 60fps** : `requestAnimationFrame` synchronisé avec rafraîchissement écran
-    - **Scroll-snap** : Centrage automatique de chaque carte avec `padding: calc(50% - 140px)`
-    - **Navigation optimisée** : Molette (vitesse × 1.5) + flèches (scroll exact de 320px)
-    - **Transformations fluides** : `rotateY`, `scale`, `translateZ`, `translateX`, `opacity`, `blur`
-  - **Vue liste compacte** : Miniatures 60x85px, progression inline, badges compacts
-  - **Mode présentation** : Grille adaptive avec effet zoom au survol
-  - **Persistance** : Mode de vue sauvegardé dans localStorage
-- **Persistance état fenêtre** : Sauvegarde automatique taille/position/maximisé/plein écran
-  - **Restauration au démarrage** : La fenêtre reprend exactement son état précédent
-  - **Debounce 500ms** : Évite les écritures excessives lors du redimensionnement
-  - **Sauvegarde immédiate** : État sauvegardé avant la fermeture de la fenêtre
-- **Tags pour animes** : Système complet identique aux mangas
-  - **Table `anime_tags`** : Structure miroir de `serie_tags`
-  - **Tags manuels** : 'a_regarder', 'abandonne'
-  - **Tags automatiques prévus** : 'en_cours', 'termine'
-  - **Handlers IPC** : set/get/toggle/remove anime tags
-- **Message de bienvenue** : Encadré ASCII art élégant au démarrage de l'application
-- **Sidebar collapsible** : Réduction de la sidebar avec affichage uniquement des icônes, animations fluides, positions fixes
-- **Raccourcis clavier** : Navigation et contrôle au clavier
-  - **`Échap`** : Fermeture universelle de tous les modals
-    - Modals d'édition : Échap ferme (désactivé pendant la sauvegarde)
-    - Modal de confirmation : Échap équivaut à "Annuler"
-    - Protection : Impossible de fermer pendant les opérations de sauvegarde
-  - **`F12`** : Ouvrir/fermer la console de développement (DevTools)
-    - Toggle : ouvre si fermée, ferme si ouverte
-    - Accessible à tout moment dans l'application
-    - Utile pour debugging et développement
-- **Démarrage automatique** : Lancer l'application au démarrage de Windows
-  - **Checkbox élégante** dans les Paramètres (section Apparence)
-  - **Mode production uniquement** : Désactivé en développement
-  - **API native Electron** : `app.setLoginItemSettings()` pour Windows/macOS/Linux
-  - **Paramètres** : `openAsHidden: false` (application visible au démarrage)
-  - **Auto-save** avec toast de confirmation
-  - **Persistance** via Electron login items system
-- **Build production corrigé** : Application pleinement fonctionnelle en mode packagé
-  - **asarUnpack** : Extraction des assets/ hors de l'archive .asar
-  - **Chemins icônes** : Détection auto isDev + path vers `app.asar.unpacked/assets/`
-  - **Affichage fenêtre** : `show: false` + `ready-to-show` event pour éviter le flash
-  - **Logs debug** : Traçage chemins, existence fichiers, événements chargement
-  - **Résultat** : Fenêtre s'ouvre correctement, icône tray fonctionnelle, 1 seule instance
-- **CollectionView pour animes** : Harmonisation complète avec les mangas
-  - **4 modes d'affichage** : Grille, carrousel 3D, liste compacte, présentation
-  - **Nouveau composant** : `AnimeListItem` (miroir de `SerieListItem`)
-  - **Badges tags** : Favori + tag utilisateur sur AnimeCard
-  - **Tags automatiques** : 'en_cours' et 'termine' calculés selon progression
-  - **Persistance** : Mode de vue sauvegardé dans `localStorage` (animesViewMode)
-  - **Handler enrichi** : `get-anime-series` avec JOIN `anime_tags`
-  - **Code supprimé** : -42 lignes (grille manuelle obsolète)
-- **Bannières diagonales pour tags** : Affichage immersif style Cover Flow
-  - **3 bannières pour mangas** : "Lu" (🟢 vert), "En cours" (🟠 orange), "Abandonné" (⚪ gris)
-  - **3 bannières pour animes** : "Terminé" (🟢 vert), "En cours" (🟠 orange), "Abandonné" (⚪ gris)
-  - **Style 3D** : Rotation -45°, box-shadow, text-shadow, uppercase
-  - **Simplification** : Suppression des badges circulaires des tags
-  - **Badge favori repositionné** : Déplacé à côté du titre (évite chevauchement avec bannière/boutons)
-    - Taille réduite : 28px (au lieu de 32px)
-    - Position intelligente : Flex container avec le titre
-    - Hover interactif : scale(1.15) pour feedback visuel
-  - **Impact visuel** : Interface plus claire, badges ne se chevauchent plus
-- **Système de tags intelligent** : 
-  - **Favori** : Flag indépendant (combinable avec tous les tags)
-  - **Tags automatiques** : "En cours" et "Lu" calculés selon la progression de lecture
-  - **Tags manuels** : "À lire" et "Abandonné" définis par l'utilisateur
-  - **Badges compacts** : Icônes circulaires (32px) au lieu de rectangles avec texte
-  - **Tooltips informatifs** : Label complet au survol des badges
-  - **Filtrage par tags** : Recherche par tous types de tags dans la collection
-  - **Migration automatique** : Conversion des anciens tags vers le nouveau système
-- **Horodatage précis des lectures** :
-  - **Date + Heure** : Timestamps complets (YYYY-MM-DD HH:MM:SS) pour mangas et animes
-  - **Ordre chronologique préservé** : Marquage en masse avec timestamps espacés d'1 seconde
-  - **Traçabilité complète** : Savoir exactement quand chaque tome/épisode a été lu/vu
-- **Gestion dynamique des utilisateurs** : Création, modification, suppression depuis les Paramètres
-- **Avatars personnalisés** : Choix d'une image ou emoji pour chaque utilisateur
-- **Onboarding au premier lancement** : Assistant en 4 étapes (bienvenue, profil, emplacement DB, finalisation)
-- **Migration automatique** : Renommage d'utilisateur avec mise à jour de toutes les données
-- **Choix de l'emplacement DB** : Configuration dès le premier lancement (cloud-friendly)
-- **Multi-propriétaires pour les tomes** : Dropdown multi-sélection avec calcul automatique des coûts partagés
-- **9 types de volumes** : Broché, Collector, Coffret, Kindle, Webtoon, Light Novel, Scan Manga, Scan Webtoon
-- **Graphique d'évolution temporelle** : Visualisation des achats et dépenses par mois/année
-- **Graphique de répartition dynamique** : Double barres (Tomes + Coût) avec filtre par type de volume
-- **Dashboard épuré** : Suppression des graphiques redondants, focus sur l'essentiel
-- **Graphiques collapsibles** : Plier/déplier les graphiques pour plus de clarté
-- **KPIs visuels** : 4 tuiles compactes (Séries, Tomes, Investissement, Progression)
-- **Color picker libre** : Sélecteur de couleur personnalisée pour chaque utilisateur (remplace palette prédéfinie)
-- **Import automatique avec attribution** : Le propriétaire actuel est assigné lors des imports Tampermonkey
-- **Import Nautiljon optimisé** : Déduplication intelligente des volumes (FR/JP)
-- **Téléchargement local des couvertures** : Séries et tomes stockés localement
-- **Anti-rate-limiting Nautiljon** : Délai adaptatif 350-1500ms + retry automatique
-- **Overlay d'import amélioré** : Avertissement "Ne pas toucher au site"
-- **Crunchyroll multi-saisons** : Détection et création automatique des saisons
-- **Suppression robuste** : Gestion des verrous de fichiers (Proton Drive)
-- **Groq AI pour traduction automatique** : Traduction des synopsis d'anime lors de l'import XML
-  - **Configuration dans Paramètres** : Gestion de la clé API Groq (masquable/affichable)
-  - **Guide d'obtention** : Instructions détaillées pour créer un compte gratuit
-  - **Traduction automatique** : Synopsis anglais → français lors de l'import MyAnimeList/ADKami
-  - **Bouton manuel** : Traduction manuelle dans AddAnimeModal et AnimeEditModal
-  - **Limites gratuites** : 14 400 traductions/jour (30/min), modèle `llama-3.3-70b-versatile`
-  - **API centralisée** : Module `electron/apis/groq.js` réutilisable
-- **AniList API pour couvertures HD** : Récupération automatique de couvertures haute résolution
-  - **GraphQL API** : Requêtes vers `graphql.anilist.co` avec mapping MAL ID → AniList
-  - **Priorisation qualité** : `extraLarge` > `large` > fallback Jikan
-  - **Rate limiting respecté** : Délai de 800ms entre requêtes (~75 req/min, limite 90 req/min)
-  - **Gestion d'erreurs** : Fallback automatique vers Jikan si AniList échoue
-  - **Module dédié** : `electron/apis/anilist.js` avec logs détaillés
-- **Réorganisation complète des composants** : Architecture modulaire et scalable
-  - **Nouveau dossier `src/components/`** :
-    - `modals/anime/` : AddAnimeModal, AnimeEditModal
-    - `modals/manga/` : AddSerieModal, EditSerieModal, AddTomeModal, EditTomeModal
-    - `modals/common/` : ConfirmModal, SavingModal
-    - `cards/` : AnimeCard, AnimeListItem, SerieCard, SerieListItem
-    - `layout/` : Layout, SplashScreen, OnboardingWizard
-    - `common/` : CollectionView, CoverImage, ImportingOverlay, MultiSelectDropdown, PlatformLogo, UserSelector
-  - **Préservation historique git** : Utilisation de `git mv` pour conserver l'historique des fichiers
-  - **Imports corrigés** : Mise à jour automatique de tous les chemins relatifs dans 20+ fichiers
-- **Détection automatique source_import** : Identification intelligente de la source d'import anime
-  - **Intégré dans import-server** : Plus besoin de script manuel `fix-source-import.js`
-  - **Détection depuis URL** : Analyse de `couverture_url` (crunchyroll, adn, adkami)
-  - **Fallback MAL ID** : Si mal_id présent → source 'myanimelist'
-  - **Défaut manuel** : Si aucune source détectée → 'manual'
-
-#### 🐛 Corrections de bugs
-- **🚨 CRITIQUE : Double emplacement de base de données** :
-  - **Problème** : La DB restait dans AppData après changement d'emplacement dans l'onboarding
-  - **Conséquence** : Deux bases divergentes (AppData actif, Proton Drive figé)
-  - **Solution** : Réinitialisation complète de PathManager et DB après copie
-  - **Résultat** : Une seule source de vérité dans l'emplacement choisi
-- **Affichage progression import anime** : Titre de la série au lieu de l'ID ADK dans l'interface
-- **Rate limit AniList (HTTP 429)** : Ajout de délais entre requêtes pour respecter les limites API
-- **Imports relatifs cassés** : Correction de tous les chemins après réorganisation des composants
-  - `../hooks/` → `../../hooks/` ou `../../../hooks/` selon la profondeur
-  - `../types` → `../../types` ou `../../../types` selon la profondeur
-  - Import `SavingModal` dans Layout corrigé
-- **Barre de progression mode liste** : Chargement des vrais statuts de lecture (remplace `Array.fill(null)`)
-- Persistance utilisateur après redémarrage (copie complète de la DB)
-- Affichage avatar dans récapitulatif onboarding
-- Images des tomes Nautiljon maintenant visibles
-- Correction `coverResult.url` → `coverResult.localPath`
-- Suppression d'anime avec retry pour Proton Drive
-- Modal d'édition anime : Gestion des saisons dynamique
-
-#### 🔄 Améliorations
-- **Carrousel 3D Cover Flow** : Effet perspective immersif avec animations 60fps
-  - **requestAnimationFrame** : Synchronisation parfaite avec le rafraîchissement de l'écran
-  - **Calcul distance du centre** : Transformations dynamiques basées sur la position relative
-  - **Transitions CSS désactivées** : Évite les conflits avec RAF pour fluidité maximale
-  - **willChange: transform, opacity, filter** : Optimisation GPU pour performances
-  - **Scroll-snap mandatory** : Chaque carte se centre automatiquement
-  - **Padding dynamique** : `calc(50% - 140px)` pour centrer la première et dernière carte
-  - **Cancel frame précédente** : Évite les embouteillages lors de scroll rapide
-- **Composant `CollectionView` générique** : Architecture modulaire réutilisable pour toutes les pages
-- **Composant `SerieListItem`** : Vue liste compacte avec miniatures et progression inline
-- **Handler `get-series` optimisé** : Charge les tomes avec statut de lecture réel (JOIN lecture_tomes)
-  - Query SQL enrichie : `SELECT t.id, t.numero, CASE WHEN lt.lu = 1 THEN 1 ELSE 0 END as lu`
-  - Remplace `Array.fill(null)` par vraies données pour calcul de progression
-  - Permet affichage correct de la barre de progression en mode liste
-- **Table `anime_tags`** : Structure complète pour tags d'animes (miroir de `serie_tags`)
-- **Index DB** : `idx_anime_tags_anime`, `idx_anime_tags_user`, `idx_anime_tags_tag` pour performances
-- **Handlers IPC anime tags** : set/get/toggle/remove anime tags (96 lignes ajoutées)
-- **Types TypeScript** : `AnimeTag` type + méthodes IPC exposées dans `Window.electronAPI`
-- **Persistance fenêtre** : Store `windowState` avec debounce 500ms et restauration au démarrage
-- **Table `users`** en base de données (gestion dynamique)
-- **Table `tomes_proprietaires`** : Relation many-to-many pour multi-propriétaires
-- **Table `serie_tags` refactorée** : 
-  - Colonne `tag` nullable (tags manuels uniquement)
-  - Colonne `is_favorite` (flag indépendant)
-  - Contrainte CHECK mise à jour (uniquement 'a_lire' et 'abandonne')
-  - Migration automatique avec conversion des anciens tags
-- **Statistiques par type de volume** : `nbTomesParProprietaireParType` pour filtrage avancé
-- **Interface de gestion complète** dans Paramètres (création, édition, suppression users)
-- **UserSelector dynamique** : Lit depuis la DB avec affichage des avatars
-- **Dashboard refactorisé** : Code épuré, graphiques modulaires et collapsibles
-- **Handlers IPC enrichis** : 
-  - `get-evolution-statistics` pour graphiques temporels
-  - `toggle-serie-favorite` pour gestion du flag favori
-  - `set-serie-tag` mis à jour pour tags manuels uniquement
-  - Calcul automatique des tags "en_cours" et "lu" dans `get-series` et `get-serie`
-- **Component MultiSelectDropdown** : Composant réutilisable pour sélection multiple
-- **Calcul dynamique des coûts** : Division automatique entre propriétaires multiples
-- **Migration DB automatique** : Colonne `proprietaire` rendue nullable
-- **Handlers IPC pour utilisateurs** : CRUD complet + gestion avatars
-- **Sidebar optimisée** : Layout avec hauteurs fixes (56px titre, 80px avatar) pour stabilité
-- **Animations CSS pures** : Fade in/out pour textes au lieu de création/destruction DOM
-- **Bordure avatar dynamique** : Couleur liée au profil utilisateur
-- **Badges compacts** : Icônes circulaires 32px avec effet hover (scale 1.1)
-- **Timestamps complets** :
-  - `lecture_tomes.date_lecture` : DATE → DATETIME
-  - `anime_episodes_vus.date_visionnage` : DATE → DATETIME
-  - Format : `YYYY-MM-DD HH:MM:SS` au lieu de `YYYY-MM-DD`
-  - Marquage en masse avec incrémentation de +1 seconde par tome/épisode
-- **README neutralisé** (pas de noms d'utilisateurs hardcodés)
-- **`.gitignore` mis à jour** (exclusion de `docs_perso/`)
-- **Scripts Tampermonkey** avec métadonnées complètes
-- **Import anime** : Badge de source (ADN, Crunchyroll, ADKami)
-- **Module `electron/apis/groq.js`** : API centralisée pour traductions avec Groq AI
-  - Fonction `translateText(text, apiKey, targetLang, context)` réutilisable
-  - Fonction `validateApiKey(apiKey)` pour validation de clé
-  - Contexte spécialisé pour anime/manga
-- **Module `electron/apis/anilist.js`** : API GraphQL pour couvertures HD
-  - Query GraphQL optimisée avec mapping MAL ID
-  - Logs détaillés avec titre + MAL ID
-  - Gestion d'erreurs robuste avec fallback
-- **Architecture composants refactorisée** : Organisation modulaire en 4 catégories
-  - Séparation par type : modals/ (anime, manga, common), cards/, layout/, common/
-  - Chemins relatifs cohérents selon profondeur (../../ ou ../../../)
-  - Préservation historique git via `git mv`
-- **Détection automatique source_import** : Logique intégrée dans import-server.js
-  - Analyse intelligente de `couverture_url` pour détecter plateforme
-  - Fallback sur `mal_id` si présent (source myanimelist)
-  - Valeur par défaut 'manual' si indéterminé
+- [ ] **Visualiseur images plein Ã©cran** :
+  - [ ] Lightbox modal avec fond semi-transparent
+  - [ ] Navigation clavier (Ã‰chap, flÃ¨ches)
+  - [ ] Zoom et pan pour grandes images
+  - [ ] Applicable sur toutes pages (Collection, DÃ©tails, Dashboard)
+- [ ] **Import automatique depuis trackers anime** :
+  - [ ] ADKami : AmÃ©liorer dÃ©tection nombre rÃ©el Ã©pisodes
+  - [ ] Crunchyroll : Optimiser dÃ©tection multi-saisons
+- [ ] **Support Kitsu API** : Source alternative mÃ©tadonnÃ©es
+- [ ] **PrÃ©visions de coÃ»t** : Estimation pour sÃ©ries en cours
+- [ ] **Import JSON AVN amÃ©liorÃ©** :
+  - [ ] Support batch (plusieurs jeux Ã  la fois)
+  - [ ] PrÃ©-visualisation avant import
+- [ ] **Scraping LewdCorner direct** : Support extraction depuis pages LC (actuellement F95 uniquement)
 
 ---
 
-### [v1.0.0] - 2024-01-XX (Release initiale)
+### â­ PrioritÃ© Moyenne
 
-#### ✨ Fonctionnalités principales
-- Gestion complète des mangas (séries, tomes, lecture)
-- Gestion complète des animes (séries, saisons, épisodes)
-- Multi-utilisateurs avec fusion automatique
-- Import Tampermonkey (MangaCollec, Nautiljon, Booknode)
-- Import anime (ADKami, ADN, Crunchyroll, MyAnimeList XML)
-- Statistiques et dashboard
-- Drag & Drop pour images
-- Masquage de séries
-- Suppression intelligente multi-utilisateurs
-- Export/Import de base de données
-- Synchronisation cloud (Proton Drive, OneDrive, Google Drive)
+#### âœ… ImplÃ©mentÃ©
 
----
+- [x] **Graphiques progression** : Recharts avec Ã©volution temporelle
+- [x] **Comparaison multi-utilisateurs** : RÃ©partition tomes + coÃ»ts
+- [x] **Tags personnalisÃ©s** : SystÃ¨me complet avec auto + manuels
+- [x] **Badges visuels compacts** : BanniÃ¨res diagonales colorÃ©es
+- [x] **Filtrage par tags** : Dans collections mangas + animes
+- [x] **Marquer plusieurs tomes** : Bouton "Marquer comme lu" en masse
+- [x] **Carrousel lectures rÃ©centes** : 10 derniers tomes/chapitres/Ã©pisodes
 
-## 📌 Notes de Développement
+#### ðŸ“‹ Ã€ faire
 
-### Architecture actuelle
-- **Frontend** : React + TypeScript + Vite
-- **Backend** : Electron + better-sqlite3
-- **APIs** : AniList (GraphQL), MyAnimeList (Jikan v4), Kitsu, MangaDex, MangaUpdates, Groq AI
-- **Scripts** : Tampermonkey (6 scripts : 3 anime, 3 manga)
-
-### Fichiers importants
-- `electron/services/database.js` : Schéma et migrations
-- `electron/services/import-server.js` : API d'import depuis Tampermonkey + détection auto source_import
-- `electron/handlers/` : IPC handlers pour communication main/renderer
-- `electron/apis/` : Modules d'intégration avec APIs externes (AniList, Groq, etc.)
-- `src/components/` : Composants React organisés par catégorie (modals, cards, layout, common)
-- `tampermonkey/` : Scripts d'extraction de données
-
-### Conventions
-- Commits en français
-- Préfixes : `feat:`, `fix:`, `docs:`, `refactor:`, `style:`, `test:`
-- Branche principale : `main`
-- Pas de force push sur `main`
+- [ ] **Gestion Ã©ditions manga** : Variantes (Collector, Deluxe, IntÃ©grale)
+- [ ] **Lien vers plateformes** : Ouvrir Crunchyroll/Netflix directement
+- [ ] **Import CSV** : Format personnalisÃ© pour mangas
+- [ ] **Synchronisation bidirectionnelle** : MAL/AniList â†’ App + App â†’ MAL/AniList
+- [ ] **Notifications desktop** : Nouveaux Ã©pisodes, MAJ AVN, sync MAL terminÃ©e
 
 ---
 
-## 🎯 Roadmap
+### ðŸ”§ PrioritÃ© Basse
 
-### Court terme (1-2 mois)
-1. ✅ Configuration dynamique des utilisateurs (complété)
-2. ✅ Statistiques avec graphiques (complété)
-3. ✅ Tags personnalisés et badges visuels (complété)
-4. ✅ Vues alternatives (Carrousel, Liste compacte, Mode présentation) (complété)
-5. ✅ Import anime optimisé avec enrichissement auto (complété)
-   - ✅ Traduction Groq AI
-   - ✅ Couvertures HD AniList
-   - ✅ Rate limiting respecté
+#### ðŸ“‹ Ã€ faire
 
-### Moyen terme (3-6 mois)
-1. ✅ Mode sombre/clair avec toggle (complété)
-2. ✅ Color picker pour utilisateurs (complété)
-3. Prévisions de coût pour séries en cours
-4. Application mobile Android (APK)
-5. Raccourcis clavier
-
-### Long terme (6+ mois)
-1. Synchronisation bidirectionnelle avec MAL/AniList
-2. Mode hors-ligne complet
-3. Enrichissement auto des métadonnées
+- [ ] **Application mobile** : Android APK
+  - [ ] Interface tactile adaptÃ©e
+  - [ ] Connexion DB cloud partagÃ©e
+  - [ ] FonctionnalitÃ©s lecture simplifiÃ©es
+- [ ] **Mode hors-ligne complet** : PWA-like
+- [ ] **Migration BDD** : Outil migration entre versions
+- [ ] **Logs d'activitÃ©** : Journal toutes actions
+- [ ] **Import Anilist/Kitsu direct** : En complÃ©ment MAL
+- [ ] **Enrichissement auto mÃ©tadonnÃ©es** : Refresh pÃ©riodique donnÃ©es
 
 ---
 
-**Dernière mise à jour** : 2025-10-24 23:50
+## âš™ï¸ FONCTIONNALITÃ‰S ACTUELLES
+
+### ðŸ“š Gestion Mangas
+
+**Ajout sÃ©ries** :
+- Recherche MangaDex/Nautiljon avec rÃ©cupÃ©ration auto mÃ©tadonnÃ©es
+- Ajout manuel complet
+- Import Tampermonkey (Nautiljon)
+
+**Informations supportÃ©es** :
+- Titre, auteur, Ã©diteur, ISBN
+- Type : BrochÃ©, Collector, Coffret, Kindle, Webtoon, Light Novel, Scan Manga, Scan Webtoon, NumÃ©rique
+- Genre, statut publication, description
+- Couverture (upload ou URL)
+- Date sortie, notes privÃ©es
+- PropriÃ©taires multiples (coÃ»ts partagÃ©s)
+- Source donnÃ©es : MAL, Nautiljon, Hybride
+
+**Gestion tomes** :
+- Ajout : numÃ©ro, titre, date, prix, couverture, notes
+- Suivi lecture : marquer lu avec timestamp prÃ©cis
+- Marquer plusieurs tomes d'un coup
+- Progression auto (X/Y lus)
+- Historique chronologique
+
+**Synchronisation MAL Manga** :
+- OAuth 2.0 PKCE
+- Import auto liste manga MAL
+- 18 champs enrichis (mal_id, titres alternatifs, relations, etc.)
+- Matching intelligent Nautiljon (titre + alternatifs)
+- Ã‰crasement auto covers MAL par Nautiljon
+- Badge visuel source
+
+**Tags & Organisation** :
+- Tags auto : ðŸ”µ En cours, âœ… Lu
+- Tags manuels : ðŸ“š Ã€ lire, ðŸš« AbandonnÃ©
+- Favoris : â­ Flag indÃ©pendant
+- BanniÃ¨res diagonales colorÃ©es
+- Filtrage avancÃ©
+
+**Vues** :
+- Grille responsive (2-6 colonnes)
+- Carrousel 3D Cover Flow (rotation Â±45Â°, effet parallaxe)
+- Liste compacte (miniatures + progression inline)
+- PrÃ©sentation (zoom au survol)
+
+**Chapitres-based series** :
+- Support scans/webtoons (comptage chapitres au lieu tomes)
+- Input "Nb de chapitres" + "Chapitres lus"
+- Traduction IA descriptions (bouton "Traduire")
+- BanniÃ¨re "Tout lu" si 100% chapitres lus
+
+---
+
+### ðŸŽ¬ Gestion Animes
+
+**Architecture MAL pure** :
+- 1 anime = 1 entrÃ©e distincte (mal_id unique)
+- Relations franchise natives
+- Plus de groupement saisons
+
+**Ajout animes** :
+- Par MAL ID/URL (fetch auto Jikan + AniList + Groq)
+- Import XML MyAnimeList (en masse)
+- Scripts Tampermonkey (ADKami, Crunchyroll, ADN)
+- MyAnimeList Quick Add
+
+**28 champs enrichis** :
+- Titres multiples (romaji, natif, anglais, alternatifs)
+- Type (TV, Movie, OVA, ONA, Special)
+- Source (Manga, Light Novel, Jeu vidÃ©o, Original)
+- Nb Ã©pisodes, durÃ©e, annÃ©e, saison diffusion
+- Couverture HD (AniList prioritaire)
+- Description (traduite en franÃ§ais)
+- Statut (TerminÃ©, En cours, Ã€ venir)
+- Genres, thÃ¨mes, demographics (traduits en franÃ§ais)
+- Studios, producteurs, diffuseurs
+- Rating (PG-13, R+, etc.)
+- Score MAL, dates diffusion
+- Relations franchise (prequel, sequel)
+- Liens externes
+- Badge plateforme (ADN, Crunchyroll, ADKami)
+
+**Suivi progression** :
+- Toggle individuel par Ã©pisode
+- Marquer tout vu d'un coup
+- Timestamp prÃ©cis (date + heure)
+- Calcul auto progression (X/Y Ã©pisodes)
+
+**Statuts personnels** :
+- Ã€ regarder, En cours, TerminÃ©, AbandonnÃ©
+- Tags auto : en_cours, termine
+- Tags manuels : a_regarder, abandonne
+- Favoris indÃ©pendants
+
+**Import optimisÃ©** :
+- ParallÃ©lisation Jikan + AniList + Groq
+- 26.2 animes/min (+118%)
+- ChronomÃ¨tre temps rÃ©el (temps Ã©coulÃ©, ETA, vitesse)
+- Traduction auto synopsis (Groq AI)
+- Rate limiting intelligent
+
+**Traductions franÃ§aises** :
+- 150+ termes traduits automatiquement
+- Genres, thÃ¨mes, demographics, sources, statuts, ratings, saisons
+- Fallback termes originaux
+
+**Vues** :
+- Grille (cartes avec image + infos)
+- Liste compacte (miniatures + progression)
+- Vue Images (focus couvertures)
+- BanniÃ¨res diagonales (TerminÃ© vert, En cours orange, AbandonnÃ© gris)
+
+---
+
+### ðŸŽ® Gestion AVN
+
+**Scraping F95Zone** :
+- Recherche par ID F95Zone
+- Scraping direct HTML
+- Extraction : titre, version, statut, moteur, tags, image
+- TÃ©lÃ©chargement images Electron.net (contournement CORS)
+- Validation magic bytes + extension auto
+
+**Scraping LewdCorner** :
+- Support pages LewdCorner
+- Authentification requise (systÃ¨me OAuth intÃ©grÃ©)
+- Intercepteur cookies automatique
+- VÃ©rification session au dÃ©marrage
+
+**Ajout jeux** :
+- Par ID F95Zone/LewdCorner (scraping auto)
+- Ajout manuel complet
+- Import JSON (LC Extractor, F95 Extractor)
+
+**Informations supportÃ©es** :
+- Titre, version, moteur
+- Statut jeu (EN COURS, TERMINÃ‰, ABANDONNÃ‰)
+- Tags multiples
+- Liens (F95Zone, LewdCorner, traduction, jeu, tÃ©lÃ©chargement)
+- Couverture locale ou URL
+- **Champs traduction** :
+  - Version traduction
+  - Statut traduction (Traduction, Traduction (Mod inclus), Traduction intÃ©grÃ©)
+  - Type traduction (Manuelle, Semi-automatique, Automatique, VO franÃ§aise)
+
+**DonnÃ©es utilisateur-spÃ©cifiques** (table vn_user_games) :
+- Chemin exÃ©cutable (par user)
+- Notes privÃ©es (par user)
+- Statut personnel (par user) : Ã€ jouer, En cours, ComplÃ©tÃ©, AbandonnÃ©
+- DerniÃ¨re session (par user)
+- PropriÃ©taires multiples (partagÃ©)
+
+**Lancement jeux** :
+- Bouton "Ã€ jouer" direct
+- MAJ auto derniÃ¨re session
+
+**SystÃ¨me MAJ automatique** :
+- Bouton "VÃ©rifier MAJ" dans page AVN
+- Support F95Zone + LewdCorner (si connectÃ©)
+- Scraping complet chaque jeu
+- Comparaison intelligente donnÃ©es
+- MAJ auto : version, statut, moteur, tags, image
+- **Protection images locales** : Conserve chemins locaux lors MAJ
+- Badge ðŸ”„ "Mise Ã  jour disponible !"
+- Bouton "Marquer comme vu"
+- SystÃ¨me silencieux (pas popups)
+
+**Authentification LewdCorner** :
+- Section dÃ©diÃ©e ParamÃ¨tres AVN
+- FenÃªtre connexion dÃ©diÃ©e
+- Session cookies partagÃ©e
+- Intercepteur webRequest automatique
+- Badge statut (âœ… ConnectÃ© / âš ï¸ Non connectÃ©)
+- Boutons Se connecter / Se dÃ©connecter
+- Section aide intÃ©grÃ©e
+
+**Protection donnÃ©es** :
+- Images locales jamais Ã©crasÃ©es
+- DÃ©tection automatique chemin local
+- Log explicite conservation
+
+---
+
+### ðŸ‘¥ Multi-Utilisateurs
+
+**Gestion profils** :
+- CrÃ©ation : nom, avatar/emoji, couleur (color picker)
+- Modification : renommer (migration auto donnÃ©es), changer avatar, couleur
+- Suppression : confirmation + rÃ©assignation donnÃ©es
+- Aucune limite profils
+
+**Multi-propriÃ©taires** :
+- Dropdown multi-sÃ©lection
+- Calcul auto coÃ»ts partagÃ©s
+- Statistiques individuelles
+- Comparaison multi-users
+
+**Onboarding** :
+- 4 Ã©tapes (Bienvenue, Profil, Emplacement DB, Finalisation)
+- Configuration Home Boarding (choix contenus affichÃ©s)
+- Choix emplacement DB cloud-friendly
+
+**PrÃ©fÃ©rences contenu personnalisÃ©es** :
+- Customisation contenus affichÃ©s (Mangas, Animes, AVN)
+- Configuration onboarding + Ã©ditable ParamÃ¨tres
+- Sidebar dynamique selon choix
+- Dashboard adaptatif
+- Real-time update sans refresh
+- Storage electron-store par user
+- Event emitter changes
+
+---
+
+### ðŸ“Š Dashboard & Statistiques
+
+**Dashboard** :
+- KPIs visuels (SÃ©ries, Tomes, Investissement, Progression)
+- Carousel progression unifiÃ© (mangas + chapitres + animes)
+- Tri chronologique (10 rÃ©cents)
+- Affichage intelligent selon type
+
+**Statistiques** :
+- Graphique Ã©volution temporelle (achats/mois, dÃ©penses)
+- Graphique rÃ©partition (Tomes + CoÃ»t par user)
+- Filtrage annÃ©e + type volume
+- Graphiques collapsibles
+- Statistiques par type volume
+
+---
+
+### ðŸ’¾ Import & Export
+
+**Import Mangas** :
+- Tampermonkey Nautiljon
+- Serveur local port 51234
+- DÃ©duplication intelligente
+- Attribution auto propriÃ©taire actif
+
+**Import Animes** :
+- XML MyAnimeList (export compte MAL)
+- Tampermonkey (ADKami, Crunchyroll, ADN)
+- MyAnimeList Quick Add
+- Multi-saisons auto (Crunchyroll)
+- Enrichissement auto (Jikan + AniList + traduction)
+
+**Import AVN** :
+- Tampermonkey F95Zone AVN Extractor
+- Import JSON (LC Extractor, F95 Extractor)
+- Serveur local port 51234
+
+**Import BDD** :
+- Import DB externe complÃ¨te
+- Fusion auto avec DB existante (INSERT OR IGNORE)
+
+**Export** :
+- Export SQLite complet
+- Format : mangatheque_backup_YYYYMMDD_HHMMSS.db
+- Transfert entre machines
+
+---
+
+### ðŸ”„ Synchronisation MyAnimeList
+
+**OAuth 2.0** :
+- Client ID MAL requis
+- PKCE sÃ©curisÃ©
+- Tokens stockÃ©s localement
+- Refresh auto
+
+**Sync unidirectionnelle** :
+- Liste manga complÃ¨te
+- Liste anime complÃ¨te
+- Progression user (chap lus, ep vus)
+- Scores, dates, tags
+
+**CrÃ©ation automatique** :
+- SÃ©ries/animes manquants crÃ©Ã©s
+- MÃ©tadonnÃ©es complÃ¨tes MAL API v2
+- 18 champs manga + 28 champs anime
+
+**MAJ intelligente** :
+- Compare local vs MAL
+- MAJ uniquement changements
+- Garde maximum infos
+
+**Scheduler auto** :
+- PÃ©riodique configurable (ex: 6h)
+- Activable/dÃ©sactivable
+- ArriÃ¨re-plan
+- Affichage derniÃ¨re sync
+
+**Traduction auto synopsis** :
+- Groq AI intÃ©grÃ©
+- LancÃ© auto aprÃ¨s sync MAL
+- Progression dÃ©taillÃ©e temps rÃ©el
+- Rate limiting intelligent
+
+---
+
+### ðŸ”§ Scripts Tampermonkey
+
+**6 scripts actifs** :
+
+**Anime (4)** :
+1. ADKami Episode Tracker
+2. Crunchyroll Episode Tracker
+3. ADN Episode Tracker
+4. MyAnimeList Quick Add
+
+**Manga (1)** :
+1. Nautiljon Extractor
+
+**AVN (1)** :
+1. F95Zone AVN Extractor
+
+**Serveur import local** :
+- Port 51234
+- API REST rÃ©ception imports
+- DÃ©tection auto source (URL)
+- Attribution propriÃ©taire actif
+- Overlay progression
+
+---
+
+### âš™ï¸ ParamÃ¨tres & Configuration
+
+**7 modules sÃ©parÃ©s** :
+
+**1. UserManagement** :
+- Liste utilisateurs existants
+- CrÃ©ation formulaire dÃ©diÃ©
+- Modification (nom, emoji, couleur, avatar)
+- Suppression avec confirmation
+
+**2. AppearanceSettings** :
+- ThÃ¨me (Dark/Light)
+- DÃ©marrage auto Windows
+- PrÃ©fÃ©rences contenu (Mangas, Animes, AVN)
+- Layout 2 colonnes (ThÃ¨me+Launch / Contenu)
+
+**3. AISettings** :
+- ClÃ© API Groq configurable
+- Masquable/affichable
+- Guide obtention inclus
+- Validation clÃ©
+
+**4. MALSettings** :
+- OAuth Client ID
+- Connexion/dÃ©connexion
+- Sync maintenant + auto-sync pÃ©riodique
+- Traduction synopsis (bouton manuel)
+- Import XML MyAnimeList
+- Progression temps rÃ©el
+
+**5. AVNSettings** :
+- Authentification LewdCorner (Se connecter/dÃ©connecter)
+- VÃ©rification MAJ (bouton "VÃ©rifier maintenant")
+- Badge statut connexion LC
+- Messages inline (pas popups)
+- Section aide collapsible
+
+**6. DatabaseSettings** :
+- Affichage chemin actuel
+- Changement emplacement (avec merge DB)
+- Import/Export DB
+- Support cloud
+
+**7. DangerZone** :
+- Suppression donnÃ©es utilisateur
+- Suppression toutes donnÃ©es app
+- Confirmations multiples
+
+**FenÃªtre** :
+- Persistance taille/position/Ã©tat
+- Restauration dÃ©marrage
+- Debounce 500ms
+
+**Raccourcis** :
+- Ã‰chap : Fermer modals
+- F12 : Ouvrir/fermer DevTools
+
+**Sidebar** :
+- Collapsible (icÃ´nes uniquement)
+- Animations fluides
+- Bordure avatar couleur user
+- Navigation dynamique selon prÃ©fÃ©rences contenu
+
+---
+
+## ðŸ› ï¸ Technologies
+
+**Frontend** :
+- React + TypeScript + Vite
+- Lucide React (icÃ´nes SVG)
+- Recharts (graphiques)
+- React Router DOM
+
+**Backend** :
+- Electron
+- better-sqlite3 (SQLite)
+- electron-store (config)
+- node-cron (scheduler)
+
+**APIs Externes** :
+- Jikan (MyAnimeList API v4)
+- AniList GraphQL
+- MangaDex API
+- Kitsu API
+- MangaUpdates
+- Groq AI (traduction)
+- MyAnimeList API v2 (OAuth)
+
+**Scraping** :
+- F95Zone (HTML parsing + regex)
+- LewdCorner (HTML parsing + auth)
+- Nautiljon (dÃ©lai adaptatif)
+
+**Services Internes** :
+- PathManager (chemins covers/DB)
+- CoverManager (tÃ©lÃ©chargement images)
+- ImportServer (port 51234)
+- MAL Sync Service
+- AVN Update Scheduler
+- LewdCorner Auth + Interceptor
+
+---
+
+## ðŸ“ˆ Performances
+
+**Vitesse import** :
+- Avant : 331 animes â†’ 27-30 min (~11-12 animes/min)
+- AprÃ¨s : 331 animes â†’ ~12-13 min (**26.2 animes/min**)
+- **+118% grÃ¢ce parallÃ©lisation**
+
+**Anti-gel UI** :
+- setImmediate() dans toutes boucles
+- Import XML anime : pause tous les 5
+- Sync MAL : pause tous les 5
+- Traduction : pause chaque itÃ©ration
+- VÃ©rif MAJ AVN : pause tous les 3
+- **RÃ©sultat** : App reste rÃ©active
+
+**Rate Limiting** :
+- Groq AI : 3.5s + retry 10s/20s (99%+ succÃ¨s)
+- AniList : 800ms (limite 90 req/min)
+- F95Zone : 500ms / LewdCorner : 1s
+- Nautiljon : 350-1500ms adaptatif
+
+**Stockage Local** :
+- Mangas : covers/series/{slug}/
+- Animes : covers/animes/{slug}/
+- AVN : covers/avn/{slug}/
+- Ã‰vite requÃªtes rÃ©seau rÃ©pÃ©tÃ©es
+
+---
+
+## ðŸ” SÃ©curitÃ© & Vie PrivÃ©e
+
+âœ… **DonnÃ©es 100% locales**  
+âœ… **Pas de tracking, pas de tÃ©lÃ©mÃ©trie**  
+âœ… **Tokens MAL stockÃ©s sÃ©curisÃ©**  
+âœ… **ClÃ© API Groq masquable UI**  
+âœ… **Session LewdCorner cookies locaux**  
+âœ… **Cloud optionnel** (Proton Drive, OneDrive, Google Drive)
+
+---
+
+## ðŸ“ Notes DÃ©veloppement
+
+**Architecture** :
+- Frontend : React + TypeScript + Vite
+- Backend : Electron + better-sqlite3
+- APIs : 7 sources (Jikan, AniList, MangaDex, Kitsu, MangaUpdates, Groq, MAL)
+- Scripts : 6 Tampermonkey
+
+**Fichiers clÃ©s** :
+- electron/services/database.js : SchÃ©ma + migrations
+- electron/services/import-server.js : API import Tampermonkey
+- electron/handlers/ : 9 IPC handlers
+- electron/apis/ : 9 modules API externes
+- src/components/ : 30+ composants React
+- 	ampermonkey/ : 6 scripts extraction
+
+**Conventions** :
+- Commits franÃ§ais
+- PrÃ©fixes : eat:, ix:, docs:, efactor:, style:, 	est:
+- Branche : main
+- Pas de force push
+
+---
+
+## ðŸŽ¯ Roadmap
+
+**Court terme (1-2 mois)** :
+1. Visualiseur images plein Ã©cran (lightbox)
+2. Import automatique trackers anime optimisÃ©
+3. Support Kitsu API complet
+4. PrÃ©visions coÃ»t sÃ©ries en cours
+
+**Moyen terme (3-6 mois)** :
+1. Application mobile Android (APK)
+2. Mode hors-ligne complet (PWA)
+3. Synchronisation bidirectionnelle MAL/AniList
+4. Notifications desktop
+
+**Long terme (6+ mois)** :
+1. Gestion Ã©ditions manga
+2. Liens directs plateformes streaming
+3. Import CSV personnalisÃ©
+4. Enrichissement auto mÃ©tadonnÃ©es
+
+---
+
+**ðŸ’œ Le Nexus - Votre hub de collections multimÃ©dias**
+
+**DÃ©veloppeur** : Rory Mercury 91  
+**Version actuelle** : 3.0.0  
+**DerniÃ¨re mise Ã  jour** : 26 octobre 2025  
+**Licence** : PropriÃ©taire
+
+---

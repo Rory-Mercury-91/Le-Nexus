@@ -830,6 +830,20 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     const apiKey = store.get('groqApiKey', '');
     return await groqTranslate(text, apiKey, targetLang);
   });
+
+  // ========== SOURCE IMAGES ANIME ==========
+  
+  // Récupérer la source des images anime
+  ipcMain.handle('get-anime-image-source', () => {
+    return store.get('animeImageSource', 'anilist'); // Par défaut : anilist
+  });
+
+  // Définir la source des images anime
+  ipcMain.handle('set-anime-image-source', (event, source) => {
+    store.set('animeImageSource', source);
+    console.log(`✅ Source images anime définie: ${source}`);
+    return { success: true };
+  });
 }
 
 module.exports = { registerSettingsHandlers };

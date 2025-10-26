@@ -31,6 +31,7 @@ export default function Settings() {
   const [malSyncing, setMalSyncing] = useState(false);
   const [malAutoSyncEnabled, setMalAutoSyncEnabled] = useState(false);
   const [malAutoSyncInterval, setMalAutoSyncInterval] = useState(6);
+  const [animeImageSource, setAnimeImageSource] = useState<'anilist' | 'mal'>('anilist');
   
   // Traduction des synopsis
   const [translating, setTranslating] = useState(false);
@@ -66,6 +67,7 @@ export default function Settings() {
     loadMalStatus();
     loadMalAutoSyncSettings();
     loadContentPreferences();
+    loadAnimeImageSource();
     
     // Écouter les mises à jour de progression de l'import XML
     const unsubscribeXml = window.electronAPI.onAnimeImportProgress((progress) => {
@@ -205,6 +207,15 @@ export default function Settings() {
       setMalAutoSyncInterval(settings.intervalHours);
     } catch (error) {
       console.error('Erreur chargement paramètres sync auto MAL:', error);
+    }
+  };
+
+  const loadAnimeImageSource = async () => {
+    try {
+      const source = await window.electronAPI.getAnimeImageSource();
+      setAnimeImageSource(source || 'anilist');
+    } catch (error) {
+      console.error('Erreur chargement source images anime:', error);
     }
   };
 
@@ -404,6 +415,20 @@ export default function Settings() {
     }
   };
 
+  const handleAnimeImageSourceChange = async (source: 'anilist' | 'mal') => {
+    try {
+      await window.electronAPI.setAnimeImageSource(source);
+      setAnimeImageSource(source);
+      showToast({
+        title: 'Source d\'images modifiée',
+        message: `Les animes importés utiliseront désormais ${source === 'anilist' ? 'AniList' : 'MyAnimeList'}`,
+        type: 'success'
+      });
+    } catch (error: any) {
+      showToast({ title: 'Erreur', message: error.message || 'Impossible de modifier la source d\'images', type: 'error' });
+    }
+  };
+
   const handleImportAnimeXml = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -599,6 +624,8 @@ export default function Settings() {
           onMalAutoSyncChange={handleMalAutoSyncChange}
           onMalIntervalChange={handleMalIntervalChange}
           onImportAnimeXml={handleImportAnimeXml}
+          animeImageSource={animeImageSource}
+          onAnimeImageSourceChange={handleAnimeImageSourceChange}
         />
 
         {/* AVN - Vérification automatique */}

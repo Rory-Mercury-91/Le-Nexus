@@ -66,6 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malTranslateSynopsis: () => ipcRenderer.invoke('mal-translate-synopsis'),
   malSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('mal-set-auto-sync', enabled, intervalHours),
   malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
+  getAnimeImageSource: () => ipcRenderer.invoke('get-anime-image-source'),
+  setAnimeImageSource: (source) => ipcRenderer.invoke('set-anime-image-source', source),
   onMalSyncProgress: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-progress', subscription);
