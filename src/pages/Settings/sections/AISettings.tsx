@@ -10,8 +10,8 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
 
   return (
-    <div style={{ marginBottom: '30px' }}>
-      <div className="settings-section">
+    <div style={{ height: '100%' }}>
+      <div className="settings-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div className="settings-header">
           <h2 className="settings-title">🤖 Intelligence Artificielle</h2>
         </div>

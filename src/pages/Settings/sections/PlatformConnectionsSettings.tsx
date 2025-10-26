@@ -247,7 +247,7 @@ export default function PlatformConnectionsSettings() {
   );
 
   return (
-    <div className="card" style={{ padding: '24px' }}>
+    <div className="card" style={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         🔐 Connexions aux plateformes
       </h2>

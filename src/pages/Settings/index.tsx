@@ -582,7 +582,7 @@ export default function Settings() {
         </h1>
 
         {/* Grid 2 colonnes : Gestion utilisateurs | Scripts Tampermonkey */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px', alignItems: 'stretch' }}>
           <UserManagement
             users={users}
             userAvatars={userAvatars}
@@ -607,7 +607,7 @@ export default function Settings() {
         <NotificationSettings />
 
         {/* Grid 2 colonnes : Intelligence Artificielle | Connexions plateformes */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px', alignItems: 'stretch' }}>
           <AISettings
             groqApiKey={groqApiKey}
             onGroqApiKeyChange={handleGroqApiKeyChange}
