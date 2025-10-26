@@ -500,6 +500,30 @@ export default function AVN() {
                   </div>
                 )}
 
+                {/* Badge Traduction FR */}
+                {game.traduction_fr_disponible && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: game.maj_disponible ? '60px' : '12px',
+                    background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                    color: 'white',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '6px 10px',
+                    borderRadius: '12px',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                    zIndex: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    🇫🇷
+                    {game.statut_traduction === 'TERMINÉ' && '✅'}
+                    {game.statut_traduction === 'EN COURS' && '⏳'}
+                  </div>
+                )}
+
                 {/* Bannière statut */}
                 {game.statut_perso && (
                   <div style={{

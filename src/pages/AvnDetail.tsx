@@ -450,35 +450,140 @@ export default function AvnDetail() {
                 </div>
               )}
 
-              {/* Informations de traduction */}
-              {(game.version_traduction || game.statut_traduction || game.type_traduction) && (
+              {/* Traduction française */}
+              {game.traduction_fr_disponible && (
                 <div style={{
-                  padding: '12px',
-                  background: 'rgba(139, 92, 246, 0.1)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(139, 92, 246, 0.3)'
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(59, 130, 246, 0.3)',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}>
-                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                    <Languages size={14} />
-                    Traduction
-                  </span>
-                  
-                  {game.version_traduction && (
-                    <p style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '4px' }}>
-                      <strong>Version :</strong> {game.version_traduction}
-                    </p>
-                  )}
-                  
-                  {game.statut_traduction && (
-                    <p style={{ fontSize: '14px', color: 'var(--text)', marginBottom: '4px' }}>
-                      <strong>Statut :</strong> {game.statut_traduction}
-                    </p>
-                  )}
-                  
-                  {game.type_traduction && (
-                    <p style={{ fontSize: '14px', color: 'var(--text)' }}>
-                      <strong>Type :</strong> {game.type_traduction}
-                    </p>
+                  {/* Badge FR */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: '12px', 
+                    right: '12px',
+                    fontSize: '28px',
+                    opacity: 0.3
+                  }}>
+                    🇫🇷
+                  </div>
+
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Languages size={18} />
+                    Traduction Française Disponible
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '8px', marginBottom: '12px' }}>
+                    {/* Version traduite */}
+                    {game.version_traduite && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
+                          Version traduite :
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text)' }}>
+                          {game.version_traduite}
+                          {game.version && game.version_traduite !== game.version && (
+                            <span style={{ 
+                              marginLeft: '8px', 
+                              fontSize: '11px', 
+                              padding: '2px 6px', 
+                              background: 'rgba(251, 146, 60, 0.2)', 
+                              color: '#fb923c', 
+                              borderRadius: '4px',
+                              fontWeight: '600'
+                            }}>
+                              ⚠️ Jeu en v{game.version}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Statut */}
+                    {game.statut_traduction && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
+                          Statut :
+                        </span>
+                        <span style={{ 
+                          fontSize: '12px', 
+                          fontWeight: '600',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          background: 
+                            game.statut_traduction === 'TERMINÉ' ? 'rgba(16, 185, 129, 0.15)' :
+                            game.statut_traduction === 'EN COURS' ? 'rgba(59, 130, 246, 0.15)' :
+                            'rgba(156, 163, 175, 0.15)',
+                          color:
+                            game.statut_traduction === 'TERMINÉ' ? '#10b981' :
+                            game.statut_traduction === 'EN COURS' ? '#3b82f6' :
+                            '#9ca3af',
+                          border: `1px solid ${
+                            game.statut_traduction === 'TERMINÉ' ? '#10b981' :
+                            game.statut_traduction === 'EN COURS' ? '#3b82f6' :
+                            '#9ca3af'
+                          }`
+                        }}>
+                          {game.statut_traduction === 'TERMINÉ' && '✅ '}
+                          {game.statut_traduction === 'EN COURS' && '⏳ '}
+                          {game.statut_traduction === 'ABANDONNÉ' && '❌ '}
+                          {game.statut_traduction}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Type de traduction */}
+                    {game.type_traduction && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
+                          Type :
+                        </span>
+                        <span style={{ fontSize: '13px', color: 'var(--text)' }}>
+                          {game.type_traduction === 'Traduction Humaine' && '👤 '}
+                          {game.type_traduction === 'Traduction Semi-Automatique' && '🤖👤 '}
+                          {game.type_traduction === 'Traduction Automatique' && '🤖 '}
+                          {game.type_traduction}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Traducteur */}
+                    {game.traducteur && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
+                          Traducteur :
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--primary)' }}>
+                          {game.traducteur}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bouton téléchargement */}
+                  {game.lien_traduction && (
+                    <a
+                      href={game.lien_traduction}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary"
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        textDecoration: 'none',
+                        fontSize: '13px',
+                        padding: '10px'
+                      }}
+                    >
+                      <Download size={16} />
+                      Télécharger la traduction
+                    </a>
                   )}
                 </div>
               )}

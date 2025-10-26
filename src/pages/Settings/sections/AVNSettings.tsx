@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { LogIn, LogOut, Plus, RefreshCw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useToast } from '../../../hooks/useToast';
 

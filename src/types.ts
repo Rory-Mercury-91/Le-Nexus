@@ -317,10 +317,17 @@ export interface AvnGame {
   chemin_executable?: string | null;
   derniere_session?: string | null;
   
-  // Informations de traduction
+  // Informations de traduction (anciennes)
   version_traduction?: string | null;
   statut_traduction?: AvnStatutTraduction | null;
   type_traduction?: AvnTypeTraduction | null;
+  
+  // Traduction FR (Google Sheets sync)
+  traduction_fr_disponible?: boolean;
+  version_traduite?: string | null;
+  traducteur?: string | null;
+  f95_trad_id?: number | null;
+  derniere_sync_trad?: string | null;
   
   // Contrôle de version
   version_disponible?: string | null;

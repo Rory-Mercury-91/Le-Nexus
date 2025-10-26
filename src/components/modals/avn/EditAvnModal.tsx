@@ -27,10 +27,17 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
   const [tagsInput, setTagsInput] = useState(game.tags?.join(', ') || '');
   const [saving, setSaving] = useState(false);
   
-  // Champs de traduction
+  // Champs de traduction (anciens)
   const [versionTraduction, setVersionTraduction] = useState(game.version_traduction || '');
   const [statutTraduction, setStatutTraduction] = useState<AvnStatutTraduction | ''>(game.statut_traduction || '');
   const [typeTraduction, setTypeTraduction] = useState<AvnTypeTraduction | ''>(game.type_traduction || '');
+  
+  // Champs traduction FR (sync Google Sheets)
+  const [traductionFrDisponible, setTraductionFrDisponible] = useState(game.traduction_fr_disponible || false);
+  const [versionTraduite, setVersionTraduite] = useState(game.version_traduite || '');
+  const [traducteur, setTraducteur] = useState(game.traducteur || '');
+  const [statutTradFR, setStatutTradFR] = useState(game.statut_traduction || '');
+  const [typeTradFR, setTypeTradFR] = useState(game.type_traduction || '');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -59,6 +66,16 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
         version_traduction: versionTraduction || null,
         statut_traduction: statutTraduction || null,
         type_traduction: typeTraduction || null
+      });
+
+      // Mise à jour séparée des infos de traduction FR
+      await window.electronAPI.updateTraductionManually(game.id, {
+        disponible: traductionFrDisponible,
+        versionTraduite: versionTraduite || null,
+        lienTraduction: lienTraduction || null,
+        statut: statutTradFR || null,
+        typeTraduction: typeTradFR || null,
+        traducteur: traducteur || null
       });
 
       showToast({
@@ -464,6 +481,109 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                     <option value="VO française">VO française</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Section : Traduction Française (sync) */}
+              <div style={{ 
+                padding: '16px', 
+                background: 'rgba(59, 130, 246, 0.05)', 
+                borderRadius: '8px',
+                border: '1px solid rgba(59, 130, 246, 0.2)'
+              }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🇫🇷 Traduction Française (sync)
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.5' }}>
+                  Ces informations peuvent être synchronisées automatiquement depuis Google Sheets ou saisies manuellement.
+                </p>
+
+                {/* Traduction disponible */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={traductionFrDisponible}
+                      onChange={(e) => setTraductionFrDisponible(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text)' }}>
+                      Traduction française disponible
+                    </span>
+                  </label>
+                </div>
+
+                {traductionFrDisponible && (
+                  <>
+                    {/* Version traduite */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label htmlFor="version_traduite" className="label">
+                        Version traduite
+                      </label>
+                      <input
+                        type="text"
+                        id="version_traduite"
+                        value={versionTraduite}
+                        onChange={(e) => setVersionTraduite(e.target.value)}
+                        className="input"
+                        placeholder="v0.15"
+                      />
+                    </div>
+
+                    {/* Statut traduction FR */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label htmlFor="statut_trad_fr" className="label">
+                        Statut
+                      </label>
+                      <select
+                        id="statut_trad_fr"
+                        value={statutTradFR}
+                        onChange={(e) => setStatutTradFR(e.target.value)}
+                        className="select"
+                      >
+                        <option value="">-- Non défini --</option>
+                        <option value="TERMINÉ">✅ TERMINÉ</option>
+                        <option value="EN COURS">⏳ EN COURS</option>
+                        <option value="ABANDONNÉ">❌ ABANDONNÉ</option>
+                      </select>
+                    </div>
+
+                    {/* Type traduction FR */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label htmlFor="type_trad_fr" className="label">
+                        Type de traduction
+                      </label>
+                      <select
+                        id="type_trad_fr"
+                        value={typeTradFR}
+                        onChange={(e) => setTypeTradFR(e.target.value)}
+                        className="select"
+                      >
+                        <option value="">-- Non défini --</option>
+                        <option value="Traduction Humaine">👤 Traduction Humaine</option>
+                        <option value="Traduction Semi-Automatique">🤖👤 Traduction Semi-Automatique</option>
+                        <option value="Traduction Automatique">🤖 Traduction Automatique</option>
+                      </select>
+                    </div>
+
+                    {/* Traducteur */}
+                    <div>
+                      <label htmlFor="traducteur" className="label">
+                        Traducteur
+                      </label>
+                      <input
+                        type="text"
+                        id="traducteur"
+                        value={traducteur}
+                        onChange={(e) => setTraducteur(e.target.value)}
+                        className="input"
+                        placeholder="Rory-Mercury91"
+                      />
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '6px' }}>
+                        💡 Nom du traducteur dans le Google Sheet
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Section : Paramètres personnels */}

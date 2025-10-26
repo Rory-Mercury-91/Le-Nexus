@@ -312,4 +312,3 @@ module.exports = {
   updateTraductionManually,
   extractF95Id
 };
-
