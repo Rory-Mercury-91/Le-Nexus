@@ -456,80 +456,162 @@
     // Créer l'interface utilisateur
     const createUI = () => {
         // Conteneur pour les 2 boutons
+        // Créer le conteneur du menu
         const container = document.createElement('div');
+        container.id = 'nautiljon-menu';
         container.style.cssText = `
             position: fixed;
-            bottom: 100px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
+            bottom: 20px;
+            left: 20px;
             z-index: 999999;
         `;
 
-        // Bouton 1: Import complet (série + tomes)
-        const buttonFull = document.createElement('button');
-        buttonFull.innerHTML = '📚';
-        buttonFull.title = 'Import complet (série + tomes)';
-        buttonFull.style.cssText = `
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+        // Créer le menu déroulant (initialement caché)
+        const menu = document.createElement('div');
+        menu.style.cssText = `
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            min-width: 200px;
+        `;
+
+        // Option 1: Import complet
+        const optionFull = document.createElement('button');
+        optionFull.innerHTML = '📚 Import complet';
+        optionFull.title = 'Import complet (série + tomes)';
+        optionFull.style.cssText = `
+            padding: 12px 16px;
             background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
             border: none;
-            font-size: 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
         `;
         
-        buttonFull.onmouseenter = () => {
-            buttonFull.style.transform = 'scale(1.1) rotate(5deg)';
-            buttonFull.style.boxShadow = '0 8px 20px rgba(245, 158, 11, 0.7)';
+        optionFull.onmouseenter = () => {
+            optionFull.style.transform = 'translateX(4px)';
+            optionFull.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.4)';
         };
         
-        buttonFull.onmouseleave = () => {
-            buttonFull.style.transform = 'scale(1) rotate(0deg)';
-            buttonFull.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.5)';
+        optionFull.onmouseleave = () => {
+            optionFull.style.transform = 'translateX(0)';
+            optionFull.style.boxShadow = 'none';
         };
 
-        // Bouton 2: Import tomes uniquement
-        const buttonTomes = document.createElement('button');
-        buttonTomes.innerHTML = '📖';
-        buttonTomes.title = 'Import tomes uniquement (série doit exister)';
-        buttonTomes.style.cssText = `
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+        // Option 2: Import tomes uniquement
+        const optionTomes = document.createElement('button');
+        optionTomes.innerHTML = '📖 Import tomes';
+        optionTomes.title = 'Import tomes uniquement (série doit exister)';
+        optionTomes.style.cssText = `
+            padding: 12px 16px;
             background: linear-gradient(135deg, #ec4899, #db2777);
             color: white;
             border: none;
-            font-size: 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(236, 72, 153, 0.5);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        `;
+        
+        optionTomes.onmouseenter = () => {
+            optionTomes.style.transform = 'translateX(4px)';
+            optionTomes.style.boxShadow = '0 4px 12px rgba(236, 72, 153, 0.4)';
+        };
+        
+        optionTomes.onmouseleave = () => {
+            optionTomes.style.transform = 'translateX(0)';
+            optionTomes.style.boxShadow = 'none';
+        };
+
+        // Bouton principal avec 3 points verticaux
+        const menuButton = document.createElement('button');
+        menuButton.innerHTML = '⋮';
+        menuButton.title = 'Options d\'import Nautiljon';
+        menuButton.style.cssText = `
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
         `;
         
-        buttonTomes.onmouseenter = () => {
-            buttonTomes.style.transform = 'scale(1.1) rotate(5deg)';
-            buttonTomes.style.boxShadow = '0 8px 20px rgba(236, 72, 153, 0.7)';
+        let menuOpen = false;
+        
+        menuButton.onclick = (e) => {
+            e.stopPropagation();
+            menuOpen = !menuOpen;
+            menu.style.display = menuOpen ? 'flex' : 'none';
+            menuButton.style.transform = menuOpen ? 'rotate(90deg)' : 'rotate(0deg)';
         };
         
-        buttonTomes.onmouseleave = () => {
-            buttonTomes.style.transform = 'scale(1) rotate(0deg)';
-            buttonTomes.style.boxShadow = '0 4px 12px rgba(236, 72, 153, 0.5)';
+        menuButton.onmouseenter = () => {
+            if (!menuOpen) {
+                menuButton.style.transform = 'scale(1.1)';
+                menuButton.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.6)';
+            }
         };
+        
+        menuButton.onmouseleave = () => {
+            if (!menuOpen) {
+                menuButton.style.transform = 'scale(1)';
+                menuButton.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)';
+            }
+        };
+
+        // Fermer le menu en cliquant ailleurs
+        document.addEventListener('click', () => {
+            if (menuOpen) {
+                menuOpen = false;
+                menu.style.display = 'none';
+                menuButton.style.transform = 'rotate(0deg)';
+            }
+        });
+
+        // Empêcher la fermeture lors du clic sur le menu
+        menu.onclick = (e) => e.stopPropagation();
+
+        // Renommer les variables pour correspondre au reste du code
+        const buttonFull = optionFull;
+        const buttonTomes = optionTomes;
         
         // Click handler pour l'import complet
         buttonFull.onclick = async () => {
+            // Fermer le menu
+            menuOpen = false;
+            menu.style.display = 'none';
+            menuButton.style.transform = 'rotate(0deg)';
+            
             // Animation de chargement
-            buttonFull.innerHTML = '⏳';
+            buttonFull.innerHTML = '⏳ Import...';
             buttonFull.disabled = true;
             buttonFull.style.cursor = 'wait';
             
@@ -567,7 +649,7 @@
                 
                 // Reset après 2 secondes
                 setTimeout(() => {
-                    buttonFull.innerHTML = '📚';
+                    buttonFull.innerHTML = '📚 Import complet';
                     buttonFull.disabled = false;
                     buttonFull.style.cursor = 'pointer';
                     buttonFull.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
@@ -577,7 +659,7 @@
                 console.error('❌ Erreur:', error);
                 
                 // Animation d'erreur
-                buttonFull.innerHTML = '❌';
+                buttonFull.innerHTML = '❌ Erreur';
                 buttonFull.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 
                 // Notification d'erreur
@@ -588,7 +670,7 @@
                 
                 // Reset après 3 secondes
                 setTimeout(() => {
-                    buttonFull.innerHTML = '📚';
+                    buttonFull.innerHTML = '📚 Import complet';
                     buttonFull.disabled = false;
                     buttonFull.style.cursor = 'pointer';
                     buttonFull.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
@@ -598,8 +680,13 @@
         
         // Click handler pour l'import tomes uniquement
         buttonTomes.onclick = async () => {
+            // Fermer le menu
+            menuOpen = false;
+            menu.style.display = 'none';
+            menuButton.style.transform = 'rotate(0deg)';
+            
             // Animation de chargement
-            buttonTomes.innerHTML = '⏳';
+            buttonTomes.innerHTML = '⏳ Import...';
             buttonTomes.disabled = true;
             buttonTomes.style.cursor = 'wait';
             
@@ -646,7 +733,7 @@
                 
                 // Reset après 2 secondes
                 setTimeout(() => {
-                    buttonTomes.innerHTML = '📖';
+                    buttonTomes.innerHTML = '📖 Import tomes';
                     buttonTomes.disabled = false;
                     buttonTomes.style.cursor = 'pointer';
                     buttonTomes.style.background = 'linear-gradient(135deg, #ec4899, #db2777)';
@@ -656,7 +743,7 @@
                 console.error('❌ Erreur:', error);
                 
                 // Animation d'erreur
-                buttonTomes.innerHTML = '❌';
+                buttonTomes.innerHTML = '❌ Erreur';
                 buttonTomes.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                 
                 // Notification d'erreur
@@ -667,7 +754,7 @@
                 
                 // Reset après 3 secondes
                 setTimeout(() => {
-                    buttonTomes.innerHTML = '📖';
+                    buttonTomes.innerHTML = '📖 Import tomes';
                     buttonTomes.disabled = false;
                     buttonTomes.style.cursor = 'pointer';
                     buttonTomes.style.background = 'linear-gradient(135deg, #ec4899, #db2777)';
@@ -675,9 +762,13 @@
             }
         };
         
-        // Ajouter les boutons au conteneur
-        container.appendChild(buttonFull);
-        container.appendChild(buttonTomes);
+        // Ajouter les options au menu
+        menu.appendChild(optionFull);
+        menu.appendChild(optionTomes);
+        
+        // Ajouter le menu et le bouton au conteneur
+        container.appendChild(menu);
+        container.appendChild(menuButton);
         document.body.appendChild(container);
     };
 

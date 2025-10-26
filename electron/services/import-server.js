@@ -327,7 +327,20 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
       req.on('end', async () => {
         try {
           const mangaData = JSON.parse(body);
-          console.log('📥 Import reçu depuis le navigateur:', mangaData.titre);
+          console.log('📥 ========== IMPORT NAUTILJON REÇU ==========');
+          console.log('📘 Titre principal:', mangaData.titre);
+          console.log('🏷️  Titre alternatif:', mangaData.titre_alternatif || '(non fourni)');
+          console.log('📊 Genres:', mangaData.genres || '(non fourni)');
+          console.log('👥 Démographie:', mangaData.demographie || '(non fourni)');
+          console.log('📖 Type volume:', mangaData.type_volume);
+          console.log('📄 Type contenu:', mangaData.type_contenu);
+          console.log('🌍 Langue originale:', mangaData.langue_originale || '(non fourni)');
+          console.log('📅 Année publication:', mangaData.annee_publication || '(non fourni)');
+          console.log('📌 Statut publication:', mangaData.statut_publication || '(non fourni)');
+          console.log('⭐ Rating:', mangaData.rating || '(non fourni)');
+          console.log('🖼️  Couverture URL:', mangaData.couverture_url ? '✅ Présente' : '❌ Absente');
+          console.log('📚 Nombre de volumes:', mangaData.volumes?.length || 0);
+          console.log('============================================');
 
           // Valider les données
           if (!mangaData.titre) {
@@ -351,8 +364,124 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             throw new Error('Aucun utilisateur connecté');
           }
 
+          // Fonction de normalisation pour la comparaison de titres
+          const normalizeTitle = (title) => {
+            if (!title) return '';
+            return title
+              .toLowerCase()
+              .normalize('NFD') // Décompose les caractères accentués
+              .replace(/[\u0300-\u036f]/g, '') // Supprime les diacritiques (accents)
+              .replace(/[-\s'']/g, '') // Supprime tirets, espaces, apostrophes
+              .replace(/[!?.,;:]/g, '') // Supprime ponctuation
+              .replace(/[ō]/g, 'o') // Normalise caractères japonais romanisés
+              .replace(/[ū]/g, 'u')
+              .replace(/[ā]/g, 'a')
+              .replace(/[ē]/g, 'e')
+              .replace(/[ī]/g, 'i')
+              .trim();
+          };
+
+          // Distance de Levenshtein pour calculer la similarité entre deux chaînes
+          const levenshteinDistance = (str1, str2) => {
+            const len1 = str1.length;
+            const len2 = str2.length;
+            const matrix = Array(len2 + 1).fill(null).map(() => Array(len1 + 1).fill(null));
+
+            for (let i = 0; i <= len1; i++) matrix[0][i] = i;
+            for (let j = 0; j <= len2; j++) matrix[j][0] = j;
+
+            for (let j = 1; j <= len2; j++) {
+              for (let i = 1; i <= len1; i++) {
+                const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                matrix[j][i] = Math.min(
+                  matrix[j][i - 1] + 1,     // insertion
+                  matrix[j - 1][i] + 1,     // suppression
+                  matrix[j - 1][i - 1] + indicator // substitution
+                );
+              }
+            }
+
+            return matrix[len2][len1];
+          };
+
+          // Vérifie si deux titres sont similaires (tolérance : 1-2 caractères de différence)
+          const areSimilar = (str1, str2) => {
+            if (!str1 || !str2) return false;
+            if (str1 === str2) return true;
+            
+            const distance = levenshteinDistance(str1, str2);
+            const maxLength = Math.max(str1.length, str2.length);
+            
+            // Tolérance adaptative : 1-2 caractères pour titres courts, 2-3 pour longs titres
+            const threshold = maxLength < 15 ? 1 : (maxLength < 30 ? 2 : 3);
+            
+            return distance <= threshold;
+          };
+
           // Vérifier si la série existe déjà (par titre exact ou mal_id)
-          let existingSerie = db.prepare('SELECT id, source_donnees FROM series WHERE titre = ?').get(mangaData.titre);
+          console.log('🔍 Vérification existence série avec titre:', mangaData.titre);
+          console.log('   🏷️  Titre alternatif à matcher:', mangaData.titre_alternatif || '(aucun)');
+          
+          let existingSerie = db.prepare('SELECT id, source_donnees, titre, titre_alternatif FROM series WHERE titre = ?').get(mangaData.titre);
+          
+          // Si pas trouvé par titre exact, chercher par titre normalisé ou titre alternatif
+          if (!existingSerie) {
+            const normalizedNewTitle = normalizeTitle(mangaData.titre);
+            const normalizedNewAlt = normalizeTitle(mangaData.titre_alternatif);
+            
+            console.log('   🔄 Recherche par titre normalisé:', normalizedNewTitle);
+            if (normalizedNewAlt) {
+              console.log('   🔄 Recherche par alternatif normalisé:', normalizedNewAlt);
+            }
+            
+            // Récupérer toutes les séries et comparer en normalisé
+            const allSeries = db.prepare('SELECT id, source_donnees, titre, titre_alternatif FROM series').all();
+            
+            console.log(`   📚 Base de données: ${allSeries.length} série(s) à comparer`);
+            
+            for (const serie of allSeries) {
+              const normalizedDbTitle = normalizeTitle(serie.titre);
+              const normalizedDbAlt = normalizeTitle(serie.titre_alternatif);
+              
+              // Log détaillé pour debugging
+              console.log(`      📖 [ID ${serie.id}] "${serie.titre}" → normalisé: "${normalizedDbTitle}"`);
+              if (serie.titre_alternatif) {
+                console.log(`         🏷️  Alt: "${serie.titre_alternatif}" → normalisé: "${normalizedDbAlt}"`);
+              }
+              
+              // Comparer titre Nautiljon vs titre DB (avec tolérance)
+              if (normalizedNewTitle && areSimilar(normalizedDbTitle, normalizedNewTitle)) {
+                const distance = levenshteinDistance(normalizedDbTitle, normalizedNewTitle);
+                existingSerie = serie;
+                console.log(`   ✅ Match trouvé par titre normalisé: "${serie.titre}" (distance: ${distance})`);
+                break;
+              }
+              
+              // Comparer titre Nautiljon vs alternatif DB (avec tolérance)
+              if (normalizedNewTitle && areSimilar(normalizedDbAlt, normalizedNewTitle)) {
+                const distance = levenshteinDistance(normalizedDbAlt, normalizedNewTitle);
+                existingSerie = serie;
+                console.log(`   ✅ Match trouvé: titre Nautiljon "${mangaData.titre}" ↔ alternatif DB "${serie.titre_alternatif}" (distance: ${distance})`);
+                break;
+              }
+              
+              // Comparer alternatif Nautiljon vs titre DB (avec tolérance)
+              if (normalizedNewAlt && areSimilar(normalizedDbTitle, normalizedNewAlt)) {
+                const distance = levenshteinDistance(normalizedDbTitle, normalizedNewAlt);
+                existingSerie = serie;
+                console.log(`   ✅ Match trouvé: alternatif Nautiljon "${mangaData.titre_alternatif}" ↔ titre DB "${serie.titre}" (distance: ${distance})`);
+                break;
+              }
+              
+              // Comparer alternatif Nautiljon vs alternatif DB (avec tolérance)
+              if (normalizedNewAlt && normalizedDbAlt && areSimilar(normalizedDbAlt, normalizedNewAlt)) {
+                const distance = levenshteinDistance(normalizedDbAlt, normalizedNewAlt);
+                existingSerie = serie;
+                console.log(`   ✅ Match trouvé par alternatifs normalisés: "${serie.titre_alternatif}" (distance: ${distance})`);
+                break;
+              }
+            }
+          }
           
           let serieId;
           let isUpdate = false;
@@ -362,17 +491,47 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             isUpdate = true;
             serieId = existingSerie.id;
             
-            console.log(`🔄 Série existante trouvée (ID ${serieId}), écrasement avec données Nautiljon...`);
+            console.log(`🔄 Série existante trouvée (ID ${serieId}, source: ${existingSerie.source_donnees || 'aucune'})`);
+            console.log(`   📝 Titre dans la base: "${existingSerie.titre}"`);
+            console.log(`   📝 Titre à importer: "${mangaData.titre}"`);
+            console.log('   ➡️  Écrasement avec données Nautiljon...');
             
             // Déterminer la nouvelle source
             const newSource = existingSerie.source_donnees && existingSerie.source_donnees.includes('mal')
                             ? 'mal+nautiljon'
                             : 'nautiljon';
             
-            // Écraser TOUTES les données françaises
+            // Récupérer toutes les données existantes
+            const currentData = db.prepare('SELECT * FROM series WHERE id = ?').get(serieId);
+            
+            // Fusionner intelligemment : Nautiljon écrase SEULEMENT si une valeur existe
+            const mergedData = {
+              titre: mangaData.titre || currentData.titre, // Toujours prendre le titre VF si disponible
+              titre_alternatif: mangaData.titre_alternatif || currentData.titre_alternatif,
+              type_volume: mangaData.type_volume || currentData.type_volume || 'Broché',
+              type_contenu: mangaData.type_contenu || currentData.type_contenu || 'volume',
+              description: mangaData.description || currentData.description,
+              statut_publication: mangaData.statut_publication || currentData.statut_publication,
+              annee_publication: mangaData.annee_publication || currentData.annee_publication,
+              genres: mangaData.genres || currentData.genres,
+              nb_chapitres: mangaData.nb_chapitres || currentData.nb_chapitres,
+              editeur: mangaData._editeur || currentData.editeur,
+              rating: mangaData.rating || currentData.rating,
+              langue_originale: mangaData.langue_originale || currentData.langue_originale,
+              demographie: mangaData.demographie || currentData.demographie
+            };
+            
+            console.log('   🔀 Fusion des données :');
+            console.log(`      📘 Titre: "${mergedData.titre}" ${mangaData.titre ? '(Nautiljon)' : '(conservé)'}`);
+            console.log(`      🏷️  Alternatif: "${mergedData.titre_alternatif || 'N/A'}" ${mangaData.titre_alternatif ? '(Nautiljon)' : '(conservé)'}`);
+            console.log(`      ⭐ Rating: ${mergedData.rating || 'N/A'} ${mangaData.rating ? '(Nautiljon)' : '(conservé)'}`);
+            console.log(`      📊 Genres: ${mergedData.genres ? 'Oui' : 'N/A'} ${mangaData.genres ? '(Nautiljon)' : '(conservé)'}`);
+            
+            // Mettre à jour avec les données fusionnées
             db.prepare(`
               UPDATE series 
               SET titre = ?,
+                  titre_alternatif = ?,
                   type_volume = ?,
                   type_contenu = ?,
                   description = ?,
@@ -382,20 +541,25 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
                   nb_chapitres = ?,
                   editeur = ?,
                   rating = ?,
+                  langue_originale = ?,
+                  demographie = ?,
                   source_donnees = ?,
                   updated_at = datetime('now')
               WHERE id = ?
             `).run(
-              mangaData.titre, // Titre VF
-              mangaData.type_volume || 'Broché',
-              mangaData.type_contenu || 'volume',
-              mangaData.description,
-              mangaData.statut_publication,
-              mangaData.annee_publication, // Année VF
-              mangaData.genres,
-              mangaData.nb_chapitres, // Nb volumes/chapitres VF
-              mangaData._editeur || null, // Éditeur VF
-              mangaData.rating,
+              mergedData.titre,
+              mergedData.titre_alternatif,
+              mergedData.type_volume,
+              mergedData.type_contenu,
+              mergedData.description,
+              mergedData.statut_publication,
+              mergedData.annee_publication,
+              mergedData.genres,
+              mergedData.nb_chapitres,
+              mergedData.editeur,
+              mergedData.rating,
+              mergedData.langue_originale,
+              mergedData.demographie,
               newSource,
               serieId
             );
@@ -403,17 +567,19 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             console.log(`✅ Série "${mangaData.titre}" mise à jour avec données Nautiljon (ID ${serieId})`);
           } else {
             // ========== CRÉATION : Nouvelle série ==========
+            console.log(`➕ Aucune série existante trouvée → Création d'une nouvelle série`);
             const stmt = db.prepare(`
               INSERT INTO series (
-                titre, statut, type_volume, type_contenu, couverture_url, description,
+                titre, titre_alternatif, statut, type_volume, type_contenu, couverture_url, description,
                 statut_publication, annee_publication, genres, nb_chapitres,
                 langue_originale, demographie, editeur, rating, source_donnees
               )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nautiljon')
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nautiljon')
             `);
 
             const result = stmt.run(
               mangaData.titre,
+              mangaData.titre_alternatif || null,
               mangaData.statut || 'En cours',
               mangaData.type_volume || 'Broché',
               mangaData.type_contenu || 'volume',
@@ -431,6 +597,9 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
 
             serieId = result.lastInsertRowid;
             console.log(`✅ Série "${mangaData.titre}" ajoutée avec l'ID ${serieId}`);
+            if (mangaData.titre_alternatif) {
+              console.log(`   🏷️  Titre alternatif enregistré: "${mangaData.titre_alternatif}"`);
+            }
           }
 
           // Télécharger la couverture de la série en local si une URL est fournie

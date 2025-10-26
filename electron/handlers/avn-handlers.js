@@ -1091,6 +1091,195 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   });
   
   // ========================================
+  // Rechercher un jeu par ID LewdCorner
+  // ========================================
+  
+  ipcMain.handle('search-avn-by-lewdcorner-id', async (event, lewdcornerId) => {
+    try {
+      console.log(`🔍 Recherche jeu LewdCorner ID: ${lewdcornerId}`);
+      
+      const { session } = require('electron');
+      
+      // Vérifier la session LewdCorner
+      const cookies = await session.defaultSession.cookies.get({ domain: '.lewdcorner.com' });
+      if (cookies.length === 0) {
+        return {
+          success: false,
+          error: 'Vous devez être connecté à LewdCorner pour récupérer les données. Rendez-vous dans Paramètres → AVN → Connexion LewdCorner.'
+        };
+      }
+      
+      // Scraping direct depuis LewdCorner (même logique que F95Zone)
+      const threadUrl = `https://lewdcorner.com/threads/${lewdcornerId}/`;
+      console.log(`🌐 Scraping: ${threadUrl}`);
+      
+      const response = await fetch(threadUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 403) {
+          return {
+            success: false,
+            error: 'Accès refusé (403). Veuillez vous reconnecter à LewdCorner depuis les Paramètres.'
+          };
+        }
+        throw new Error(`Thread LewdCorner introuvable: ${response.status}`);
+      }
+      
+      const html = await response.text();
+      
+      // Fonction pour décoder les entités HTML
+      const decodeHTML = (str) => {
+        return str
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          .replace(/<[^>]*>/g, '') // Supprimer les balises HTML
+          .trim();
+      };
+      
+      // Extraire le titre complet
+      const titleTag = html.match(/<title[^>]*>(.*?)<\/title>/i);
+      const fullTitle = titleTag ? decodeHTML(titleTag[1]) : '';
+      
+      // Parser le titre (même structure que F95Zone)
+      const regName = /.*-\s(.*?)\s\[/i;
+      const regTitle = /([\w\\']+)(?=\s-)/gi;
+      const regVersion = /\[([^\]]+)\]/gi;
+      
+      const titleMatch = fullTitle.match(regTitle) || [];
+      const nameMatch = fullTitle.match(regName) || [];
+      const versionMatches = fullTitle.match(regVersion) || [];
+      
+      const name = nameMatch[1] || fullTitle.split(' - ')[1]?.split(' [')[0] || 'Titre inconnu';
+      const version = versionMatches[0] || null;
+      
+      console.log(`🔍 Parsing titre: "${fullTitle}"`);
+      console.log(`📝 Mots trouvés:`, titleMatch);
+      
+      // Déterminer le statut et le moteur
+      let status = 'Ongoing';
+      let engine = 'Autre';
+      
+      for (const word of titleMatch) {
+        // Détection du statut
+        switch (word) {
+          case 'Abandoned':
+            status = 'Abandoned';
+            break;
+          case 'Completed':
+            status = 'Completed';
+            break;
+        }
+        
+        // Détection du moteur
+        switch (word) {
+          case "Ren'Py":
+          case 'RenPy':
+            engine = 'RenPy';
+            break;
+          case 'RPGM':
+            engine = 'RPGM';
+            break;
+          case 'Unity':
+            engine = 'Unity';
+            break;
+          case 'Unreal':
+            engine = 'Unreal';
+            break;
+          case 'Flash':
+            engine = 'Flash';
+            break;
+          case 'HTML':
+            engine = 'HTML';
+            break;
+          case 'QSP':
+            engine = 'QSP';
+            break;
+          case 'Others':
+            engine = 'Autre';
+            break;
+        }
+      }
+      
+      console.log(`📊 Statut détecté: ${status}`);
+      console.log(`🛠️ Moteur détecté: ${engine}`);
+      
+      // Extraire l'image
+      const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
+                       html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+      
+      let image = imgMatch ? imgMatch[1] : null;
+      
+      console.log(`🖼️ Image trouvée (brute):`, image);
+      
+      // Retirer /thumb/ pour avoir la pleine résolution
+      if (image && image.includes('/thumb/')) {
+        image = image.replace('/thumb/', '/');
+        console.log(`🖼️ Image convertie (sans thumb):`, image);
+      }
+      
+      // Extraire les tags
+      const tagsMatches = html.matchAll(/<a[^>]*class="[^"]*tagItem[^"]*"[^>]*>(.*?)<\/a>/gi);
+      const tags = Array.from(tagsMatches).map(m => decodeHTML(m[1])).filter(t => t.length > 0);
+      
+      console.log(`✅ Jeu trouvé: ${name}`);
+      
+      // Télécharger l'image et la sauvegarder localement
+      let localImage = null;
+      if (image) {
+        try {
+          console.log(`📥 Téléchargement de l'image LewdCorner...`);
+          const downloadResult = await coverManager.downloadCover(
+            getPathManager(),
+            image,
+            name,
+            'avn',
+            parseInt(lewdcornerId),
+            threadUrl // Referer LewdCorner
+          );
+          
+          if (downloadResult.success && downloadResult.localPath) {
+            localImage = downloadResult.localPath;
+            console.log(`✅ Image téléchargée: ${localImage}`);
+          } else {
+            console.warn(`⚠️ Échec du téléchargement de l'image:`, downloadResult.error);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur téléchargement image:`, error);
+        }
+      }
+      
+      return {
+        success: true,
+        data: {
+          id: parseInt(lewdcornerId),
+          name: name,
+          version: version,
+          status: status,
+          engine: engine,
+          tags: tags,
+          image: localImage || image,
+          thread_url: threadUrl
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur recherche LewdCorner:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+  
+  // ========================================
   // Sélectionner un fichier exécutable
   // ========================================
   

@@ -5,12 +5,14 @@ import AnimeCard from '../components/cards/AnimeCard';
 import AnimeListItem from '../components/cards/AnimeListItem';
 import CollectionView from '../components/common/CollectionView';
 import AddAnimeModal from '../components/modals/anime/AddAnimeModal';
+import { useToast } from '../hooks/useToast';
 import { AnimeFilters, AnimeSerie } from '../types';
 
 type ViewMode = 'grid' | 'list' | 'images';
 
 export default function Animes() {
   const navigate = useNavigate();
+  const { showToast, ToastContainer } = useToast();
   const [animes, setAnimes] = useState<AnimeSerie[]>([]);
   const [filters, setFilters] = useState<AnimeFilters>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,9 +76,17 @@ export default function Animes() {
     try {
       await window.electronAPI.setAnimeStatutVisionnage(animeId, newStatus as any);
       await loadAnimes(); // Recharger pour voir les changements
+      showToast({
+        title: 'Statut modifié',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Erreur changement statut:', error);
-      alert('❌ Erreur lors du changement de statut');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors du changement de statut',
+        type: 'error'
+      });
     }
   };
 
@@ -89,10 +99,18 @@ export default function Animes() {
       if (user) {
         await window.electronAPI.toggleAnimeFavorite(animeId, user.id);
         await loadAnimes(); // Recharger pour voir les changements
+        showToast({
+          title: 'Favoris modifiés',
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Erreur toggle favori:', error);
-      alert('❌ Erreur lors de la modification des favoris');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la modification des favoris',
+        type: 'error'
+      });
     }
   };
 
@@ -149,9 +167,11 @@ export default function Animes() {
   ];
 
   return (
-    <div style={{ padding: '40px' }} className="fade-in">
-      <div className="container">
-        {/* En-tête */}
+    <>
+      <ToastContainer />
+      <div style={{ padding: '40px' }} className="fade-in">
+        <div className="container">
+          {/* En-tête */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -315,5 +335,6 @@ export default function Animes() {
         />
       )}
     </div>
+    </>
   );
 }

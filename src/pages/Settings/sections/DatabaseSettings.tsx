@@ -24,12 +24,14 @@ export default function DatabaseSettings({
   onImport,
 }: DatabaseSettingsProps) {
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        💾 Emplacement de la base
-      </h2>
-      
-      <div>
+    <div style={{ marginBottom: '30px' }}>
+      <div className="settings-section">
+        <div className="settings-header">
+          <h2 className="settings-title">
+            💾 Emplacement de la base
+          </h2>
+        </div>
+        <div className="settings-content">
         <div style={{
           background: 'var(--surface)',
           padding: '16px',
@@ -133,6 +135,7 @@ export default function DatabaseSettings({
               Import réussi ! Rechargement...
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

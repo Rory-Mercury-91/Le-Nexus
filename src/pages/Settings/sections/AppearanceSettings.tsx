@@ -18,12 +18,13 @@ export default function AppearanceSettings({
   onContentPrefChange,
 }: AppearanceSettingsProps) {
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-        🎨 Apparence et comportement
-      </h2>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+    <div style={{ marginBottom: '30px' }}>
+      <div className="settings-section">
+        <div className="settings-header">
+          <h2 className="settings-title">🎨 Apparence et comportement</h2>
+        </div>
+        <div className="settings-content">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         {/* Colonne gauche : Thème + Démarrage */}
         <div>
           <div style={{ marginBottom: '20px' }}>
@@ -279,14 +280,16 @@ export default function AppearanceSettings({
             </label>
           </div>
 
-          <p style={{
-            fontSize: '11px',
-            color: 'var(--text-secondary)',
-            marginTop: '12px',
-            fontStyle: 'italic'
-          }}>
-            💡 Les modifications sont appliquées immédiatement
-          </p>
+            <p style={{
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              marginTop: '12px',
+              fontStyle: 'italic'
+            }}>
+              💡 Les modifications sont appliquées immédiatement
+            </p>
+          </div>
+        </div>
         </div>
       </div>
     </div>

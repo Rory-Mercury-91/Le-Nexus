@@ -129,8 +129,8 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Progressions Mangas et Animes */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(500px, 100%), 1fr))', gap: '24px', marginBottom: '32px' }}>
+        {/* Statistiques Mangas et Animes */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(500px, 100%), 1fr))', gap: '24px', marginBottom: '24px' }}>
         {/* Progression de lecture */}
         {contentPrefs.showMangas && lectureStats && lectureStats.tomesTotal > 0 && (
           <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
@@ -155,120 +155,6 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-
-            {/* Progression récente (tomes + chapitres + épisodes) */}
-            {recentProgress && (
-              (() => {
-                // Debug: Afficher les données reçues
-                console.log('📊 recentProgress:', recentProgress);
-                console.log('  - Tomes:', recentProgress.tomes?.length || 0);
-                console.log('  - Chapitres:', recentProgress.chapitres?.length || 0);
-                console.log('  - Episodes:', recentProgress.episodes?.length || 0);
-                
-                // Fusionner et trier par date toutes les progressions
-                const allProgress: ProgressItem[] = [
-                  ...(recentProgress.tomes || []),
-                  ...(recentProgress.chapitres || []),
-                  ...(recentProgress.episodes || [])
-                ].sort((a, b) => {
-                  // Gestion sécurisée des dates
-                  const dateA = a.dateProgression ? new Date(a.dateProgression).getTime() : 0;
-                  const dateB = b.dateProgression ? new Date(b.dateProgression).getTime() : 0;
-                  return dateB - dateA;
-                });
-
-                console.log('  ✅ Total fusionné:', allProgress.length);
-
-                if (allProgress.length === 0) {
-                  console.log('  ⚠️ Aucune progression à afficher');
-                  return null;
-                }
-                
-                console.log('  🎨 Affichage du carrousel avec', allProgress.length, 'éléments');
-
-                return (
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
-                      📖 Progression récente :
-                    </p>
-                    <div 
-                      className="horizontal-scroll"
-                      style={{ 
-                        display: 'flex',
-                        gap: '12px',
-                        overflowX: 'auto',
-                        paddingBottom: '8px'
-                      }}>
-                      {allProgress.slice(0, 10).map((item, index) => (
-                        <Link
-                          key={`${item.type}-${item.serieId || item.animeId}-${index}`}
-                          to={item.type === 'episode' ? `/anime/${item.animeId}` : `/serie/${item.serieId}`}
-                          className="card"
-                          style={{
-                            flex: '0 0 auto',
-                            width: '120px',
-                            background: 'var(--surface)',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border)',
-                            overflow: 'hidden',
-                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                            cursor: 'pointer',
-                            textDecoration: 'none',
-                            color: 'inherit'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-4px)';
-                            e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                        >
-                          <CoverImage 
-                            src={item.couvertureUrl || null} 
-                            alt={item.serieTitre || item.animeTitre || ''}
-                            style={{
-                              width: '100%',
-                              height: '168px',
-                              objectFit: 'cover'
-                            }}
-                          />
-                          <div style={{ padding: '8px' }}>
-                            <p style={{ 
-                              fontSize: '11px', 
-                              fontWeight: '600',
-                              color: 'var(--text)',
-                              marginBottom: '2px',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}>
-                              {item.serieTitre || item.animeTitre}
-                            </p>
-                            <p style={{ 
-                              fontSize: '10px', 
-                              color: 'var(--text-secondary)',
-                              marginBottom: '4px'
-                            }}>
-                              {item.type === 'tome' && `Tome ${item.numero}`}
-                              {item.type === 'chapitre' && `${item.chapitresLus}/${item.nbChapitres} ch.`}
-                              {item.type === 'episode' && `${item.episodesVus}/${item.nbEpisodes} ep.`}
-                            </p>
-                            <p style={{ 
-                              fontSize: '9px', 
-                              color: 'var(--text-secondary)'
-                            }}>
-                              {new Date(item.dateProgression).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()
-            )}
 
             {/* Barre de progression globale */}
             <div>
@@ -353,6 +239,128 @@ export default function Dashboard() {
           );
         })()}
         </div>
+
+        {/* Carrousel unifié de progression récente */}
+        {recentProgress && (
+          (() => {
+            // Fusionner et trier par date toutes les progressions
+            const allProgress: ProgressItem[] = [
+              ...(recentProgress.tomes || []),
+              ...(recentProgress.chapitres || []),
+              ...(recentProgress.episodes || [])
+            ].sort((a, b) => {
+              const dateA = a.dateProgression ? new Date(a.dateProgression).getTime() : 0;
+              const dateB = b.dateProgression ? new Date(b.dateProgression).getTime() : 0;
+              return dateB - dateA;
+            });
+
+            if (allProgress.length === 0) {
+              return null;
+            }
+
+            return (
+              <div className="card" style={{ padding: '20px', marginBottom: '32px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📖 Progression récente
+                </h2>
+                <div 
+                  className="horizontal-scroll"
+                  style={{ 
+                    display: 'flex',
+                    gap: '12px',
+                    overflowX: 'auto',
+                    paddingBottom: '8px'
+                  }}>
+                  {allProgress.slice(0, 15).map((item, index) => (
+                    <Link
+                      key={`${item.type}-${item.serieId || item.animeId}-${index}`}
+                      to={item.type === 'episode' ? `/anime/${item.animeId}` : `/serie/${item.serieId}`}
+                      className="card"
+                      style={{
+                        flex: '0 0 auto',
+                        width: '130px',
+                        background: 'var(--surface)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        overflow: 'hidden',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        color: 'inherit'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {/* Badge type en haut à gauche */}
+                      <div style={{ position: 'relative' }}>
+                        <div style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          background: item.type === 'episode' ? 'rgba(99, 102, 241, 0.95)' : 'rgba(236, 72, 153, 0.95)',
+                          color: 'white',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '9px',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          backdropFilter: 'blur(4px)',
+                          zIndex: 1
+                        }}>
+                          {item.type === 'episode' ? '🎬' : '📚'}
+                        </div>
+                        <CoverImage 
+                          src={item.couvertureUrl || null} 
+                          alt={item.serieTitre || item.animeTitre || ''}
+                          style={{
+                            width: '100%',
+                            height: '182px',
+                            objectFit: 'cover'
+                          }}
+                        />
+                      </div>
+                      <div style={{ padding: '10px' }}>
+                        <p style={{ 
+                          fontSize: '12px', 
+                          fontWeight: '600',
+                          color: 'var(--text)',
+                          marginBottom: '3px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {item.serieTitre || item.animeTitre}
+                        </p>
+                        <p style={{ 
+                          fontSize: '11px', 
+                          color: 'var(--text-secondary)',
+                          marginBottom: '5px',
+                          fontWeight: '600'
+                        }}>
+                          {item.type === 'tome' && `Tome ${item.numero}`}
+                          {item.type === 'chapitre' && `${item.chapitresLus}/${item.nbChapitres} ch.`}
+                          {item.type === 'episode' && `${item.episodesVus}/${item.nbEpisodes} ep.`}
+                        </p>
+                        <p style={{ 
+                          fontSize: '10px', 
+                          color: 'var(--text-secondary)'
+                        }}>
+                          {new Date(item.dateProgression).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })()
+        )}
 
         {/* KPIs - Vue d'ensemble rapide */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '16px', marginBottom: '32px' }}>

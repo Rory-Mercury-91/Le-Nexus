@@ -1,73 +1,119 @@
-# 🎭 Scripts Tampermonkey - Ma Mangathèque
+# 🎭 Scripts Tampermonkey - Le Nexus
 
-Scripts d'intégration navigateur pour **Ma Mangathèque**.
+Scripts d'intégration navigateur pour **Le Nexus**.
 
 ---
 
-## 📦 Installation
+## 📦 Installation Rapide
 
-### 1. Installer Tampermonkey
+### 🚀 Méthode Facile (Recommandée)
 
-Installez l'extension Tampermonkey pour votre navigateur :
-- **Chrome** : [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo)
-- **Firefox** : [Firefox Add-ons](https://addons.mozilla.org/fr/firefox/addon/tampermonkey/)
-- **Edge** : [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd)
-- **Safari** : [App Store](https://apps.apple.com/app/tampermonkey/id1482490089)
+**Ouvrez le fichier `INSTALLATION.html`** dans votre navigateur pour une installation guidée avec interface visuelle ! 
 
-### 2. Installer un script
+Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple clic et c'est installé ! ✨
 
-1. Ouvrez le fichier `.user.js` dans un éditeur de texte
-2. **Copiez tout le contenu** du script
-3. Ouvrez le **tableau de bord Tampermonkey** (icône → Dashboard)
-4. Cliquez sur l'onglet **"Utilitaires"**
-5. Collez le code dans la zone de texte
-6. Cliquez sur **"Installer"**
+### ⚡ Méthode Manuelle
 
-**OU**
+1. **Installez Tampermonkey** pour votre navigateur :
+   - [Chrome](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) | [Firefox](https://addons.mozilla.org/fr/firefox/addon/tampermonkey/) | [Edge](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd) | [Safari](https://apps.apple.com/app/tampermonkey/id1482490089)
 
-1. Glissez-déposez le fichier `.user.js` dans votre navigateur
-2. Tampermonkey détectera automatiquement le script
-3. Cliquez sur **"Installer"**
+2. **Glissez-déposez** les fichiers `.user.js` dans votre navigateur
+   - Tampermonkey détectera automatiquement le script
+   - Cliquez sur **"Installer"**
+   - Répétez pour chaque script souhaité
 
 ---
 
 ## 🎬 Scripts Animes
 
-### MyAnimeList Quick Add
+### ✅ Crunchyroll Episode Tracker
+
+**Fichier** : `animes/Crunchyroll Episode Tracker.user.js`
+
+**Fonction** : Marque automatiquement les épisodes visionnés sur Crunchyroll avec import automatique de l'anime si nécessaire.
+
+**Pages compatibles** : `https://www.crunchyroll.com/watch/*`
+
+#### 📋 Fonctionnalités
+- ✅ Bouton **✅** en bas à gauche pendant le visionnage
+- 📥 Bouton **📥** sur la page série pour importer l'anime
+- 🚀 Import automatique si l'anime n'existe pas encore
+- 🎯 Détection automatique du numéro d'épisode
+- ✨ Animations de feedback (succès/erreur/chargement)
+
+#### 🎯 Utilisation
+1. Regardez un épisode sur Crunchyroll
+2. Un bouton **✅** apparaît en bas à gauche
+3. Cliquez pour marquer l'épisode comme vu
+4. Si l'anime n'existe pas, il sera importé automatiquement !
+
+---
+
+### ✅ ADN Episode Tracker
+
+**Fichier** : `animes/ADN Episode Tracker.user.js`
+
+**Fonction** : Marque automatiquement les épisodes visionnés sur Animation Digital Network avec import automatique.
+
+**Pages compatibles** : `https://animationdigitalnetwork.fr/*`
+
+#### 📋 Fonctionnalités
+- ✅ Bouton **✅** en bas à gauche pendant le visionnage
+- 🚀 Import automatique complet depuis ADN
+- 🎯 Détection automatique saison/épisode
+- ✨ Gestion intelligente des données ADN
+
+---
+
+### ✅ ADKami Integration
+
+**Fichier** : `animes/ADKami Integration.user.js`
+
+**Fonction** : Intégration complète avec ADKami pour import d'animes et marquage d'épisodes.
+
+**Pages compatibles** : `https://adkami.com/*`
+
+#### 📋 Fonctionnalités
+- ✅ Bouton **✅** pour marquer un épisode (bas à gauche)
+- 📥 Bouton **📥** pour importer l'anime complet (bas à gauche, 80px)
+- 🎯 Détection automatique des métadonnées ADKami
+
+---
+
+### 📥 MyAnimeList Quick Add
 
 **Fichier** : `animes/MyAnimeList Quick Add.user.js`
 
-**Fonction** : Ajoute un bouton sur les pages d'anime MyAnimeList pour importer directement dans Ma Mangathèque.
+**Fonction** : Import rapide d'animes depuis MyAnimeList avec enrichissement automatique des données.
 
 **Pages compatibles** : `https://myanimelist.net/anime/*`
 
 #### 📋 Fonctionnalités
-- ✅ Bouton "Ajouter à Ma Mangathèque" avec design moderne
+- 📥 Bouton "Ajouter à Le Nexus" avec design moderne
 - ✅ Import complet automatique (Jikan + AniList + Groq)
-- ✅ 28 champs enrichis récupérés (cover HD, synopsis traduit, genres, themes, etc.)
-- ✅ Feedback visuel (succès/erreur)
-- ✅ Détection automatique du MAL ID depuis l'URL
+- 🎨 28 champs enrichis récupérés (cover HD, synopsis traduit, genres, themes, etc.)
+- ✨ Feedback visuel (succès/erreur)
+- 🎯 Détection automatique du MAL ID depuis l'URL
 
 #### 🎯 Utilisation
 1. Naviguez vers une page d'anime sur MyAnimeList
-   - Exemple : `https://myanimelist.net/anime/59027/Spy_x_Family_Season_3`
-2. Un bouton violet apparaît sous le titre
-3. Cliquez sur **"Ajouter à Ma Mangathèque"**
-4. ✅ L'anime est ajouté automatiquement !
+2. Un bouton apparaît sous le titre
+3. Cliquez sur **"Ajouter à Le Nexus"**
+4. ✅ L'anime est ajouté avec toutes ses métadonnées !
 
 #### ⚠️ Prérequis
-- **Ma Mangathèque doit être lancé** (serveur d'import sur port 51234)
+- **Le Nexus doit être lancé** (serveur d'import sur port 51234)
 - Connexion Internet pour les API (Jikan, AniList, Groq)
 
 ---
 
 ## 📚 Scripts Mangas
 
-### Nautiljon Extractor
+### ⋮ Nautiljon Extractor
 
 **Fichier** : `mangas/Nautiljon Extractor.user.js`
 
-**Fonction** : Import complet de mangas, manhwa et scans depuis Nautiljon vers Ma Mangathèque.
+**Fonction** : Import complet de mangas, manhwa et scans depuis Nautiljon vers Le Nexus.
 
 **Pages compatibles** : `https://www.nautiljon.com/mangas/*`
 
@@ -94,40 +140,43 @@ Installez l'extension Tampermonkey pour votre navigateur :
 1. **Naviguez vers une page manga sur Nautiljon**
    - Exemple : `https://www.nautiljon.com/mangas/one+piece.html`
 
-2. **Deux boutons apparaissent en bas à droite** :
-   - 📚 **Import complet** : Série + tous les tomes
-   - 📖 **Tomes uniquement** : Ajouter des tomes à une série existante
+2. **Un menu avec 3 points verticaux (⋮) apparaît en bas à gauche**
+   - Cliquez sur **⋮** pour ouvrir le menu
+   - Deux options disponibles :
+     - 📚 **Import complet** : Série + tous les tomes
+     - 📖 **Import tomes** : Ajouter des tomes à une série existante
 
-3. **Cliquez sur le bouton souhaité**
-   - ⏳ L'extraction démarre (progression affichée dans la console)
+3. **Sélectionnez l'option souhaitée**
+   - ⏳ L'extraction démarre (progression dans la console)
    - ✅ Notification de succès/erreur apparaît
+   - Le menu se ferme automatiquement
 
 4. **Résultat** :
-   - Série créée/mise à jour dans Ma Mangathèque
+   - Série créée/mise à jour dans Le Nexus
    - Tomes importés avec toutes les métadonnées
    - Couvertures téléchargées automatiquement
 
-#### ⚙️ Options
+#### ⚙️ Options du Menu
 
-**Import complet** :
+**📚 Import complet** :
 - Crée la série si elle n'existe pas
 - Importe tous les tomes détectés
-- Met à jour les métadonnées
+- Met à jour les métadonnées complètes
 
-**Tomes uniquement** :
+**📖 Import tomes** :
 - Ajoute des tomes à une série existante
 - Ignore les informations série
 - Idéal pour compléter une collection
 
 #### ⚠️ Prérequis
 
-- **Ma Mangathèque doit être lancé** (serveur d'import sur port 51234)
+- **Le Nexus doit être lancé** (serveur d'import sur port 51234)
 - Connexion Internet stable
 - Navigateur compatible (Chrome, Firefox, Edge)
 
 #### 🎨 Interface
 
-Les boutons sont repositionnés en bas à droite (100px du bas) pour éviter les conflits avec les boutons "scroll-to-top" de Nautiljon.
+Menu moderne en **bas à gauche** pour éviter les conflits avec les éléments flottants des forums (généralement en bas à droite). Design avec fond semi-transparent et effet de flou.
 
 ---
 
@@ -175,12 +224,12 @@ const PORT = VOTRE_PORT; // Ligne 15 du script
 ### Erreur "Vérifiez que l'app est lancée"
 
 **Solutions** :
-1. **Lancez Ma Mangathèque** (`npm start`)
+1. **Lancez Le Nexus** (`npm start`)
 2. Vérifiez que le serveur d'import est démarré :
    - Ouvrez l'application
    - Regardez les logs : `🌐 Serveur d'import démarré sur http://localhost:51234`
 3. Testez manuellement : http://localhost:51234 dans le navigateur
-   - Doit afficher : `{"status":"ok","message":"Ma Mangathèque Import Server"}`
+   - Doit afficher : `{"status":"ok","message":"Le Nexus Import Server"}`
 
 ### L'anime est ajouté plusieurs fois
 
@@ -284,19 +333,19 @@ Les scripts Tampermonkey demandent uniquement :
 - [Documentation Tampermonkey](https://www.tampermonkey.net/documentation.php)
 - [Jikan API (MyAnimeList)](https://jikan.moe/)
 - [AniList API](https://anilist.gitbook.io/anilist-apiv2-docs/)
-- [Ma Mangathèque GitHub](https://github.com/votre-repo)
+- [Groq AI](https://groq.com/)
 
 ---
 
 ## 🆘 Support
 
-Problème avec un script ? Ouvrez une issue sur GitHub avec :
-- 📝 Nom du script
-- 🌐 Navigateur utilisé
-- ❌ Message d'erreur (console F12)
-- 📸 Capture d'écran (si pertinent)
+Problème avec un script ? 
+- 📝 Vérifiez d'abord que **Le Nexus** est bien lancé
+- 🔍 Consultez la console développeur (F12) pour les erreurs
+- 📖 Relisez la section "Dépannage" ci-dessus
 
 ---
 
 **Dernière mise à jour** : Octobre 2025  
-**Version** : 2.1 - Simplifié (Nautiljon uniquement)
+**Version** : 3.0 - Le Nexus  
+**Nouveautés** : Interface unifiée en bas à gauche, icônes simplifiées (✅ 📥), menu Nautiljon (⋮)

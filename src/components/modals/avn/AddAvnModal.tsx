@@ -1,5 +1,6 @@
 import { Plus, Search, X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+import { useToast } from '../../../hooks/useToast';
 import '../../../index.css';
 import type { AvnMoteur, AvnStatutJeu, AvnStatutPerso, AvnStatutTraduction, AvnTypeTraduction } from '../../../types';
 
@@ -8,15 +9,18 @@ interface AddAvnModalProps {
   onSuccess: () => void;
 }
 
-type TabMode = 'f95' | 'manual';
+type TabMode = 'search' | 'manual';
+type PlatformType = 'f95' | 'lewdcorner';
 
 export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
-  const [activeTab, setActiveTab] = useState<TabMode>('f95');
+  const [activeTab, setActiveTab] = useState<TabMode>('search');
   const [loading, setLoading] = useState(false);
+  const { showToast, ToastContainer } = useToast();
 
-  // Onglet F95
-  const [f95Id, setF95Id] = useState('');
-  const [f95Data, setF95Data] = useState<any>(null);
+  // Onglet Recherche par ID
+  const [platform, setPlatform] = useState<PlatformType>('f95');
+  const [searchId, setSearchId] = useState('');
+  const [searchData, setSearchData] = useState<any>(null);
 
   // Onglet Manuel
   const [titre, setTitre] = useState('');
@@ -37,66 +41,94 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
   const [statutTraduction, setStatutTraduction] = useState<AvnStatutTraduction | ''>('');
   const [typeTraduction, setTypeTraduction] = useState<AvnTypeTraduction | ''>('');
 
-  const handleFetchF95 = async () => {
-    if (!f95Id.trim()) {
-      alert('❌ Veuillez entrer un ID F95Zone');
+  const handleSearch = async () => {
+    if (!searchId.trim()) {
+      showToast({
+        title: 'ID requis',
+        message: `Veuillez entrer un ID ${platform === 'f95' ? 'F95Zone' : 'LewdCorner'}`,
+        type: 'warning'
+      });
       return;
     }
 
     try {
       setLoading(true);
       
-      const result = await window.electronAPI.searchAvnByF95Id(f95Id);
+      const result = platform === 'f95'
+        ? await window.electronAPI.searchAvnByF95Id(searchId)
+        : await window.electronAPI.searchAvnByLewdCornerId(searchId);
       
       if (!result.success) {
         throw new Error(result.error || 'Jeu introuvable');
       }
 
-      setF95Data(result.data);
+      setSearchData(result.data);
+      showToast({
+        title: 'Jeu trouvé',
+        message: `Données récupérées pour "${result.data.name}"`,
+        type: 'success'
+      });
     } catch (error: any) {
-      console.error('Erreur fetch F95:', error);
-      alert(`❌ ${error.message || 'Impossible de récupérer les données'}`);
-      setF95Data(null);
+      console.error(`Erreur recherche ${platform === 'f95' ? 'F95' : 'LewdCorner'}:`, error);
+      showToast({
+        title: 'Erreur de recherche',
+        message: error.message || 'Impossible de récupérer les données',
+        type: 'error'
+      });
+      setSearchData(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddFromF95 = async (e: FormEvent) => {
+  const handleAddFromSearch = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!f95Data) {
-      alert('❌ Veuillez d\'abord rechercher un jeu');
+    if (!searchData) {
+      showToast({
+        title: 'Recherche requise',
+        message: 'Veuillez d\'abord rechercher un jeu',
+        type: 'warning'
+      });
       return;
     }
 
     try {
       setLoading(true);
 
-      // Les tags sont déjà un tableau depuis l'API F95List
-      const tagsArray = Array.isArray(f95Data.tags) 
-        ? f95Data.tags.filter((t: string) => t && t.trim().length > 0)
-        : (typeof f95Data.tags === 'string' 
-            ? f95Data.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0)
+      // Les tags sont déjà un tableau depuis l'API
+      const tagsArray = Array.isArray(searchData.tags) 
+        ? searchData.tags.filter((t: string) => t && t.trim().length > 0)
+        : (typeof searchData.tags === 'string' 
+            ? searchData.tags.split(',').map((t: string) => t.trim()).filter((t: string) => t.length > 0)
             : []);
 
       await window.electronAPI.createAvnGame({
-        f95_thread_id: f95Data.id || Number(f95Id),
-        titre: f95Data.name,
-        version: f95Data.version || null,
-        statut_jeu: mapF95Status(f95Data.status),
-        moteur: mapF95Engine(f95Data.engine),
-        couverture_url: f95Data.image || null,
+        f95_thread_id: platform === 'f95' ? (searchData.id || Number(searchId)) : null,
+        titre: searchData.name,
+        version: searchData.version || null,
+        statut_jeu: mapF95Status(searchData.status),
+        moteur: mapF95Engine(searchData.engine),
+        couverture_url: searchData.image || null,
         tags: tagsArray,
-        lien_f95: f95Data.thread_url || `https://f95zone.to/threads/${f95Id}`,
+        lien_f95: platform === 'f95' ? (searchData.thread_url || `https://f95zone.to/threads/${searchId}`) : searchData.thread_url,
         statut_perso: 'À jouer'
       });
 
+      showToast({
+        title: 'Jeu ajouté',
+        message: `"${searchData.name}" a été ajouté à votre collection`,
+        type: 'success'
+      });
       onSuccess();
       onClose();
     } catch (error) {
-      console.error('Erreur ajout jeu F95:', error);
-      alert('❌ Erreur lors de l\'ajout du jeu');
+      console.error(`Erreur ajout jeu ${platform === 'f95' ? 'F95' : 'LewdCorner'}:`, error);
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de l\'ajout du jeu',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -131,12 +163,20 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
         type_traduction: typeTraduction || null
       });
 
-      alert(`✅ Jeu ajouté: ${titre}`);
+      showToast({
+        title: 'Jeu ajouté',
+        message: `"${titre}" a été ajouté à votre collection`,
+        type: 'success'
+      });
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Erreur ajout manuel:', error);
-      alert('❌ Erreur lors de l\'ajout du jeu');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de l\'ajout du jeu',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -161,9 +201,11 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
+    <>
+      <ToastContainer />
+      <div
+        style={{
+          position: 'fixed',
         inset: 0,
         background: 'rgba(0, 0, 0, 0.8)',
         display: 'flex',
@@ -224,20 +266,20 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
           flexShrink: 0
         }}>
           <button
-            onClick={() => setActiveTab('f95')}
+            onClick={() => setActiveTab('search')}
             style={{
               padding: '16px 24px',
               background: 'transparent',
               border: 'none',
-              borderBottom: activeTab === 'f95' ? '3px solid var(--primary)' : '3px solid transparent',
-              color: activeTab === 'f95' ? 'var(--primary)' : 'var(--text-secondary)',
-              fontWeight: activeTab === 'f95' ? '700' : '400',
+              borderBottom: activeTab === 'search' ? '3px solid var(--primary)' : '3px solid transparent',
+              color: activeTab === 'search' ? 'var(--primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'search' ? '700' : '400',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
           >
             <Search size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            Par ID F95Zone
+            Recherche par ID
           </button>
           <button
             onClick={() => setActiveTab('manual')}
@@ -263,30 +305,59 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
           overflowY: 'auto',
           padding: '24px'
         }}>
-          {activeTab === 'f95' ? (
-            /* Onglet F95 */
-            <form onSubmit={handleAddFromF95}>
+          {activeTab === 'search' ? (
+            /* Onglet Recherche par ID */
+            <form onSubmit={handleAddFromSearch}>
               <div style={{ marginBottom: '24px' }}>
-                <label htmlFor="f95_id" className="label">
-                  ID F95Zone <span style={{ color: '#ef4444' }}>*</span>
+                <label htmlFor="platform" className="label">
+                  Plateforme <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  id="platform"
+                  value={platform}
+                  onChange={(e) => {
+                    setPlatform(e.target.value as PlatformType);
+                    setSearchId('');
+                    setSearchData(null);
+                  }}
+                  className="input"
+                  disabled={loading}
+                  style={{ marginBottom: '16px' }}
+                >
+                  <option value="f95">F95Zone</option>
+                  <option value="lewdcorner">LewdCorner</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label htmlFor="search_id" className="label">
+                  ID {platform === 'f95' ? 'F95Zone' : 'LewdCorner'} <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  Ex: Pour <code>https://f95zone.to/threads/xxx.214202/</code>, l'ID est <strong>214202</strong>
+                  {platform === 'f95' ? (
+                    <>
+                      Ex: Pour <code>https://f95zone.to/threads/xxx.214202/</code>, l'ID est <strong>214202</strong>
+                    </>
+                  ) : (
+                    <>
+                      Ex: Pour <code>https://lewdcorner.com/threads/xxx.2745/</code>, l'ID est <strong>2745</strong>
+                    </>
+                  )}
                 </p>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    id="f95_id"
-                    value={f95Id}
-                    onChange={(e) => setF95Id(e.target.value)}
+                    id="search_id"
+                    value={searchId}
+                    onChange={(e) => setSearchId(e.target.value)}
                     className="input"
-                    placeholder="214202"
+                    placeholder={platform === 'f95' ? '214202' : '2745'}
                     style={{ flex: 1 }}
                     disabled={loading}
                   />
                   <button
                     type="button"
-                    onClick={handleFetchF95}
+                    onClick={handleSearch}
                     className="btn btn-secondary"
                     disabled={loading}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -297,7 +368,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
                 </div>
               </div>
 
-              {f95Data && (
+              {searchData && (
                 <div style={{
                   padding: '16px',
                   background: 'var(--surface)',
@@ -308,12 +379,12 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
                     📋 Données récupérées
                   </h3>
                   <div style={{ display: 'grid', gap: '8px', fontSize: '14px' }}>
-                    <div><strong>Titre:</strong> {f95Data.name}</div>
-                    <div><strong>Version:</strong> {f95Data.version || 'N/A'}</div>
-                    <div><strong>Statut:</strong> {f95Data.status || 'N/A'}</div>
-                    <div><strong>Moteur:</strong> {f95Data.engine || 'N/A'}</div>
-                    {f95Data.tags && f95Data.tags.length > 0 && (
-                      <div><strong>Tags:</strong> {Array.isArray(f95Data.tags) ? f95Data.tags.join(', ') : f95Data.tags}</div>
+                    <div><strong>Titre:</strong> {searchData.name}</div>
+                    <div><strong>Version:</strong> {searchData.version || 'N/A'}</div>
+                    <div><strong>Statut:</strong> {searchData.status || 'N/A'}</div>
+                    <div><strong>Moteur:</strong> {searchData.engine || 'N/A'}</div>
+                    {searchData.tags && searchData.tags.length > 0 && (
+                      <div><strong>Tags:</strong> {Array.isArray(searchData.tags) ? searchData.tags.join(', ') : searchData.tags}</div>
                     )}
                   </div>
                 </div>
@@ -526,15 +597,16 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
           </button>
           <button
             type="submit"
-            form={activeTab === 'f95' ? undefined : undefined}
-            onClick={activeTab === 'f95' ? handleAddFromF95 : handleAddManual}
+            form={activeTab === 'search' ? undefined : undefined}
+            onClick={activeTab === 'search' ? handleAddFromSearch : handleAddManual}
             className="btn btn-primary"
-            disabled={loading || (activeTab === 'f95' && !f95Data)}
+            disabled={loading || (activeTab === 'search' && !searchData)}
           >
             {loading ? 'Ajout...' : 'Ajouter'}
           </button>
         </div>
       </div>
     </div>
+    </>
   );
 }

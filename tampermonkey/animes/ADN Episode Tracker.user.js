@@ -317,23 +317,26 @@
         
         const button = document.createElement('button');
         button.id = 'adn-episode-tracker';
-        button.innerHTML = `✅ Ep.${episodeInfo.episode}`;
+        button.innerHTML = '✅';
         button.title = `Marquer "${episodeInfo.title}" S${episodeInfo.season}E${episodeInfo.episode} comme vu`;
         button.style.cssText = `
             position: fixed;
-            bottom: 100px;
-            right: 20px;
+            bottom: 20px;
+            left: 20px;
             z-index: 999999;
-            padding: 10px 16px;
+            width: 50px;
+            height: 50px;
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
+            border-radius: 50%;
+            font-size: 22px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         `;
         
         button.onmouseover = () => {
@@ -361,7 +364,7 @@
                     }, 1000);
                 } else {
                     setTimeout(() => {
-                        button.innerHTML = `✅ Ep.${episodeInfo.episode}`;
+                        button.innerHTML = '✅';
                         button.disabled = false;
                     }, 3000);
                 }
@@ -399,7 +402,7 @@
                             if (retryResult.isComplete) {
                                 button.innerHTML = '🎉 Terminé !';
                             } else {
-                                button.innerHTML = `✅ Ep.${episodeInfo.episode}`;
+                                button.innerHTML = '✅';
                                 button.disabled = false;
                             }
                         }, 1000);
@@ -410,7 +413,7 @@
                         console.error('❌ Erreur import automatique:', importError);
                         
                         setTimeout(() => {
-                            button.innerHTML = `✅ Ep.${episodeInfo.episode}`;
+                            button.innerHTML = '✅';
                             button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                             button.title = `Marquer "${episodeInfo.title}" S${episodeInfo.season}E${episodeInfo.episode} comme vu`;
                             button.disabled = false;
@@ -422,7 +425,7 @@
                     button.title = `Erreur: ${error.message}`;
                     
                     setTimeout(() => {
-                        button.innerHTML = `✅ Ep.${episodeInfo.episode}`;
+                        button.innerHTML = '✅';
                         button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                         button.title = `Marquer "${episodeInfo.title}" S${episodeInfo.season}E${episodeInfo.episode} comme vu`;
                         button.disabled = false;

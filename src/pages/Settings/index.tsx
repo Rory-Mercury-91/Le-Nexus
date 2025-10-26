@@ -8,6 +8,7 @@ import AVNSettings from './sections/AVNSettings';
 import DangerZone from './sections/DangerZone';
 import DatabaseSettings from './sections/DatabaseSettings';
 import MALSettings from './sections/MALSettings';
+import TampermonkeySettings from './sections/TampermonkeySettings';
 import UserManagement from './sections/UserManagement';
 
 interface UserData {
@@ -596,6 +597,9 @@ export default function Settings() {
           onAutoLaunchChange={handleAutoLaunchChange}
           onContentPrefChange={handleContentPrefChange}
         />
+
+        {/* Scripts Tampermonkey */}
+        <TampermonkeySettings showToast={showToast} />
 
         {/* Section Intelligence Artificielle */}
         <AISettings

@@ -7,18 +7,19 @@ interface DangerZoneProps {
 
 export default function DangerZone({ onDeleteUserData, onDeleteAllData }: DangerZoneProps) {
   return (
-    <div className="card" style={{
-      padding: '24px',
-      border: '1px solid var(--error)',
-      background: 'rgba(239, 68, 68, 0.05)',
-      marginBottom: '24px'
-    }}>
-      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: 'var(--error)' }}>
-        <AlertTriangle size={20} style={{ display: 'inline', marginRight: '8px' }} />
-        Zone dangereuse
-      </h2>
-
-      <div style={{
+    <div style={{ marginBottom: '30px' }}>
+      <div className="settings-section" style={{
+        border: '1px solid var(--error)',
+        background: 'rgba(239, 68, 68, 0.05)'
+      }}>
+        <div className="settings-header" style={{ borderBottomColor: 'rgba(239, 68, 68, 0.2)' }}>
+          <h2 className="settings-title" style={{ color: 'var(--error)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={20} />
+            Zone dangereuse
+          </h2>
+        </div>
+        <div className="settings-content">
+          <div style={{
         marginBottom: '16px',
         padding: '12px',
         background: 'rgba(239, 68, 68, 0.1)',
@@ -69,6 +70,8 @@ export default function DangerZone({ onDeleteUserData, onDeleteAllData }: Danger
           <Trash2 size={16} />
           TOUT supprimer (réinitialiser l'app)
         </button>
+      </div>
+        </div>
       </div>
     </div>
   );

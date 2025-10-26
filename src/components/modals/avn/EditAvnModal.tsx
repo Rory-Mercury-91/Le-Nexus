@@ -1,5 +1,6 @@
 import { FolderOpen, X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+import { useToast } from '../../../hooks/useToast';
 import '../../../index.css';
 import type { AvnGame, AvnMoteur, AvnStatutJeu, AvnStatutPerso, AvnStatutTraduction, AvnTypeTraduction } from '../../../types';
 
@@ -10,6 +11,7 @@ interface EditAvnModalProps {
 }
 
 export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProps) {
+  const { showToast, ToastContainer } = useToast();
   const [titre, setTitre] = useState(game.titre);
   const [version, setVersion] = useState(game.version || '');
   const [statutJeu, setStatutJeu] = useState<AvnStatutJeu | ''>(game.statut_jeu || '');
@@ -58,11 +60,20 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
         type_traduction: typeTraduction || null
       });
 
+      showToast({
+        title: 'Jeu modifié',
+        message: `"${titre}" a été mis à jour`,
+        type: 'success'
+      });
       onSave();
       onClose();
     } catch (error) {
       console.error('Erreur mise à jour jeu AVN:', error);
-      alert('❌ Erreur lors de la mise à jour du jeu');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la mise à jour du jeu',
+        type: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -73,10 +84,18 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
       const result = await window.electronAPI.selectAvnExecutable();
       if (result.success && result.path) {
         setCheminExecutable(result.path);
+        showToast({
+          title: 'Exécutable sélectionné',
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Erreur sélection fichier:', error);
-      alert('❌ Erreur lors de la sélection du fichier');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la sélection du fichier',
+        type: 'error'
+      });
     }
   };
 
@@ -86,17 +105,27 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
       if (result.success && result.path) {
         // Convertir le chemin local en URL locale pour l'affichage
         setCouvertureUrl(`file://${result.path}`);
+        showToast({
+          title: 'Image sélectionnée',
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Erreur sélection image:', error);
-      alert('❌ Erreur lors de la sélection de l\'image');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la sélection de l\'image',
+        type: 'error'
+      });
     }
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
+    <>
+      <ToastContainer />
+      <div
+        style={{
+          position: 'fixed',
         inset: 0,
         background: 'rgba(0, 0, 0, 0.8)',
         display: 'flex',
@@ -541,5 +570,6 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
         </div>
       </div>
     </div>
+    </>
   );
 }

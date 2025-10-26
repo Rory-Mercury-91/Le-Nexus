@@ -59,7 +59,11 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
       setSearchResults(results);
     } catch (error) {
       console.error('Erreur de recherche:', error);
-      alert('Erreur lors de la recherche');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la recherche',
+        type: 'error'
+      });
     } finally {
       setSearching(false);
     }
@@ -100,7 +104,11 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
   const handleUploadImage = async () => {
     // Pour l'instant, on stocke juste l'URL (pas de téléchargement local pour les animes)
     // Cela pourrait être implémenté plus tard
-    alert('Upload d\'image pour animes en cours de développement.\nPour l\'instant, utilisez l\'URL directement.');
+    showToast({
+      title: 'Fonctionnalité en développement',
+      message: 'Pour l\'instant, utilisez l\'URL directement.',
+      type: 'info'
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -124,12 +132,20 @@ export default function AddAnimeModal({ onClose, onSuccess }: AddAnimeModalProps
     const imageFile = files.find(f => f.type.startsWith('image/'));
 
     if (!imageFile) {
-      alert('Veuillez déposer un fichier image valide.');
+      showToast({
+        title: 'Fichier invalide',
+        message: 'Veuillez déposer un fichier image valide.',
+        type: 'warning'
+      });
       return;
     }
 
     // Pour l'instant, pas de gestion d'upload local pour les animes
-    alert('Upload d\'image pour animes en cours de développement.\nPour l\'instant, utilisez l\'URL directement.');
+    showToast({
+      title: 'Fonctionnalité en développement',
+      message: 'Pour l\'instant, utilisez l\'URL directement.',
+      type: 'info'
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

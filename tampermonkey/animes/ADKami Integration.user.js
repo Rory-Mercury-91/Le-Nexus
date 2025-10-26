@@ -222,11 +222,11 @@
     const createImportButton = () => {
         const button = document.createElement('button');
         button.id = 'adkami-import-button';
-        button.innerHTML = '📥 Importer dans Ma Mangathèque';
+        button.innerHTML = '📥';
         button.style.cssText = `
             position: fixed;
-            bottom: 20px;
-            right: 20px;
+            bottom: 80px;
+            left: 20px;
             z-index: 999999;
             padding: 12px 24px;
             background: linear-gradient(135deg, #8b5cf6, #6366f1);
@@ -505,12 +505,12 @@
         
         const button = document.createElement('button');
         button.id = 'adkami-episode-button';
-        button.innerHTML = `✅ Ep.${episodeInfo.episode_numero}`;
+        button.innerHTML = '✅';
         button.title = `Marquer "${episodeInfo.titre}" S${episodeInfo.saison_numero}E${episodeInfo.episode_numero} comme vu`;
         button.style.cssText = `
             position: fixed;
-            top: 80px;
-            right: 20px;
+            bottom: 20px;
+            left: 20px;
             z-index: 999999;
             padding: 10px 16px;
             background: linear-gradient(135deg, #10b981, #059669);
@@ -592,7 +592,7 @@
                         console.error('❌ Erreur import:', importError);
                         
                         setTimeout(() => {
-                            button.innerHTML = `✅ Ep.${episodeInfo.episode_numero}`;
+                            button.innerHTML = '✅';
                             button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                             button.disabled = false;
                         }, 3000);
@@ -602,7 +602,7 @@
                     button.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
                     
                     setTimeout(() => {
-                        button.innerHTML = `✅ Ep.${episodeInfo.episode_numero}`;
+                        button.innerHTML = '✅';
                         button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                         button.disabled = false;
                     }, 3000);

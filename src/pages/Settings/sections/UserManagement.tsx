@@ -150,10 +150,14 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
   };
 
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-        👥 Gestion des utilisateurs
-      </h2>
+    <div style={{ marginBottom: '30px' }}>
+      <div className="settings-section">
+        <div className="settings-header">
+          <h2 className="settings-title">
+            👥 Gestion des utilisateurs
+          </h2>
+        </div>
+        <div className="settings-content">
 
       {/* Liste des utilisateurs */}
       <div style={{ marginBottom: '24px' }}>
@@ -445,6 +449,8 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

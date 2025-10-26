@@ -694,12 +694,12 @@
         
         const button = document.createElement('button');
         button.id = 'crunchyroll-episode-tracker';
-        button.innerHTML = '👁️';
+        button.innerHTML = '✅';
         button.title = `Marquer l'épisode ${episodeInfo.episode} comme vu`;
         button.style.cssText = `
             position: fixed;
-            bottom: 120px;
-            right: 20px;
+            bottom: 20px;
+            left: 20px;
             z-index: 999999;
             width: 50px;
             height: 50px;
@@ -707,7 +707,7 @@
             color: white;
             border: none;
             border-radius: 50%;
-            font-size: 24px;
+            font-size: 22px;
             cursor: pointer;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
             transition: all 0.3s ease;
@@ -740,7 +740,7 @@
                         button.innerHTML = '🎉';
                         button.title = 'Série terminée !';
                 } else {
-                        button.innerHTML = '👁️';
+                        button.innerHTML = '✅';
                         button.disabled = false;
                 }
                 }, 2000);
@@ -755,7 +755,7 @@
                     console.warn('⚠️ Anime non trouvé. Importez-le depuis la page série : ' + (seriesUrl || 'URL série non trouvée'));
                     
                     setTimeout(() => {
-                        button.innerHTML = '👁️';
+                        button.innerHTML = '✅';
                         button.style.background = 'linear-gradient(135deg, #10b981, #059669)';
                         button.title = `Marquer l'épisode ${episodeInfo.episode} comme vu`;
                             button.disabled = false;
@@ -764,7 +764,7 @@
                     button.innerHTML = '❌';
                     button.title = error.message;
                     setTimeout(() => {
-                        button.innerHTML = '👁️';
+                        button.innerHTML = '✅';
                         button.title = `Marquer l'épisode ${episodeInfo.episode} comme vu`;
                         button.disabled = false;
                     }, 3000);
@@ -787,8 +787,8 @@
         button.title = 'Importer cet anime dans Ma Mangathèque';
         button.style.cssText = `
             position: fixed;
-            bottom: 120px;
-            right: 20px;
+            bottom: 80px;
+            left: 20px;
             z-index: 999999;
             width: 50px;
             height: 50px;

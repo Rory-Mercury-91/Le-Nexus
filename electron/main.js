@@ -20,6 +20,7 @@ const { registerUserHandlers } = require('./handlers/user-handlers');
 const { registerMalSyncHandlers } = require('./handlers/mal-sync-handlers');
 const { registerAvnHandlers } = require('./handlers/avn-handlers');
 const { registerLewdCornerHandlers } = require('./handlers/lewdcorner-handlers');
+const { registerF95ZoneHandlers } = require('./handlers/f95zone-handlers');
 
 // Configuration
 const store = new Store();
@@ -245,19 +246,26 @@ function createWindow() {
  */
 async function getBaseDirectory() {
   let storedPath = store.get('baseDirectory');
+  console.log('🔍 Base directory stocké dans store:', storedPath || '(non défini)');
 
   // Si un chemin existe et qu'il est valide, l'utiliser
   if (storedPath && fs.existsSync(storedPath)) {
+    console.log('✅ Chemin stocké existe:', storedPath);
     const tempManager = new PathManager(storedPath);
     if (tempManager.isValidStructure()) {
-
+      console.log('✅ Structure valide, utilisation du chemin stocké');
       return storedPath;
+    } else {
+      console.warn('⚠️ Structure invalide pour le chemin stocké');
     }
+  } else if (storedPath) {
+    console.warn('⚠️ Chemin stocké n\'existe pas:', storedPath);
   }
 
   // Premier lancement : utiliser automatiquement le chemin par défaut
   // L'utilisateur choisira l'emplacement définitif dans l'OnboardingWizard
   const defaultPath = path.join(userDataPath, 'Le Nexus');
+  console.log('📁 Utilisation du chemin par défaut:', defaultPath);
   store.set('baseDirectory', defaultPath);
 
   return defaultPath;
@@ -291,9 +299,11 @@ app.whenReady().then(async () => {
   // Enregistrer le protocole personnalisé
   registerMangaProtocol();
 
-  // Configurer l'intercepteur LewdCorner
+  // Configurer les intercepteurs (LewdCorner et F95Zone)
   const { setupLewdCornerInterceptor } = require('./apis/lewdcorner-interceptor');
+  const { setupF95ZoneInterceptor } = require('./apis/f95zone-interceptor');
   setupLewdCornerInterceptor();
+  setupF95ZoneInterceptor();
 
   // Message de bienvenue
   console.log('\n╔════════════════════════════════════════════════════╗');
@@ -323,6 +333,7 @@ app.whenReady().then(async () => {
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow);
   registerAvnHandlers(ipcMain, getDb, store, getPathManager);
   registerLewdCornerHandlers();
+  registerF95ZoneHandlers();
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     // Recharger le baseDirectory depuis le store
     const newBaseDirectory = store.get('baseDirectory');
@@ -349,9 +360,11 @@ app.whenReady().then(async () => {
 
   // Récupérer ou demander le dossier racine
   const baseDirectory = await getBaseDirectory();
+  console.log('📁 Base directory final utilisé:', baseDirectory);
 
   // Initialiser le gestionnaire de chemins
   pathManager = new PathManager(baseDirectory);
+  console.log('📂 PathManager initialisé avec:', baseDirectory);
   
   // Créer l'arborescence si nécessaire
   pathManager.initializeStructure();

@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
   getAnimeImageSource: () => ipcRenderer.invoke('get-anime-image-source'),
   setAnimeImageSource: (source) => ipcRenderer.invoke('set-anime-image-source', source),
+  openTampermonkeyInstallation: () => ipcRenderer.invoke('open-tampermonkey-installation'),
   onMalSyncProgress: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-progress', subscription);
@@ -137,11 +138,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   launchAvnGame: (id) => ipcRenderer.invoke('launch-avn-game', id),
   checkAvnUpdates: () => ipcRenderer.invoke('check-avn-updates'),
   searchAvnByF95Id: (f95Id) => ipcRenderer.invoke('search-avn-by-f95-id', f95Id),
+  searchAvnByLewdCornerId: (lewdcornerId) => ipcRenderer.invoke('search-avn-by-lewdcorner-id', lewdcornerId),
 
   // LewdCorner Auth
   lewdCornerConnect: () => ipcRenderer.invoke('lewdcorner-connect'),
   lewdCornerCheckSession: () => ipcRenderer.invoke('lewdcorner-check-session'),
   lewdCornerDisconnect: () => ipcRenderer.invoke('lewdcorner-disconnect'),
+  
+  // F95Zone Auth
+  f95zoneConnect: () => ipcRenderer.invoke('f95zone-connect'),
+  f95zoneCheckSession: () => ipcRenderer.invoke('f95zone-check-session'),
+  f95zoneDisconnect: () => ipcRenderer.invoke('f95zone-disconnect'),
   
   // Fusion
   mergeDatabase: () => ipcRenderer.invoke('merge-database'),

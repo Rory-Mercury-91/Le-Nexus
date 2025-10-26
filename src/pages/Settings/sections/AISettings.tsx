@@ -10,10 +10,12 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
   const [showGroqApiKey, setShowGroqApiKey] = useState(false);
 
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-      <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>
-        🤖 Intelligence Artificielle
-      </h2>
+    <div style={{ marginBottom: '30px' }}>
+      <div className="settings-section">
+        <div className="settings-header">
+          <h2 className="settings-title">🤖 Intelligence Artificielle</h2>
+        </div>
+        <div className="settings-content">
 
       <div style={{ marginBottom: '12px' }}>
         <label style={{
@@ -140,17 +142,19 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
         </div>
       </details>
 
-      <p style={{
-        fontSize: '11px',
-        color: 'var(--text-secondary)',
-        marginTop: '16px',
-        fontStyle: 'italic',
-        padding: '8px',
-        background: 'var(--surface)',
-        borderRadius: '6px'
-      }}>
-        💡 Cette clé est globale et partagée par tous les utilisateurs de l'application
-      </p>
+          <p style={{
+            fontSize: '11px',
+            color: 'var(--text-secondary)',
+            marginTop: '16px',
+            fontStyle: 'italic',
+            padding: '8px',
+            background: 'var(--surface)',
+            borderRadius: '6px'
+          }}>
+            💡 Cette clé est globale et partagée par tous les utilisateurs de l'application
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

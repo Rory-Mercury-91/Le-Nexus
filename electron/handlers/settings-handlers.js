@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
+const { shell } = require('electron');
 const { cleanEmptyFolders, deleteImageWithCleanup } = require('../utils/file-utils');
 const { downloadCover, uploadCustomCover, saveCoverFromPath, saveCoverFromBuffer } = require('../services/cover-manager');
 const { translateText: groqTranslate } = require('../apis/groq');
@@ -843,6 +844,33 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     store.set('animeImageSource', source);
     console.log(`✅ Source images anime définie: ${source}`);
     return { success: true };
+  });
+
+  // ========== OUVRIR LA PAGE D'INSTALLATION DES SCRIPTS ==========
+  
+  ipcMain.handle('open-tampermonkey-installation', async () => {
+    try {
+      // Déterminer le chemin vers le fichier HTML
+      const htmlPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'app.asar.unpacked', 'tampermonkey', 'INSTALLATION.html')
+        : path.join(__dirname, '..', '..', 'tampermonkey', 'INSTALLATION.html');
+
+      // Vérifier que le fichier existe
+      if (!fs.existsSync(htmlPath)) {
+        console.error('❌ Fichier INSTALLATION.html introuvable:', htmlPath);
+        return { success: false, error: 'Fichier introuvable' };
+      }
+
+      // Ouvrir dans le navigateur par défaut
+      const url = `file://${htmlPath}`;
+      await shell.openExternal(url);
+      
+      console.log('✅ Page d\'installation des scripts ouverte dans le navigateur');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'ouverture de la page d\'installation:', error);
+      return { success: false, error: error.message };
+    }
   });
 }
 

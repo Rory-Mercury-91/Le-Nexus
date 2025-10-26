@@ -13,6 +13,7 @@ function initDatabase(dbPath) {
     CREATE TABLE IF NOT EXISTS series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       titre TEXT NOT NULL,
+      titre_alternatif TEXT,
       statut TEXT NOT NULL,
       type_volume TEXT NOT NULL,
       type_contenu TEXT DEFAULT 'volume',
@@ -267,6 +268,23 @@ function initDatabase(dbPath) {
   };
   
   migrateSeriesMalFields();
+
+  // Migration: Ajouter titre_alternatif pour Nautiljon
+  const migrateTitreAlternatif = () => {
+    try {
+      const tableInfo = db.prepare('PRAGMA table_info(series)').all();
+      const hasColumn = tableInfo.some(col => col.name === 'titre_alternatif');
+      
+      if (!hasColumn) {
+        db.exec('ALTER TABLE series ADD COLUMN titre_alternatif TEXT');
+        console.log('✅ Migration: Colonne titre_alternatif ajoutée à la table series');
+      }
+    } catch (error) {
+      console.warn('⚠️ Migration titre_alternatif déjà appliquée ou erreur:', error.message);
+    }
+  };
+  
+  migrateTitreAlternatif();
 
   // Migration: Rendre mal_id nullable dans anime_series
   const migrateAnimeMalIdNullable = () => {

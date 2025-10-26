@@ -397,6 +397,7 @@ declare global {
       malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
       getAnimeImageSource: () => Promise<'anilist' | 'mal'>;
       setAnimeImageSource: (source: 'anilist' | 'mal') => Promise<{ success: boolean }>;
+      openTampermonkeyInstallation: () => Promise<{ success: boolean; error?: string }>;
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
@@ -462,6 +463,7 @@ declare global {
       launchAvnGame: (id: number) => Promise<{ success: boolean; error?: string }>;
       checkAvnUpdates: () => Promise<{ checked: number; updated: number }>;
       searchAvnByF95Id: (f95Id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+      searchAvnByLewdCornerId: (lewdcornerId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
       selectAvnExecutable: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
       selectAvnCoverImage: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
 
@@ -469,6 +471,11 @@ declare global {
       lewdCornerConnect: () => Promise<{ success: boolean; cookiesCount?: number }>;
       lewdCornerCheckSession: () => Promise<{ success: boolean; connected: boolean; error?: string }>;
       lewdCornerDisconnect: () => Promise<{ success: boolean; error?: string }>;
+
+      // F95Zone Auth
+      f95zoneConnect: () => Promise<{ success: boolean; cookiesCount?: number }>;
+      f95zoneCheckSession: () => Promise<{ success: boolean; connected: boolean; error?: string }>;
+      f95zoneDisconnect: () => Promise<{ success: boolean; error?: string }>;
     };
   }
 }

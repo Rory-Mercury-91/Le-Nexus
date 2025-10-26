@@ -21,10 +21,12 @@
       "electron/**/*",
       "node_modules/**/*",
       "package.json",
-      "assets/**/*"
+      "assets/**/*",
+      "tampermonkey/**/*"
     ],
     "asarUnpack": [
-      "assets/**/*"
+      "assets/**/*",
+      "tampermonkey/**/*"
     ],
     "directories": {
       "buildResources": "assets"

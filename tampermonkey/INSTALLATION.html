@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation des Scripts Tampermonkey - Le Nexus</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary: #ec4899;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            -moz-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+        }
+
+        .header p {
+            font-size: 1.3em;
+            color: var(--text-secondary);
+        }
+
+        .step {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5em;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .step h2 {
+            color: var(--text);
+            font-size: 1.6em;
+        }
+
+        .step-content {
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .tampermonkey-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .tm-link {
+            display: block;
+            padding: 16px 24px;
+            background: var(--surface-light);
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            border: 1px solid var(--border);
+        }
+
+        .tm-link:hover {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+            border-color: var(--primary);
+        }
+
+        .scripts-category {
+            margin-bottom: 30px;
+        }
+
+        .scripts-category h3 {
+            color: var(--primary-light);
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .script-card {
+            background: var(--surface-light);
+            border-radius: 10px;
+            padding: 24px;
+            margin-bottom: 18px;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+
+        .script-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.2);
+        }
+
+        .script-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .script-name {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 1.2em;
+        }
+
+        .script-icon {
+            font-size: 1.8em;
+        }
+
+        .script-description {
+            color: var(--text-secondary);
+            font-size: 0.95em;
+            margin-bottom: 18px;
+            line-height: 1.6;
+        }
+
+        .install-button {
+            display: inline-block;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.05em;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .install-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .warning {
+            background: rgba(245, 158, 11, 0.15);
+            border-left: 4px solid var(--warning);
+            padding: 18px 24px;
+            border-radius: 8px;
+            margin: 25px 0;
+            color: var(--text);
+        }
+
+        .warning strong {
+            color: var(--warning);
+        }
+
+        .success {
+            background: rgba(16, 185, 129, 0.15);
+            border-left: 4px solid var(--success);
+            padding: 18px 24px;
+            border-radius: 8px;
+            margin: 25px 0;
+            color: var(--text);
+        }
+
+        .success strong {
+            color: var(--success);
+        }
+
+        .usage-list {
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+
+        .usage-list li {
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .usage-list strong {
+            color: var(--text);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .footer p {
+            margin: 8px 0;
+        }
+
+        .footer-title {
+            font-size: 1.1em;
+            color: var(--text);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface-light);
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Scripts Tampermonkey</h1>
+            <p>Installation guidée pour Le Nexus</p>
+        </div>
+
+        <!-- Étape 1 -->
+        <div class="step">
+            <div class="step-header">
+                <span class="step-number">1</span>
+                <h2>Installer Tampermonkey</h2>
+            </div>
+            <div class="step-content">
+                <p>Installez l'extension Tampermonkey pour votre navigateur :</p>
+                <div class="tampermonkey-links">
+                    <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" class="tm-link">
+                        🌐 Chrome
+                    </a>
+                    <a href="https://addons.mozilla.org/fr/firefox/addon/tampermonkey/" target="_blank" class="tm-link">
+                        🦊 Firefox
+                    </a>
+                    <a href="https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd" target="_blank" class="tm-link">
+                        🔷 Edge
+                    </a>
+                    <a href="https://apps.apple.com/app/tampermonkey/id1482490089" target="_blank" class="tm-link">
+                        🍎 Safari
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Étape 2 -->
+        <div class="step">
+            <div class="step-header">
+                <span class="step-number">2</span>
+                <h2>Installer les scripts</h2>
+            </div>
+            <div class="step-content">
+                <p style="margin-bottom: 25px;">Cliquez sur "📥 Installer" pour chaque script souhaité :</p>
+
+                <!-- Scripts Animes -->
+                <div class="scripts-category">
+                    <h3>🎬 Scripts Animes</h3>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">Crunchyroll Episode Tracker</span>
+                            <span class="script-icon">✅</span>
+                        </div>
+                        <div class="script-description">
+                            Marque automatiquement les épisodes visionnés sur Crunchyroll. Bouton ✅ en bas à gauche avec import automatique si l'anime n'existe pas.
+                        </div>
+                        <a href="animes/Crunchyroll Episode Tracker.user.js" class="install-button">📥 Installer</a>
+                    </div>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">ADN Episode Tracker</span>
+                            <span class="script-icon">✅</span>
+                        </div>
+                        <div class="script-description">
+                            Marque automatiquement les épisodes visionnés sur Animation Digital Network (ADN). Import automatique de l'anime si nécessaire.
+                        </div>
+                        <a href="animes/ADN Episode Tracker.user.js" class="install-button">📥 Installer</a>
+                    </div>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">ADKami Integration</span>
+                            <span class="script-icon">✅</span>
+                        </div>
+                        <div class="script-description">
+                            Intégration complète avec ADKami : import d'animes et marquage d'épisodes. Boutons en bas à gauche.
+                        </div>
+                        <a href="animes/ADKami Integration.user.js" class="install-button">📥 Installer</a>
+                    </div>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">MyAnimeList Quick Add</span>
+                            <span class="script-icon">📥</span>
+                        </div>
+                        <div class="script-description">
+                            Ajoute un bouton sur MyAnimeList pour importer rapidement un anime avec toutes ses métadonnées enrichies (Jikan + AniList + Groq).
+                        </div>
+                        <a href="animes/MyAnimeList Quick Add.user.js" class="install-button">📥 Installer</a>
+                    </div>
+                </div>
+
+                <!-- Scripts Mangas -->
+                <div class="scripts-category">
+                    <h3>📚 Scripts Mangas</h3>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">Nautiljon Extractor</span>
+                            <span class="script-icon">⋮</span>
+                        </div>
+                        <div class="script-description">
+                            Import complet de mangas depuis Nautiljon. Menu avec 3 points verticaux (⋮) en bas à gauche : Import complet (📚) ou Import tomes uniquement (📖).
+                        </div>
+                        <a href="mangas/Nautiljon Extractor.user.js" class="install-button">📥 Installer</a>
+                    </div>
+                </div>
+
+                <!-- Scripts AVN -->
+                <div class="scripts-category">
+                    <h3>🎮 Scripts AVN (Adult Visual Novels)</h3>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">F95Zone AVN Extractor</span>
+                            <span class="script-icon">🎮</span>
+                        </div>
+                        <div class="script-description">
+                            Extrait les informations des jeux AVN depuis F95Zone pour import dans Le Nexus. Compatible avec l'authentification F95Zone.
+                        </div>
+                        <a href="avn/F95Zone AVN Extractor.user.js" class="install-button">📥 Installer</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Avertissement -->
+        <div class="warning">
+            <strong>⚠️ Important :</strong> Le Nexus doit être lancé pour que les scripts fonctionnent (serveur d'import sur port 51234).
+        </div>
+
+        <div class="success">
+            <strong>✅ Astuce :</strong> Vous pouvez aussi glisser-déposer les fichiers .user.js directement dans votre navigateur pour une installation encore plus rapide !
+        </div>
+
+        <!-- Étape 3 -->
+        <div class="step">
+            <div class="step-header">
+                <span class="step-number">3</span>
+                <h2>Vérifier l'installation</h2>
+            </div>
+            <div class="step-content">
+                <p style="margin-bottom: 15px;">Pour vérifier que les scripts sont bien installés :</p>
+                <ul class="usage-list">
+                    <li>Cliquez sur l'icône <strong>Tampermonkey</strong> dans votre navigateur</li>
+                    <li>Sélectionnez <strong>"Tableau de bord"</strong></li>
+                    <li>Vous devriez voir tous vos scripts installés dans la liste</li>
+                    <li>Assurez-vous que les scripts sont <strong>activés</strong> (interrupteur vert à côté de chaque script)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Étape 4 -->
+        <div class="step">
+            <div class="step-header">
+                <span class="step-number">4</span>
+                <h2>Utiliser les scripts</h2>
+            </div>
+            <div class="step-content">
+                <p style="margin-bottom: 15px;">Les scripts s'activent automatiquement sur les sites compatibles :</p>
+                <ul class="usage-list">
+                    <li>🎬 <strong>Crunchyroll, ADN, ADKami</strong> : Bouton ✅ en bas à gauche pour marquer un épisode comme vu</li>
+                    <li>📥 <strong>MyAnimeList</strong> : Bouton d'import sous le titre de l'anime</li>
+                    <li>📚 <strong>Nautiljon</strong> : Menu ⋮ en bas à gauche avec options 📚 (import complet) et 📖 (import tomes)</li>
+                    <li>🎮 <strong>F95Zone</strong> : Extraction automatique des données AVN (après authentification dans les paramètres)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p class="footer-title">📚 Le Nexus</p>
+            <p>Gestion de votre collection multimédia</p>
+            <p style="margin-top: 15px; font-size: 0.9em;">Pour plus d'informations, consultez le fichier README.md dans le dossier tampermonkey</p>
+        </div>
+    </div>
+</body>
+</html>

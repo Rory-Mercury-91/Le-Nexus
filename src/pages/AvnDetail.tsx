@@ -4,12 +4,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import CoverImage from '../components/common/CoverImage';
 import EditAvnModal from '../components/modals/avn/EditAvnModal';
 import ConfirmModal from '../components/modals/common/ConfirmModal';
+import { useToast } from '../hooks/useToast';
 import '../index.css';
 import type { AvnGame } from '../types';
 
 export default function AvnDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast, ToastContainer } = useToast();
   const [game, setGame] = useState<AvnGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -37,12 +39,20 @@ export default function AvnDetail() {
 
     try {
       await window.electronAPI.launchAvnGame(game.id);
-      alert('🎮 Jeu lancé avec succès !');
+      showToast({
+        title: 'Jeu lancé',
+        message: 'Le jeu a été lancé avec succès',
+        type: 'success'
+      });
       // Recharger pour mettre à jour la dernière session
       await loadGame();
     } catch (error: any) {
       console.error('Erreur lancement jeu:', error);
-      alert(`❌ ${error.message || 'Impossible de lancer le jeu'}`);
+      showToast({
+        title: 'Erreur',
+        message: error.message || 'Impossible de lancer le jeu',
+        type: 'error'
+      });
     }
   };
 
@@ -51,10 +61,18 @@ export default function AvnDetail() {
 
     try {
       await window.electronAPI.deleteAvnGame(game.id);
+      showToast({
+        title: 'Jeu supprimé',
+        type: 'success'
+      });
       navigate('/avn');
     } catch (error) {
       console.error('Erreur suppression jeu:', error);
-      alert('❌ Erreur lors de la suppression du jeu');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors de la suppression du jeu',
+        type: 'error'
+      });
     }
   };
 
@@ -65,9 +83,17 @@ export default function AvnDetail() {
       await window.electronAPI.updateAvnGame(game.id, { statut_perso: newStatut });
       setShowStatutDropdown(false);
       await loadGame();
+      showToast({
+        title: 'Statut modifié',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Erreur changement statut:', error);
-      alert('❌ Erreur lors du changement de statut');
+      showToast({
+        title: 'Erreur',
+        message: 'Erreur lors du changement de statut',
+        type: 'error'
+      });
     }
   };
 
@@ -103,8 +129,10 @@ export default function AvnDetail() {
   }
 
   return (
-    <div style={{ padding: '0 32px 32px 32px' }}>
-      {/* Header */}
+    <>
+      <ToastContainer />
+      <div style={{ padding: '0 32px 32px 32px' }}>
+        {/* Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -613,5 +641,6 @@ export default function AvnDetail() {
         />
       )}
     </div>
+    </>
   );
 }
