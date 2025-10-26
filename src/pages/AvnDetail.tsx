@@ -503,49 +503,49 @@ export default function AvnDetail() {
                     )}
 
                     {/* Statut */}
-                    {game.statut_traduction && (
+                    {game.statut_trad_fr && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
                           Statut :
                         </span>
-                        <span style={{ 
-                          fontSize: '12px', 
+                        <span style={{
+                          fontSize: '12px',
                           fontWeight: '600',
                           padding: '4px 10px',
                           borderRadius: '12px',
-                          background: 
-                            game.statut_traduction === 'TERMINÉ' ? 'rgba(16, 185, 129, 0.15)' :
-                            game.statut_traduction === 'EN COURS' ? 'rgba(59, 130, 246, 0.15)' :
+                          background:
+                            game.statut_trad_fr === 'TERMINÉ' ? 'rgba(16, 185, 129, 0.15)' :
+                            game.statut_trad_fr === 'EN COURS' ? 'rgba(59, 130, 246, 0.15)' :
                             'rgba(156, 163, 175, 0.15)',
                           color:
-                            game.statut_traduction === 'TERMINÉ' ? '#10b981' :
-                            game.statut_traduction === 'EN COURS' ? '#3b82f6' :
+                            game.statut_trad_fr === 'TERMINÉ' ? '#10b981' :
+                            game.statut_trad_fr === 'EN COURS' ? '#3b82f6' :
                             '#9ca3af',
                           border: `1px solid ${
-                            game.statut_traduction === 'TERMINÉ' ? '#10b981' :
-                            game.statut_traduction === 'EN COURS' ? '#3b82f6' :
+                            game.statut_trad_fr === 'TERMINÉ' ? '#10b981' :
+                            game.statut_trad_fr === 'EN COURS' ? '#3b82f6' :
                             '#9ca3af'
                           }`
                         }}>
-                          {game.statut_traduction === 'TERMINÉ' && '✅ '}
-                          {game.statut_traduction === 'EN COURS' && '⏳ '}
-                          {game.statut_traduction === 'ABANDONNÉ' && '❌ '}
-                          {game.statut_traduction}
+                          {game.statut_trad_fr === 'TERMINÉ' && '✅ '}
+                          {game.statut_trad_fr === 'EN COURS' && '⏳ '}
+                          {game.statut_trad_fr === 'ABANDONNÉ' && '❌ '}
+                          {game.statut_trad_fr}
                         </span>
                       </div>
                     )}
 
                     {/* Type de traduction */}
-                    {game.type_traduction && (
+                    {game.type_trad_fr && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)', minWidth: '100px' }}>
                           Type :
                         </span>
                         <span style={{ fontSize: '13px', color: 'var(--text)' }}>
-                          {game.type_traduction === 'Traduction Humaine' && '👤 '}
-                          {game.type_traduction === 'Traduction Semi-Automatique' && '🤖👤 '}
-                          {game.type_traduction === 'Traduction Automatique' && '🤖 '}
-                          {game.type_traduction}
+                          {game.type_trad_fr === 'Traduction Humaine' && '👤 '}
+                          {game.type_trad_fr === 'Traduction Semi-Automatique' && '🤖👤 '}
+                          {game.type_trad_fr === 'Traduction Automatique' && '🤖 '}
+                          {game.type_trad_fr}
                         </span>
                       </div>
                     )}

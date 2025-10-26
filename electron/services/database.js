@@ -398,6 +398,7 @@ function initDatabase(dbPath) {
       version TEXT,
       statut_jeu TEXT, -- TERMINÉ, ABANDONNÉ, EN COURS
       moteur TEXT, -- RenPy, Unity, RPGM, Unreal, HTML, etc.
+      plateforme TEXT DEFAULT 'F95Zone', -- F95Zone, LewdCorner
       couverture_url TEXT,
       tags TEXT, -- JSON array
       lien_f95 TEXT,
@@ -510,6 +511,10 @@ function initDatabase(dbPath) {
     if (!columnNames.includes('derniere_sync_trad')) {
       db.exec('ALTER TABLE avn_games ADD COLUMN derniere_sync_trad DATETIME');
       console.log('✅ Colonne derniere_sync_trad ajoutée');
+    }
+    if (!columnNames.includes('plateforme')) {
+      db.exec("ALTER TABLE avn_games ADD COLUMN plateforme TEXT DEFAULT 'F95Zone'");
+      console.log('✅ Colonne plateforme ajoutée');
     }
   } catch (error) {
     console.log('ℹ️ Migration traduction AVN déjà appliquée ou erreur:', error.message);

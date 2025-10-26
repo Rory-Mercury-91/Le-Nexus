@@ -15,6 +15,7 @@ export default function AVN() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatutPerso, setSelectedStatutPerso] = useState<AvnStatutPerso | 'all'>('all');
   const [selectedMoteur, setSelectedMoteur] = useState<AvnMoteur | 'all'>('all');
+  const [selectedPlateforme, setSelectedPlateforme] = useState<'all' | 'F95Zone' | 'LewdCorner'>('all');
   const [showMajOnly, setShowMajOnly] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -110,6 +111,7 @@ export default function AVN() {
     if (searchTerm && !game.titre.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (selectedStatutPerso !== 'all' && game.statut_perso !== selectedStatutPerso) return false;
     if (selectedMoteur !== 'all' && game.moteur !== selectedMoteur) return false;
+    if (selectedPlateforme !== 'all' && game.plateforme !== selectedPlateforme) return false;
     if (showMajOnly && !game.maj_disponible) return false;
     
     // Filtre par tags (doit avoir TOUS les tags sélectionnés)
@@ -295,6 +297,18 @@ export default function AVN() {
               <option value="Flash">Flash</option>
               <option value="QSP">QSP</option>
               <option value="Autre">Autre</option>
+            </select>
+
+            {/* Plateforme */}
+            <select
+              value={selectedPlateforme}
+              onChange={(e) => setSelectedPlateforme(e.target.value as 'all' | 'F95Zone' | 'LewdCorner')}
+              className="select"
+              style={{ width: 'auto', minWidth: '150px' }}
+            >
+              <option value="all">Toutes les plateformes</option>
+              <option value="F95Zone">F95Zone</option>
+              <option value="LewdCorner">LewdCorner</option>
             </select>
 
             {/* MAJ disponible */}
@@ -519,8 +533,8 @@ export default function AVN() {
                     gap: '4px'
                   }}>
                     🇫🇷
-                    {game.statut_traduction === 'TERMINÉ' && '✅'}
-                    {game.statut_traduction === 'EN COURS' && '⏳'}
+                    {game.statut_trad_fr === 'TERMINÉ' && '✅'}
+                    {game.statut_trad_fr === 'EN COURS' && '⏳'}
                   </div>
                 )}
 

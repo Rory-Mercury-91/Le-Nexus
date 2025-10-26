@@ -305,6 +305,7 @@ export interface AvnGame {
   version?: string | null;
   statut_jeu?: AvnStatutJeu | null;
   moteur?: AvnMoteur | null;
+  plateforme?: 'F95Zone' | 'LewdCorner' | null;
   couverture_url?: string | null;
   tags?: string[]; // Parsé depuis JSON
   lien_f95?: string | null;
@@ -327,6 +328,8 @@ export interface AvnGame {
   version_traduite?: string | null;
   traducteur?: string | null;
   f95_trad_id?: number | null;
+  statut_trad_fr?: string | null; // TERMINÉ, EN COURS, ABANDONNÉ
+  type_trad_fr?: string | null; // Traduction Humaine, Semi-Automatique, Automatique
   derniere_sync_trad?: string | null;
   
   // Contrôle de version
