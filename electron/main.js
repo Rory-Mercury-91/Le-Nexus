@@ -364,7 +364,7 @@ app.whenReady().then(async () => {
       console.log('✅ PathManager et base de données réinitialisés !');
     }
   }, app);
-  registerSearchHandlers(ipcMain, shell);
+  registerSearchHandlers(ipcMain, shell, getDb, store);
   registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager);
   
 

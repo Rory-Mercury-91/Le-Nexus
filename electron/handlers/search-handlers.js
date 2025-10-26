@@ -2,8 +2,112 @@
  * Enregistre tous les handlers IPC pour la recherche (manga et anime)
  * @param {IpcMain} ipcMain - Module ipcMain d'Electron
  * @param {Shell} shell - Module shell d'Electron
+ * @param {Function} getDb - Fonction pour récupérer l'instance de la base de données
+ * @param {Store} store - Instance d'electron-store
  */
-function registerSearchHandlers(ipcMain, shell) {
+function registerSearchHandlers(ipcMain, shell, getDb, store) {
+  
+  // Recherche globale dans la base de données locale
+  ipcMain.handle('global-search', async (event, query, currentUser) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        console.error('❌ Base de données non initialisée');
+        return [];
+      }
+
+      if (!currentUser) {
+        console.log('⚠️ Aucun utilisateur connecté');
+        return [];
+      }
+
+      const allResults = [];
+      const searchQuery = `%${query}%`;
+
+      // Rechercher dans les séries (mangas)
+      // Note: Les séries sont globales, on filtre juste les masquées
+      const mangas = db.prepare(`
+        SELECT s.id, s.titre, s.auteurs, s.type_volume, s.couverture_url
+        FROM series s
+        WHERE s.id NOT IN (
+          SELECT serie_id FROM series_masquees WHERE utilisateur = ?
+        )
+        AND (s.titre LIKE ? OR s.description LIKE ? OR s.auteurs LIKE ?)
+        LIMIT 10
+      `).all(currentUser, searchQuery, searchQuery, searchQuery);
+
+      mangas.forEach(manga => {
+        allResults.push({
+          id: manga.id,
+          type: 'manga',
+          title: manga.titre,
+          subtitle: manga.auteurs || manga.type_volume,
+          progress: '',
+          coverUrl: manga.couverture_url
+        });
+      });
+
+      // Rechercher dans les animes
+      const animes = db.prepare(`
+        SELECT 
+          a.id, 
+          a.titre, 
+          a.type, 
+          a.nb_episodes, 
+          a.couverture_url,
+          COALESCE(
+            (SELECT COUNT(DISTINCT episode_numero) 
+             FROM anime_episodes_vus 
+             WHERE anime_id = a.id AND utilisateur = ? AND vu = 1),
+            0
+          ) as episodes_vus
+        FROM anime_series a
+        WHERE a.utilisateur_ajout = ?
+        AND (a.titre LIKE ? OR a.description LIKE ?)
+        LIMIT 10
+      `).all(currentUser, currentUser, searchQuery, searchQuery);
+
+      animes.forEach(anime => {
+        allResults.push({
+          id: anime.id,
+          type: 'anime',
+          title: anime.titre,
+          subtitle: anime.type || 'TV',
+          progress: anime.episodes_vus && anime.nb_episodes 
+            ? `${anime.episodes_vus}/${anime.nb_episodes} épisodes`
+            : '',
+          coverUrl: anime.couverture_url
+        });
+      });
+
+      // Rechercher dans les AVN
+      const avnGames = db.prepare(`
+        SELECT DISTINCT g.id, g.titre, g.moteur, g.version, g.couverture_url, g.tags
+        FROM avn_games g
+        INNER JOIN avn_proprietaires p ON g.id = p.game_id
+        WHERE p.utilisateur = ?
+        AND (g.titre LIKE ? OR g.tags LIKE ?)
+        LIMIT 10
+      `).all(currentUser, searchQuery, searchQuery);
+
+      avnGames.forEach(game => {
+        allResults.push({
+          id: game.id,
+          type: 'avn',
+          title: game.titre,
+          subtitle: game.moteur || 'AVN',
+          progress: game.version || '',
+          coverUrl: game.couverture_url
+        });
+      });
+
+      console.log(`🔍 Recherche globale: "${query}" => ${allResults.length} résultats (${mangas.length} mangas, ${animes.length} animes, ${avnGames.length} AVN)`);
+      return allResults;
+    } catch (error) {
+      console.error('❌ Erreur global-search:', error);
+      return [];
+    }
+  });
   
   // Recherche de mangas (multi-sources: MangaDex, AniList, Kitsu, MAL, MangaUpdates)
   ipcMain.handle('search-manga', async (event, titre) => {

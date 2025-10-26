@@ -374,6 +374,14 @@ declare global {
       searchMangadex: (titre: string) => Promise<MangaDexResult[]>;
       searchManga: (titre: string) => Promise<MangaDexResult[]>;
       searchAnime: (titre: string) => Promise<AnimeSearchResult[]>;
+      globalSearch: (query: string, currentUser: string) => Promise<Array<{
+        id: number;
+        type: 'manga' | 'anime' | 'avn';
+        title: string;
+        subtitle?: string;
+        progress?: string;
+        coverUrl?: string;
+      }>>;
       openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
       getBaseDirectory: () => Promise<string>;
       changeBaseDirectory: () => Promise<{ success: boolean; path?: string; message?: string; error?: string }>;

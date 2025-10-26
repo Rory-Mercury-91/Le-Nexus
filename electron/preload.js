@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchMangadex: (titre) => ipcRenderer.invoke('search-mangadex', titre),
   searchManga: (titre) => ipcRenderer.invoke('search-manga', titre),
   searchAnime: (titre) => ipcRenderer.invoke('search-anime', titre),
+  globalSearch: (query, currentUser) => ipcRenderer.invoke('global-search', query, currentUser),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   
   // Configuration

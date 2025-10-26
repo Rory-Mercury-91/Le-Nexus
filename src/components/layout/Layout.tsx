@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, LogOut, Minimize2, Settings, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Minimize2, Search, Settings, User } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';
+import GlobalSearch from '../common/GlobalSearch';
 import SavingModal from '../modals/common/SavingModal';
 
 interface LayoutProps {
@@ -17,6 +18,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   const [userColor, setUserColor] = useState('#6366f1');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [contentPrefs, setContentPrefs] = useState({ showMangas: true, showAnimes: true, showAvn: true });
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -30,8 +32,19 @@ export default function Layout({ children, currentUser }: LayoutProps) {
       }
     });
     
+    // Raccourci clavier Ctrl+K pour recherche globale
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowGlobalSearch(true);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
     return () => {
       unsubscribe();
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [currentUser]);
 
@@ -81,9 +94,16 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside style={{
+    <>
+    <GlobalSearch 
+      isOpen={showGlobalSearch} 
+      onClose={() => setShowGlobalSearch(false)}
+      currentUser={currentUser}
+    />
+      
+      <div style={{ display: 'flex', minHeight: '100vh' }}>
+        {/* Sidebar */}
+        <aside style={{
         position: 'fixed',
         left: 0,
         top: 0,
@@ -134,7 +154,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
 
         <div style={{ 
           padding: '12px 24px', 
-          marginBottom: '16px', 
+          marginBottom: '8px', 
           visibility: isCollapsed ? 'hidden' : 'visible', 
           height: '56px',
           display: 'flex',
@@ -152,6 +172,49 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             Le Nexus
           </h1>
         </div>
+
+        {/* Bouton recherche globale */}
+        <button
+          onClick={() => setShowGlobalSearch(true)}
+          style={{
+            margin: '0 16px 16px',
+            padding: '10px 16px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            display: isCollapsed ? 'none' : 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            transition: 'all 0.2s',
+            justifyContent: 'space-between'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'var(--hover)';
+            e.currentTarget.style.borderColor = 'var(--primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--surface)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Search size={16} />
+            <span>Rechercher...</span>
+          </div>
+          <kbd style={{
+            padding: '2px 6px',
+            background: 'var(--background)',
+            border: '1px solid var(--border)',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontFamily: 'monospace'
+          }}>
+            Ctrl+K
+          </kbd>
+        </button>
 
         {/* Utilisateur connecté */}
         <div style={{
@@ -412,8 +475,6 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             </button>
           </div>
         </div>
-      {isSaving && <SavingModal userName={currentUser} onComplete={handleSaveComplete} />}
-      <ConfirmDialog />
       </aside>
 
       {/* Main content */}
@@ -427,5 +488,9 @@ export default function Layout({ children, currentUser }: LayoutProps) {
         {children}
       </main>
     </div>
+
+    {isSaving && <SavingModal userName={currentUser} onComplete={handleSaveComplete} />}
+    <ConfirmDialog />
+    </>
   );
 }
