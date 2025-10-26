@@ -1179,6 +1179,48 @@
 - Synchronisation automatique
 - Partage familial facilité
 
+**Backup automatique** :
+- **Configuration** :
+  - Toggle activation backup automatique
+  - Fréquences : Quotidien (2h du matin), Hebdomadaire (Dimanche 2h), Manuel uniquement
+  - Nombre de backups à conserver (1-30, défaut: 7)
+  - Rotation automatique (suppression anciens backups)
+  
+- **Backup sécurisé au lancement/arrêt** :
+  - ✅ **Backup au démarrage** : Activé par défaut
+  - ✅ **Backup à la fermeture** : Activé par défaut
+  - Création automatique backup à chaque démarrage/arrêt de l'application
+  - Sécurité maximale des données
+  - Configurable indépendamment
+
+- **Backup manuel** :
+  - Bouton "Créer un backup maintenant"
+  - Création instantanée
+  - Notification succès avec nom fichier
+
+- **Gestion backups** :
+  - Liste backups disponibles (nom, date, taille)
+  - Bouton "Restaurer" par backup
+  - Confirmation avant restauration
+  - Backup sécurité avant restauration
+  - Bouton "Supprimer" par backup
+  - Confirmation avant suppression
+
+- **Stockage** :
+  - Emplacement : `AppData/Roaming/Le Nexus/backups/`
+  - Format nom : `backup_YYYY-MM-DD_HH-MM-SS.db`
+  - Tri par date (plus récent en premier)
+
+- **Restauration** :
+  - Confirmation requise (opération critique)
+  - Création backup sécurité automatique avant restauration
+  - Rollback automatique si échec
+  - Message redémarrage nécessaire
+
+- **Affichage dernière backup** :
+  - Date et heure dernière sauvegarde
+  - Mise à jour automatique après chaque backup
+
 #### 7. DangerZone
 
 **Suppression données utilisateur** :
