@@ -371,35 +371,44 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         lien_f95 = jsonData.link || `https://lewdcorner.com/threads/${jsonData.id}`;
       }
       
-      // Télécharger la couverture
+      // Télécharger la couverture (sauf LewdCorner : protection anti-scraping 403)
       let couverture_url = null;
       if (jsonData.image) {
-        try {
-          const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
-          const { createSlug } = require('../utils/slug');
-          const gameSlug = createSlug(titre);
-          
-          console.log(`📥 Téléchargement de l'image...`);
-          const result = await coverManager.downloadCover(
-            pathManager,
-            jsonData.image, 
-            titre,
-            'avn', 
-            null,
-            lien_f95 // referer
-          );
-          
-          if (result.success) {
-            couverture_url = result.localPath;
-            console.log(`✅ Image téléchargée localement: ${couverture_url}`);
-            console.log(`   📝 Type de chemin: ${path.isAbsolute(couverture_url) ? 'ABSOLU' : 'RELATIF'}`);
-            console.log(`   📂 Valeur exacte: "${couverture_url}"`);
+        // Ne pas télécharger les images LewdCorner (403 Forbidden persistant)
+        if (jsonData.domain === 'LewdCorner') {
+          console.log(`ℹ️ Image LewdCorner détectée: ${jsonData.image.substring(0, 60)}...`);
+          console.log(`⚠️ Téléchargement automatique désactivé pour LewdCorner (protection anti-scraping)`);
+          console.log(`💡 Ajoutez l'image manuellement via l'édition du jeu si nécessaire`);
+          couverture_url = null; // Pas d'image pour éviter les 403
+        } else {
+          // Télécharger normalement pour F95Zone
+          try {
+            const pathManager = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
+            const { createSlug } = require('../utils/slug');
+            const gameSlug = createSlug(titre);
+            
+            console.log(`📥 Téléchargement de l'image...`);
+            const result = await coverManager.downloadCover(
+              pathManager,
+              jsonData.image, 
+              titre,
+              'avn', 
+              null,
+              lien_f95 // referer
+            );
+            
+            if (result.success) {
+              couverture_url = result.localPath;
+              console.log(`✅ Image téléchargée localement: ${couverture_url}`);
+              console.log(`   📝 Type de chemin: ${path.isAbsolute(couverture_url) ? 'ABSOLU' : 'RELATIF'}`);
+              console.log(`   📂 Valeur exacte: "${couverture_url}"`);
+            }
+          } catch (imgError) {
+            console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
+            // Fallback sur l'URL distante
+            couverture_url = jsonData.image;
+            console.log(`🌐 Utilisation de l'URL distante: ${jsonData.image.substring(0, 60)}...`);
           }
-        } catch (imgError) {
-          console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
-          // Fallback sur l'URL distante
-          couverture_url = jsonData.image;
-          console.log(`🌐 Utilisation de l'URL distante: ${jsonData.image.substring(0, 60)}...`);
         }
       }
       
@@ -1346,35 +1355,15 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       
       console.log(`✅ Jeu trouvé: ${name}`);
       
-      // Télécharger l'image et la sauvegarder localement
+      // ⚠️ LewdCorner : Téléchargement d'images désactivé (403 Forbidden persistant)
+      // L'utilisateur devra ajouter l'image manuellement via l'interface d'édition
       let localImage = null;
       if (image) {
-        try {
-          console.log(`📥 Téléchargement de l'image LewdCorner...`);
-          const downloadResult = await coverManager.downloadCover(
-            getPathManager(),
-            image,
-            name,
-            'avn',
-            parseInt(lewdcornerId),
-            threadUrl // Referer LewdCorner
-          );
-          
-          if (downloadResult.success && downloadResult.localPath) {
-            localImage = downloadResult.localPath;
-            console.log(`✅ Image téléchargée: ${localImage}`);
-          } else {
-            console.warn(`⚠️ Échec du téléchargement de l'image:`, downloadResult.error);
-            // Fallback : utiliser l'URL directe si le téléchargement échoue
-            localImage = image;
-            console.log(`⚠️ Fallback: utilisation URL directe`);
-          }
-        } catch (error) {
-          console.error(`❌ Erreur téléchargement image:`, error);
-          // Fallback : utiliser l'URL directe si le téléchargement échoue
-          localImage = image;
-          console.log(`⚠️ Fallback: utilisation URL directe`);
-        }
+        console.log(`ℹ️ Image détectée: ${image}`);
+        console.log(`⚠️ Téléchargement automatique désactivé pour LewdCorner (protection anti-scraping)`);
+        console.log(`💡 Ajoutez l'image manuellement via l'édition du jeu si nécessaire`);
+        // Ne pas stocker l'URL pour éviter les erreurs 403 dans l'interface
+        localImage = null;
       }
       
       return {
