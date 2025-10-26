@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         MyAnimeList Quick Add - Ma Mangathèque
+// @name         MyAnimeList Quick Add - Le Nexus
 // @namespace    http://tampermonkey.net/
 // @version      2.0
-// @description  Ajoute un bouton "Ajouter à Ma Mangathèque" sur les pages d'anime MyAnimeList
+// @description  Ajoute un bouton "Ajouter à Le Nexus" sur les pages d'anime MyAnimeList
 // @author       Votre nom
 // @match        https://myanimelist.net/anime/*
 // @icon         https://cdn.myanimelist.net/img/sp/icon/apple-touch-icon-256.png
@@ -22,7 +22,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
-        Ajouter à Ma Mangathèque
+        Ajouter à Le Nexus
     `;
     button.style.cssText = `
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -81,7 +81,7 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        Ajouter à Ma Mangathèque
+                        Ajouter à Le Nexus
                     `;
                     button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
                     button.disabled = false;
@@ -106,7 +106,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
-                    Ajouter à Ma Mangathèque
+                    Ajouter à Le Nexus
                 `;
                 button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
             }, 5000);
@@ -140,5 +140,5 @@
         contentWrapper.insertBefore(container, contentWrapper.firstChild);
     }
 
-    console.log('🎬 Ma Mangathèque - Bouton Quick Add injecté (MAL ID:', malId, ')');
+    console.log('🎬 Le Nexus - Bouton Quick Add injecté (MAL ID:', malId, ')');
 })();

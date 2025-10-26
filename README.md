@@ -12,11 +12,24 @@ Application de gestion de collections multimédias (Mangas, Animés, AVN) dével
 - Masquage de séries (conserve les données pour les autres utilisateurs)
 - Recherche et filtres avancés
 
-### 📺 Gestion des Animes
-- Suivi de vos séries animées
-- Import XML depuis MyAnimeList
-- Gestion des saisons et épisodes
-- Progression de visionnage
+### 🎬 Gestion des Animes
+- Suivi de vos séries animées avec architecture MyAnimeList pure
+- Import XML depuis MyAnimeList + Sync OAuth automatique
+- Gestion complète des épisodes (TV, Movie, OVA, ONA, Special)
+- Progression de visionnage avec timestamps précis
+- 28 champs enrichis (titres multiples, genres, thèmes, studios, etc.)
+- Traduction automatique synopsis (Groq AI)
+- Scripts Tampermonkey (ADKami, Crunchyroll, ADN)
+
+### 🎮 Gestion des AVN (Adult Visual Novels)
+- Scraping automatique **F95Zone** et **LewdCorner**
+- Recherche par ID avec extraction complète (titre, version, statut, moteur, tags)
+- **Authentification F95Zone & LewdCorner** : Système OAuth intégré pour accès contenu protégé
+- Vérification automatique des mises à jour
+- Import JSON depuis scripts Tampermonkey (F95 Extractor, LC Extractor)
+- Données utilisateur-spécifiques : chemin exécutable, notes privées, statut personnel
+- Lancement direct des jeux depuis l'application
+- Protection images locales (conservation lors MAJ)
 
 ### 👥 Multi-utilisateurs
 - **Onboarding au premier lancement** : Assistant guidé pour créer votre profil
@@ -143,7 +156,7 @@ L'application supporte **9 types de volumes** pour une indexation complète :
 L'application crée automatiquement :
 
 ```
-Ma mangathèque/
+Le Nexus/
 ├── configs/
 │   └── manga.db              ← Base de données principale
 ├── covers/
@@ -166,7 +179,7 @@ Ma mangathèque/
 1. Cliquer sur "Paramètres" dans la barre latérale
 2. Cliquer sur "Changer le dossier"
 3. Sélectionner votre dossier Proton Drive/OneDrive/Google Drive synchronisé
-   - Exemple : `C:\Users\VotreNom\Proton Drive\...\Ma mangathèque`
+   - Exemple : `C:\Users\VotreNom\Proton Drive\...\Le Nexus`
 4. L'application créera automatiquement la structure
 
 ## 🔗 Scripts Tampermonkey
@@ -276,7 +289,7 @@ Permet de masquer une série de votre vue sans la supprimer pour les autres util
 
 **Configuration recommandée :**
 
-1. Créez un dossier partagé dans votre cloud : `Ma mangathèque/`
+1. Créez un dossier partagé dans votre cloud : `Le Nexus/`
    - Proton Drive, OneDrive, Google Drive, etc.
 2. **Chaque membre de la famille** configure ce dossier dans l'onboarding ou Paramètres
 3. **Chaque personne crée son profil** avec son propre nom et avatar

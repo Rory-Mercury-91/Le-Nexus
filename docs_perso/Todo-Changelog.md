@@ -1,6 +1,6 @@
 ﻿# 📋 TODO LIST & CHANGELOG - Le Nexus
 
-**Version actuelle** : 3.0.0  
+**Version actuelle** : 3.0.2  
 **Date** : 26 octobre 2025  
 **Application** : Le Nexus (anciennement Ma Mangathèque)
 
@@ -29,6 +29,75 @@
 ---
 
 ## 📜 CHANGELOG
+
+### 🚀 VERSION 3.0.2 - CORRECTIONS PRODUCTION LEWDCORNER (26 octobre 2025)
+
+#### 🛠️ Corrections critiques
+
+**1. 🔄 Rechargement fenêtre principale en production**
+- **Problème** : En production, cookies LewdCorner/F95Zone non partagés après connexion
+- **Cause** : Détection fenêtre principale cherchait uniquement `localhost` (dev uniquement)
+- **Solution** : Détection élargie `localhost` OU `index.html` (production)
+- **Fichiers** : `lewdcorner-handlers.js`, `f95zone-handlers.js`
+- **Résultat** : Rechargement automatique fonctionne en `.exe` ✅
+
+**2. 📥 Désactivation téléchargement images LewdCorner**
+- **Problème** : Protection anti-scraping LewdCorner (403 Forbidden persistant)
+- **Tentatives** :
+  - Session persistante `persist:lenexus` ❌
+  - Intercepteur `webRequest` avec cookies ❌
+  - Electron `net.request` avec `Referer` ❌
+  - Extraction lien parent haute résolution ❌
+- **Solution finale** : Désactivation téléchargement automatique
+- **Images F95Zone** : Continue de fonctionner normalement ✅
+- **Alternative utilisateur** : Upload manuel via formulaire édition
+- **Fichiers** : `avn-handlers.js` (scraping + import JSON)
+
+**3. 🖼️ Extraction images haute résolution**
+- **Problème** : Images LewdCorner en miniature (360x150) au lieu de pleine résolution
+- **Cause** : Extraction prioritaire de `src` (thumbnail) au lieu de `<a href>` (full)
+- **Solution** :
+  - Inversion priorité : `<a href>` → `data-url` → `src` (fallback)
+  - Complétion URLs relatives (`/attachments/xxx` → `https://lewdcorner.com/attachments/xxx`)
+  - Debug logs améliorés (extrait HTML complet `<a><img>`)
+- **Impact F95Zone** : Amélioration également pour F95 (même logique)
+- **Résultat** : Extraction optimale même si téléchargement échoue
+
+**4. 🛡️ Fallback URL directe**
+- **Implémentation** : Si téléchargement échoue → stockage URL distante
+- **Log explicite** : "Fallback: utilisation URL directe"
+- **Bénéfice** : Pas de jeu sans image, URL disponible pour copie manuelle
+
+#### 📊 Métriques
+
+| Métrique | Avant | Après | Statut |
+|----------|-------|-------|--------|
+| **Rechargement prod après connexion** | ❌ (localhost only) | ✅ (prod + dev) | **Fixé** |
+| **Images LewdCorner téléchargées** | 403 Forbidden | Désactivé (manuel) | **Pragmatique** |
+| **Images F95Zone téléchargées** | ✅ | ✅ | **Maintenu** |
+| **Extraction haute résolution** | ❌ (src miniature) | ✅ (lien parent) | **Amélioré** |
+| **Fallback URL si échec** | ❌ | ✅ | **Nouveau** |
+
+#### 💡 Logs informatifs ajoutés
+
+**LewdCorner (scraping + JSON)** :
+```
+ℹ️ Image détectée: https://lewdcorner.com/attachments/cover-png.355202/
+⚠️ Téléchargement automatique désactivé pour LewdCorner (protection anti-scraping)
+💡 Ajoutez l'image manuellement via l'édition du jeu si nécessaire
+```
+
+**Rechargement production** :
+```
+✅ Connexion réussie détectée
+🔄 Rechargement de la fenêtre principale pour appliquer les cookies...
+```
+ou
+```
+⚠️ Fenêtre principale introuvable pour rechargement
+```
+
+---
 
 ### 🚀 VERSION 3.0.1 - FUSION INTELLIGENTE NAUTILJON (26 octobre 2025)
 
@@ -380,10 +449,10 @@
 - Genres (21) : Comedy → Comédie, Fantasy → Fantastique
 - Thèmes (60+) : School → École, Reincarnation → Réincarnation
 - Demographics : Shounen → Shōnen, Seinen, Josei
-- Sources : Game → Jeu vidéo, Original → Œuvre originale
-- Statuts : Finished Airing → Terminé
-- Ratings : PG-13 → PG-13 - Adolescents 13 ans et +
-- Saisons : Summer → Été, Winter → Hiver
+   - Sources : Game → Jeu vidéo, Original → Œuvre originale
+   - Statuts : Finished Airing → Terminé
+   - Ratings : PG-13 → PG-13 - Adolescents 13 ans et +
+   - Saisons : Summer → Été, Winter → Hiver
 
 #### 🎨 Améliorations UI
 
@@ -1100,7 +1169,7 @@
 **💜 Le Nexus - Votre hub de collections multimédias**
 
 **Développeur** : Rory Mercury 91  
-**Version actuelle** : 3.0.1  
+**Version actuelle** : 3.0.2  
 **Dernière mise à jour** : 26 octobre 2025  
 **Licence** : Propriétaire
 

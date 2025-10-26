@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         ADKami → Ma Mangathèque (Intégration complète)
+// @name         ADKami → Le Nexus (Intégration complète)
 // @namespace    http://tampermonkey.net/
 // @version      2.2.1
 // @description  Import d'animes et marquage d'épisodes depuis ADKami
@@ -272,7 +272,7 @@
                 console.log('✅ Import réussi:', result);
                 
                 setTimeout(() => {
-                    button.innerHTML = '📥 Importer dans Ma Mangathèque';
+                    button.innerHTML = '📥 Importer dans Le Nexus';
                     button.style.background = 'linear-gradient(135deg, #8b5cf6, #6366f1)';
                     button.disabled = false;
                 }, 3000);
@@ -283,7 +283,7 @@
                 console.error('❌ Erreur:', error);
                 
                 setTimeout(() => {
-                    button.innerHTML = '📥 Importer dans Ma Mangathèque';
+                    button.innerHTML = '📥 Importer dans Le Nexus';
                     button.style.background = 'linear-gradient(135deg, #8b5cf6, #6366f1)';
                     button.disabled = false;
                 }, 5000);

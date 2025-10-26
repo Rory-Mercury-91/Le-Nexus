@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         F95Zone AVN Extractor - Ma Mangathèque
+// @name         F95Zone AVN Extractor - Le Nexus
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
-// @description  Extrait les données F95Zone et les envoie vers Ma Mangathèque
+// @description  Extrait les données F95Zone et les envoie vers Le Nexus
 // @author       Rory Mercury 91
 // @match        https://f95zone.to/threads/*
 // @match        https://*.f95zone.to/threads/*
@@ -111,7 +111,7 @@
     }
 
     /**
-     * Envoie les données vers Ma Mangathèque
+     * Envoie les données vers Le Nexus
      */
     async function sendToMaMangatheque(gameData) {
         try {
@@ -131,8 +131,8 @@
                 showNotification(`❌ Erreur: ${result.error || 'Inconnu'}`, 'error');
             }
         } catch (error) {
-            console.error('❌ Erreur connexion avec Ma Mangathèque:', error);
-            showNotification(`❌ Impossible de se connecter à Ma Mangathèque. Assurez-vous que l'application est ouverte.`, 'error');
+            console.error('❌ Erreur connexion avec Le Nexus:', error);
+            showNotification(`❌ Impossible de se connecter à Le Nexus. Assurez-vous que l'application est ouverte.`, 'error');
         }
     }
 
@@ -261,6 +261,5 @@
         createButton();
     }
 
-    console.log('🎮 F95Zone AVN Extractor - Ma Mangathèque activé');
+    console.log('🎮 F95Zone AVN Extractor - Le Nexus activé');
 })();
-

@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Crunchyroll → Ma Mangathèque
+// @name         Crunchyroll → Le Nexus
 // @namespace    http://tampermonkey.net/
 // @version      2.6.0
-// @description  Importe automatiquement vos animes depuis Crunchyroll vers Ma Mangathèque et marque vos épisodes comme vus avec auto-incrémentation et création automatique des saisons au marquage
+// @description  Importe automatiquement vos animes depuis Crunchyroll vers Le Nexus et marque vos épisodes comme vus avec auto-incrémentation et création automatique des saisons au marquage
 // @author       Rory-Mercury91
 // @match        https://*.crunchyroll.com/*
 // @grant        GM_xmlhttpRequest
@@ -32,7 +32,7 @@
     currentPageType = pageType;
     
     console.log('═══════════════════════════════════════════════════');
-    console.log('🎬 CRUNCHYROLL → MA MANGATHÈQUE v2.3.0');
+    console.log('🎬 CRUNCHYROLL → LE NEXUS v2.3.0');
     console.log('✨ Double bouton: 📥 Import série + 👁️ Marquage épisode');
     console.log('🔄 Auto-détection des changements de page SPA');
     console.log('📍 URL:', window.location.href);
@@ -784,7 +784,7 @@
         const button = document.createElement('button');
         button.id = 'crunchyroll-series-import';
         button.innerHTML = '📥';
-        button.title = 'Importer cet anime dans Ma Mangathèque';
+        button.title = 'Importer cet anime dans Le Nexus';
         button.style.cssText = `
             position: fixed;
             bottom: 80px;
@@ -849,7 +849,7 @@
                 setTimeout(() => {
                     button.innerHTML = '📥';
                     button.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-                    button.title = 'Importer cet anime dans Ma Mangathèque';
+                    button.title = 'Importer cet anime dans Le Nexus';
                     button.disabled = false;
                 }, 5000);
             }

@@ -25,7 +25,7 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     return pm ? pm.getPaths() : { base: '', configs: '', database: '', databases: '', profiles: '', covers: '', series: '' };
   };
   
-  // ========== EMPLACEMENT DE MA MANGATHÈQUE ==========
+  // ========== EMPLACEMENT DE LE NEXUS ==========
   
   // Récupérer l'emplacement racine de Le Nexus
   ipcMain.handle('get-base-directory', () => {

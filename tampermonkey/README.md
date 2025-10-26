@@ -184,7 +184,7 @@ Menu moderne en **bas à gauche** pour éviter les conflits avec les éléments 
 
 ### Port du serveur d'import
 
-Par défaut, les scripts communiquent avec **Ma Mangathèque** via :
+Par défaut, les scripts communiquent avec **Le Nexus** via :
 ```
 http://localhost:51234
 ```

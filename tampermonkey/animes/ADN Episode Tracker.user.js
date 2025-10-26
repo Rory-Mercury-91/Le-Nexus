@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         ADN → Ma Mangathèque
+// @name         ADN → Le Nexus
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
-// @description  Importe automatiquement vos animes depuis ADN vers Ma Mangathèque et marque vos épisodes comme vus avec auto-incrémentation
+// @description  Importe automatiquement vos animes depuis ADN vers Le Nexus et marque vos épisodes comme vus avec auto-incrémentation
 // @author       Rory-Mercury91
 // @match        https://*.animationdigitalnetwork.com/video/*
 // @match        https://animedigitalnetwork.fr/video/*
@@ -17,7 +17,7 @@
     let episodeSaved = null;
     
     console.log('═══════════════════════════════════════════════════');
-    console.log('🎬 ADN → MA MANGATHÈQUE v1.0.0');
+    console.log('🎬 ADN → LE NEXUS v1.0.0');
     console.log('✨ Import automatique et marquage d\'épisodes');
     console.log('📍 URL:', window.location.href);
     console.log('═══════════════════════════════════════════════════');

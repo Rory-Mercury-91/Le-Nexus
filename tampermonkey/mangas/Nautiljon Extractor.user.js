@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Nautiljon → Ma Mangathèque
+// @name         Nautiljon → Le Nexus
 // @namespace    http://tampermonkey.net/
 // @version      1.6.1
-// @description  Importe automatiquement vos mangas/scans depuis Nautiljon vers Ma Mangathèque avec support chapitres (Manhwa/Manhua) et déduplication intelligente (350-1500ms)
+// @description  Importe automatiquement vos mangas/scans depuis Nautiljon vers Le Nexus avec support chapitres (Manhwa/Manhua) et déduplication intelligente (350-1500ms)
 // @author       Rory-Mercury91
 // @match        https://www.nautiljon.com/mangas/*
 // @grant        none
@@ -448,7 +448,7 @@
             const result = await response.json();
             return result;
         } catch (error) {
-            console.error('❌ Erreur connexion avec Ma Mangathèque:', error);
+            console.error('❌ Erreur connexion avec Le Nexus:', error);
             throw error;
         }
     };
@@ -664,7 +664,7 @@
                 
                 // Notification d'erreur
                 const errorMsg = error.message.includes('Failed to fetch') 
-                    ? '❌ Ma Mangathèque n\'est pas démarré' 
+                    ? '❌ Le Nexus n\'est pas démarré' 
                     : `❌ Erreur: ${error.message}`;
                 showNotification(errorMsg, 'error');
                 
@@ -748,7 +748,7 @@
                 
                 // Notification d'erreur
                 const errorMsg = error.message.includes('Failed to fetch') 
-                    ? '❌ Ma Mangathèque n\'est pas démarré' 
+                    ? '❌ LE Nexus n\'est pas démarré' 
                     : `❌ Erreur: ${error.message}`;
                 showNotification(errorMsg, 'error');
                 
@@ -831,7 +831,7 @@
 
     // Initialisation
     const init = () => {
-        console.log('🚀 Initialisation du script Nautiljon → Ma Mangathèque');
+        console.log('🚀 Initialisation du script Nautiljon → Le Nexus');
         addStyles();
         
         // Attendre que la page soit prête
