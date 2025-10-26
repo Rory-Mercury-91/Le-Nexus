@@ -321,4 +321,3 @@ export default function PlatformConnectionsSettings() {
     </div>
   );
 }
-

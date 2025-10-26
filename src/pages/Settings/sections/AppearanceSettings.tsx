@@ -18,15 +18,12 @@ export default function AppearanceSettings({
   onContentPrefChange,
 }: AppearanceSettingsProps) {
   return (
-    <div style={{ marginBottom: '30px' }}>
-      <div className="settings-section">
-        <div className="settings-header">
-          <h2 className="settings-title">🎨 Apparence et comportement</h2>
-        </div>
-        <div className="settings-content">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Colonne gauche : Thème + Démarrage */}
-        <div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '30px' }}>
+      {/* Card gauche : Apparence */}
+      <div className="card" style={{ padding: '24px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          🎨 Apparence
+        </h2>
           <div style={{ marginBottom: '20px' }}>
             <label style={{
               display: 'block',
@@ -144,13 +141,13 @@ export default function AppearanceSettings({
               ℹ️ Désactivé en mode développement
             </p>
           </div>
-        </div>
+      </div>
 
-        {/* Colonne droite : Préférences de contenu */}
-        <div>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>
-            Contenu affiché
-          </h3>
+      {/* Card droite : Préférences de contenu */}
+      <div className="card" style={{ padding: '24px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          📋 Contenu affiché
+        </h2>
           
           <p style={{
             fontSize: '13px',
@@ -288,9 +285,6 @@ export default function AppearanceSettings({
             }}>
               💡 Les modifications sont appliquées immédiatement
             </p>
-          </div>
-        </div>
-        </div>
       </div>
     </div>
   );

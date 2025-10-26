@@ -593,7 +593,7 @@ export default function Settings() {
           <TampermonkeySettings showToast={showToast} />
         </div>
 
-        {/* Apparence, comportement et notifications (pleine largeur) */}
+        {/* Grid 2 colonnes : Apparence | Préférences de contenu */}
         <AppearanceSettings
           theme={theme}
           autoLaunch={autoLaunch}
@@ -602,6 +602,8 @@ export default function Settings() {
           onAutoLaunchChange={handleAutoLaunchChange}
           onContentPrefChange={handleContentPrefChange}
         />
+        
+        {/* Notifications (pleine largeur) */}
         <NotificationSettings />
 
         {/* Grid 2 colonnes : Intelligence Artificielle | Connexions plateformes */}
