@@ -89,13 +89,12 @@ export default function NotificationSettings() {
   };
 
   return (
-    <div>
-      <h2 className="settings-title">
-        <Bell size={20} />
-        Notifications
-      </h2>
-
+    <div style={{ marginBottom: '30px' }}>
       <div className="card" style={{ padding: '24px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Bell size={20} />
+          🔔 Notifications
+        </h2>
         
         {/* Activation générale */}
         <div style={{ marginBottom: '24px' }}>
