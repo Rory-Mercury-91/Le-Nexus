@@ -11,7 +11,7 @@ class BackupScheduler {
 
   /**
    * Initialise le scheduler de backup
-   * @param {object} config - Configuration { enabled, frequency, keepCount, lastBackup }
+   * @param {object} config - Configuration { enabled, frequency, keepCount, lastBackup, backupOnStartup, backupOnShutdown }
    * @param {string} dbPath - Chemin vers la base de données
    */
   init(config, dbPath) {
@@ -31,6 +31,43 @@ class BackupScheduler {
       });
 
       console.log(`✅ Backup scheduler initialisé (fréquence: ${config.frequency})`);
+    }
+
+    // Backup au démarrage si activé
+    if (config.backupOnStartup) {
+      this.createBackupOnStartup();
+    }
+  }
+
+  /**
+   * Crée un backup au démarrage de l'application
+   */
+  async createBackupOnStartup() {
+    try {
+      console.log('🚀 Création backup au démarrage...');
+      const result = await this.createBackup();
+      if (result.success) {
+        console.log('✅ Backup de démarrage créé avec succès');
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur backup de démarrage:', error);
+    }
+  }
+
+  /**
+   * Crée un backup à la fermeture de l'application
+   */
+  async createBackupOnShutdown() {
+    try {
+      console.log('🛑 Création backup à la fermeture...');
+      const result = await this.createBackup();
+      if (result.success) {
+        console.log('✅ Backup de fermeture créé avec succès');
+      }
+      return result;
+    } catch (error) {
+      console.error('⚠️ Erreur backup de fermeture:', error);
+      return { success: false, error: error.message };
     }
   }
 

@@ -408,8 +408,8 @@ declare global {
       openTampermonkeyInstallation: () => Promise<{ success: boolean; error?: string }>;
       
       // Backup automatique
-      getBackupConfig: () => Promise<{ enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup: string | null }>;
-      saveBackupConfig: (config: { enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup?: string | null }) => Promise<{ success: boolean; error?: string }>;
+      getBackupConfig: () => Promise<{ enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup: string | null; backupOnStartup: boolean; backupOnShutdown: boolean }>;
+      saveBackupConfig: (config: { enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup?: string | null; backupOnStartup: boolean; backupOnShutdown: boolean }) => Promise<{ success: boolean; error?: string }>;
       createBackup: () => Promise<{ success: boolean; path?: string; fileName?: string; timestamp?: string; error?: string }>;
       listBackups: () => Promise<{ success: boolean; backups: Array<{ name: string; path: string; size: number; date: Date; timestamp: number }>; error?: string }>;
       restoreBackup: (backupPath: string) => Promise<{ success: boolean; message?: string; error?: string }>;

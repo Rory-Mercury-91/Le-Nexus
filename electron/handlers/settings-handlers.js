@@ -882,7 +882,9 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       enabled: false,
       frequency: 'weekly', // 'daily', 'weekly', 'manual'
       keepCount: 7, // Nombre de backups à conserver
-      lastBackup: null
+      lastBackup: null,
+      backupOnStartup: true, // Backup au démarrage (activé par défaut)
+      backupOnShutdown: true // Backup à la fermeture (activé par défaut)
     });
     return config;
   });

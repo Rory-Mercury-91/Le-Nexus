@@ -438,8 +438,19 @@ app.on('window-all-closed', () => {
 });
 
 // Sauvegarder la base de données avant de quitter
-app.on('before-quit', (event) => {
+app.on('before-quit', async (event) => {
   try {
+    // Backup automatique à la fermeture si activé
+    const backupConfig = store.get('backupConfig', {});
+    if (backupConfig.backupOnShutdown) {
+      event.preventDefault(); // Empêcher la fermeture immédiate
+      const backupScheduler = require('./services/backup-scheduler');
+      await backupScheduler.createBackupOnShutdown();
+      // Une fois le backup terminé, on peut quitter
+      app.exit(0);
+      return;
+    }
+    
     // Fermer le serveur d'import
     if (importServer) {
       importServer.close(() => {

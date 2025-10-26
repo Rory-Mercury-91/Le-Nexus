@@ -34,7 +34,9 @@ export default function DatabaseSettings({
     enabled: false,
     frequency: 'weekly' as 'daily' | 'weekly' | 'manual',
     keepCount: 7,
-    lastBackup: null as string | null
+    lastBackup: null as string | null,
+    backupOnStartup: true,
+    backupOnShutdown: true
   });
   const [backups, setBackups] = useState<Array<{ name: string; path: string; size: number; date: Date; timestamp: number }>>([]);
   const [creatingBackup, setCreatingBackup] = useState(false);
@@ -376,6 +378,37 @@ export default function DatabaseSettings({
                       style={{ width: '100%' }}
                     />
                   </div>
+                </div>
+
+                {/* Options backup au lancement/arrêt */}
+                <div style={{ marginTop: '16px', padding: '16px', background: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', marginBottom: '12px', color: 'var(--text)' }}>
+                    Backup automatique sécurisé
+                  </p>
+                  
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={backupConfig.backupOnStartup}
+                      onChange={(e) => setBackupConfig({ ...backupConfig, backupOnStartup: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: 'var(--text)' }}>Créer un backup au démarrage de l'application</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={backupConfig.backupOnShutdown}
+                      onChange={(e) => setBackupConfig({ ...backupConfig, backupOnShutdown: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '13px', color: 'var(--text)' }}>Créer un backup à la fermeture de l'application</span>
+                  </label>
+
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '12px', fontStyle: 'italic' }}>
+                    💡 Recommandé pour une sécurité maximale de vos données
+                  </p>
                 </div>
 
                 <button
