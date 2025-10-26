@@ -1292,40 +1292,45 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       console.log(`📊 Statut détecté: ${status}`);
       console.log(`🛠️ Moteur détecté: ${engine}`);
       
-      // Extraire l'image
-      // Essayer d'abord de récupérer data-url (image full) ou src
+      // Extraire l'image - PRIORITÉ au lien parent pour LewdCorner (haute résolution)
       let image = null;
       
-      // DEBUG: Afficher un extrait HTML autour de la première image bbImage
-      const imgSectionMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]{0,500}>/i);
+      // DEBUG: Afficher un extrait HTML élargi pour capturer <a><img>
+      const imgSectionMatch = html.match(/<a[^>]{0,200}>\s*<img[^>]*class="[^"]*bbImage[^"]*"[^>]{0,300}>/i);
       if (imgSectionMatch) {
-        console.log(`🔍 [DEBUG] Extrait HTML de l'image bbImage:`);
-        console.log(imgSectionMatch[0].substring(0, 300));
+        console.log(`🔍 [DEBUG LC] Extrait HTML <a><img bbImage>:`);
+        console.log(imgSectionMatch[0].substring(0, 400));
       }
       
-      // 1. Chercher une image avec data-url (souvent la vraie image)
-      const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
-      if (dataUrlMatch) {
-        image = dataUrlMatch[1];
-        console.log(`🖼️ Image trouvée via data-url (full):`, image);
+      // 1. PRIORITÉ : Chercher le lien parent <a href> (haute résolution sur LewdCorner)
+      // Format: <a href="/attachments/xxx.355202/"><img class="bbImage" src="/data/attachments/..." /></a>
+      const linkMatch = html.match(/<a[^>]*href="([^"]+)"[^>]*>\s*<img[^>]*class="[^"]*bbImage[^"]*"/i);
+      if (linkMatch) {
+        image = linkMatch[1];
+        console.log(`🖼️ [LC PRIORITÉ] Image trouvée via lien parent <a> (full):`, image);
       }
       
-      // 2. Sinon chercher src classique
+      // 2. Sinon chercher data-url (rare mais possible)
+      if (!image) {
+        const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
+        if (dataUrlMatch) {
+          image = dataUrlMatch[1];
+          console.log(`🖼️ Image trouvée via data-url:`, image);
+        }
+      }
+      
+      // 3. FALLBACK UNIQUEMENT : src (miniature basse résolution)
       if (!image) {
         const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
                          html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
         image = imgMatch ? imgMatch[1] : null;
-        console.log(`🖼️ Image trouvée via src:`, image);
+        console.log(`⚠️ [FALLBACK] Image trouvée via src (miniature):`, image);
       }
       
-      // 3. Si toujours pas d'image, chercher dans le parent <a> (lien vers full image)
-      if (!image) {
-        // Format: <a href="[full-image]"><img class="bbImage" src="[thumb]" /></a>
-        const linkMatch = html.match(/<a[^>]*href="([^"]+)"[^>]*>\s*<img[^>]*class="[^"]*bbImage[^"]*"/i);
-        if (linkMatch) {
-          image = linkMatch[1];
-          console.log(`🖼️ Image trouvée via lien parent <a>:`, image);
-        }
+      // Compléter les URLs relatives avec le domaine LewdCorner
+      if (image && image.startsWith('/')) {
+        image = `https://lewdcorner.com${image}`;
+        console.log(`🔗 URL relative complétée:`, image);
       }
       
       // Retirer /thumb/ pour avoir la pleine résolution
