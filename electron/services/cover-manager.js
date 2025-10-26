@@ -505,7 +505,18 @@ function getCoverFullPath(pathManager, relativePath) {
     return relativePath;
   }
 
-  // Construire le chemin complet depuis la base
+  // Chemin absolu Windows (C:\...) ou Unix (/...)
+  if (path.isAbsolute(relativePath)) {
+    if (fs.existsSync(relativePath)) {
+      console.log(`📁 Chemin absolu détecté: ${relativePath}`);
+      return `manga://${relativePath.replace(/\\/g, '/')}`;
+    } else {
+      console.warn(`⚠️ Chemin absolu introuvable: ${relativePath}`);
+      return null;
+    }
+  }
+
+  // Construire le chemin complet depuis la base (chemin relatif)
   const paths = pathManager.getPaths();
   const fullPath = path.join(paths.covers, relativePath);
 
@@ -513,6 +524,7 @@ function getCoverFullPath(pathManager, relativePath) {
     return `manga://${fullPath.replace(/\\/g, '/')}`;
   }
 
+  console.warn(`⚠️ Fichier non trouvé: ${fullPath}`);
   return null;
 }
 

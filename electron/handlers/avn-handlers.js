@@ -392,6 +392,8 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           if (result.success) {
             couverture_url = result.localPath;
             console.log(`✅ Image téléchargée localement: ${couverture_url}`);
+            console.log(`   📝 Type de chemin: ${path.isAbsolute(couverture_url) ? 'ABSOLU' : 'RELATIF'}`);
+            console.log(`   📂 Valeur exacte: "${couverture_url}"`);
           }
         } catch (imgError) {
           console.warn(`⚠️ Échec du téléchargement de l'image:`, imgError.message);
