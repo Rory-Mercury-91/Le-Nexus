@@ -47,9 +47,29 @@ async function getStreamingLinksFromAniList(malId) {
     // Filtrer uniquement les liens de streaming (pas les liens vers d'autres sites comme Twitter, etc.)
     const streamingLinks = links.filter(link => link.type === 'STREAMING');
 
-    console.log(`✅ ${streamingLinks.length} liens de streaming trouvés pour anime MAL ID ${malId}`);
+    // Plateformes françaises acceptées
+    const acceptedPlatforms = [
+      'ADN',
+      'Anime Digital Network',
+      'Disney Plus',
+      'Disney+',
+      'Amazon',
+      'Amazon Prime Video',
+      'Prime Video',
+      'Crunchyroll'
+    ];
+
+    // Filtrer uniquement les plateformes souhaitées
+    const filteredLinks = streamingLinks.filter(link => {
+      return acceptedPlatforms.some(platform => 
+        link.site.toLowerCase().includes(platform.toLowerCase()) ||
+        platform.toLowerCase().includes(link.site.toLowerCase())
+      );
+    });
+
+    console.log(`✅ ${filteredLinks.length}/${streamingLinks.length} liens de streaming retenus pour anime MAL ID ${malId} (ADN, Disney+, Prime Video, Crunchyroll)`);
     
-    return streamingLinks.map(link => ({
+    return filteredLinks.map(link => ({
       source: 'anilist',
       platform: link.site,
       url: link.url,
