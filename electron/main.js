@@ -277,9 +277,12 @@ async function getBaseDirectory() {
 
 /**
  * Enregistre le protocole manga:// pour servir les fichiers locaux de manière sécurisée
+ * @param {Electron.Session} targetSession - Session sur laquelle enregistrer le protocole
  */
-function registerMangaProtocol() {
-  protocol.registerFileProtocol('manga', (request, callback) => {
+function registerMangaProtocol(targetSession = null) {
+  const ses = targetSession || session.defaultSession;
+  
+  ses.protocol.registerFileProtocol('manga', (request, callback) => {
     try {
       // Extraire le chemin du fichier depuis l'URL manga://
       const url = request.url.replace('manga://', '');
@@ -287,10 +290,12 @@ function registerMangaProtocol() {
       // Décoder l'URL pour gérer les espaces et caractères spéciaux
       const decodedPath = decodeURIComponent(url);
       
+      console.log(`📁 [manga://] Accès à: ${decodedPath}`);
+      
       // Retourner le chemin du fichier
       callback({ path: decodedPath });
     } catch (error) {
-      console.error('Erreur protocole manga:', error);
+      console.error('❌ Erreur protocole manga:', error);
       callback({ error: -2 }); // FILE_NOT_FOUND
     }
   });
@@ -300,8 +305,13 @@ function registerMangaProtocol() {
  * Point d'entrée de l'application
  */
 app.whenReady().then(async () => {
-  // Enregistrer le protocole personnalisé
-  registerMangaProtocol();
+  // Récupérer la session persistante
+  const persistentSession = session.fromPartition('persist:lenexus');
+  
+  // Enregistrer le protocole personnalisé sur la session persistante ET la session par défaut
+  console.log('🔧 Enregistrement du protocole manga:// sur la session persistante...');
+  registerMangaProtocol(persistentSession);
+  registerMangaProtocol(session.defaultSession); // Pour compatibilité
 
   // Configurer les intercepteurs (LewdCorner et F95Zone)
   const { setupLewdCornerInterceptor } = require('./apis/lewdcorner-interceptor');
