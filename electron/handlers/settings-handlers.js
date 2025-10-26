@@ -1058,6 +1058,15 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   ipcMain.handle('save-traduction-config', async (event, config) => {
     try {
       store.set('traductionConfig', config);
+      
+      // Réinitialiser le scheduler avec la nouvelle config
+      const db = getDb();
+      if (db && config.enabled) {
+        traductionSync.initScheduler(config, db, store);
+      } else if (!config.enabled) {
+        traductionSync.stopScheduler();
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Erreur sauvegarde config traductions:', error);
@@ -1128,6 +1137,20 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       return { success: false, error: error.message };
     }
   });
+
+  // Initialiser le scheduler de traductions au démarrage
+  const initTraductionScheduler = () => {
+    const config = store.get('traductionConfig', { enabled: false });
+    if (config && config.enabled) {
+      const db = getDb();
+      if (db) {
+        traductionSync.initScheduler(config, db, store);
+      }
+    }
+  };
+  
+  // Appeler l'initialisation
+  setTimeout(initTraductionScheduler, 4000); // Attendre après les autres schedulers
 }
 
 module.exports = { registerSettingsHandlers };

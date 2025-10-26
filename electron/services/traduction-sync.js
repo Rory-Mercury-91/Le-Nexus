@@ -1,4 +1,5 @@
 const fetch = require('electron-fetch').default;
+const cron = require('node-cron');
 
 /**
  * Service de synchronisation des traductions depuis Google Sheets
@@ -6,6 +7,9 @@ const fetch = require('electron-fetch').default;
 
 // URL du Google Sheet (format CSV export)
 const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs/export?format=csv&gid=1224125898';
+
+// Scheduler global
+let schedulerTask = null;
 
 /**
  * Extrait l'ID F95Zone depuis une URL
@@ -306,9 +310,89 @@ function updateTraductionManually(db, gameId, tradData) {
   }
 }
 
+/**
+ * Convertit la fréquence en expression cron
+ * @param {string} frequency - '6h', '12h', 'daily', 'manual'
+ * @returns {string} Expression cron
+ */
+function getCronExpression(frequency) {
+  switch (frequency) {
+    case '6h':
+      return '0 */6 * * *'; // Toutes les 6 heures
+    case '12h':
+      return '0 */12 * * *'; // Toutes les 12 heures
+    case 'daily':
+      return '0 9 * * *'; // Tous les jours à 9h
+    default:
+      return null;
+  }
+}
+
+/**
+ * Initialise le scheduler de synchronisation
+ * @param {object} config - Configuration { enabled, traducteurs, sheetUrl, syncFrequency }
+ * @param {object} db - Instance de la base de données
+ * @param {object} store - Instance electron-store
+ */
+function initScheduler(config, db, store) {
+  // Arrêter le scheduler existant
+  if (schedulerTask) {
+    schedulerTask.stop();
+    schedulerTask = null;
+  }
+
+  // Si désactivé ou manuel, ne pas programmer
+  if (!config.enabled || config.syncFrequency === 'manual') {
+    console.log('📅 Synchronisation traductions: mode manuel');
+    return;
+  }
+
+  const cronExpression = getCronExpression(config.syncFrequency);
+  if (!cronExpression) {
+    console.log('⚠️ Fréquence de sync traductions invalide:', config.syncFrequency);
+    return;
+  }
+
+  // Créer le scheduler
+  schedulerTask = cron.schedule(cronExpression, async () => {
+    console.log('🔄 Synchronisation automatique des traductions...');
+    try {
+      const result = await syncTraductions(db, config.traducteurs, config.sheetUrl);
+      
+      if (result.success) {
+        // Mettre à jour la config avec la date de sync
+        config.lastSync = new Date().toISOString();
+        config.gamesCount = result.matched || 0;
+        store.set('traductionConfig', config);
+        
+        console.log(`✅ Sync traductions auto: ${result.matched} jeux synchronisés`);
+      } else {
+        console.error('❌ Erreur sync traductions auto:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur scheduler traductions:', error);
+    }
+  });
+
+  console.log(`✅ Scheduler traductions FR initialisé (fréquence: ${config.syncFrequency})`);
+}
+
+/**
+ * Arrête le scheduler de synchronisation
+ */
+function stopScheduler() {
+  if (schedulerTask) {
+    schedulerTask.stop();
+    schedulerTask = null;
+    console.log('🛑 Scheduler traductions FR arrêté');
+  }
+}
+
 module.exports = {
   syncTraductions,
   clearTraduction,
   updateTraductionManually,
-  extractF95Id
+  extractF95Id,
+  initScheduler,
+  stopScheduler
 };
