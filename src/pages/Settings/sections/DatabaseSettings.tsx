@@ -27,7 +27,7 @@ export default function DatabaseSettings({
   onImport,
 }: DatabaseSettingsProps) {
   const { confirm } = useConfirm();
-  const { showToast, ToastContainer } = useToast();
+  const { showToast } = useToast();
   
   // États pour le backup automatique
   const [backupConfig, setBackupConfig] = useState({
@@ -196,7 +196,6 @@ export default function DatabaseSettings({
 
   return (
     <>
-      <ToastContainer />
       <div style={{ marginBottom: '30px' }}>
         <div className="settings-section">
         <div className="settings-header">
