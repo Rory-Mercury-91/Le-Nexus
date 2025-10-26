@@ -471,12 +471,15 @@ export default function AVNSettings() {
           </details>
         </div>
 
-        {/* Section Vérification automatique (à droite) */}
+        {/* Section AVN - Vérification & Traductions */}
         <div className="card" style={{ padding: '24px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          🎮 AVN - Vérification automatique
+          🎮 AVN - Gestion automatique
         </h2>
       
+      <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--text)' }}>
+        Vérification des mises à jour
+      </h3>
       <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
         Vérifiez automatiquement les mises à jour de vos jeux AVN par scraping direct de F95Zone.
       </p>
@@ -620,15 +623,17 @@ export default function AVNSettings() {
           Le système scrape directement les pages F95Zone de vos jeux pour détecter les nouvelles versions. Si une mise à jour est disponible, un badge violet "🔄 MAJ" s'affiche sur la carte du jeu et toutes les données (version, statut, tags, image) sont automatiquement actualisées.
         </div>
       </details>
-        </div>
 
-        {/* Section Synchronisation Traductions FR */}
-        <div className="card" style={{ padding: '24px', marginTop: '24px' }}>
+        {/* Séparateur visuel */}
+        <div style={{
+          height: '1px',
+          background: 'var(--border)',
+          margin: '32px 0'
+        }} />
         
-        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          🇫🇷 Synchronisation Traductions
-        </h2>
-
+        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--text)' }}>
+          🇫🇷 Synchronisation des traductions françaises
+        </h3>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
           Synchronisez automatiquement les traductions françaises de vos jeux AVN depuis la base collaborative Google Sheets.
         </p>
@@ -885,8 +890,8 @@ export default function AVNSettings() {
             L'application récupère automatiquement les traductions françaises depuis le Google Sheet collaboratif et les associe à vos jeux AVN par leur ID F95Zone. Seules les traductions de VOS pseudos traducteurs sont importées, évitant ainsi de charger les 1924 jeux du tableur. Un badge 🇫🇷 s'affiche sur les jeux traduits avec un lien direct de téléchargement.
           </div>
         </details>
-        </div>
-      </div>
+        </div> {/* Fin card AVN */}
+      </div> {/* Fin grid */}
     </>
   );
 }
