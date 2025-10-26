@@ -1,22 +1,11 @@
-import { LogIn, LogOut, Plus, RefreshCw, X } from 'lucide-react';
+import { Plus, RefreshCw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useToast } from '../../../hooks/useToast';
 
 export default function AVNSettings() {
   const { showToast } = useToast();
   const [checking, setChecking] = useState(false);
-  const [platformMessage, setPlatformMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [avnMessage, setAvnMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
-  // États pour LewdCorner
-  const [lewdCornerConnected, setLewdCornerConnected] = useState(false);
-  const [checkingLewdCorner, setCheckingLewdCorner] = useState(true);
-  const [connectingLewdCorner, setConnectingLewdCorner] = useState(false);
-  
-  // États pour F95Zone
-  const [f95zoneConnected, setF95zoneConnected] = useState(false);
-  const [checkingF95zone, setCheckingF95zone] = useState(true);
-  const [connectingF95zone, setConnectingF95zone] = useState(false);
   
   // États pour la synchronisation des traductions
   const [tradConfig, setTradConfig] = useState({
@@ -30,18 +19,10 @@ export default function AVNSettings() {
   const [syncing, setSyncing] = useState(false);
   const [newTraducteur, setNewTraducteur] = useState('');
 
-  // Vérifier les sessions au chargement
+  // Charger la config des traductions au chargement
   useEffect(() => {
-    checkSessions();
     loadTradConfig();
   }, []);
-
-  const checkSessions = async () => {
-    await Promise.all([
-      checkLewdCornerSession(),
-      checkF95ZoneSession()
-    ]);
-  };
 
   const checkLewdCornerSession = async () => {
     try {
@@ -390,89 +371,8 @@ export default function AVNSettings() {
   );
 
   return (
-    <>
-      {/* Container Grid pour les 2 colonnes */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '24px'
-      }}>
-        {/* Colonne gauche : Connexions Plateformes */}
-        <div className="card" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            🔐 Connexions aux plateformes
-          </h2>
-
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
-            Connectez-vous pour accéder au contenu réservé aux membres (images, liens de téléchargement, etc.)
-          </p>
-
-          {/* Message de feedback général */}
-          {platformMessage && (
-            <div style={{
-              padding: '12px 16px',
-              marginBottom: '16px',
-              borderRadius: '8px',
-              background: platformMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              border: `1px solid ${platformMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
-              color: platformMessage.type === 'success' ? '#10b981' : '#ef4444',
-              fontSize: '14px',
-              fontWeight: '600'
-            }}>
-              {platformMessage.type === 'success' ? '✅' : '❌'} {platformMessage.text}
-            </div>
-          )}
-
-          {/* F95Zone */}
-          {renderPlatformCard(
-            'F95Zone',
-            f95zoneConnected,
-            checkingF95zone,
-            connectingF95zone,
-            handleF95ZoneConnect,
-            handleF95ZoneDisconnect,
-            f95zoneConnected ? 'Accès aux données membres' : 'Images et liens masqués'
-          )}
-
-          {/* LewdCorner */}
-          {renderPlatformCard(
-            'LewdCorner',
-            lewdCornerConnected,
-            checkingLewdCorner,
-            connectingLewdCorner,
-            handleLewdCornerConnect,
-            handleLewdCornerDisconnect,
-            lewdCornerConnected ? 'Images accessibles' : 'Images bloquées (403)'
-          )}
-
-          <details style={{ marginTop: '16px' }}>
-            <summary style={{
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: '600',
-              color: 'var(--text-secondary)',
-              padding: '8px',
-              borderRadius: '6px',
-              transition: 'background 0.2s'
-            }}>
-              ℹ️ Sécurité et confidentialité
-            </summary>
-            <div style={{
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              padding: '12px',
-              background: 'var(--surface)',
-              borderRadius: '8px',
-              marginTop: '8px',
-              lineHeight: '1.6'
-            }}>
-              Vos identifiants restent dans votre navigateur et ne sont <strong>jamais stockés</strong> par l'application. La connexion permet uniquement de récupérer les cookies de session pour accéder au contenu protégé.
-            </div>
-          </details>
-        </div>
-
-        {/* Section AVN - Vérification & Traductions */}
-        <div className="card" style={{ padding: '24px' }}>
+    <div style={{ marginBottom: '30px' }}>
+      <div className="card" style={{ padding: '24px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           🎮 AVN - Gestion automatique
         </h2>
@@ -890,8 +790,7 @@ export default function AVNSettings() {
             L'application récupère automatiquement les traductions françaises depuis le Google Sheet collaboratif et les associe à vos jeux AVN par leur ID F95Zone. Seules les traductions de VOS pseudos traducteurs sont importées, évitant ainsi de charger les 1924 jeux du tableur. Un badge 🇫🇷 s'affiche sur les jeux traduits avec un lien direct de téléchargement.
           </div>
         </details>
-        </div> {/* Fin card AVN */}
-      </div> {/* Fin grid */}
-    </>
+      </div> {/* Fin card AVN */}
+    </div> {/* Fin container */}
   );
 }
