@@ -207,7 +207,7 @@ export default function AnimeDetail() {
 
   return (
     <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto' }} className="fade-in">
-      {ToastContainer}
+      <ToastContainer />
       
       {/* Header avec bouton retour */}
       <button
