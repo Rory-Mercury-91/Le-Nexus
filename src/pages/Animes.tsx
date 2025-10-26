@@ -197,7 +197,7 @@ export default function Animes() {
 
   return (
     <>
-      <ToastContainer />
+      {ToastContainer}
       <div style={{ padding: '40px' }} className="fade-in">
         <div className="container">
           {/* En-tête */}

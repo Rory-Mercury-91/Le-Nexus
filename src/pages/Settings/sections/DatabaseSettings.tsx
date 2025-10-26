@@ -461,7 +461,7 @@ export default function DatabaseSettings({
               <div style={{ display: 'grid', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
                 {backups.map((backup) => (
                   <div
-                    key={backup.timestamp}
+                    key={backup.name}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
