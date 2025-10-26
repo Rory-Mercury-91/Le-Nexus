@@ -1077,6 +1077,13 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       // Extraire l'image - essayer d'abord data-url (image full) puis src
       let image = null;
       
+      // DEBUG: Afficher un extrait HTML autour de la première image bbImage
+      const imgSectionMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]{0,500}>/i);
+      if (imgSectionMatch) {
+        console.log(`🔍 [DEBUG F95] Extrait HTML de l'image bbImage:`);
+        console.log(imgSectionMatch[0].substring(0, 300));
+      }
+      
       // 1. Chercher une image avec data-url (souvent la vraie image)
       const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
       if (dataUrlMatch) {
@@ -1090,6 +1097,16 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
                          html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
         image = imgMatch ? imgMatch[1] : null;
         console.log(`🖼️ Image trouvée via src:`, image);
+      }
+      
+      // 3. Si toujours pas d'image, chercher dans le parent <a> (lien vers full image)
+      if (!image) {
+        // Format: <a href="[full-image]"><img class="bbImage" src="[thumb]" /></a>
+        const linkMatch = html.match(/<a[^>]*href="([^"]+)"[^>]*>\s*<img[^>]*class="[^"]*bbImage[^"]*"/i);
+        if (linkMatch) {
+          image = linkMatch[1];
+          console.log(`🖼️ Image trouvée via lien parent <a>:`, image);
+        }
       }
       
       // Pour Electron, on garde l'URL attachments car preview peut être bloqué
@@ -1279,6 +1296,13 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       // Essayer d'abord de récupérer data-url (image full) ou src
       let image = null;
       
+      // DEBUG: Afficher un extrait HTML autour de la première image bbImage
+      const imgSectionMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]{0,500}>/i);
+      if (imgSectionMatch) {
+        console.log(`🔍 [DEBUG] Extrait HTML de l'image bbImage:`);
+        console.log(imgSectionMatch[0].substring(0, 300));
+      }
+      
       // 1. Chercher une image avec data-url (souvent la vraie image)
       const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
       if (dataUrlMatch) {
@@ -1292,6 +1316,16 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
                          html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
         image = imgMatch ? imgMatch[1] : null;
         console.log(`🖼️ Image trouvée via src:`, image);
+      }
+      
+      // 3. Si toujours pas d'image, chercher dans le parent <a> (lien vers full image)
+      if (!image) {
+        // Format: <a href="[full-image]"><img class="bbImage" src="[thumb]" /></a>
+        const linkMatch = html.match(/<a[^>]*href="([^"]+)"[^>]*>\s*<img[^>]*class="[^"]*bbImage[^"]*"/i);
+        if (linkMatch) {
+          image = linkMatch[1];
+          console.log(`🖼️ Image trouvée via lien parent <a>:`, image);
+        }
       }
       
       // Retirer /thumb/ pour avoir la pleine résolution
