@@ -130,7 +130,7 @@ export default function AvnDetail() {
 
   return (
     <>
-      <ToastContainer />
+      {ToastContainer}
       <div style={{ padding: '0 32px 32px 32px' }}>
         {/* Header */}
       <div style={{ 
