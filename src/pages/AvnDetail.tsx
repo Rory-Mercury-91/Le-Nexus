@@ -121,7 +121,7 @@ export default function AvnDetail() {
         <p style={{ fontSize: '16px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
           Jeu non trouvé
         </p>
-        <button onClick={() => navigate('/avn')} className="btn btn-secondary">
+        <button onClick={() => navigate('/avn')} className="btn btn-primary">
           Retour à la liste
         </button>
       </div>
@@ -143,7 +143,7 @@ export default function AvnDetail() {
       }}>
         <button
           onClick={() => navigate('/avn')}
-          className="btn btn-secondary"
+          className="btn btn-primary"
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <ArrowLeft size={16} />
@@ -168,7 +168,7 @@ export default function AvnDetail() {
 
           <button
             onClick={() => setShowEditModal(true)}
-            className="btn btn-secondary"
+            className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <Edit size={16} />
@@ -280,7 +280,7 @@ export default function AvnDetail() {
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => setShowStatutDropdown(!showStatutDropdown)}
-            className="btn btn-secondary"
+            className="btn btn-primary"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -525,7 +525,7 @@ export default function AvnDetail() {
                     href={game.lien_f95}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     <ExternalLink size={16} />
@@ -538,7 +538,7 @@ export default function AvnDetail() {
                     href={game.lien_traduction}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

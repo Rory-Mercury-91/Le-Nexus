@@ -315,7 +315,7 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                     <button
                       type="button"
                       onClick={handleChooseCoverImage}
-                      className="btn btn-secondary"
+                      className="btn btn-primary"
                       style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
                       <FolderOpen size={16} />
@@ -509,7 +509,7 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                     <button
                       type="button"
                       onClick={handleChooseExecutable}
-                      className="btn btn-secondary"
+                      className="btn btn-primary"
                       style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                     >
                       <FolderOpen size={16} />
@@ -553,7 +553,7 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-secondary"
+            className="btn btn-primary"
             disabled={saving}
           >
             Annuler

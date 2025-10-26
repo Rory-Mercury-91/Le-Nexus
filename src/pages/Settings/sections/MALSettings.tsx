@@ -135,7 +135,7 @@ export default function MALSettings({
           <button
             onClick={onMalTranslateSynopsis}
             disabled={translating}
-            className="btn btn-secondary"
+            className="btn btn-primary"
             style={{
               width: '100%',
               marginBottom: '16px',

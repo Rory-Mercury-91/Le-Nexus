@@ -442,7 +442,7 @@ export default function AVNSettings() {
       <button
         onClick={handleCheckUpdates}
         disabled={checking}
-        className="btn btn-secondary"
+        className="btn btn-primary"
         style={{
           width: '100%',
           display: 'flex',

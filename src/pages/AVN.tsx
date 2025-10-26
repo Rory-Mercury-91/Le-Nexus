@@ -159,7 +159,7 @@ export default function AVN() {
             <button
               onClick={handleCheckUpdates}
               disabled={loading}
-              className="btn btn-secondary"
+              className="btn btn-primary"
             >
               <RefreshCw size={20} />
               Vérifier MAJ
@@ -167,7 +167,7 @@ export default function AVN() {
             
             <button
               onClick={() => setShowImportJsonModal(true)}
-              className="btn btn-secondary"
+              className="btn btn-primary"
             >
               <FileJson size={20} />
               Import JSON

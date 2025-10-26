@@ -1,4 +1,4 @@
-import { BookOpen, ChevronDown, ChevronUp, Home, Package, RefreshCw, Tv } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Package, RefreshCw, Tv } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -115,7 +115,7 @@ export default function Dashboard() {
       <div className="container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Home size={32} style={{ color: 'var(--primary)' }} />
+            <span style={{ fontSize: '32px' }}>🏠</span>
             Tableau de bord
           </h1>
           <button 

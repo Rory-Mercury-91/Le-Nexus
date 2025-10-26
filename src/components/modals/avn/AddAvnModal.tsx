@@ -358,7 +358,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
                   <button
                     type="button"
                     onClick={handleSearch}
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     disabled={loading}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
@@ -590,7 +590,7 @@ export default function AddAvnModal({ onClose, onSuccess }: AddAvnModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-secondary"
+            className="btn btn-primary"
             disabled={loading}
           >
             Annuler
