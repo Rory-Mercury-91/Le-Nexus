@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle, Info, X, XCircle } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface ToastOptions {
   title: string;
@@ -37,7 +37,7 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const ToastContainer = useCallback(() => {
+  const ToastContainer = useMemo(() => {
     if (toasts.length === 0) return null;
 
     const getIcon = (type: string) => {
