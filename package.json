@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^9.2.2",
+    "electron-fetch": "1.9.1",
     "electron-store": "^8.1.0",
     "groq-sdk": "0.34.0",
     "lucide-react": "^0.303.0",
