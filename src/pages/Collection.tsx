@@ -1,9 +1,9 @@
-import { BookOpen, Filter, Plus, Search } from 'lucide-react';
+import { Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import AddSerieModal from '../components/modals/manga/AddSerieModal';
-import CollectionView from '../components/common/CollectionView';
 import SerieCard from '../components/cards/SerieCard';
 import SerieListItem from '../components/cards/SerieListItem';
+import CollectionView from '../components/common/CollectionView';
+import AddSerieModal from '../components/modals/manga/AddSerieModal';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
 type ViewMode = 'grid' | 'list' | 'images';
@@ -101,8 +101,8 @@ export default function Collection() {
           gap: '16px'
         }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <BookOpen size={32} style={{ color: 'var(--primary)' }} />
-            Ma collection Mangas
+            <span style={{ fontSize: '32px' }}>📚</span>
+            Collection Mangas
             <span style={{ color: 'var(--text-secondary)', fontSize: '20px' }}>
               ({series.length} {series.length > 1 ? 'séries' : 'série'})
             </span>
@@ -262,7 +262,7 @@ export default function Collection() {
               ? 'Aucune série trouvée. Essayez de modifier vos filtres de recherche.' 
               : 'Aucune série dans votre collection. Commencez par ajouter votre première série !'
           }
-          emptyIcon={<BookOpen size={64} style={{ color: 'var(--text-secondary)', margin: '0 auto 24px' }} />}
+          emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3, margin: '0 auto 24px', display: 'block' }}>📚</span>}
           gridColumns={4}
         />
       </div>

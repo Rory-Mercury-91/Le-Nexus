@@ -872,6 +872,103 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       return { success: false, error: error.message };
     }
   });
+  // ========== BACKUP AUTOMATIQUE ==========
+  
+  const backupScheduler = require('../services/backup-scheduler');
+  
+  // Récupérer la configuration du backup
+  ipcMain.handle('get-backup-config', () => {
+    const config = store.get('backupConfig', {
+      enabled: false,
+      frequency: 'weekly', // 'daily', 'weekly', 'manual'
+      keepCount: 7, // Nombre de backups à conserver
+      lastBackup: null
+    });
+    return config;
+  });
+  
+  // Sauvegarder la configuration du backup
+  ipcMain.handle('save-backup-config', async (event, config) => {
+    try {
+      store.set('backupConfig', config);
+      
+      // Réinitialiser le scheduler avec la nouvelle config
+      const dbPath = getPaths().database;
+      backupScheduler.init(config, dbPath);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur sauvegarde config backup:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Créer un backup manuel
+  ipcMain.handle('create-backup', async () => {
+    try {
+      const dbPath = getPaths().database;
+      backupScheduler.dbPath = dbPath;
+      
+      const result = await backupScheduler.createBackup();
+      
+      if (result.success) {
+        // Mettre à jour la date du dernier backup
+        const config = store.get('backupConfig', {});
+        config.lastBackup = result.timestamp;
+        store.set('backupConfig', config);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Erreur création backup:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Lister tous les backups
+  ipcMain.handle('list-backups', () => {
+    try {
+      const backups = backupScheduler.listBackups();
+      return { success: true, backups };
+    } catch (error) {
+      console.error('Erreur liste backups:', error);
+      return { success: false, error: error.message, backups: [] };
+    }
+  });
+  
+  // Restaurer un backup
+  ipcMain.handle('restore-backup', async (event, backupPath) => {
+    try {
+      const result = await backupScheduler.restoreBackup(backupPath);
+      return result;
+    } catch (error) {
+      console.error('Erreur restauration backup:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Supprimer un backup
+  ipcMain.handle('delete-backup', (event, backupPath) => {
+    try {
+      const success = backupScheduler.deleteBackup(backupPath);
+      return { success };
+    } catch (error) {
+      console.error('Erreur suppression backup:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Initialiser le scheduler au démarrage
+  const initBackupScheduler = () => {
+    const config = store.get('backupConfig');
+    if (config && config.enabled) {
+      const dbPath = getPaths().database;
+      backupScheduler.init(config, dbPath);
+    }
+  };
+  
+  // Appeler l'initialisation
+  setTimeout(initBackupScheduler, 2000); // Attendre que tout soit chargé
 }
 
 module.exports = { registerSettingsHandlers };

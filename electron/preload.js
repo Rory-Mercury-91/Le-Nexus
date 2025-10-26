@@ -69,6 +69,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAnimeImageSource: () => ipcRenderer.invoke('get-anime-image-source'),
   setAnimeImageSource: (source) => ipcRenderer.invoke('set-anime-image-source', source),
   openTampermonkeyInstallation: () => ipcRenderer.invoke('open-tampermonkey-installation'),
+  
+  // Backup automatique
+  getBackupConfig: () => ipcRenderer.invoke('get-backup-config'),
+  saveBackupConfig: (config) => ipcRenderer.invoke('save-backup-config', config),
+  createBackup: () => ipcRenderer.invoke('create-backup'),
+  listBackups: () => ipcRenderer.invoke('list-backups'),
+  restoreBackup: (backupPath) => ipcRenderer.invoke('restore-backup', backupPath),
+  deleteBackup: (backupPath) => ipcRenderer.invoke('delete-backup', backupPath),
+  
   onMalSyncProgress: (callback) => {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-sync-progress', subscription);

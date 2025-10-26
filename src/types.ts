@@ -398,6 +398,15 @@ declare global {
       getAnimeImageSource: () => Promise<'anilist' | 'mal'>;
       setAnimeImageSource: (source: 'anilist' | 'mal') => Promise<{ success: boolean }>;
       openTampermonkeyInstallation: () => Promise<{ success: boolean; error?: string }>;
+      
+      // Backup automatique
+      getBackupConfig: () => Promise<{ enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup: string | null }>;
+      saveBackupConfig: (config: { enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup?: string | null }) => Promise<{ success: boolean; error?: string }>;
+      createBackup: () => Promise<{ success: boolean; path?: string; fileName?: string; timestamp?: string; error?: string }>;
+      listBackups: () => Promise<{ success: boolean; backups: Array<{ name: string; path: string; size: number; date: Date; timestamp: number }>; error?: string }>;
+      restoreBackup: (backupPath: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+      deleteBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
+      
       onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
       onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
       onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;

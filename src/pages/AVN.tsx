@@ -14,6 +14,7 @@ export default function AVN() {
   const [selectedStatutPerso, setSelectedStatutPerso] = useState<AvnStatutPerso | 'all'>('all');
   const [selectedMoteur, setSelectedMoteur] = useState<AvnMoteur | 'all'>('all');
   const [showMajOnly, setShowMajOnly] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportJsonModal, setShowImportJsonModal] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -93,13 +94,38 @@ export default function AVN() {
     }
   };
 
+  // Extraire tous les tags uniques
+  const allTags = Array.from(
+    new Set(
+      games
+        .filter(game => game.tags && game.tags.length > 0)
+        .flatMap(game => game.tags || [])
+    )
+  ).sort();
+
   const filteredGames = games.filter(game => {
     if (searchTerm && !game.titre.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (selectedStatutPerso !== 'all' && game.statut_perso !== selectedStatutPerso) return false;
     if (selectedMoteur !== 'all' && game.moteur !== selectedMoteur) return false;
     if (showMajOnly && !game.maj_disponible) return false;
+    
+    // Filtre par tags (doit avoir TOUS les tags sélectionnés)
+    if (selectedTags.length > 0) {
+      if (!game.tags || game.tags.length === 0) return false;
+      const hasAllTags = selectedTags.every(tag => game.tags?.includes(tag));
+      if (!hasAllTags) return false;
+    }
+    
     return true;
   });
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) 
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
 
   if (loading && games.length === 0) {
     return (
@@ -123,7 +149,7 @@ export default function AVN() {
         }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '32px' }}>🎮</span>
-            AVN (Adult Visual Novels)
+            Collection AVN
             <span style={{ color: 'var(--text-secondary)', fontSize: '20px' }}>
               ({filteredGames.length} jeu{filteredGames.length > 1 ? 'x' : ''})
             </span>
@@ -239,6 +265,113 @@ export default function AVN() {
               <span style={{ fontSize: '14px', color: 'var(--text)' }}>MAJ disponible uniquement</span>
             </label>
           </div>
+
+          {/* Filtre par tags */}
+          {allTags.length > 0 && (
+            <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: '12px' 
+              }}>
+                <h3 style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '600', 
+                  color: 'var(--text)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🏷️ Filtrer par tags
+                  {selectedTags.length > 0 && (
+                    <span style={{
+                      fontSize: '12px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: 'var(--primary)',
+                      color: 'white',
+                      fontWeight: '600'
+                    }}>
+                      {selectedTags.length}
+                    </span>
+                  )}
+                </h3>
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => setSelectedTags([])}
+                    style={{
+                      fontSize: '12px',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--hover)';
+                      e.currentTarget.style.color = 'var(--text)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'var(--surface)';
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                    }}
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '8px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                padding: '4px'
+              }}>
+                {allTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => handleTagToggle(tag)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      border: selectedTags.includes(tag) 
+                        ? '2px solid var(--primary)' 
+                        : '2px solid var(--border)',
+                      background: selectedTags.includes(tag) 
+                        ? 'var(--primary)' 
+                        : 'var(--surface)',
+                      color: selectedTags.includes(tag) 
+                        ? 'white' 
+                        : 'var(--text)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selectedTags.includes(tag)) {
+                        e.currentTarget.style.borderColor = 'var(--primary)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selectedTags.includes(tag)) {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats */}

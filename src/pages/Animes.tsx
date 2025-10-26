@@ -1,4 +1,4 @@
-import { Filter, Plus, Search, Tv } from 'lucide-react';
+import { Filter, Plus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AnimeCard from '../components/cards/AnimeCard';
@@ -181,8 +181,8 @@ export default function Animes() {
           gap: '16px'
         }}>
           <h1 style={{ fontSize: '32px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Tv size={32} style={{ color: 'var(--primary)' }} />
-            Ma collection Animes
+            <span style={{ fontSize: '32px' }}>🎬</span>
+            Collection Animés
             <span style={{ color: 'var(--text-secondary)', fontSize: '20px' }}>
               ({filteredAnimes.length} anime{filteredAnimes.length > 1 ? 's' : ''})
             </span>
@@ -320,7 +320,7 @@ export default function Animes() {
           onUpdate={loadAnimes}
           loading={loading}
           emptyMessage={animes.length === 0 ? 'Aucun anime dans votre collection' : 'Aucun anime trouvé'}
-          emptyIcon={<Tv size={64} style={{ color: 'var(--text-secondary)', opacity: 0.3 }} />}
+          emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3 }}>🎬</span>}
         />
       </div>
 
