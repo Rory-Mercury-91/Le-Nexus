@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import { useToast } from '../../../hooks/useToast';
 import '../../../index.css';
 import type { AvnGame, AvnMoteur, AvnStatutJeu, AvnStatutPerso, AvnStatutTraduction, AvnTypeTraduction } from '../../../types';
+import CoverImage from '../../common/CoverImage';
 
 interface EditAvnModalProps {
   game: AvnGame;
@@ -103,8 +104,9 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
     try {
       const result = await window.electronAPI.selectAvnCoverImage();
       if (result.success && result.path) {
-        // Convertir le chemin local en URL locale pour l'affichage
-        setCouvertureUrl(`file://${result.path}`);
+        // Le backend retourne déjà un chemin manga:// ou un chemin relatif
+        // On utilise directement result.path
+        setCouvertureUrl(result.path);
         showToast({
           title: 'Image sélectionnée',
           type: 'success'
@@ -283,16 +285,13 @@ export default function EditAvnModal({ game, onClose, onSave }: EditAvnModalProp
                     overflow: 'hidden',
                     border: '2px solid var(--border)'
                   }}>
-                    <img
+                    <CoverImage
                       src={couvertureUrl}
                       alt="Aperçu couverture"
                       style={{
                         width: '100%',
                         maxHeight: '250px',
                         objectFit: 'cover'
-                      }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                   </div>

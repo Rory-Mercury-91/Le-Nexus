@@ -1074,20 +1074,30 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       console.log(`📊 Statut détecté: ${status}`);
       console.log(`🛠️ Moteur détecté: ${engine}`);
       
-      // Extraire l'image comme dans le script Tampermonkey
-      // Chercher LA PREMIÈRE img.bbImage avec src
-      const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
-                       html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+      // Extraire l'image - essayer d'abord data-url (image full) puis src
+      let image = null;
       
-      let image = imgMatch ? imgMatch[1] : null;
+      // 1. Chercher une image avec data-url (souvent la vraie image)
+      const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
+      if (dataUrlMatch) {
+        image = dataUrlMatch[1];
+        console.log(`🖼️ Image trouvée via data-url (full):`, image);
+      }
       
-      console.log(`🖼️ Image trouvée (brute):`, image);
+      // 2. Sinon chercher src classique
+      if (!image) {
+        const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
+                         html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+        image = imgMatch ? imgMatch[1] : null;
+        console.log(`🖼️ Image trouvée via src:`, image);
+      }
       
       // Pour Electron, on garde l'URL attachments car preview peut être bloqué
       // On retire juste /thumb/ pour avoir la pleine résolution
       if (image && image.includes('/thumb/')) {
+        const originalImage = image;
         image = image.replace('/thumb/', '/');
-        console.log(`🖼️ Image convertie (sans thumb):`, image);
+        console.log(`🖼️ Image convertie:`, originalImage, '→', image);
       }
       
       // Extraire les tags
@@ -1266,17 +1276,29 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       console.log(`🛠️ Moteur détecté: ${engine}`);
       
       // Extraire l'image
-      const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
-                       html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+      // Essayer d'abord de récupérer data-url (image full) ou src
+      let image = null;
       
-      let image = imgMatch ? imgMatch[1] : null;
+      // 1. Chercher une image avec data-url (souvent la vraie image)
+      const dataUrlMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*data-url="([^"]+)"/i);
+      if (dataUrlMatch) {
+        image = dataUrlMatch[1];
+        console.log(`🖼️ Image trouvée via data-url (full):`, image);
+      }
       
-      console.log(`🖼️ Image trouvée (brute):`, image);
+      // 2. Sinon chercher src classique
+      if (!image) {
+        const imgMatch = html.match(/<img[^>]*class="[^"]*bbImage[^"]*"[^>]*src="([^"]+)"/i) || 
+                         html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*bbImage[^"]*"/i);
+        image = imgMatch ? imgMatch[1] : null;
+        console.log(`🖼️ Image trouvée via src:`, image);
+      }
       
       // Retirer /thumb/ pour avoir la pleine résolution
       if (image && image.includes('/thumb/')) {
+        const originalImage = image;
         image = image.replace('/thumb/', '/');
-        console.log(`🖼️ Image convertie (sans thumb):`, image);
+        console.log(`🖼️ Image convertie:`, originalImage, '→', image);
       }
       
       // Extraire les tags
