@@ -7,6 +7,7 @@ import AddSerieModal from '../components/modals/manga/AddSerieModal';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
 type ViewMode = 'grid' | 'list' | 'images';
+type SortOption = 'title-asc' | 'title-desc' | 'date-desc' | 'date-asc';
 
 export default function Collection() {
   const [series, setSeries] = useState<Serie[]>([]);
@@ -17,6 +18,7 @@ export default function Collection() {
   const [scrollPosition, setScrollPosition] = useState<number | null>(null);
   const [lectureStats, setLectureStats] = useState<LectureStatistics | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortBy, setSortBy] = useState<SortOption>('title-asc');
 
   // Charger le mode de vue depuis localStorage au montage
   useEffect(() => {
@@ -86,6 +88,33 @@ export default function Collection() {
     setSearchTerm('');
   };
 
+  const sortSeries = (seriesToSort: Serie[]) => {
+    const sorted = [...seriesToSort];
+    
+    switch (sortBy) {
+      case 'title-asc':
+        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
+      case 'title-desc':
+        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
+      case 'date-desc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+      case 'date-asc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
+  };
+
+  const sortedSeries = sortSeries(series);
+
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   return (
@@ -148,6 +177,18 @@ export default function Collection() {
 
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             <Filter size={20} style={{ color: 'var(--text-secondary)' }} />
+            
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="select"
+              style={{ minWidth: '200px' }}
+            >
+              <option value="title-asc">📖 Titre (A → Z)</option>
+              <option value="title-desc">📖 Titre (Z → A)</option>
+              <option value="date-desc">🆕 Ajout récent</option>
+              <option value="date-asc">🕐 Ajout ancien</option>
+            </select>
             
             <select
               className="select"
@@ -239,7 +280,7 @@ export default function Collection() {
 
         {/* Liste des séries */}
         <CollectionView
-          items={series}
+          items={sortedSeries}
           loading={loading}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}

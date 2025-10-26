@@ -7,6 +7,8 @@ import ImportAvnJsonModal from '../components/modals/avn/ImportAvnJsonModal';
 import '../index.css';
 import type { AvnFilters, AvnGame, AvnMoteur, AvnStatutPerso } from '../types';
 
+type SortOption = 'title-asc' | 'title-desc' | 'date-desc' | 'date-asc';
+
 export default function AVN() {
   const [games, setGames] = useState<AvnGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +20,7 @@ export default function AVN() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportJsonModal, setShowImportJsonModal] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('title-asc');
 
   useEffect(() => {
     loadGames();
@@ -118,6 +121,33 @@ export default function AVN() {
     
     return true;
   });
+
+  const sortGames = (gamesToSort: AvnGame[]) => {
+    const sorted = [...gamesToSort];
+    
+    switch (sortBy) {
+      case 'title-asc':
+        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
+      case 'title-desc':
+        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
+      case 'date-desc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+      case 'date-asc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
+  };
+
+  const sortedGames = sortGames(filteredGames);
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev => 
@@ -222,6 +252,19 @@ export default function AVN() {
           </form>
 
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Tri */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="select"
+              style={{ minWidth: '200px' }}
+            >
+              <option value="title-asc">📖 Titre (A → Z)</option>
+              <option value="title-desc">📖 Titre (Z → A)</option>
+              <option value="date-desc">🆕 Ajout récent</option>
+              <option value="date-asc">🕐 Ajout ancien</option>
+            </select>
+
             {/* Statut personnel */}
             <select
               value={selectedStatutPerso}
@@ -411,7 +454,7 @@ export default function AVN() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '20px'
           }}>
-            {filteredGames.map((game) => (
+            {sortedGames.map((game) => (
               <Link
                 key={game.id}
                 to={`/avn/${game.id}`}

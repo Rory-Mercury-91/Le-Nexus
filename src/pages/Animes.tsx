@@ -9,6 +9,7 @@ import { useToast } from '../hooks/useToast';
 import { AnimeFilters, AnimeSerie } from '../types';
 
 type ViewMode = 'grid' | 'list' | 'images';
+type SortOption = 'title-asc' | 'title-desc' | 'date-desc' | 'date-asc';
 
 export default function Animes() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function Animes() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortBy, setSortBy] = useState<SortOption>('title-asc');
 
   // Charger le mode de vue depuis localStorage au montage
   useEffect(() => {
@@ -70,6 +72,31 @@ export default function Animes() {
   const clearFilters = () => {
     setFilters({});
     setSearchTerm('');
+  };
+
+  const sortAnimes = (animesToSort: AnimeSerie[]) => {
+    const sorted = [...animesToSort];
+    
+    switch (sortBy) {
+      case 'title-asc':
+        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
+      case 'title-desc':
+        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
+      case 'date-desc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+      case 'date-asc':
+        return sorted.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateA - dateB;
+        });
+      default:
+        return sorted;
+    }
   };
 
   const handleStatusChange = async (animeId: number, newStatus: string) => {
@@ -140,6 +167,8 @@ export default function Animes() {
     
     return true;
   });
+
+  const sortedAnimes = sortAnimes(filteredAnimes);
 
   const statusOptions = [
     { value: '', label: 'Tous les statuts' },
@@ -230,6 +259,18 @@ export default function Animes() {
             <Filter size={20} style={{ color: 'var(--text-secondary)' }} />
             
             <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="select"
+              style={{ minWidth: '200px' }}
+            >
+              <option value="title-asc">📖 Titre (A → Z)</option>
+              <option value="title-desc">📖 Titre (Z → A)</option>
+              <option value="date-desc">🆕 Ajout récent</option>
+              <option value="date-asc">🕐 Ajout ancien</option>
+            </select>
+            
+            <select
               className="select"
               value={filters.statut || ''}
               onChange={(e) => handleFilterChange('statut', e.target.value)}
@@ -303,7 +344,7 @@ export default function Animes() {
 
         {/* Collection avec vues multiples */}
         <CollectionView
-          items={filteredAnimes}
+          items={sortedAnimes}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
           renderCard={(anime) => (
