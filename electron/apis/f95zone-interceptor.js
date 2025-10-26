@@ -11,12 +11,15 @@ const { session } = require('electron');
 function setupF95ZoneInterceptor() {
   console.log('🔧 Configuration de l\'intercepteur F95Zone...');
 
+  // Utiliser la session persistante
+  const persistentSession = session.fromPartition('persist:lenexus');
+
   // Intercepter les requêtes avant envoi
-  session.defaultSession.webRequest.onBeforeSendHeaders(
+  persistentSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://f95zone.to/*', 'https://*.f95zone.to/*'] },
     async (details, callback) => {
       // Récupérer les cookies F95Zone
-      const cookies = await session.defaultSession.cookies.get({ 
+      const cookies = await persistentSession.cookies.get({ 
         domain: '.f95zone.to' 
       });
 

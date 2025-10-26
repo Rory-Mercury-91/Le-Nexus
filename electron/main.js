@@ -103,6 +103,10 @@ function createWindow() {
     ? path.join(__dirname, '..', 'assets', 'icon.ico')
     : path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'icon.ico');
 
+  // IMPORTANT : Utiliser une partition persistante pour les cookies
+  // Cela permet aux cookies de persister entre les redémarrages
+  const persistentSession = session.fromPartition('persist:lenexus');
+  
   mainWindow = new BrowserWindow({
     width: windowState.width,
     height: windowState.height,
@@ -117,8 +121,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       // Vider le cache en mode dev pour éviter les erreurs de cache
       cache: isDev ? false : true,
-      // Utiliser explicitement la session par défaut pour partager les cookies
-      session: session.defaultSession
+      // Utiliser une session persistante pour conserver les cookies
+      session: persistentSession
     },
     autoHideMenuBar: true,
     icon: windowIconPath

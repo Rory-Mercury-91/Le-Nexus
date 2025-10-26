@@ -14,6 +14,9 @@ const { BrowserWindow, session } = require('electron');
 function openF95ZoneLogin(onSuccess, onError) {
   console.log('🌐 Ouverture de la fenêtre de connexion F95Zone...');
   
+  // Utiliser la session persistante pour conserver les cookies
+  const persistentSession = session.fromPartition('persist:lenexus');
+  
   // Créer une fenêtre dédiée pour la connexion
   const authWindow = new BrowserWindow({
     width: 900,
@@ -21,8 +24,8 @@ function openF95ZoneLogin(onSuccess, onError) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      // Utiliser la session par défaut pour partager les cookies avec l'app principale
-      session: session.defaultSession
+      // Utiliser la session persistante pour partager les cookies avec l'app principale
+      session: persistentSession
     },
     title: 'Connexion à F95Zone',
     autoHideMenuBar: true,
@@ -41,7 +44,8 @@ function openF95ZoneLogin(onSuccess, onError) {
       console.log('✅ Connexion réussie détectée');
       
       // Vérifier les cookies pour confirmer
-      const cookies = await session.defaultSession.cookies.get({ 
+      const persistentSession = session.fromPartition('persist:lenexus');
+      const cookies = await persistentSession.cookies.get({ 
         domain: '.f95zone.to' 
       });
       
@@ -77,7 +81,8 @@ function openF95ZoneLogin(onSuccess, onError) {
  */
 async function checkF95ZoneSession() {
   try {
-    const cookies = await session.defaultSession.cookies.get({ 
+    const persistentSession = session.fromPartition('persist:lenexus');
+    const cookies = await persistentSession.cookies.get({ 
       domain: '.f95zone.to' 
     });
     
@@ -99,12 +104,13 @@ async function disconnectF95Zone() {
   try {
     console.log('🔓 Déconnexion de F95Zone...');
     
-    const cookies = await session.defaultSession.cookies.get({ 
+    const persistentSession = session.fromPartition('persist:lenexus');
+    const cookies = await persistentSession.cookies.get({ 
       domain: '.f95zone.to' 
     });
     
     for (const cookie of cookies) {
-      await session.defaultSession.cookies.remove(
+      await persistentSession.cookies.remove(
         `https://f95zone.to`, 
         cookie.name
       );

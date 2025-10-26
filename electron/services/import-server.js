@@ -318,9 +318,12 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
 
     // Route: POST /api/import-manga
     if (req.method === 'POST' && req.url === '/api/import-manga') {
+      console.log('🔍 [IMPORT-SERVER] Requête POST reçue sur /api/import-manga');
+      console.log('🔍 [IMPORT-SERVER] Headers:', req.headers);
       let body = '';
 
       req.on('data', chunk => {
+        console.log('🔍 [IMPORT-SERVER] Chunk reçu:', chunk.length, 'bytes');
         body += chunk.toString();
       });
 
@@ -568,35 +571,35 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
           } else {
             // ========== CRÉATION : Nouvelle série ==========
             console.log(`➕ Aucune série existante trouvée → Création d'une nouvelle série`);
-            const stmt = db.prepare(`
-              INSERT INTO series (
+          const stmt = db.prepare(`
+            INSERT INTO series (
                 titre, titre_alternatif, statut, type_volume, type_contenu, couverture_url, description,
-                statut_publication, annee_publication, genres, nb_chapitres,
+              statut_publication, annee_publication, genres, nb_chapitres,
                 langue_originale, demographie, editeur, rating, source_donnees
-              )
+            )
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'nautiljon')
-            `);
+          `);
 
-            const result = stmt.run(
-              mangaData.titre,
+          const result = stmt.run(
+            mangaData.titre,
               mangaData.titre_alternatif || null,
-              mangaData.statut || 'En cours',
-              mangaData.type_volume || 'Broché',
-              mangaData.type_contenu || 'volume',
-              mangaData.couverture_url,
-              mangaData.description,
-              mangaData.statut_publication,
-              mangaData.annee_publication,
-              mangaData.genres,
-              mangaData.nb_chapitres,
-              mangaData.langue_originale,
-              mangaData.demographie,
-              mangaData._editeur || null,
-              mangaData.rating
-            );
+            mangaData.statut || 'En cours',
+            mangaData.type_volume || 'Broché',
+            mangaData.type_contenu || 'volume',
+            mangaData.couverture_url,
+            mangaData.description,
+            mangaData.statut_publication,
+            mangaData.annee_publication,
+            mangaData.genres,
+            mangaData.nb_chapitres,
+            mangaData.langue_originale,
+            mangaData.demographie,
+            mangaData._editeur || null,
+            mangaData.rating
+          );
 
             serieId = result.lastInsertRowid;
-            console.log(`✅ Série "${mangaData.titre}" ajoutée avec l'ID ${serieId}`);
+          console.log(`✅ Série "${mangaData.titre}" ajoutée avec l'ID ${serieId}`);
             if (mangaData.titre_alternatif) {
               console.log(`   🏷️  Titre alternatif enregistré: "${mangaData.titre_alternatif}"`);
             }
@@ -910,7 +913,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
             // Calculer le nombre total d'épisodes à partir des saisons
             let totalEpisodes = 0;
             for (let seasonNum = 1; seasonNum <= maxSeasonNumber; seasonNum++) {
-              const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
+                const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
               const nbEpisodes = saisonData?.nb_episodes || 12;
               totalEpisodes += nbEpisodes;
               console.log(`📊 Saison ${seasonNum}: ${nbEpisodes} épisodes`);
@@ -1061,7 +1064,7 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
               error: `Anime "${episodeInfo.titre}" non trouvé dans votre collection` 
             }));
             return;
-          }
+      }
 
       // Étendre automatiquement le nombre d'épisodes si nécessaire
       if (episodeInfo.episode_numero > anime.nb_episodes) {
@@ -1075,57 +1078,57 @@ function createImportServer(port, getDb, store, mainWindow, pathManager) {
         anime.nb_episodes = episodeInfo.episode_numero;
       }
 
-      // Auto-incrémentation : marquer tous les épisodes précédents comme vus
-      const baseDate = new Date();
-      
-      if (episodeInfo.episode_numero > 1) {
-        console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
-        
-        // Marquer tous les épisodes précédents avec des timestamps espacés
-        for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
-          const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000)); // +1 seconde par épisode
-          const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
-          db.prepare(`
+          // Auto-incrémentation : marquer tous les épisodes précédents comme vus
+          const baseDate = new Date();
+          
+          if (episodeInfo.episode_numero > 1) {
+            console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
+            
+            // Marquer tous les épisodes précédents avec des timestamps espacés
+            for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
+              const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000)); // +1 seconde par épisode
+              const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
+              db.prepare(`
             INSERT OR REPLACE INTO anime_episodes_vus (anime_id, utilisateur, episode_numero, vu, date_visionnage)
-            VALUES (?, ?, ?, 1, ?)
+                VALUES (?, ?, ?, 1, ?)
           `).run(anime.id, currentUser, ep, dateVisionnageStr);
-        }
-        
-        console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
-      }
-      
-      // Marquer l'épisode actuel comme vu
-      const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
-      const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
-      db.prepare(`
+            }
+            
+            console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
+          }
+          
+          // Marquer l'épisode actuel comme vu
+          const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
+          const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
+          db.prepare(`
         INSERT OR REPLACE INTO anime_episodes_vus (anime_id, utilisateur, episode_numero, vu, date_visionnage)
-        VALUES (?, ?, ?, 1, ?)
+            VALUES (?, ?, ?, 1, ?)
       `).run(anime.id, currentUser, episodeInfo.episode_numero, dateVisionnageActuelStr);
 
-      console.log(`✅ Épisode ${episodeInfo.episode_numero} de "${anime.titre}" marqué comme vu`);
+          console.log(`✅ Épisode ${episodeInfo.episode_numero} de "${anime.titre}" marqué comme vu`);
 
-      // Vérifier si tous les épisodes de la série sont vus pour mettre à jour le statut
-      const stats = db.prepare(`
-        SELECT 
+          // Vérifier si tous les épisodes de la série sont vus pour mettre à jour le statut
+          const stats = db.prepare(`
+            SELECT 
           a.nb_episodes as nb_episodes_total,
-          (
-            SELECT COUNT(*) 
+              (
+                SELECT COUNT(*) 
             FROM anime_episodes_vus 
             WHERE anime_id = ? AND utilisateur = ? AND vu = 1
-          ) as nb_episodes_vus
+              ) as nb_episodes_vus
         FROM anime_series a
         WHERE a.id = ?
       `).get(anime.id, currentUser, anime.id);
 
-      const isComplete = stats.nb_episodes_total > 0 && stats.nb_episodes_vus === stats.nb_episodes_total;
+          const isComplete = stats.nb_episodes_total > 0 && stats.nb_episodes_vus === stats.nb_episodes_total;
 
-      if (isComplete) {
-        db.prepare(`
+          if (isComplete) {
+            db.prepare(`
           INSERT OR REPLACE INTO anime_statut_utilisateur (anime_id, utilisateur, statut_visionnage, date_modification)
-          VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
-        `).run(anime.id, currentUser);
-        console.log(`🎉 Anime "${anime.titre}" marqué comme "Terminé" automatiquement`);
-      }
+              VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
+            `).run(anime.id, currentUser);
+            console.log(`🎉 Anime "${anime.titre}" marqué comme "Terminé" automatiquement`);
+          }
 
           // Succès
           const totalMarked = episodeInfo.episode_numero > 1 ? episodeInfo.episode_numero : 1;

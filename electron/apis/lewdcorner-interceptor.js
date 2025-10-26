@@ -11,12 +11,15 @@ const { session } = require('electron');
 function setupLewdCornerInterceptor() {
   console.log('🔧 Configuration de l\'intercepteur LewdCorner...');
 
+  // Utiliser la session persistante
+  const persistentSession = session.fromPartition('persist:lenexus');
+
   // Intercepter les requêtes avant envoi
-  session.defaultSession.webRequest.onBeforeSendHeaders(
+  persistentSession.webRequest.onBeforeSendHeaders(
     { urls: ['https://lewdcorner.com/*'] },
     async (details, callback) => {
       // Récupérer les cookies LewdCorner
-      const cookies = await session.defaultSession.cookies.get({ 
+      const cookies = await persistentSession.cookies.get({ 
         domain: '.lewdcorner.com' 
       });
 

@@ -14,6 +14,9 @@ const { BrowserWindow, session } = require('electron');
 function openLewdCornerLogin(onSuccess, onError) {
   console.log('🌐 Ouverture de la fenêtre de connexion LewdCorner...');
   
+  // Utiliser la session persistante pour conserver les cookies
+  const persistentSession = session.fromPartition('persist:lenexus');
+  
   // Créer une fenêtre dédiée pour la connexion
   const authWindow = new BrowserWindow({
     width: 900,
@@ -21,8 +24,8 @@ function openLewdCornerLogin(onSuccess, onError) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      // Utiliser la session par défaut pour partager les cookies avec l'app principale
-      session: session.defaultSession
+      // Utiliser la session persistante pour partager les cookies avec l'app principale
+      session: persistentSession
     },
     title: 'Connexion à LewdCorner',
     autoHideMenuBar: true,
@@ -41,7 +44,8 @@ function openLewdCornerLogin(onSuccess, onError) {
       console.log('✅ Connexion réussie détectée');
       
       // Vérifier les cookies pour confirmer
-      const cookies = await session.defaultSession.cookies.get({ 
+      const persistentSession = session.fromPartition('persist:lenexus');
+      const cookies = await persistentSession.cookies.get({ 
         domain: '.lewdcorner.com' 
       });
       
@@ -77,7 +81,8 @@ function openLewdCornerLogin(onSuccess, onError) {
  */
 async function checkLewdCornerSession() {
   try {
-    const cookies = await session.defaultSession.cookies.get({ 
+    const persistentSession = session.fromPartition('persist:lenexus');
+    const cookies = await persistentSession.cookies.get({ 
       domain: '.lewdcorner.com' 
     });
     
@@ -99,12 +104,13 @@ async function disconnectLewdCorner() {
   try {
     console.log('🔓 Déconnexion de LewdCorner...');
     
-    const cookies = await session.defaultSession.cookies.get({ 
+    const persistentSession = session.fromPartition('persist:lenexus');
+    const cookies = await persistentSession.cookies.get({ 
       domain: '.lewdcorner.com' 
     });
     
     for (const cookie of cookies) {
-      await session.defaultSession.cookies.remove(
+      await persistentSession.cookies.remove(
         `https://lewdcorner.com`, 
         cookie.name
       );

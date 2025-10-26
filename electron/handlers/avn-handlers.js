@@ -1,8 +1,60 @@
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, net, session } = require('electron');
 const fetch = require('node-fetch');
 const { exec } = require('child_process');
 const path = require('path');
 const coverManager = require('../services/cover-manager');
+
+/**
+ * Fait une requête HTTP en utilisant Electron.net avec cookies de session persistants
+ * @param {string} url - URL à requêter
+ * @param {object} options - Options (headers, method, etc.)
+ * @returns {Promise<{statusCode: number, headers: object, body: string}>}
+ */
+async function fetchWithSession(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    // Utiliser la session persistante qui contient les cookies
+    const persistentSession = session.fromPartition('persist:lenexus');
+    
+    const request = net.request({
+      url: url,
+      method: options.method || 'GET',
+      session: persistentSession // Les cookies sont automatiquement envoyés !
+    });
+
+    // Ajouter les headers personnalisés
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        request.setHeader(key, value);
+      });
+    }
+
+    let responseData = '';
+
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        responseData += chunk.toString();
+      });
+
+      response.on('end', () => {
+        resolve({
+          statusCode: response.statusCode,
+          headers: response.headers,
+          body: responseData,
+          // Compatibilité avec l'API fetch
+          ok: response.statusCode >= 200 && response.statusCode < 300,
+          status: response.statusCode,
+          text: async () => responseData
+        });
+      });
+    });
+
+    request.on('error', (error) => {
+      reject(error);
+    });
+
+    request.end();
+  });
+}
 
 /**
  * URL de l'API F95List pour le contrôle de version
@@ -646,10 +698,10 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
   ipcMain.handle('check-avn-updates', async () => {
     try {
       const db = getDb();
-      const { session } = require('electron');
       
-      // Vérifier la session LewdCorner
-      const lewdCornerCookies = await session.defaultSession.cookies.get({ 
+      // Vérifier la session LewdCorner (utiliser session persistante)
+      const persistentSession = session.fromPartition('persist:lenexus');
+      const lewdCornerCookies = await persistentSession.cookies.get({ 
         domain: '.lewdcorner.com' 
       });
       const isLewdCornerConnected = lewdCornerCookies.length > 0;
@@ -702,8 +754,8 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
           
           console.log(`🌐 Vérif MAJ [${i + 1}/${games.length}]: ${game.titre} (${domain})`);
           
-          // Scraper la page (l'intercepteur ajoute les cookies pour LewdCorner)
-          const response = await fetch(threadUrl, {
+          // Scraper la page (utilise les cookies de la session persistante)
+          const response = await fetchWithSession(threadUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -714,7 +766,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
             continue;
           }
           
-          const html = await response.text();
+          const html = response.body;
           
           // === Fonction de décodage HTML entities ===
           const decodeHTML = (text) => {
@@ -1098,10 +1150,9 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
     try {
       console.log(`🔍 Recherche jeu LewdCorner ID: ${lewdcornerId}`);
       
-      const { session } = require('electron');
-      
-      // Vérifier la session LewdCorner
-      const cookies = await session.defaultSession.cookies.get({ domain: '.lewdcorner.com' });
+      // Vérifier la session LewdCorner (utiliser session persistante)
+      const persistentSession = session.fromPartition('persist:lenexus');
+      const cookies = await persistentSession.cookies.get({ domain: '.lewdcorner.com' });
       if (cookies.length === 0) {
         return {
           success: false,
@@ -1109,11 +1160,11 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         };
       }
       
-      // Scraping direct depuis LewdCorner (même logique que F95Zone)
+      // Scraping direct depuis LewdCorner (utilise les cookies de la session persistante)
       const threadUrl = `https://lewdcorner.com/threads/${lewdcornerId}/`;
-      console.log(`🌐 Scraping: ${threadUrl}`);
+      console.log(`🌐 Scraping avec session persistante: ${threadUrl}`);
       
-      const response = await fetch(threadUrl, {
+      const response = await fetchWithSession(threadUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
@@ -1121,6 +1172,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
       
       if (!response.ok) {
         if (response.status === 403) {
+          console.error('❌ Erreur 403: Les cookies ne sont peut-être pas valides');
           return {
             success: false,
             error: 'Accès refusé (403). Veuillez vous reconnecter à LewdCorner depuis les Paramètres.'
@@ -1129,7 +1181,7 @@ function registerAvnHandlers(ipcMain, getDb, store, getPathManager) {
         throw new Error(`Thread LewdCorner introuvable: ${response.status}`);
       }
       
-      const html = await response.text();
+      const html = response.body;
       
       // Fonction pour décoder les entités HTML
       const decodeHTML = (str) => {
