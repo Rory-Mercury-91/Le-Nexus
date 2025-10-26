@@ -415,6 +415,15 @@ function initDatabase(dbPath) {
       statut_traduction TEXT, -- Traduction, Traduction (Mod inclus), Traduction intégré
       type_traduction TEXT, -- Manuelle, Semi-automatique, Automatique, VO française
       
+      -- Traduction française (Google Sheets sync)
+      traduction_fr_disponible BOOLEAN DEFAULT 0,
+      version_traduite TEXT,
+      traducteur TEXT,
+      f95_trad_id INTEGER,
+      statut_trad_fr TEXT, -- TERMINÉ, EN COURS
+      type_trad_fr TEXT, -- MOD, PATCH, STANDALONE
+      derniere_sync_trad DATETIME,
+      
       -- Contrôle de version
       version_disponible TEXT, -- Version détectée via API
       maj_disponible BOOLEAN DEFAULT 0,
@@ -471,6 +480,36 @@ function initDatabase(dbPath) {
     if (!columnNames.includes('type_traduction')) {
       db.exec('ALTER TABLE avn_games ADD COLUMN type_traduction TEXT');
       console.log('✅ Colonne type_traduction ajoutée');
+    }
+    
+    // Migration : Traduction française (Google Sheets sync)
+    if (!columnNames.includes('traduction_fr_disponible')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN traduction_fr_disponible BOOLEAN DEFAULT 0');
+      console.log('✅ Colonne traduction_fr_disponible ajoutée');
+    }
+    if (!columnNames.includes('version_traduite')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN version_traduite TEXT');
+      console.log('✅ Colonne version_traduite ajoutée');
+    }
+    if (!columnNames.includes('traducteur')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN traducteur TEXT');
+      console.log('✅ Colonne traducteur ajoutée');
+    }
+    if (!columnNames.includes('f95_trad_id')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN f95_trad_id INTEGER');
+      console.log('✅ Colonne f95_trad_id ajoutée');
+    }
+    if (!columnNames.includes('statut_trad_fr')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN statut_trad_fr TEXT');
+      console.log('✅ Colonne statut_trad_fr ajoutée');
+    }
+    if (!columnNames.includes('type_trad_fr')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN type_trad_fr TEXT');
+      console.log('✅ Colonne type_trad_fr ajoutée');
+    }
+    if (!columnNames.includes('derniere_sync_trad')) {
+      db.exec('ALTER TABLE avn_games ADD COLUMN derniere_sync_trad DATETIME');
+      console.log('✅ Colonne derniere_sync_trad ajoutée');
     }
   } catch (error) {
     console.log('ℹ️ Migration traduction AVN déjà appliquée ou erreur:', error.message);
