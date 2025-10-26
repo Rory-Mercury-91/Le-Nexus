@@ -169,7 +169,7 @@ async function syncTraductions(db, traducteurs, sheetUrl) {
     
     // Récupérer tous les jeux AVN
     const avnGames = db.prepare(`
-      SELECT id, f95zone_url, titre
+      SELECT id, lien_f95, titre
       FROM avn_games
     `).all();
     
@@ -200,7 +200,7 @@ async function syncTraductions(db, traducteurs, sheetUrl) {
       
       // Chercher le jeu correspondant par ID F95Zone
       const game = avnGames.find(g => {
-        const gameId = extractF95Id(g.f95zone_url);
+        const gameId = extractF95Id(g.lien_f95);
         return gameId === trad.id;
       });
       
