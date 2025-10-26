@@ -1,5 +1,7 @@
 import { CheckCircle, Clock, Download, FolderOpen, RefreshCw, Save, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useConfirm } from '../../../hooks/useConfirm';
+import { useToast } from '../../../hooks/useToast';
 
 interface DatabaseSettingsProps {
   baseDirectory: string;
@@ -24,6 +26,9 @@ export default function DatabaseSettings({
   onExport,
   onImport,
 }: DatabaseSettingsProps) {
+  const { confirm } = useConfirm();
+  const { showToast, ToastContainer } = useToast();
+  
   // États pour le backup automatique
   const [backupConfig, setBackupConfig] = useState({
     enabled: false,
@@ -104,28 +109,57 @@ export default function DatabaseSettings({
   };
 
   const handleRestoreBackup = async (backupPath: string) => {
-    if (!confirm('⚠️ Cette action va remplacer votre base de données actuelle. L\'application redémarrera automatiquement. Continuer ?')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Restaurer ce backup ?',
+      message: '⚠️ Cette action va remplacer votre base de données actuelle. L\'application redémarrera automatiquement après la restauration.',
+      confirmText: 'Restaurer',
+      cancelText: 'Annuler',
+      isDanger: true
+    });
+
+    if (!confirmed) return;
 
     try {
       const result = await window.electronAPI.restoreBackup(backupPath);
       if (result.success) {
-        alert(result.message || 'Backup restauré ! L\'application va redémarrer...');
-        // Redémarrer l'app
-        window.location.reload();
+        showToast({
+          title: 'Backup restauré !',
+          message: 'L\'application va redémarrer...',
+          type: 'success',
+          duration: 2000
+        });
+        // Redémarrer l'app après 2 secondes
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       } else {
-        alert(`Erreur : ${result.error}`);
+        showToast({
+          title: 'Erreur de restauration',
+          message: result.error || 'Une erreur est survenue',
+          type: 'error',
+          duration: 5000
+        });
       }
     } catch (error: any) {
-      alert(`Erreur : ${error.message}`);
+      showToast({
+        title: 'Erreur de restauration',
+        message: error.message || 'Une erreur est survenue',
+        type: 'error',
+        duration: 5000
+      });
     }
   };
 
   const handleDeleteBackup = async (backupPath: string, backupName: string) => {
-    if (!confirm(`Supprimer le backup "${backupName}" ?`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Supprimer ce backup ?',
+      message: `Voulez-vous vraiment supprimer "${backupName}" ? Cette action est irréversible.`,
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDanger: true
+    });
+
+    if (!confirmed) return;
 
     try {
       const result = await window.electronAPI.deleteBackup(backupPath);
@@ -159,8 +193,10 @@ export default function DatabaseSettings({
   };
 
   return (
-    <div style={{ marginBottom: '30px' }}>
-      <div className="settings-section">
+    <>
+      <ToastContainer />
+      <div style={{ marginBottom: '30px' }}>
+        <div className="settings-section">
         <div className="settings-header">
           <h2 className="settings-title">
             💾 Emplacement de la base
@@ -452,6 +488,7 @@ export default function DatabaseSettings({
         </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
