@@ -565,10 +565,8 @@ export default function AvnDetail() {
 
                   {/* Bouton téléchargement */}
                   {game.lien_traduction && (
-                    <a
-                      href={game.lien_traduction}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => window.open(game.lien_traduction, '_blank')}
                       className="btn btn-primary"
                       style={{
                         width: '100%',
@@ -576,14 +574,13 @@ export default function AvnDetail() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
-                        textDecoration: 'none',
                         fontSize: '13px',
                         padding: '10px'
                       }}
                     >
                       <Download size={16} />
                       Télécharger la traduction
-                    </a>
+                    </button>
                   )}
                 </div>
               )}
@@ -639,35 +636,31 @@ export default function AvnDetail() {
                 )}
 
                 {game.lien_traduction && (
-                  <a
-                    href={game.lien_traduction}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => window.open(game.lien_traduction, '_blank')}
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', width: '100%' }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Languages size={16} />
                       Traduction française
                     </span>
                     <ExternalLink size={14} />
-                  </a>
+                  </button>
                 )}
 
                 {game.lien_jeu && (
-                  <a
-                    href={game.lien_jeu}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => window.open(game.lien_jeu, '_blank')}
                     className="btn btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', width: '100%' }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Download size={16} />
                       Télécharger le jeu
                     </span>
                     <ExternalLink size={14} />
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
