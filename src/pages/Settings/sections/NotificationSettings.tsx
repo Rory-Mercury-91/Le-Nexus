@@ -16,10 +16,25 @@ export default function NotificationSettings() {
   
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
     loadConfig();
   }, []);
+
+  // Sauvegarder automatiquement quand la config change (après le chargement initial)
+  useEffect(() => {
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      handleSaveConfig();
+    }, 1000); // Debounce de 1 seconde
+
+    return () => clearTimeout(timeoutId);
+  }, [config]);
 
   const loadConfig = async () => {
     try {
@@ -30,17 +45,19 @@ export default function NotificationSettings() {
     }
   };
 
-  const handleSaveConfig = async () => {
+  const handleSaveConfig = async (silent = true) => {
     try {
       setLoading(true);
       const result = await window.electronAPI.saveNotificationConfig(config);
       
       if (result.success) {
-        showToast({
-          title: 'Configuration sauvegardée',
-          description: 'Les notifications ont été configurées avec succès',
-          type: 'success'
-        });
+        if (!silent) {
+          showToast({
+            title: 'Configuration sauvegardée',
+            description: 'Les notifications ont été configurées avec succès',
+            type: 'success'
+          });
+        }
       } else {
         showToast({
           title: 'Erreur',

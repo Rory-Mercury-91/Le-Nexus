@@ -43,12 +43,27 @@ export default function DatabaseSettings({
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Charger la configuration au montage
   useEffect(() => {
     loadBackupConfig();
     loadBackupsList();
   }, []);
+
+  // Sauvegarder automatiquement quand la config change (après le chargement initial)
+  useEffect(() => {
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      handleSaveBackupConfig();
+    }, 1000); // Debounce de 1 seconde
+
+    return () => clearTimeout(timeoutId);
+  }, [backupConfig]);
 
   const loadBackupConfig = async () => {
     try {
@@ -73,13 +88,17 @@ export default function DatabaseSettings({
     }
   };
 
-  const handleSaveBackupConfig = async () => {
+  const handleSaveBackupConfig = async (silent = true) => {
     try {
       setSavingConfig(true);
       const result = await window.electronAPI.saveBackupConfig(backupConfig);
-      if (result.success) {
+      if (result.success && !silent) {
         setBackupMessage({ type: 'success', text: 'Configuration sauvegardée !' });
         setTimeout(() => setBackupMessage(null), 3000);
+      }
+      if (!result.success) {
+        setBackupMessage({ type: 'error', text: result.error || 'Erreur lors de la sauvegarde' });
+        setTimeout(() => setBackupMessage(null), 5000);
       }
     } catch (error: any) {
       setBackupMessage({ type: 'error', text: error.message || 'Erreur lors de la sauvegarde' });
@@ -411,7 +430,7 @@ export default function DatabaseSettings({
                 </div>
 
                 <button
-                  onClick={handleSaveBackupConfig}
+                  onClick={() => handleSaveBackupConfig(false)}
                   className="btn btn-primary"
                   disabled={savingConfig}
                   style={{ width: 'fit-content' }}

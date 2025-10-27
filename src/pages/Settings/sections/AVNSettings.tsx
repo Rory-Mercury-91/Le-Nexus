@@ -18,131 +18,26 @@ export default function AVNSettings() {
   });
   const [syncing, setSyncing] = useState(false);
   const [newTraducteur, setNewTraducteur] = useState('');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Charger la config des traductions au chargement
   useEffect(() => {
     loadTradConfig();
   }, []);
 
-  const checkLewdCornerSession = async () => {
-    try {
-      const result = await window.electronAPI.lewdCornerCheckSession();
-      setLewdCornerConnected(result.connected);
-    } catch (error) {
-      console.error('Erreur check session LewdCorner:', error);
-    } finally {
-      setCheckingLewdCorner(false);
+  // Sauvegarder automatiquement quand la config change (après le chargement initial)
+  useEffect(() => {
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      return;
     }
-  };
 
-  const checkF95ZoneSession = async () => {
-    try {
-      const result = await window.electronAPI.f95zoneCheckSession();
-      setF95zoneConnected(result.connected);
-    } catch (error) {
-      console.error('Erreur check session F95Zone:', error);
-    } finally {
-      setCheckingF95zone(false);
-    }
-  };
+    const timeoutId = setTimeout(() => {
+      handleSaveTradConfig();
+    }, 1000); // Debounce de 1 seconde
 
-  const handleLewdCornerConnect = async () => {
-    setConnectingLewdCorner(true);
-    setPlatformMessage(null);
-    
-    try {
-      const result = await window.electronAPI.lewdCornerConnect();
-      if (result.success) {
-        setLewdCornerConnected(true);
-        setPlatformMessage({ 
-          type: 'success', 
-          text: 'Connexion à LewdCorner réussie ! Les images s\'afficheront maintenant.' 
-        });
-        setTimeout(() => setPlatformMessage(null), 5000);
-      }
-    } catch (error: any) {
-      console.error('Erreur connexion LewdCorner:', error);
-      setPlatformMessage({ 
-        type: 'error', 
-        text: `LewdCorner: ${error.message || 'Erreur lors de la connexion'}` 
-      });
-      setTimeout(() => setPlatformMessage(null), 5000);
-    } finally {
-      setConnectingLewdCorner(false);
-    }
-  };
-
-  const handleLewdCornerDisconnect = async () => {
-    setPlatformMessage(null);
-    
-    try {
-      const result = await window.electronAPI.lewdCornerDisconnect();
-      if (result.success) {
-        setLewdCornerConnected(false);
-        setPlatformMessage({ 
-          type: 'success', 
-          text: 'Déconnexion de LewdCorner réussie' 
-        });
-        setTimeout(() => setPlatformMessage(null), 5000);
-      }
-    } catch (error: any) {
-      console.error('Erreur déconnexion LewdCorner:', error);
-      setPlatformMessage({ 
-        type: 'error', 
-        text: 'Erreur lors de la déconnexion de LewdCorner' 
-      });
-      setTimeout(() => setPlatformMessage(null), 5000);
-    }
-  };
-
-  const handleF95ZoneConnect = async () => {
-    setConnectingF95zone(true);
-    setPlatformMessage(null);
-    
-    try {
-      const result = await window.electronAPI.f95zoneConnect();
-      if (result.success) {
-        setF95zoneConnected(true);
-        setPlatformMessage({ 
-          type: 'success', 
-          text: 'Connexion à F95Zone réussie ! Vous pouvez maintenant accéder aux données membres.' 
-        });
-        setTimeout(() => setPlatformMessage(null), 5000);
-      }
-    } catch (error: any) {
-      console.error('Erreur connexion F95Zone:', error);
-      setPlatformMessage({ 
-        type: 'error', 
-        text: `F95Zone: ${error.message || 'Erreur lors de la connexion'}` 
-      });
-      setTimeout(() => setPlatformMessage(null), 5000);
-    } finally {
-      setConnectingF95zone(false);
-    }
-  };
-
-  const handleF95ZoneDisconnect = async () => {
-    setPlatformMessage(null);
-    
-    try {
-      const result = await window.electronAPI.f95zoneDisconnect();
-      if (result.success) {
-        setF95zoneConnected(false);
-        setPlatformMessage({ 
-          type: 'success', 
-          text: 'Déconnexion de F95Zone réussie' 
-        });
-        setTimeout(() => setPlatformMessage(null), 5000);
-      }
-    } catch (error: any) {
-      console.error('Erreur déconnexion F95Zone:', error);
-      setPlatformMessage({ 
-        type: 'error', 
-        text: 'Erreur lors de la déconnexion de F95Zone' 
-      });
-      setTimeout(() => setPlatformMessage(null), 5000);
-    }
-  };
+    return () => clearTimeout(timeoutId);
+  }, [tradConfig.enabled, tradConfig.syncFrequency, tradConfig.traducteurs]);
 
   const handleCheckUpdates = async () => {
     setChecking(true);
@@ -185,27 +80,28 @@ export default function AVNSettings() {
     }
   };
 
-  const handleSaveTradConfig = async () => {
+  const handleSaveTradConfig = async (silent = true) => {
     try {
       const result = await window.electronAPI.saveTraductionConfig(tradConfig);
       if (result.success) {
-        showToast({
-          title: 'Configuration sauvegardée',
-          description: 'La configuration des traductions a été mise à jour',
-          type: 'success'
-        });
+        if (!silent) {
+          showToast({
+            type: 'success',
+            title: 'Configuration sauvegardée'
+          });
+        }
       } else {
         showToast({
+          type: 'error',
           title: 'Erreur',
-          description: result.error || 'Erreur lors de la sauvegarde',
-          type: 'error'
+          message: result.error || 'Erreur lors de la sauvegarde'
         });
       }
     } catch (error: any) {
       showToast({
+        type: 'error',
         title: 'Erreur',
-        description: error.message,
-        type: 'error'
+        message: error.message
       });
     }
   };
@@ -740,7 +636,7 @@ export default function AVNSettings() {
         {/* Boutons d'action */}
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={handleSaveTradConfig}
+            onClick={() => handleSaveTradConfig(false)}
             className="btn btn-primary"
             style={{
               flex: 1,
