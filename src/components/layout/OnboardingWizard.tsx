@@ -640,7 +640,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
-                    🎮 AVN (Adult Visual Novels)
+                    🎮 AVN
                   </div>
                   <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                     Afficher les nouveautés, suivis et recommandations d'AVN

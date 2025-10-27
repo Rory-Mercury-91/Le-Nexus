@@ -95,21 +95,73 @@
 
 #### 📋 À faire
 
-- [ ] **Visualiseur images plein écran** :
-  - [ ] Lightbox modal avec fond semi-transparent
-  - [ ] Navigation clavier (Échap, flèches)
-  - [ ] Zoom et pan pour grandes images
-  - [ ] Applicable sur toutes pages (Collection, Détails, Dashboard)
+- [ ] **📸 Lightbox images plein écran** :
+  - [ ] Clic sur couverture → affichage agrandi modal
+  - [ ] Fond semi-transparent overlay
+  - [ ] Navigation clavier : Échap (fermer), Flèches (naviguer entre images)
+  - [ ] Zoom et pan pour images haute résolution
+  - [ ] Applicable sur : Collections (Mangas/Animes/AVN), Pages détails, Dashboard
+  - [ ] Prévisualisation miniatures (si plusieurs images)
+- [ ] **🔄 Synchronisation bidirectionnelle MyAnimeList** :
+  - [ ] Envoyer modifications locales vers MAL (statut, score, progression)
+  - [ ] Détection conflits (local vs distant)
+  - [ ] Résolution manuelle avec preview changements
+  - [ ] Sync manuelle (bouton) ou automatique (scheduler)
+  - [ ] Logs sync détaillés (succès/échecs)
+- [ ] **📊 Tri par coût dans collections Mangas** :
+  - [ ] Option tri : "💰 Coût total (croissant/décroissant)"
+  - [ ] Calcul automatique somme tous les tomes
+  - [ ] Affichage coût total sur card série (optionnel)
+- [ ] **📦 Import/Export CSV complet** :
+  - [ ] Import CSV Mangas : tous champs (titre, auteur, tomes, coûts, etc.)
+  - [ ] Export CSV Mangas : format personnalisable
+  - [ ] Import CSV Animes : MAL ID + champs personnalisés
+  - [ ] Export CSV Animes : liste complète avec métadonnées
+  - [ ] Import CSV AVN : F95/LC ID + infos personnalisées
+  - [ ] Export CSV AVN : collection complète
+  - [ ] Interface unifiée dans section "Import/Export BDD" (Paramètres > DatabaseSettings)
+  - [ ] Template CSV téléchargeable pour chaque type
+- [ ] **🆕 Badge "Nouveau" pour ajouts récents** :
+  - [ ] Badge orange "🆕 Nouveau" sur cards (< 7 jours depuis création)
+  - [ ] Calcul automatique depuis champ `created_at`
+  - [ ] Applicable Mangas, Animes, AVN
+  - [ ] Désactivable dans Paramètres Apparence
+- [ ] **📚 Type de tome personnalisé** :
+  - [ ] Ajout champ `type_tome` dans table `tomes`
+  - [ ] Valeurs : Standard, Collector, Deluxe, Intégrale, Coffret, Numérique, etc.
+  - [ ] Dropdown dans modal Ajout/Edit tome
+  - [ ] Affichage badge type sur liste tomes (page détail série)
+  - [ ] Filtrage/tri par type tome (optionnel)
+- [ ] **🔔 Enrichissement notifications desktop** :
+  - [ ] Actions rapides : "Marquer comme vu", "Ouvrir lien", "Ignorer"
+  - [ ] Groupement intelligent : "5 nouveaux épisodes" au lieu de 5 notifs
+  - [ ] Personnalisation sons : choix fichier audio ou muet
+  - [ ] Preview image couverture dans notification
+  - [ ] Historique notifications (liste consultable)
+- [ ] **📄 Export rapport HTML collection** :
+  - [ ] Génération HTML statique collection complète
+  - [ ] Inclut couvertures, métadonnées, statistiques
+  - [ ] Design responsive et imprimable
+  - [ ] Export par type (Mangas seuls, Animes seuls, Tout)
+  - [ ] Bouton dans Paramètres > DatabaseSettings
+  - [ ] Ouverture automatique navigateur après export
 - [ ] **Import automatique depuis trackers anime** :
   - [ ] ADKami : Améliorer détection nombre réel épisodes
   - [ ] Crunchyroll : Optimiser détection multi-saisons
 - [ ] **Support Kitsu API** : Source alternative métadonnées
-- [ ] **Prévisions de coût** : Estimation pour séries en cours
 - [ ] **Import JSON AVN amélioré** :
   - [ ] Support batch (plusieurs jeux à la fois)
   - [ ] Pré-visualisation avant import
 - [ ] **Scraping LewdCorner direct** : Support extraction depuis pages LC (actuellement F95 uniquement)
-- [ ] **Téléchargement images LewdCorner** : Contournement protection anti-scraping 403 Forbidden
+
+#### ❌ Fonctionnalités refusées (ne plus proposer)
+
+- ❌ **Filtres avancés supplémentaires Mangas/Animes** : Filtres actuels suffisants (type, statut, tags, masquées)
+- ❌ **Statistiques étendues** : Temps moyen lecture, coût moyen, prédictions budget (non pertinent)
+- ❌ **Téléchargement images LewdCorner** : Trop complexe (403 Forbidden), ajout manuel par utilisateur
+- ❌ **Badges multiples enrichis** : Uniquement badge "🆕 Nouveau" accepté (pas "Populaire", "Coûteux", "En hausse")
+- ❌ **Gestion éditions multiples** : Une série = une édition, type tome personnalisable suffit
+- ❌ **Prévisions de coût** : Estimation séries en cours (non utile)
 
 ---
 
@@ -127,11 +179,7 @@
 
 #### 📋 À faire
 
-- [ ] **Gestion éditions manga** : Variantes (Collector, Deluxe, Intégrale)
-- [ ] **Lien vers plateformes** : Ouvrir Crunchyroll/Netflix directement
-- [ ] **Import CSV** : Format personnalisé pour mangas
-- [ ] **Synchronisation bidirectionnelle** : MAL/AniList → App + App → MAL/AniList
-- [ ] **Notifications desktop** : Nouveaux épisodes, MAJ AVN, sync MAL terminée
+- [ ] **⚙️ Paramètres avancés d'import** : ✅ Déjà implémentés (vérifier documentation)
 
 ---
 

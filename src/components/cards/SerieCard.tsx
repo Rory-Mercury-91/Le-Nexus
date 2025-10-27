@@ -122,6 +122,15 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     }
   };
 
+  // Vérifier si la série est nouvelle (< 7 jours)
+  const isNew = () => {
+    if (!serie.created_at) return false;
+    const createdDate = new Date(serie.created_at);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff < 7;
+  };
+
   // Mode images uniquement : afficher seulement la couverture avec bannières et badge favori
   if (imageOnly) {
     return (
@@ -166,6 +175,29 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </div>
         )}
         
+        {/* Badge "Nouveau" */}
+        {isNew() && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #f97316, #fb923c)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.5)',
+            zIndex: 2,
+            letterSpacing: '0.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            🆕 Nouveau
+          </span>
+        )}
+
         {/* Badge source de données */}
         {serie.source_donnees && (
           <span style={{
@@ -494,6 +526,29 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           </div>
         )}
         
+        {/* Badge "Nouveau" */}
+        {isNew() && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #f97316, #fb923c)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.5)',
+            zIndex: 2,
+            letterSpacing: '0.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            🆕 Nouveau
+          </span>
+        )}
+
         {/* Badge source de données */}
         {serie.source_donnees && (
           <span style={{

@@ -61,6 +61,7 @@ function initDatabase(dbPath) {
       date_sortie DATE,
       date_achat DATE,
       couverture_url TEXT,
+      type_tome TEXT DEFAULT 'Standard',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE
     );

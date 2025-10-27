@@ -491,6 +491,37 @@ export default function AVN() {
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
+                {/* Badge "Nouveau" */}
+                {(() => {
+                  if (!game.created_at) return null;
+                  const createdDate = new Date(game.created_at);
+                  const now = new Date();
+                  const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (daysDiff >= 7) return null;
+                  
+                  return (
+                    <span style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      background: 'linear-gradient(135deg, #f97316, #fb923c)',
+                      color: 'white',
+                      boxShadow: '0 2px 8px rgba(249, 115, 22, 0.5)',
+                      zIndex: 2,
+                      letterSpacing: '0.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      🆕 Nouveau
+                    </span>
+                  );
+                })()}
+
                 {/* Badge MAJ disponible */}
                 {game.maj_disponible && (
                   <div style={{

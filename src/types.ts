@@ -57,6 +57,7 @@ export interface Tome {
   date_sortie?: string | null;
   date_achat?: string | null;
   couverture_url?: string | null;
+  type_tome?: 'Standard' | 'Collector' | 'Deluxe' | 'Intégrale' | 'Coffret' | 'Numérique' | 'Autre';
   created_at?: string;
   lu?: number; // 0 = non lu, 1 = lu
   date_lecture?: string | null;

@@ -18,6 +18,15 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
   const cardHeight = imageOnly ? '300px' : (presentationMode ? '560px' : '420px');
   const coverHeight = imageOnly ? '300px' : (presentationMode ? '420px' : '280px');
 
+  // Vérifier si l'anime est nouveau (< 7 jours)
+  const isNew = () => {
+    if (!anime.created_at) return false;
+    const createdDate = new Date(anime.created_at);
+    const now = new Date();
+    const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff < 7;
+  };
+
   // Mode images uniquement : afficher seulement la couverture avec bannières et badge favori
   if (imageOnly) {
     return (
@@ -59,6 +68,29 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
           }}>
             <Tv size={48} />
           </div>
+        )}
+
+        {/* Badge "Nouveau" */}
+        {isNew() && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #f97316, #fb923c)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.5)',
+            zIndex: 2,
+            letterSpacing: '0.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            🆕 Nouveau
+          </span>
         )}
 
         {/* Bannières diagonales pour les statuts En cours / Terminé / Abandonné */}
@@ -261,6 +293,29 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
           }}>
             <Tv size={48} style={{ color: 'var(--text-secondary)', opacity: 0.3 }} />
           </div>
+        )}
+
+        {/* Badge "Nouveau" */}
+        {isNew() && (
+          <span style={{
+            position: 'absolute',
+            top: '8px',
+            left: '8px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: '700',
+            background: 'linear-gradient(135deg, #f97316, #fb923c)',
+            color: 'white',
+            boxShadow: '0 2px 8px rgba(249, 115, 22, 0.5)',
+            zIndex: 2,
+            letterSpacing: '0.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            🆕 Nouveau
+          </span>
         )}
 
         {/* Bannières diagonales pour les statuts En cours / Terminé / Abandonné */}

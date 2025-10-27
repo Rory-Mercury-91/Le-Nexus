@@ -19,6 +19,7 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
   const [dateSortie, setDateSortie] = useState(tome.date_sortie || '');
   const [dateAchat, setDateAchat] = useState(tome.date_achat || '');
   const [couvertureUrl, setCouvertureUrl] = useState(tome.couverture_url || '');
+  const [typeTome, setTypeTome] = useState<string>(tome.type_tome || 'Standard');
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -109,7 +110,8 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
         proprietaireIds,
         date_sortie: dateSortie || null,
         date_achat: dateAchat || null,
-        couverture_url: couvertureUrl || null
+        couverture_url: couvertureUrl || null,
+        type_tome: typeTome || 'Standard'
       });
       
       console.log('Tome mis à jour avec couverture:', couvertureUrl);
@@ -277,6 +279,26 @@ export default function EditTomeModal({ tome, serieTitre, onClose, onSuccess }: 
                     required
                   />
                 </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Type de tome
+                </label>
+                <select
+                  value={typeTome}
+                  onChange={(e) => setTypeTome(e.target.value)}
+                  className="input"
+                  style={{ width: '100%' }}
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Collector">Collector</option>
+                  <option value="Deluxe">Deluxe</option>
+                  <option value="Intégrale">Intégrale</option>
+                  <option value="Coffret">Coffret</option>
+                  <option value="Numérique">Numérique</option>
+                  <option value="Autre">Autre</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: '16px' }}>

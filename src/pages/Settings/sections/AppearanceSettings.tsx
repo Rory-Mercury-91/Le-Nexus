@@ -268,7 +268,7 @@ export default function AppearanceSettings({
               />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '2px' }}>
-                  🎮 AVN (Adult Visual Novels)
+                  🎮 AVN
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   Afficher dans la navigation et sur l'accueil

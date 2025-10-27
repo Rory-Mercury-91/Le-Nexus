@@ -20,6 +20,7 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
   const [dateSortie, setDateSortie] = useState('');
   const [dateAchat, setDateAchat] = useState('');
   const [couvertureUrl, setCouvertureUrl] = useState('');
+  const [typeTome, setTypeTome] = useState<string>('Standard');
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -58,6 +59,7 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
       setDateSortie(''); // Ne pas reprendre la date de sortie
       setDateAchat(lastTome.date_achat || ''); // Garder la même date d'achat
       setCouvertureUrl(''); // Ne pas reprendre la couverture
+      setTypeTome(lastTome.type_tome || 'Standard'); // Garder le même type
     }
   }, [lastTome]);
 
@@ -126,7 +128,8 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
         proprietaireIds,
         date_sortie: dateSortie || null,
         date_achat: dateAchat || null,
-        couverture_url: couvertureUrl || null
+        couverture_url: couvertureUrl || null,
+        type_tome: typeTome || 'Standard'
       });
       
       console.log('Tome créé avec ID:', tomeId, 'Couverture:', couvertureUrl);
@@ -322,6 +325,26 @@ export default function AddTomeModal({ serieId, serieTitre, lastTome, onClose, o
                     required
                   />
                 </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Type de tome
+                </label>
+                <select
+                  value={typeTome}
+                  onChange={(e) => setTypeTome(e.target.value)}
+                  className="input"
+                  style={{ width: '100%' }}
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Collector">Collector</option>
+                  <option value="Deluxe">Deluxe</option>
+                  <option value="Intégrale">Intégrale</option>
+                  <option value="Coffret">Coffret</option>
+                  <option value="Numérique">Numérique</option>
+                  <option value="Autre">Autre</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: '16px' }}>
