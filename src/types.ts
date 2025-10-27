@@ -433,7 +433,7 @@ declare global {
       // Synchronisation traductions
       getTraductionConfig: () => Promise<{ enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync: string | null; gamesCount: number }>;
       saveTraductionConfig: (config: { enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync?: string | null; gamesCount?: number }) => Promise<{ success: boolean; error?: string }>;
-      syncTraductionsNow: () => Promise<{ success: boolean; matched?: number; updated?: number; notFound?: number; total?: number; error?: string; message?: string }>;
+      syncTraductionsNow: () => Promise<{ success: boolean; matched?: number; updated?: number; created?: number; notFound?: number; total?: number; error?: string; message?: string }>;
       updateTraductionManually: (gameId: number, tradData: { disponible: boolean; versionTraduite?: string; lienTraduction?: string; statut?: string; typeTraduction?: string; traducteur?: string }) => Promise<{ success: boolean; error?: string }>;
       clearTraduction: (gameId: number) => Promise<{ success: boolean; error?: string }>;
       

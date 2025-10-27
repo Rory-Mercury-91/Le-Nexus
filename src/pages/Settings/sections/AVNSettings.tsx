@@ -110,7 +110,7 @@ export default function AVNSettings() {
     if (tradConfig.traducteurs.length === 0) {
       showToast({
         title: 'Aucun traducteur',
-        description: 'Veuillez ajouter au moins un traducteur à suivre',
+        message: 'Veuillez ajouter au moins un traducteur à suivre',
         type: 'error'
       });
       return;
@@ -154,7 +154,7 @@ export default function AVNSettings() {
     if (!newTraducteur.trim()) {
       showToast({
         title: 'Champ vide',
-        description: 'Veuillez entrer un nom de traducteur',
+        message: 'Veuillez entrer un nom de traducteur',
         type: 'error'
       });
       return;
@@ -163,7 +163,7 @@ export default function AVNSettings() {
     if (tradConfig.traducteurs.includes(newTraducteur.trim())) {
       showToast({
         title: 'Déjà ajouté',
-        description: 'Ce traducteur est déjà dans la liste',
+        message: 'Ce traducteur est déjà dans la liste',
         type: 'error'
       });
       return;
@@ -200,76 +200,6 @@ export default function AVNSettings() {
     const diffDays = Math.floor(diffHours / 24);
     return `Il y a ${diffDays}j`;
   };
-
-  const renderPlatformCard = (
-    platform: 'F95Zone' | 'LewdCorner',
-    connected: boolean,
-    checking: boolean,
-    connecting: boolean,
-    onConnect: () => void,
-    onDisconnect: () => void,
-    description: string
-  ) => (
-    <div style={{
-      padding: '16px',
-      background: 'var(--surface)',
-      borderRadius: '8px',
-      border: '1px solid var(--border)',
-      marginBottom: '16px'
-    }}>
-      <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {platform === 'F95Zone' ? '🎮' : '🌐'} {platform}
-      </h3>
-
-      {checking ? (
-        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
-          Vérification...
-        </div>
-      ) : (
-        <>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px',
-            padding: '12px',
-            background: connected ? 'rgba(16, 185, 129, 0.1)' : 'rgba(251, 146, 60, 0.1)',
-            borderRadius: '8px',
-            border: `1px solid ${connected ? '#10b981' : '#fb923c'}`
-          }}>
-            <span style={{ fontSize: '20px' }}>{connected ? '✅' : '⚠️'}</span>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: '600', color: connected ? '#10b981' : '#fb923c', marginBottom: '2px' }}>
-                {connected ? 'Connecté' : 'Non connecté'}
-              </p>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                {description}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={connected ? onDisconnect : onConnect}
-            disabled={connecting}
-            className={connected ? 'btn btn-outline' : 'btn btn-primary'}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              opacity: connecting ? 0.6 : 1,
-              fontSize: '13px',
-              padding: '10px'
-            }}
-          >
-            {connected ? <LogOut size={16} /> : <LogIn size={16} />}
-            {connecting ? 'Connexion...' : (connected ? 'Se déconnecter' : 'Se connecter')}
-          </button>
-        </>
-      )}
-    </div>
-  );
 
   return (
     <div style={{ marginBottom: '30px' }}>
