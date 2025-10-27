@@ -52,7 +52,8 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
       return;
     }
 
-    const result = await window.electronAPI.updateUser(editingUser.id, {
+    const result = await window.electronAPI.updateUser({
+      id: editingUser.id,
       name: newUserName.trim(),
       emoji: newUserEmoji,
       color: newUserColor,
@@ -83,25 +84,22 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
 
     const confirmed = await confirm({
       title: 'Supprimer l\'utilisateur',
-      message: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ? Toutes ses données seront réassignées à un autre utilisateur.',
+      message: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ? Toutes ses données seront supprimées.',
       confirmText: 'Supprimer',
       cancelText: 'Annuler',
       isDanger: true,
     });
 
     if (confirmed) {
-      const targetUserId = users.find(u => u.id !== userId)?.id;
-      if (targetUserId) {
-        const result = await window.electronAPI.deleteUserData(userId, targetUserId);
-        if (result.success) {
-          onUsersChange();
-        } else {
-          showToast({
-            title: 'Erreur',
-            message: result.error || 'Erreur lors de la suppression',
-            type: 'error',
-          });
-        }
+      const result = await window.electronAPI.deleteUser(userId);
+      if (result.success) {
+        onUsersChange();
+      } else {
+        showToast({
+          title: 'Erreur',
+          message: result.error || 'Erreur lors de la suppression',
+          type: 'error',
+        });
       }
     }
   };
