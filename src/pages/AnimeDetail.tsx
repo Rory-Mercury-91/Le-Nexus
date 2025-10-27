@@ -83,7 +83,7 @@ export default function AnimeDetail() {
     if (!newLink.platform || !newLink.url) {
       showToast({
         title: 'Erreur',
-        description: 'Veuillez remplir tous les champs',
+        message: 'Veuillez remplir tous les champs',
         type: 'error'
       });
       return;
@@ -94,7 +94,7 @@ export default function AnimeDetail() {
       if (result.success) {
         showToast({
           title: 'Lien ajouté',
-          description: `Le lien ${newLink.platform} a été ajouté`,
+          message: `Le lien ${newLink.platform} a été ajouté`,
           type: 'success'
         });
         setNewLink({ platform: '', url: '', language: 'fr' });
@@ -103,14 +103,14 @@ export default function AnimeDetail() {
       } else {
         showToast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'ajout',
+          message: result.error || 'Erreur lors de l\'ajout',
           type: 'error'
         });
       }
     } catch (error: any) {
       showToast({
         title: 'Erreur',
-        description: error.message,
+        message: error.message,
         type: 'error'
       });
     }
@@ -122,21 +122,21 @@ export default function AnimeDetail() {
       if (result.success) {
         showToast({
           title: 'Lien supprimé',
-          description: 'Le lien a été supprimé avec succès',
+          message: 'Le lien a été supprimé avec succès',
           type: 'success'
         });
         loadStreamingLinks(parseInt(id!), anime?.mal_id);
       } else {
         showToast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors de la suppression',
+          message: result.error || 'Erreur lors de la suppression',
           type: 'error'
         });
       }
     } catch (error: any) {
       showToast({
         title: 'Erreur',
-        description: error.message,
+        message: error.message,
         type: 'error'
       });
     }
@@ -207,7 +207,7 @@ export default function AnimeDetail() {
 
   return (
     <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto' }} className="fade-in">
-      <ToastContainer />
+      {ToastContainer}
       
       {/* Header avec bouton retour */}
       <button
@@ -339,7 +339,7 @@ export default function AnimeDetail() {
           {/* Lien MyAnimeList */}
           {anime.mal_url && (
             <button
-              onClick={() => window.electronAPI.openExternal(anime.mal_url)}
+              onClick={() => window.electronAPI.openExternal(anime.mal_url!)}
               className="btn btn-outline"
               style={{
                 width: '100%',
