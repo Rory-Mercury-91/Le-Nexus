@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import ImportingOverlay from './components/common/ImportingOverlay';
+import UserSelector from './components/common/UserSelector';
 import Layout from './components/layout/Layout';
 import OnboardingWizard from './components/layout/OnboardingWizard';
 import SplashScreen from './components/layout/SplashScreen';
-import UserSelector from './components/common/UserSelector';
 import AnimeDetail from './pages/AnimeDetail';
 import Animes from './pages/Animes';
 import AVN from './pages/AVN';

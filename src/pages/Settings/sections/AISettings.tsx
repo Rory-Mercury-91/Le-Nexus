@@ -81,10 +81,8 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
         📊 Limite gratuite : 14 400 traductions/jour (30/min)
       </p>
 
-      <a
-        href="https://console.groq.com"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        onClick={() => window.electronAPI.openExternal('https://console.groq.com')}
         style={{
           display: 'inline-block',
           fontSize: '13px',
@@ -94,7 +92,9 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
           background: 'rgba(99, 102, 241, 0.1)',
           borderRadius: '6px',
           fontWeight: '600',
-          transition: 'all 0.2s'
+          transition: 'all 0.2s',
+          border: 'none',
+          cursor: 'pointer'
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(99, 102, 241, 0.2)';
@@ -104,7 +104,7 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
         }}
       >
         🔗 Obtenir une clé API gratuite
-      </a>
+      </button>
 
       <details style={{ marginTop: '16px' }}>
         <summary style={{
@@ -128,7 +128,7 @@ export default function AISettings({ groqApiKey, onGroqApiKeyChange }: AISetting
           lineHeight: '1.6'
         }}>
           <ol style={{ paddingLeft: '20px', margin: '0' }}>
-            <li>Allez sur <a href="https://console.groq.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>console.groq.com</a></li>
+            <li>Allez sur <button onClick={() => window.electronAPI.openExternal('https://console.groq.com')} style={{ background: 'none', border: 'none', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer', padding: '0', font: 'inherit' }}>console.groq.com</button></li>
             <li>Créez un compte gratuit (email + mot de passe)</li>
             <li>Vérifiez votre email si demandé</li>
             <li>Cliquez sur "API Keys" dans le menu</li>

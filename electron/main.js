@@ -348,6 +348,18 @@ app.whenReady().then(async () => {
   registerAvnHandlers(ipcMain, getDb, store, getPathManager);
   registerLewdCornerHandlers();
   registerF95ZoneHandlers();
+  
+  // Handler pour ouvrir liens externes dans navigateur par défaut
+  ipcMain.handle('open-external', async (event, url) => {
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur ouverture lien externe:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, () => {
     // Recharger le baseDirectory depuis le store
     const newBaseDirectory = store.get('baseDirectory');

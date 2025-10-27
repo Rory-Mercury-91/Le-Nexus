@@ -757,10 +757,8 @@ export default function SerieDetail() {
               </div>
 
               {/* Lien vers MAL */}
-              <a 
-                href={`https://myanimelist.net/manga/${serie.mal_id}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
+              <button 
+                onClick={() => window.electronAPI.openExternal(`https://myanimelist.net/manga/${serie.mal_id}`)}
                 style={{ 
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -773,7 +771,9 @@ export default function SerieDetail() {
                   borderRadius: '6px',
                   fontSize: '13px',
                   fontWeight: '600',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  border: 'none',
+                  cursor: 'pointer'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#1e3a8a';
@@ -786,7 +786,7 @@ export default function SerieDetail() {
               >
                 <span>🔗</span>
                 Voir sur MyAnimeList
-              </a>
+              </button>
             </div>
           )}
 

@@ -287,20 +287,21 @@ export default function AnimeDetail() {
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {liensStreaming.map((link: any, index: number) => (
-                  <a
+                  <button
                     key={index}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={() => window.electronAPI.openExternal(link.url)}
                     className="btn btn-outline"
                     style={{
                       justifyContent: 'space-between',
-                      fontSize: '13px'
+                      fontSize: '13px',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center'
                     }}
                   >
                     <span>{link.name}</span>
                     <ExternalLink size={14} />
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -315,20 +316,21 @@ export default function AnimeDetail() {
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {liensExternes.map((link: any, index: number) => (
-                  <a
+                  <button
                     key={index}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={() => window.electronAPI.openExternal(link.url)}
                     className="btn btn-outline"
                     style={{
                       justifyContent: 'space-between',
-                      fontSize: '13px'
+                      fontSize: '13px',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center'
                     }}
                   >
                     <span>📖 {link.name}</span>
                     <ExternalLink size={14} />
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -336,21 +338,21 @@ export default function AnimeDetail() {
 
           {/* Lien MyAnimeList */}
           {anime.mal_url && (
-            <a
-              href={anime.mal_url}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => window.electronAPI.openExternal(anime.mal_url)}
               className="btn btn-outline"
               style={{
                 width: '100%',
                 marginTop: '12px',
                 justifyContent: 'space-between',
-                fontSize: '13px'
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center'
               }}
             >
               <span>MyAnimeList</span>
               <ExternalLink size={14} />
-            </a>
+            </button>
           )}
         </div>}
 

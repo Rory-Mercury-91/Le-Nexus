@@ -566,7 +566,7 @@ export default function AvnDetail() {
                   {/* Bouton téléchargement */}
                   {game.lien_traduction && (
                     <button
-                      onClick={() => window.open(game.lien_traduction, '_blank')}
+                      onClick={() => window.electronAPI.openExternal(game.lien_traduction)}
                       className="btn btn-primary"
                       style={{
                         width: '100%',
@@ -637,7 +637,7 @@ export default function AvnDetail() {
 
                 {game.lien_traduction && (
                   <button
-                    onClick={() => window.open(game.lien_traduction, '_blank')}
+                    onClick={() => window.electronAPI.openExternal(game.lien_traduction)}
                     className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', width: '100%' }}
                   >
@@ -651,7 +651,7 @@ export default function AvnDetail() {
 
                 {game.lien_jeu && (
                   <button
-                    onClick={() => window.open(game.lien_jeu, '_blank')}
+                    onClick={() => window.electronAPI.openExternal(game.lien_jeu)}
                     className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', width: '100%' }}
                   >

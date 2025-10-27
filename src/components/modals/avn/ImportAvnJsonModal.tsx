@@ -90,18 +90,21 @@ export default function ImportAvnJsonModal({ onClose, onImport }: ImportAvnJsonM
           <p style={{ marginBottom: '8px' }}>
             Le script fonctionne avec <strong>Tampermonkey</strong>.
           </p>
-          <a
-            href="https://raw.githubusercontent.com/Hunteraulo1/f95list-extractor/refs/heads/main/dist/toolExtractor.user.js"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => window.electronAPI.openExternal('https://raw.githubusercontent.com/Hunteraulo1/f95list-extractor/refs/heads/main/dist/toolExtractor.user.js')}
             style={{
+              background: 'none',
+              border: 'none',
               color: 'var(--primary)',
               textDecoration: 'underline',
-              fontWeight: '600'
+              fontWeight: '600',
+              cursor: 'pointer',
+              padding: '0',
+              font: 'inherit'
             }}
           >
             📥 Installer le script
-          </a>
+          </button>
         </div>
 
         <p style={{ 
