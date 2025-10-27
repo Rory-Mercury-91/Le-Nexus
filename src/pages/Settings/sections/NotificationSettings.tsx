@@ -54,21 +54,21 @@ export default function NotificationSettings() {
         if (!silent) {
           showToast({
             title: 'Configuration sauvegardée',
-            description: 'Les notifications ont été configurées avec succès',
+            message: 'Les notifications ont été configurées avec succès',
             type: 'success'
           });
         }
       } else {
         showToast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors de la sauvegarde',
+          message: result.error || 'Erreur lors de la sauvegarde',
           type: 'error'
         });
       }
     } catch (error: any) {
       showToast({
         title: 'Erreur',
-        description: error.message,
+        message: error.message,
         type: 'error'
       });
     } finally {
@@ -84,20 +84,20 @@ export default function NotificationSettings() {
       if (result.success) {
         showToast({
           title: 'Vérification terminée',
-          description: `${result.count || 0} notification(s) envoyée(s)`,
+          message: `${result.count || 0} notification(s) envoyée(s)`,
           type: 'success'
         });
       } else {
         showToast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors de la vérification',
+          message: result.error || 'Erreur lors de la vérification',
           type: 'error'
         });
       }
     } catch (error: any) {
       showToast({
         title: 'Erreur',
-        description: error.message,
+        message: error.message,
         type: 'error'
       });
     } finally {
@@ -234,7 +234,7 @@ export default function NotificationSettings() {
             {/* Boutons d'action */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button
-                onClick={handleSaveConfig}
+                onClick={() => handleSaveConfig(false)}
                 className="btn btn-primary"
                 disabled={loading}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}

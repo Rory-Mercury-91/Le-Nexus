@@ -1,9 +1,7 @@
 import { LogIn, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useToast } from '../../../hooks/useToast';
 
 export default function PlatformConnectionsSettings() {
-  const { showToast } = useToast();
   const [platformMessage, setPlatformMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
   // États pour LewdCorner
@@ -66,14 +64,16 @@ export default function PlatformConnectionsSettings() {
       } else {
         setPlatformMessage({ 
           type: 'error', 
-          text: result.error || 'Erreur de connexion à LewdCorner' 
+          text: 'Erreur de connexion à LewdCorner' 
         });
+        setTimeout(() => setPlatformMessage(null), 5000);
       }
     } catch (error: any) {
       setPlatformMessage({ 
         type: 'error', 
         text: error.message || 'Erreur de connexion à LewdCorner' 
       });
+      setTimeout(() => setPlatformMessage(null), 5000);
     } finally {
       setConnectingLewdCorner(false);
     }
@@ -112,14 +112,16 @@ export default function PlatformConnectionsSettings() {
       } else {
         setPlatformMessage({ 
           type: 'error', 
-          text: result.error || 'Erreur de connexion à F95Zone' 
+          text: 'Erreur de connexion à F95Zone' 
         });
+        setTimeout(() => setPlatformMessage(null), 5000);
       }
     } catch (error: any) {
       setPlatformMessage({ 
         type: 'error', 
         text: error.message || 'Erreur de connexion à F95Zone' 
       });
+      setTimeout(() => setPlatformMessage(null), 5000);
     } finally {
       setConnectingF95zone(false);
     }
