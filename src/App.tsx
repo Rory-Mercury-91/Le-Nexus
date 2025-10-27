@@ -27,6 +27,11 @@ function App() {
   useEffect(() => {
     const checkUsers = async () => {
       try {
+        if (!window.electronAPI) {
+          console.warn('Electron API not ready yet');
+          setCheckingUsers(false);
+          return;
+        }
         const users = await window.electronAPI.getAllUsers();
         setNeedsOnboarding(users.length === 0);
       } catch (error) {
@@ -44,6 +49,10 @@ function App() {
   useEffect(() => {
     const loadTheme = async () => {
       try {
+        if (!window.electronAPI) {
+          console.warn('Electron API not ready yet');
+          return;
+        }
         const savedTheme = await window.electronAPI.getTheme();
         document.documentElement.setAttribute('data-theme', savedTheme || 'dark');
       } catch (error) {
@@ -56,6 +65,11 @@ function App() {
 
   // Écouter les événements d'import depuis les scripts Tampermonkey
   useEffect(() => {
+    if (!window.electronAPI) {
+      console.warn('Electron API not ready yet');
+      return;
+    }
+
     const unsubscribeStart = window.electronAPI.onMangaImportStart?.((data) => {
       setImportMessage(data.message || 'Réception de données en cours...');
       setIsImporting(true);
