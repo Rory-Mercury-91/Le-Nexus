@@ -1,4 +1,4 @@
-import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, MoreVertical, Tag } from 'lucide-react';
+import { Ban, BookMarked, BookOpen, CheckCircle2, Eye, EyeOff, Heart, MoreVertical } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useConfirm } from '../../hooks/useConfirm';

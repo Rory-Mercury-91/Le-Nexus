@@ -7,7 +7,7 @@ import AddSerieModal from '../components/modals/manga/AddSerieModal';
 import { LectureStatistics, Serie, SerieFilters } from '../types';
 
 type ViewMode = 'grid' | 'list' | 'images';
-type SortOption = 'title-asc' | 'title-desc' | 'date-desc' | 'date-asc';
+type SortOption = 'title-asc' | 'title-desc' | 'date-desc' | 'date-asc' | 'cost-desc' | 'cost-asc';
 
 export default function Collection() {
   const [series, setSeries] = useState<Serie[]>([]);
@@ -108,6 +108,18 @@ export default function Collection() {
           const dateB = new Date(b.created_at || 0).getTime();
           return dateA - dateB;
         });
+      case 'cost-desc':
+        return sorted.sort((a, b) => {
+          const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+          const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+          return costB - costA;
+        });
+      case 'cost-asc':
+        return sorted.sort((a, b) => {
+          const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+          const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+          return costA - costB;
+        });
       default:
         return sorted;
     }
@@ -188,6 +200,8 @@ export default function Collection() {
               <option value="title-desc">📖 Titre (Z → A)</option>
               <option value="date-desc">🆕 Ajout récent</option>
               <option value="date-asc">🕐 Ajout ancien</option>
+              <option value="cost-desc">💰 Coût total (décroissant)</option>
+              <option value="cost-asc">💰 Coût total (croissant)</option>
             </select>
             
             <select

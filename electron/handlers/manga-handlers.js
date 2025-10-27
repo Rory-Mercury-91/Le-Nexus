@@ -678,8 +678,8 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       }
       
       const stmt = db.prepare(`
-        INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, date_achat, couverture_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tomes (serie_id, numero, prix, proprietaire, date_sortie, date_achat, couverture_url, type_tome)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
         tome.serie_id,
@@ -688,7 +688,8 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
         null, // proprietaire maintenant NULL (géré dans tomes_proprietaires)
         tome.date_sortie || null,
         tome.date_achat || null,
-        finalCouvertureUrl
+        finalCouvertureUrl,
+        tome.type_tome || 'Standard'
       );
       
       const tomeId = result.lastInsertRowid;
@@ -780,6 +781,10 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store) {
       if (tome.couverture_url !== undefined) {
         fields.push('couverture_url = ?');
         values.push(tome.couverture_url || null);
+      }
+      if (tome.type_tome !== undefined) {
+        fields.push('type_tome = ?');
+        values.push(tome.type_tome || 'Standard');
       }
       
       // Ajouter l'ID à la fin pour le WHERE
