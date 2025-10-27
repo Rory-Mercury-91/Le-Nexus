@@ -493,6 +493,11 @@ export default function AVN() {
               >
                 {/* Badge "Nouveau" */}
                 {(() => {
+                  // Si un statut personnel est défini, ne pas afficher le badge "Nouveau"
+                  if (game.statut_perso && game.statut_perso !== 'À jouer') {
+                    return null;
+                  }
+                  
                   if (!game.created_at) return null;
                   const createdDate = new Date(game.created_at);
                   const now = new Date();
@@ -629,6 +634,28 @@ export default function AVN() {
                   <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px', lineHeight: '1.4' }}>
                     {game.titre}
                   </h3>
+                  
+                  {/* Badge source plateforme */}
+                  {game.plateforme && (
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        background: game.plateforme === 'F95Zone' ? 'linear-gradient(135deg, #ff6b35, #f7931e)' : 
+                                    game.plateforme === 'LewdCorner' ? 'linear-gradient(135deg, #ec4899, #a855f7)' : 
+                                    '#6b7280',
+                        color: 'white',
+                        display: 'inline-block',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {game.plateforme === 'F95Zone' && '🔞 F95Zone'}
+                        {game.plateforme === 'LewdCorner' && '💜 LewdCorner'}
+                        {!game.plateforme && '🎮 Autre'}
+                      </span>
+                    </div>
+                  )}
                   
                   <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                     📦 {game.version || 'N/A'}

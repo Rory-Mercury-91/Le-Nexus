@@ -18,8 +18,13 @@ export default function AnimeCard({ anime, onClick, onStatusChange, onToggleFavo
   const cardHeight = imageOnly ? '300px' : (presentationMode ? '560px' : '420px');
   const coverHeight = imageOnly ? '300px' : (presentationMode ? '420px' : '280px');
 
-  // Vérifier si l'anime est nouveau (< 7 jours)
+  // Vérifier si l'anime est nouveau (< 7 jours) ET sans statut de visionnage
   const isNew = () => {
+    // Si un statut de visionnage est défini, ne pas afficher le badge "Nouveau"
+    if (anime.statut_visionnage && anime.statut_visionnage !== 'À regarder') {
+      return false;
+    }
+    
     if (!anime.created_at) return false;
     const createdDate = new Date(anime.created_at);
     const now = new Date();

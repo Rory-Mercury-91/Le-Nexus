@@ -122,8 +122,13 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
     }
   };
 
-  // Vérifier si la série est nouvelle (< 7 jours)
+  // Vérifier si la série est nouvelle (< 7 jours) ET sans statut de lecture
   const isNew = () => {
+    // Si un tag de lecture est défini, ne pas afficher le badge "Nouveau"
+    if (serie.tag && ['a_lire', 'en_cours', 'lu', 'abandonne'].includes(serie.tag)) {
+      return false;
+    }
+    
     if (!serie.created_at) return false;
     const createdDate = new Date(serie.created_at);
     const now = new Date();
@@ -195,30 +200,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             gap: '4px'
           }}>
             🆕 Nouveau
-          </span>
-        )}
-
-        {/* Badge source de données */}
-        {serie.source_donnees && (
-          <span style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: '700',
-            background: serie.source_donnees === 'mal' ? '#2E51A2' : 
-                        serie.source_donnees === 'nautiljon' ? '#FF6B35' : 
-                        'linear-gradient(135deg, #2E51A2, #FF6B35)',
-            color: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            zIndex: 2,
-            letterSpacing: '0.5px'
-          }}>
-            {serie.source_donnees === 'mal' && '📊 MAL'}
-            {serie.source_donnees === 'nautiljon' && '🇫🇷 Nautiljon'}
-            {serie.source_donnees === 'mal+nautiljon' && '📊🇫🇷'}
           </span>
         )}
 
@@ -548,30 +529,6 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
             🆕 Nouveau
           </span>
         )}
-
-        {/* Badge source de données */}
-        {serie.source_donnees && (
-          <span style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: '700',
-            background: serie.source_donnees === 'mal' ? '#2E51A2' : 
-                        serie.source_donnees === 'nautiljon' ? '#FF6B35' : 
-                        'linear-gradient(135deg, #2E51A2, #FF6B35)',
-            color: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            zIndex: 2,
-            letterSpacing: '0.5px'
-          }}>
-            {serie.source_donnees === 'mal' && '📊 MAL'}
-            {serie.source_donnees === 'nautiljon' && '🇫🇷 Nautiljon'}
-            {serie.source_donnees === 'mal+nautiljon' && '📊🇫🇷'}
-          </span>
-        )}
         
         {/* Bannières diagonales pour les tags En cours / Lu / Abandonné */}
         {(() => {
@@ -835,7 +792,29 @@ export default function SerieCard({ serie, onUpdate, imageObjectFit = 'cover', p
           )}
         </div>
 
-        {/* Badge de statut de publication (Nautiljon) sous le titre */}
+        {/* Badge source de données sous le titre */}
+        {serie.source_donnees && (
+          <div style={{ marginBottom: '8px' }}>
+            <span style={{
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '10px',
+              fontWeight: '700',
+              background: serie.source_donnees === 'mal' ? '#2E51A2' : 
+                          serie.source_donnees === 'nautiljon' ? '#FF6B35' : 
+                          'linear-gradient(135deg, #2E51A2, #FF6B35)',
+              color: 'white',
+              display: 'inline-block',
+              letterSpacing: '0.5px'
+            }}>
+              {serie.source_donnees === 'mal' && '📊 MAL'}
+              {serie.source_donnees === 'nautiljon' && '🇫🇷 Nautiljon'}
+              {serie.source_donnees === 'mal+nautiljon' && '📊🇫🇷 Hybride'}
+            </span>
+          </div>
+        )}
+
+        {/* Badge de statut de publication (Nautiljon) sous le badge source */}
         <div style={{ marginBottom: '8px' }}>
           <span 
             className={`badge ${getStatutBadgeClass(serie.statut)}`}
