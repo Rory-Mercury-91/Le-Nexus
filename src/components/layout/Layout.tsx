@@ -1,14 +1,25 @@
-import { ChevronLeft, ChevronRight, LogOut, Minimize2, Search, Settings, User } from 'lucide-react';
+import { LogOut, Minimize2, Search, Settings, User } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useConfirm } from '../../hooks/useConfirm';
+import type { ContentPreferences } from '../../types';
+import { useConfirm } from '../../hooks/common/useConfirm';
 import GlobalSearch from '../common/GlobalSearch';
+import GradientTitle from '../common/GradientTitle';
 import SavingModal from '../modals/common/SavingModal';
+import { NavLink } from './components';
 
 interface LayoutProps {
   children: ReactNode;
   currentUser: string;
 }
+
+const defaultContentPrefs: ContentPreferences = {
+  showMangas: true,
+  showAnimes: true,
+  showMovies: true,
+  showSeries: true,
+  showAdulteGame: true
+};
 
 export default function Layout({ children, currentUser }: LayoutProps) {
   const location = useLocation();
@@ -16,8 +27,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [userColor, setUserColor] = useState('#6366f1');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [contentPrefs, setContentPrefs] = useState({ showMangas: true, showAnimes: true, showAvn: true });
+  const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   useEffect(() => {
@@ -25,10 +35,10 @@ export default function Layout({ children, currentUser }: LayoutProps) {
     loadContentPreferences();
     
     // Écouter les changements de préférences en temps réel
-    const unsubscribe = window.electronAPI.onContentPreferencesChanged((userName, preferences) => {
+    const unsubscribe = window.electronAPI.onContentPreferencesChanged((userName: string, preferences: Partial<ContentPreferences>) => {
       // Mettre à jour uniquement si c'est pour l'utilisateur actuel
       if (userName === currentUser) {
-        setContentPrefs(preferences);
+        setContentPrefs(prev => ({ ...defaultContentPrefs, ...prev, ...preferences }));
       }
     });
     
@@ -54,7 +64,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
     
     // Charger la couleur de l'utilisateur
     const users = await window.electronAPI.getAllUsers();
-    const user = users.find(u => u.name === currentUser);
+    const user = users.find((u: { name: string; color: string }) => u.name === currentUser);
     if (user) {
       setUserColor(user.color);
     }
@@ -63,9 +73,10 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   const loadContentPreferences = async () => {
     try {
       const prefs = await window.electronAPI.getContentPreferences(currentUser);
-      setContentPrefs(prefs);
+      setContentPrefs({ ...defaultContentPrefs, ...prefs });
     } catch (error) {
       console.error('Erreur chargement préférences de contenu:', error);
+      setContentPrefs({ ...defaultContentPrefs });
     }
   };
 
@@ -108,7 +119,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
         left: 0,
         top: 0,
         bottom: 0,
-        width: isCollapsed ? '80px' : '260px',
+        width: '260px',
         background: 'var(--surface)',
         borderRight: '1px solid var(--border)',
         padding: '24px 0',
@@ -116,64 +127,21 @@ export default function Layout({ children, currentUser }: LayoutProps) {
         flexDirection: 'column',
         overflowY: 'auto',
         overflowX: 'hidden',
-        zIndex: 100,
-        transition: 'width 0.3s ease'
+        zIndex: 100
       }}>
-        {/* Toggle button */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          style={{
-            position: 'absolute',
-            right: '-16px',
-            top: '24px',
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            border: '2px solid var(--surface)',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 101,
-            transition: 'all 0.3s ease',
-            boxShadow: '0 0 16px rgba(99, 102, 241, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1)';
-            e.currentTarget.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.8), 0 4px 16px rgba(0, 0, 0, 0.5)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 0 16px rgba(99, 102, 241, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)';
-          }}
-        >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
-
         <div style={{ 
           padding: '12px 24px', 
           marginBottom: '8px', 
-          visibility: isCollapsed ? 'hidden' : 'visible', 
           height: '56px',
           display: 'flex',
           alignItems: 'center'
         }}>
-          <h1 style={{
-            fontSize: '24px',
-            fontWeight: '700',
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            whiteSpace: 'nowrap'
-          }}>
-            Le Nexus
-          </h1>
+          <GradientTitle fontSize="24px" style={{ whiteSpace: 'nowrap' }}>
+            Nexus
+          </GradientTitle>
         </div>
 
-        {/* Bouton recherche globale */}
+          {/* Bouton recherche globale */}
         <button
           onClick={() => setShowGlobalSearch(true)}
           style={{
@@ -185,7 +153,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             color: 'var(--text-secondary)',
             cursor: 'pointer',
             fontSize: '14px',
-            display: isCollapsed ? 'none' : 'flex',
+            display: 'flex',
             alignItems: 'center',
             gap: '12px',
             transition: 'all 0.2s',
@@ -218,13 +186,13 @@ export default function Layout({ children, currentUser }: LayoutProps) {
 
         {/* Utilisateur connecté */}
         <div style={{
-          padding: isCollapsed ? '16px 12px' : '16px 24px',
+          padding: '16px 24px',
           marginBottom: '24px',
           background: 'var(--surface-light)',
           borderLeft: `4px solid ${userColor}`,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: isCollapsed ? 'center' : 'flex-start',
+          justifyContent: 'flex-start',
           minHeight: '80px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -268,138 +236,50 @@ export default function Layout({ children, currentUser }: LayoutProps) {
               fontSize: '14px', 
               fontWeight: '600', 
               color: 'var(--text)', 
-              whiteSpace: 'nowrap',
-              opacity: isCollapsed ? 0 : 1,
-              width: isCollapsed ? '0' : 'auto',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s ease, width 0.2s ease'
+              whiteSpace: 'nowrap'
             }}>
               {currentUser}
             </span>
           </div>
         </div>
 
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', padding: isCollapsed ? '0 12px' : '0 16px' }}>
-          <Link
-            to="/"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: isActive('/') ? 'var(--primary)' : 'var(--text-secondary)',
-              background: isActive('/') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-              fontWeight: isActive('/') ? '600' : '400',
-              transition: 'all 0.2s',
-              minHeight: '44px'
-            }}
-            title={isCollapsed ? 'Tableau de bord' : ''}
-          >
-            <span style={{ fontSize: '20px', flexShrink: 0 }}>🏠</span>
-            <span style={{ 
-              whiteSpace: 'nowrap',
-              opacity: isCollapsed ? 0 : 1,
-              width: isCollapsed ? '0' : 'auto',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s ease, width 0.2s ease'
-            }}>Tableau de bord</span>
-          </Link>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 16px' }}>
+          <NavLink to="/" icon="🏠" isActive={isActive('/')}>
+            Tableau de bord
+          </NavLink>
 
           {contentPrefs.showMangas && (
-            <Link
-              to="/collection"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                gap: '12px',
-                padding: '12px',
-                borderRadius: '8px',
-                textDecoration: 'none',
-                color: isActive('/collection') ? 'var(--primary)' : 'var(--text-secondary)',
-                background: isActive('/collection') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                fontWeight: isActive('/collection') ? '600' : '400',
-                transition: 'all 0.2s',
-                minHeight: '44px'
-              }}
-              title={isCollapsed ? 'Mangas' : ''}
-            >
-              <span style={{ fontSize: '20px', flexShrink: 0 }}>📚</span>
-              <span style={{ 
-                whiteSpace: 'nowrap',
-                opacity: isCollapsed ? 0 : 1,
-                width: isCollapsed ? '0' : 'auto',
-                overflow: 'hidden',
-                transition: 'opacity 0.2s ease, width 0.2s ease'
-              }}>Mangas</span>
-            </Link>
+            <NavLink to="/collection" icon="📚" isActive={isActive('/collection')}>
+              Mangas
+            </NavLink>
           )}
 
           {contentPrefs.showAnimes && (
-            <Link
-              to="/animes"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: isActive('/animes') ? 'var(--primary)' : 'var(--text-secondary)',
-              background: isActive('/animes') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-              fontWeight: isActive('/animes') ? '600' : '400',
-              transition: 'all 0.2s',
-              minHeight: '44px'
-            }}
-            title={isCollapsed ? 'Animes' : ''}
-          >
-            <span style={{ fontSize: '20px', flexShrink: 0 }}>🎬</span>
-            <span style={{ 
-              whiteSpace: 'nowrap',
-              opacity: isCollapsed ? 0 : 1,
-              width: isCollapsed ? '0' : 'auto',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s ease, width 0.2s ease'
-            }}>Animes</span>
-            </Link>
+            <NavLink to="/animes" icon="🎬" isActive={isActive('/animes')}>
+              Animes
+            </NavLink>
           )}
 
-          {/* AVN (Adult Visual Novels) */}
-          {contentPrefs.showAvn && (
-            <Link
-              to="/avn"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              color: isActive('/avn') ? 'var(--primary)' : 'var(--text-secondary)',
-              background: isActive('/avn') ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-              fontWeight: isActive('/avn') ? '600' : '400',
-              transition: 'all 0.2s',
-              minHeight: '44px'
-            }}
-            title={isCollapsed ? 'AVN' : ''}
-          >
-            <span style={{ fontSize: '20px', flexShrink: 0 }}>🎮</span>
-            <span style={{ 
-              whiteSpace: 'nowrap',
-              opacity: isCollapsed ? 0 : 1,
-              width: isCollapsed ? '0' : 'auto',
-              overflow: 'hidden',
-              transition: 'opacity 0.2s ease, width 0.2s ease'
-            }}>AVN</span>
-            </Link>
+          {contentPrefs.showMovies && (
+            <NavLink to="/movies" icon="🎞️" isActive={isActive('/movies')}>
+              Films
+            </NavLink>
+          )}
+
+          {contentPrefs.showSeries && (
+            <NavLink to="/series" icon="📺" isActive={isActive('/series')}>
+              Séries
+            </NavLink>
+          )}
+
+          {contentPrefs.showAdulteGame && (
+            <NavLink to="/adulte-game" icon="🎮" isActive={isActive('/adulte-game')}>
+              Jeux adulte
+            </NavLink>
           )}
         </nav>
 
-        <div style={{ padding: isCollapsed ? '12px' : '16px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <Link
               to="/settings"
@@ -415,76 +295,59 @@ export default function Layout({ children, currentUser }: LayoutProps) {
                 fontWeight: isActive('/settings') ? '600' : '400',
                 border: '1px solid var(--border)',
                 transition: 'all 0.2s',
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
+                justifyContent: 'flex-start',
                 minHeight: '44px'
               }}
-              title={isCollapsed ? 'Paramètres' : ''}
             >
               <Settings size={18} style={{ flexShrink: 0 }} />
-              <span style={{ 
-                whiteSpace: 'nowrap',
-                opacity: isCollapsed ? 0 : 1,
-                width: isCollapsed ? '0' : 'auto',
-                overflow: 'hidden',
-                transition: 'opacity 0.2s ease, width 0.2s ease'
-              }}>Paramètres</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Paramètres</span>
             </Link>
             <button
               onClick={handleMinimize}
               className="btn"
               style={{ 
                 width: '100%', 
-                justifyContent: 'center', 
+                justifyContent: 'flex-start', 
                 marginTop: '8px',
                 background: 'linear-gradient(135deg, var(--secondary), #3b82f6)',
                 color: 'white',
                 border: 'none',
                 padding: '12px',
-                minHeight: '44px'
+                minHeight: '44px',
+                gap: '12px'
               }}
-              title={isCollapsed ? 'Minimiser' : ''}
             >
               <Minimize2 size={18} style={{ flexShrink: 0 }} />
-              <span style={{ 
-                whiteSpace: 'nowrap',
-                opacity: isCollapsed ? 0 : 1,
-                width: isCollapsed ? '0' : 'auto',
-                overflow: 'hidden',
-                transition: 'opacity 0.2s ease, width 0.2s ease'
-              }}>Minimiser</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Minimiser</span>
             </button>
             <button
               onClick={handleQuit}
               className="btn btn-danger"
               style={{ 
                 width: '100%', 
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 padding: '12px',
-                minHeight: '44px'
+                minHeight: '44px',
+                gap: '12px'
               }}
-              title={isCollapsed ? 'Fermer' : ''}
             >
               <LogOut size={18} style={{ flexShrink: 0 }} />
-              <span style={{ 
-                whiteSpace: 'nowrap',
-                opacity: isCollapsed ? 0 : 1,
-                width: isCollapsed ? '0' : 'auto',
-                overflow: 'hidden',
-                transition: 'opacity 0.2s ease, width 0.2s ease'
-              }}>Fermer</span>
+              <span style={{ whiteSpace: 'nowrap' }}>Fermer</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main style={{ 
+      <main
+        id="app-scroll-container"
+        style={{ 
         flex: 1, 
-        marginLeft: isCollapsed ? '96px' : '260px',
+        marginLeft: '260px',
         minHeight: '100vh',
-        overflow: 'auto',
-        transition: 'margin-left 0.3s ease'
-      }}>
+        overflow: 'auto'
+      }}
+      >
         {children}
       </main>
     </div>

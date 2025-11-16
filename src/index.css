@@ -18,7 +18,9 @@
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow: rgba(8, 15, 35, 0.55);
+  --card-shadow: 0 18px 38px rgba(8, 15, 35, 0.35);
+  --card-shadow-hover: 0 26px 48px rgba(8, 15, 35, 0.45);
 }
 
 /* Thème clair (pas trop clair) */
@@ -36,7 +38,9 @@
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow: rgba(15, 23, 42, 0.2);
+  --card-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  --card-shadow-hover: 0 22px 42px rgba(15, 23, 42, 0.25);
 }
 
 html {
@@ -125,13 +129,14 @@ body {
   background: var(--surface);
   border-radius: 12px;
   border: 1px solid var(--border);
-  box-shadow: 0 4px 6px var(--shadow);
+  padding: 24px;
+  box-shadow: var(--card-shadow);
   transition: all 0.2s ease;
 }
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 12px var(--shadow);
+  box-shadow: var(--card-shadow-hover);
 }
 
 /* Settings Sections - Style harmonisé */
@@ -321,7 +326,7 @@ body {
 
 .grid {
   display: grid;
-  gap: 24px;
+  gap: 12px;
 }
 
 .grid-2 {
@@ -334,6 +339,16 @@ body {
 
 .grid-4 {
   grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+
+/* Grille 5 colonnes (cards compactes) */
+.grid-5 {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+/* Grille 6 colonnes (très petites cards) */
+.grid-6 {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .loading {
@@ -496,51 +511,131 @@ body {
    RESPONSIVE LAYOUT - Sidebar Navigation
    ============================================ */
 
-/* Réduction de la sidebar sur écrans moyens */
-@media (max-width: 1199px) {
-  aside[style*="width: 260px"],
-  aside[style*="width: 220px"] {
-    width: 200px !important;
-  }
-  
-  main[style*="marginLeft: 260px"],
-  main[style*="marginLeft: 220px"] {
-    margin-left: 200px !important;
+/* Header fixe pour les détails de manga - position fixe à 260px (sidebar fixe) */
+.manga-detail-header {
+  left: 260px !important;
+}
+
+/* Header fixe pour les détails d'anime - position fixe à 260px (sidebar fixe) */
+.anime-detail-header {
+  left: 260px !important;
+}
+
+/* Header fixe pour les détails JEUX ADULTES */
+.adulte-game-detail-header {
+  left: 260px !important;
+}
+
+.detail-page-header {
+  position: fixed;
+  top: 0;
+  left: 260px;
+  right: 0;
+  z-index: 1000;
+  background: var(--background);
+  padding: 16px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.detail-page-header__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-page-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  border: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.detail-page-header__back:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.detail-page-header__back:focus {
+  outline: none;
+}
+
+.detail-page-header__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 40px;
+}
+
+/* ===================================
+   GRILLES RESPONSIVE POUR COLLECTIONS
+   =================================== */
+
+.grid {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Grille 2 colonnes (très larges cards) */
+.grid-2 {
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+}
+
+/* Grille 3 colonnes (JEUX ADULTES - cards larges format paysage) */
+.grid-3 {
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+}
+
+/* Grille 4 colonnes (Anime/Manga - cards standards) */
+.grid-4 {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+/* Grille 5 colonnes (cards compactes) */
+.grid-5 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* Grille 6 colonnes (très petites cards) */
+.grid-6 {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+/* Responsive - Petits écrans (mobiles/tablettes) */
+@media (max-width: 768px) {
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .grid-5,
+  .grid-6 {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 }
 
-/* Sidebar encore plus étroite sur tablettes */
-@media (max-width: 991px) {
-  aside[style*="width: 260px"],
-  aside[style*="width: 220px"],
-  aside[style*="width: 200px"] {
-    width: 180px !important;
-  }
-  
-  main[style*="marginLeft"],
-  main {
-    margin-left: 180px !important;
-  }
-}
-
-/* Masquer le texte de la sidebar sur petits écrans (icônes seulement) */
-@media (max-width: 767px) {
-  aside[style*="width"] {
-    width: 70px !important;
-  }
-  
-  main[style*="marginLeft"],
-  main {
-    margin-left: 70px !important;
-  }
-  
-  /* Cacher les labels de navigation, garder uniquement les icônes */
-  aside nav a span:not(.icon) {
-    display: none;
-  }
-  
-  /* Réduire le padding */
-  aside {
-    padding: 16px 0 !important;
+/* Responsive - Très petits écrans (mobiles portrait) */
+@media (max-width: 480px) {
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .grid-5,
+  .grid-6 {
+    grid-template-columns: 1fr;
   }
 }

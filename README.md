@@ -1,6 +1,6 @@
 # Le Nexus
 
-Application de gestion de collections multimédias (Mangas, Animés, AVN) développée avec Electron et React.
+Application de gestion de collections multimédias (Mangas, Animés, Jeux Adultes) développée avec Electron et React.
 
 ## ✨ Fonctionnalités
 
@@ -21,7 +21,7 @@ Application de gestion de collections multimédias (Mangas, Animés, AVN) dével
 - Traduction automatique synopsis (Groq AI)
 - Scripts Tampermonkey (ADKami, Crunchyroll, ADN)
 
-### 🎮 Gestion des AVN (Adult Visual Novels)
+### 🎮 Gestion des Jeux Adultes
 - Scraping automatique **F95Zone** et **LewdCorner**
 - Recherche par ID avec extraction complète (titre, version, statut, moteur, tags)
 - **Authentification F95Zone & LewdCorner** : Système OAuth intégré pour accès contenu protégé
@@ -116,6 +116,12 @@ Le fichier .exe sera disponible dans le dossier `dist/`.
 - L'icône est située dans `assets/icon.ico`
 - Elle s'affiche dans la barre des tâches, le fichier .exe et l'installateur
 - Vous pouvez la remplacer par votre propre icône (format .ico)
+
+## 🧩 Conventions de développement
+
+- Toute évolution du schéma SQLite (ajout/modification de colonnes, nouvelles tables, index, triggers, etc.) doit obligatoirement passer par une **migration versionnée** dans `electron/services/database/migrations/`.
+- Les migrations suivent le format horodaté (ex. `20250108_add_new_column.js`) et doivent être référencées par le gestionnaire de migrations côté Electron afin d'être exécutées au démarrage.
+- Lors d'une Pull Request ou d'une revue de code, vérifiez systématiquement que la migration correspondante est présente dès qu'un changement de schéma est introduit et qu'elle couvre aussi les données existantes (valeurs par défaut, backfill, nettoyage…).
 
 ## ⚙️ Configuration
 

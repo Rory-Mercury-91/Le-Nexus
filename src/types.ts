@@ -1,35 +1,60 @@
-export type SerieTag = 'a_lire' | 'en_cours' | 'lu' | 'abandonne';
+export type SerieTag = 'a_lire' | 'en_cours' | 'lu' | 'abandonne' | 'en_pause';
 export type AnimeTag = 'a_regarder' | 'en_cours' | 'termine' | 'abandonne';
+
+export interface ContentPreferences {
+  showMangas: boolean;
+  showAnimes: boolean;
+  showMovies: boolean;
+  showSeries: boolean;
+  showAdulteGame: boolean;
+}
 
 export interface Serie {
   id: number;
   titre: string;
+  titre_alternatif?: string | null; // Titre alternatif depuis Nautiljon (peut contenir plusieurs titres séparés par " / ")
   statut: 'En cours' | 'Terminée' | 'Abandonnée';
   type_volume: 'Broché' | 'Broché Collector' | 'Coffret' | 'Kindle' | 'Webtoon' | 'Webtoon Physique' | 'Light Novel' | 'Scan Manga' | 'Scan Webtoon' | 'Numérique';
-  type_contenu?: 'volume' | 'chapitre';
+  type_contenu?: 'volume' | 'chapitre' | 'volume+chapitre';
   couverture_url: string | null;
   description?: string | null;
   statut_publication?: string | null;
+  statut_publication_vf?: string | null;
   annee_publication?: number | null;
+  annee_vf?: number | null;
   genres?: string | null;
   nb_chapitres?: number | null;
+  nb_chapitres_vf?: number | null;
   chapitres_lus?: number | null;
   langue_originale?: string | null;
   demographie?: string | null;
   editeur?: string | null;
+  editeur_vo?: string | null;
   rating?: string | null;
+  serialization?: string | null;
   
   // Nouveaux champs MAL
   mal_id?: number | null;
   titre_romaji?: string | null;
+  titre_natif?: string | null;
   titre_anglais?: string | null;
-  titres_alternatifs?: string | null; // JSON string
+  titres_alternatifs?: string | null; // JSON string pour les titres MAL
   nb_volumes?: number | null;
+  nb_volumes_vf?: number | null;
   date_debut?: string | null;
   date_fin?: string | null;
   media_type?: string | null; // "Manga", "Manhwa", "Manhua", "Light Novel"
   themes?: string | null;
   auteurs?: string | null;
+  score_mal?: number | null;
+  rank_mal?: number | null;
+  popularity_mal?: number | null;
+  background?: string | null;
+  prequel_mal_id?: number | null;
+  sequel_mal_id?: number | null;
+  anime_adaptation_mal_id?: number | null;
+  light_novel_mal_id?: number | null;
+  manga_adaptation_mal_id?: number | null;
   volumes_lus?: number | null;
   statut_lecture?: string | null; // "En cours", "Terminée", "Abandonnée"
   score_utilisateur?: number | null;
@@ -38,12 +63,14 @@ export interface Serie {
   tags?: string | null; // Tags MAL de l'utilisateur
   relations?: string | null; // JSON string
   source_donnees?: 'mal' | 'nautiljon' | 'mal+nautiljon' | null;
+  nautiljon_url?: string | null; // URL de la page Nautiljon (extrait de relations)
   
   created_at?: string;
   updated_at?: string;
   tomes?: Tome[];
   tag?: SerieTag | null;
   is_favorite?: boolean;
+  is_masquee?: boolean | number;
 }
 
 export interface Tome {
@@ -97,6 +124,10 @@ export interface Statistics {
 export interface LectureStatistics {
   tomesLus: number;
   tomesTotal: number;
+  chapitresLus: number;
+  chapitresTotal: number;
+  progressionTomes?: number | null;
+  progressionChapitres?: number | null;
   seriesCompletes: number;
   seriesTotal: number;
   progression: number;
@@ -190,8 +221,10 @@ export interface AnimeSerie {
   en_cours_diffusion?: boolean;
   date_debut?: string;
   date_fin?: string;
+  date_sortie_vf?: string;
+  date_debut_streaming?: string;
   duree?: string;
-  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente' | 'À regarder';
+  statut_visionnage?: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente' | 'En pause' | 'À regarder';
   annee?: number;
   saison_diffusion?: string;
   genres?: string;
@@ -200,14 +233,26 @@ export interface AnimeSerie {
   studios?: string;
   producteurs?: string;
   diffuseurs?: string;
+  editeur?: string;
+  site_web?: string;
   rating?: string;
+  age_conseille?: string;
   score?: number;
+  rank_mal?: number;
+  popularity_mal?: number;
+  scored_by?: number;
+  favorites?: number;
+  background?: string;
   liens_externes?: string;
   liens_streaming?: string;
   franchise_name?: string;
   franchise_order?: number;
   prequel_mal_id?: number;
   sequel_mal_id?: number;
+  manga_source_mal_id?: number;
+  light_novel_source_mal_id?: number;
+  relations?: string | null;
+  movie_relations?: string | null;
   source_import?: string;
   utilisateur_ajout: string;
   episodes_vus?: number;
@@ -216,6 +261,244 @@ export interface AnimeSerie {
   // Tags utilisateur
   tag?: AnimeTag | null;
   is_favorite?: boolean;
+  is_masquee?: boolean | number;
+}
+
+export interface MovieListItem {
+  id: number;
+  tmdb_id: number;
+  titre: string;
+  titre_original?: string | null;
+  synopsis?: string | null;
+  statut?: string | null;
+  date_sortie?: string | null;
+  duree?: number | null;
+  note_moyenne?: number | null;
+  popularite?: number | null;
+  nb_votes?: number | null;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  genres: Array<{ id: number; name: string }>;
+  created_at?: string;
+  updated_at?: string;
+  statut_visionnage?: string | null;
+  score?: number | null;
+  date_visionnage?: string | null;
+  is_favorite?: boolean;
+  is_hidden?: boolean;
+}
+
+export interface MovieVideo {
+  id: string;
+  iso_639_1: string;
+  iso_3166_1: string;
+  key: string;
+  name: string;
+  site: string;
+  size: number;
+  type: string;
+  official: boolean;
+  published_at: string;
+}
+
+export interface MovieImage {
+  aspect_ratio: number;
+  file_path: string;
+  height: number;
+  iso_639_1: string | null;
+  vote_average: number;
+  vote_count: number;
+  width: number;
+}
+
+export interface WatchProviderResult {
+  link?: string;
+  flatrate?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+  buy?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+  rent?: Array<{ provider_id: number; provider_name: string; logo_path: string }>;
+}
+
+export type WatchProviderMap = Record<string, WatchProviderResult>;
+
+export interface WatchProviderResponse {
+  results?: WatchProviderMap | null;
+}
+
+export interface MovieExternalIds {
+  imdb_id?: string | null;
+  facebook_id?: string | null;
+  instagram_id?: string | null;
+  twitter_id?: string | null;
+  wikidata_id?: string | null;
+}
+
+export interface MovieTranslations {
+  synopsis?: string | null;
+  tagline?: string | null;
+}
+
+export interface MovieDetail extends MovieListItem {
+  imdb_id?: string | null;
+  tagline?: string | null;
+  budget?: number | null;
+  revenus?: number | null;
+  langues_parlees?: Array<{ english_name: string; name: string; iso_639_1: string }> | null;
+  compagnies?: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }> | null;
+  pays_production?: Array<{ iso_3166_1: string; name: string }> | null;
+  site_officiel?: string | null;
+  videos?: { results: MovieVideo[] } | null;
+  images?: { backdrops?: MovieImage[]; posters?: MovieImage[] } | null;
+  fournisseurs?: WatchProviderMap | WatchProviderResponse | null;
+  ids_externes?: MovieExternalIds | null;
+  traductions?: MovieTranslations | null;
+  mots_cles?: Array<{ id: number; name: string }> | null;
+  donnees_brutes?: Record<string, unknown> | null;
+}
+
+export interface TmdbMovieSearchResult {
+  tmdbId: number;
+  title: string;
+  originalTitle: string | null;
+  releaseDate: string | null;
+  overview: string;
+  posterPath: string | null;
+  voteAverage: number | null;
+  inLibrary: boolean;
+}
+
+export interface TmdbSeriesSearchResult {
+  tmdbId: number;
+  title: string;
+  originalTitle: string | null;
+  firstAirDate: string | null;
+  overview: string;
+  posterPath: string | null;
+  voteAverage: number | null;
+  inLibrary: boolean;
+}
+
+export interface TmdbSearchResponse<T> {
+  results: T[];
+  totalResults: number;
+  totalPages: number;
+  page: number;
+}
+
+export interface EpisodeSummary {
+  air_date?: string | null;
+  airdate?: string | null;
+  episode_number?: number | null;
+  id?: number | null;
+  name?: string | null;
+  overview?: string | null;
+  production_code?: string | null;
+  season_number?: number | null;
+  still_path?: string | null;
+  vote_average?: number | null;
+  vote_count?: number | null;
+  url?: string | null;
+}
+
+export interface TvShowListItem {
+  id: number;
+  tmdb_id: number;
+  tvmaze_id?: number | null;
+  titre: string;
+  titre_original?: string | null;
+  synopsis?: string | null;
+  statut?: string | null;
+  type?: string | null;
+  nb_saisons?: number | null;
+  nb_episodes?: number | null;
+  popularite?: number | null;
+  date_premiere?: string | null;
+  date_derniere?: string | null;
+  note_moyenne?: number | null;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  genres: Array<{ id: number; name: string }>;
+  prochain_episode?: EpisodeSummary | null;
+  dernier_episode?: EpisodeSummary | null;
+  maj_disponible?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  statut_visionnage?: string | null;
+  score?: number | null;
+  saisons_vues?: number | null;
+  episodes_vus?: number | null;
+  date_debut?: string | null;
+  date_fin?: string | null;
+  is_favorite?: boolean;
+  is_hidden?: boolean;
+}
+
+export interface EpisodeTranslation {
+  synopsis?: string | null;
+}
+
+export interface EpisodeRawData {
+  [key: string]: unknown;
+}
+
+export interface TvEpisode {
+  id: number;
+  show_id: number;
+  season_id?: number | null;
+  tmdb_id?: number | null;
+  tvmaze_id?: number | null;
+  saison_numero: number;
+  episode_numero: number;
+  titre?: string | null;
+  synopsis?: string | null;
+  date_diffusion?: string | null;
+  duree?: number | null;
+  note_moyenne?: number | null;
+  nb_votes?: number | null;
+  still_path?: string | null;
+  vu?: boolean;
+  date_visionnage?: string | null;
+  translations?: EpisodeTranslation | null;
+  donnees_brutes?: EpisodeRawData | null;
+}
+
+export interface TvShowExternalIds {
+  imdb_id?: string | null;
+  facebook_id?: string | null;
+  instagram_id?: string | null;
+  twitter_id?: string | null;
+  wikidata_id?: string | null;
+  tvdb_id?: string | null;
+}
+
+export interface TvShowDetail extends TvShowListItem {
+  imdb_id?: string | null;
+  tagline?: string | null;
+  duree_episode?: number | null;
+  genres: Array<{ id: number; name: string }>;
+  mots_cles?: Array<{ id: number; name: string }> | null;
+  compagnies?: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }> | null;
+  pays_production?: Array<{ iso_3166_1: string; name: string }> | null;
+  reseaux?: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }> | null;
+  plateformes?: Array<{ logo_path: string | null; provider_name?: string | null }> | null;
+  images?: { backdrops?: MovieImage[]; posters?: MovieImage[] } | null;
+  videos?: { results: MovieVideo[] } | null;
+  fournisseurs?: WatchProviderMap | WatchProviderResponse | null;
+  ids_externes?: TvShowExternalIds | null;
+  traductions?: { synopsis?: string | null } | null;
+  donnees_brutes?: Record<string, unknown> | null;
+  seasons: Array<{
+    id: number;
+    show_id: number;
+    numero: number;
+    titre?: string | null;
+    synopsis?: string | null;
+    date_premiere?: string | null;
+    nb_episodes?: number | null;
+    poster_path?: string | null;
+    translations?: EpisodeTranslation | null;
+    donnees_brutes?: Record<string, unknown> | null;
+  }>;
+  episodes: TvEpisode[];
 }
 
 export interface AnimeFilters {
@@ -223,6 +506,7 @@ export interface AnimeFilters {
   statut?: string;
   type?: string;
   visionnage?: 'completed' | 'watching' | 'not_started' | '';
+  search?: string;
 }
 
 export interface AnimeImportResult {
@@ -236,7 +520,8 @@ export interface AnimeImportResult {
 }
 
 export interface AnimeImportProgress {
-  phase: 'batch' | 'anime' | 'pause' | 'complete';
+  phase: 'batch' | 'anime' | 'manga' | 'pause' | 'complete';
+  type?: 'anime' | 'manga' | 'anime-enrichment' | 'manga-enrichment';
   currentBatch?: number;
   totalBatches?: number;
   currentAnime?: string;
@@ -254,7 +539,7 @@ export interface AnimeImportProgress {
 }
 
 export interface ProgressItem {
-  type: 'tome' | 'chapitre' | 'episode';
+  type: 'tome' | 'chapitre' | 'episode' | 'tv' | 'movie';
   // Pour les tomes
   id?: number;
   numero?: number;
@@ -271,12 +556,23 @@ export interface ProgressItem {
   // Pour épisodes
   episodesVus?: number;
   nbEpisodes?: number;
+  // Séries TV
+  showId?: number;
+  showTitre?: string;
+  posterPath?: string | null;
+  statutVisionnage?: string | null;
+  // Films
+  movieId?: number;
+  movieTitre?: string;
+  tmdbId?: number | null;
 }
 
 export interface RecentProgress {
   tomes: ProgressItem[];
   chapitres: ProgressItem[];
   episodes: ProgressItem[];
+  movies?: ProgressItem[];
+  tvShows?: ProgressItem[];
 }
 
 export interface User {
@@ -290,22 +586,25 @@ export interface User {
 }
 
 // ========================================
-// AVN (Adult Visual Novels)
+// Jeux adultes (Adult Visual Novels)
 // ========================================
 
-export type AvnStatutPerso = 'Complété' | 'En cours' | 'À jouer' | 'Abandonné';
-export type AvnStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
-export type AvnMoteur = 'RenPy' | 'Unity' | 'RPGM' | 'Unreal' | 'HTML' | 'Flash' | 'QSP' | 'Autre';
-export type AvnStatutTraduction = 'Traduction' | 'Traduction (Mod inclus)' | 'Traduction intégré' | '';
-export type AvnTypeTraduction = 'Manuelle' | 'Semi-automatique' | 'Automatique' | 'VO française' | '';
+export type AdulteGameStatutPerso = 'Terminé' | 'En cours' | 'En pause' | 'À lire' | 'Abandonné';
+export type AdulteGameStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
+export type AdulteGameMoteur = 'RenPy' | 'Unity' | 'RPGM' | 'Unreal' | 'HTML' | 'Flash' | 'QSP' | 'Autre';
+export type AdulteGameStatutTraduction = 'Traduction' | 'Traduction (Mod inclus)' | 'Traduction intégré' | '';
+export type AdulteGameTypeTraduction = 'Manuelle' | 'Semi-automatique' | 'Automatique' | 'VO française' | '';
 
-export interface AvnGame {
+// Alias pour compatibilité rétroactive
+
+export interface AdulteGame {
   id: number;
   f95_thread_id?: number | null;
   titre: string;
   version?: string | null;
-  statut_jeu?: AvnStatutJeu | null;
-  moteur?: AvnMoteur | null;
+  statut_jeu?: AdulteGameStatutJeu | null;
+  moteur?: AdulteGameMoteur | null;
+  developpeur?: string | null;
   plateforme?: 'F95Zone' | 'LewdCorner' | null;
   couverture_url?: string | null;
   tags?: string[]; // Parsé depuis JSON
@@ -314,15 +613,18 @@ export interface AvnGame {
   lien_jeu?: string | null;
   
   // Données utilisateur
-  statut_perso?: AvnStatutPerso | null;
+  statut_perso?: AdulteGameStatutPerso | null;
   notes_privees?: string | null;
   chemin_executable?: string | null;
+  version_jouee?: string | null;
   derniere_session?: string | null;
+  is_favorite?: boolean | number;
+  is_hidden?: boolean | number;
   
   // Informations de traduction (anciennes)
   version_traduction?: string | null;
-  statut_traduction?: AvnStatutTraduction | null;
-  type_traduction?: AvnTypeTraduction | null;
+  statut_traduction?: AdulteGameStatutTraduction | null;
+  type_traduction?: AdulteGameTypeTraduction | null;
   
   // Traduction FR (Google Sheets sync)
   traduction_fr_disponible?: boolean;
@@ -332,6 +634,7 @@ export interface AvnGame {
   statut_trad_fr?: string | null; // TERMINÉ, EN COURS, ABANDONNÉ
   type_trad_fr?: string | null; // Traduction Humaine, Semi-Automatique, Automatique
   derniere_sync_trad?: string | null;
+  traductions_multiples?: string | null; // JSON array des traductions multiples
   
   // Contrôle de version
   version_disponible?: string | null;
@@ -346,182 +649,20 @@ export interface AvnGame {
   proprietaires?: string[]; // Liste des propriétaires
 }
 
-export interface AvnFilters {
+// Alias pour compatibilité rétroactive
+
+export interface AdulteGameFilters {
   utilisateur?: string;
-  statut_perso?: AvnStatutPerso;
-  statut_jeu?: AvnStatutJeu;
-  moteur?: AvnMoteur;
+  statut_perso?: AdulteGameStatutPerso;
+  statut_jeu?: AdulteGameStatutJeu;
+  moteur?: AdulteGameMoteur;
   maj_disponible?: boolean;
+  traduction_fr_disponible?: boolean;
+  show_hidden?: boolean;
   search?: string;
+  [key: string]: unknown;
 }
 
-declare global {
-  interface Window {
-    electronAPI: {
-      getSeries: (filters?: SerieFilters) => Promise<Serie[]>;
-      getSerie: (id: number) => Promise<Serie | null>;
-      createSerie: (serie: Partial<Serie>) => Promise<number>;
-      updateSerie: (id: number, serie: Partial<Serie>) => Promise<boolean>;
-      translateSerieDescription: (serieId: number) => Promise<{ success: boolean; translatedDescription?: string; error?: string }>;
-      deleteSerie: (id: number) => Promise<boolean>;
-      masquerSerie: (serieId: number) => Promise<{ success: boolean }>;
-      demasquerSerie: (serieId: number) => Promise<{ success: boolean }>;
-      isSerieMasquee: (serieId: number) => Promise<boolean>;
-      setSerieTag: (serieId: number, userId: number, tag: SerieTag) => Promise<{ success: boolean; tag: string }>;
-      toggleSerieFavorite: (serieId: number, userId: number) => Promise<{ success: boolean; is_favorite: boolean }>;
-      getSerieTag: (serieId: number, userId: number) => Promise<{ tag: SerieTag | null; is_favorite: boolean } | null>;
-      removeSerieTag: (serieId: number, userId: number) => Promise<{ success: boolean }>;
-      setAnimeTag: (animeId: number, userId: number, tag: AnimeTag) => Promise<{ success: boolean; tag: string }>;
-      toggleAnimeFavorite: (animeId: number, userId: number) => Promise<{ success: boolean; is_favorite: boolean }>;
-      getAnimeTag: (animeId: number, userId: number) => Promise<{ tag: AnimeTag | null; is_favorite: boolean } | null>;
-      removeAnimeTag: (animeId: number, userId: number) => Promise<{ success: boolean }>;
-      createTome: (tome: Partial<Tome>) => Promise<number>;
-      updateTome: (id: number, tome: Partial<Tome>) => Promise<boolean>;
-      deleteTome: (id: number) => Promise<boolean>;
-      getStatistics: () => Promise<Statistics>;
-      getEvolutionStatistics: () => Promise<EvolutionStatistics>;
-      exportDatabase: () => Promise<{ success: boolean; path?: string; error?: string }>;
-      importDatabase: () => Promise<{ success: boolean; error?: string }>;
-      searchMangadex: (titre: string) => Promise<MangaDexResult[]>;
-      searchManga: (titre: string) => Promise<MangaDexResult[]>;
-      searchAnime: (titre: string) => Promise<AnimeSearchResult[]>;
-      globalSearch: (query: string, currentUser: string) => Promise<Array<{
-        id: number;
-        type: 'manga' | 'anime' | 'avn';
-        title: string;
-        subtitle?: string;
-        progress?: string;
-        coverUrl?: string;
-      }>>;
-      openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
-      getBaseDirectory: () => Promise<string>;
-      changeBaseDirectory: () => Promise<{ success: boolean; path?: string; message?: string; error?: string }>;
-      copyToNewLocation: (newBasePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-      getCurrentUser: () => Promise<string>;
-      getTheme: () => Promise<string>;
-      setTheme: (theme: string) => Promise<{ success: boolean }>;
-      getAutoLaunch: () => Promise<boolean>;
-      setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
-      getGroqApiKey: () => Promise<string>;
-      setGroqApiKey: (apiKey: string) => Promise<{ success: boolean }>;
-      translateText: (text: string, targetLang?: string) => Promise<{ success: boolean; text: string; error?: string }>;
-      
-      // MyAnimeList Sync
-      malConnect: () => Promise<{ success: boolean; user?: { id: number; name: string; picture?: string } }>;
-      malDisconnect: () => Promise<{ success: boolean }>;
-      malGetStatus: () => Promise<{ connected: boolean; user?: any; connectedAt?: string; lastSync?: any }>;
-      malSyncNow: () => Promise<{ success: boolean; duration?: string; manga?: any; anime?: any; total?: any; error?: string }>;
-      malTranslateSynopsis: () => Promise<{ translated: number; skipped: number; total: number; error?: string }>;
-      malSetAutoSync: (enabled: boolean, intervalHours?: number) => Promise<{ success: boolean }>;
-      malGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
-      getAnimeImageSource: () => Promise<'anilist' | 'mal'>;
-      setAnimeImageSource: (source: 'anilist' | 'mal') => Promise<{ success: boolean }>;
-      openTampermonkeyInstallation: () => Promise<{ success: boolean; error?: string }>;
-      
-      // Backup automatique
-      getBackupConfig: () => Promise<{ enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup: string | null; backupOnStartup: boolean; backupOnShutdown: boolean }>;
-      saveBackupConfig: (config: { enabled: boolean; frequency: 'daily' | 'weekly' | 'manual'; keepCount: number; lastBackup?: string | null; backupOnStartup: boolean; backupOnShutdown: boolean }) => Promise<{ success: boolean; error?: string }>;
-      createBackup: () => Promise<{ success: boolean; path?: string; fileName?: string; timestamp?: string; error?: string }>;
-      listBackups: () => Promise<{ success: boolean; backups: Array<{ name: string; path: string; size: number; date: Date; timestamp: number }>; error?: string }>;
-      restoreBackup: (backupPath: string) => Promise<{ success: boolean; message?: string; error?: string }>;
-      deleteBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
-      
-      // Notifications
-      getNotificationConfig: () => Promise<{ enabled: boolean; checkAnimes: boolean; checkAvn: boolean; frequency: '6h' | '12h' | 'daily' | 'manual'; soundEnabled: boolean; checkOnStartup: boolean }>;
-      saveNotificationConfig: (config: { enabled: boolean; checkAnimes: boolean; checkAvn: boolean; frequency: '6h' | '12h' | 'daily' | 'manual'; soundEnabled: boolean; checkOnStartup: boolean }) => Promise<{ success: boolean; error?: string }>;
-      checkNotificationsNow: () => Promise<{ success: boolean; count?: number; error?: string }>;
-      
-      // Synchronisation traductions
-      getTraductionConfig: () => Promise<{ enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync: string | null; gamesCount: number }>;
-      saveTraductionConfig: (config: { enabled: boolean; traducteurs: string[]; sheetUrl: string; syncFrequency: '6h' | '12h' | 'daily' | 'manual'; lastSync?: string | null; gamesCount?: number }) => Promise<{ success: boolean; error?: string }>;
-      syncTraductionsNow: () => Promise<{ success: boolean; matched?: number; updated?: number; created?: number; notFound?: number; total?: number; error?: string; message?: string }>;
-      updateTraductionManually: (gameId: number, tradData: { disponible: boolean; versionTraduite?: string; lienTraduction?: string; statut?: string; typeTraduction?: string; traducteur?: string }) => Promise<{ success: boolean; error?: string }>;
-      clearTraduction: (gameId: number) => Promise<{ success: boolean; error?: string }>;
-      
-      onMalSyncProgress?: (callback: (event: any, data: { type: 'manga' | 'anime'; current: number; total: number; item: string }) => void) => () => void;
-      onMalSyncCompleted?: (callback: (event: any, data: any) => void) => () => void;
-      onMalSyncError?: (callback: (event: any, data: any) => void) => () => void;
-      onMalTranslationStarted?: (callback: () => void) => () => void;
-      onMalTranslationProgress?: (callback: (event: any, data: { current: number; total: number; translated: number; skipped: number; currentAnime: string }) => void) => () => void;
-      onMalTranslationCompleted?: (callback: (event: any, data: { translated: number; skipped: number; total: number; error?: string }) => void) => () => void;
-      onMalTranslationError?: (callback: (event: any, data: { error: string }) => void) => () => void;
-      downloadCover: (imageUrl: string, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; url?: string }>;
-      uploadCustomCover: (serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
-      saveCoverFromPath: (sourcePath: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
-      saveCoverFromBuffer: (buffer: Uint8Array, fileName: string, serieTitre: string, type?: 'serie' | 'tome') => Promise<{ success: boolean; localPath?: string; error?: string }>;
-      deleteCoverImage: (relativePath: string) => Promise<{ success: boolean; error?: string }>;
-      getCoverFullPath: (relativePath: string) => Promise<string | null>;
-      cleanEmptyFolders: () => Promise<{ success: boolean; count?: number; error?: string }>;
-      getUserProfileImage: (userName: string) => Promise<string | null>;
-      setUserProfileImage: (userName: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-      getUserAvatar: (userId: number) => Promise<string | null>;
-      mergeDatabase: () => Promise<{ merged: boolean; seriesCount: number; tomesCount: number }>;
-      setCurrentUser: (userName: string) => Promise<void>;
-      setContentPreferences: (userName: string, preferences: { showMangas: boolean; showAnimes: boolean; showAvn: boolean }) => Promise<void>;
-      getContentPreferences: (userName: string) => Promise<{ showMangas: boolean; showAnimes: boolean; showAvn: boolean }>;
-      onContentPreferencesChanged: (callback: (userName: string, preferences: { showMangas: boolean; showAnimes: boolean; showAvn: boolean }) => void) => () => void;
-      saveUserDatabase: () => Promise<void>;
-      quitApp: (options?: { shouldRelaunch?: boolean }) => Promise<void>;
-      minimizeToTray: () => Promise<void>;
-      toggleTomeLu: (tomeId: number, lu: boolean) => Promise<{ success: boolean }>;
-      marquerSerieLue: (serieId: number) => Promise<{ success: boolean; tomesMarques: number }>;
-      getLectureStatistics: () => Promise<LectureStatistics>;
-      getRecentProgress: () => Promise<RecentProgress>;
-      addAnimeByMalId: (malIdOrUrl: string | number) => Promise<{ success: boolean; animeId?: number; anime?: AnimeSerie; relatedAnimes?: Array<{ mal_id: number; title: string; relation: string }>; error?: string }>;
-      importAnimeXml: (xmlContent: string) => Promise<AnimeImportResult>;
-      onAnimeImportProgress: (callback: (progress: AnimeImportProgress) => void) => () => void;
-      getAnimeSeries: (filters?: AnimeFilters) => Promise<{ success: boolean; animes: AnimeSerie[] }>;
-      getAnimeDetail: (animeId: number) => Promise<{ success: boolean; anime?: AnimeSerie; episodes?: Array<{ numero: number; vu: boolean; date_visionnage?: string }>; franchiseAnimes?: AnimeSerie[]; error?: string }>;
-      toggleEpisodeVu: (animeId: number, episodeNumero: number, vu: boolean) => Promise<{ success: boolean }>;
-      marquerAnimeComplet: (animeId: number) => Promise<{ success: boolean }>;
-      deleteAnime: (animeId: number) => Promise<{ success: boolean }>;
-      setAnimeStatutVisionnage: (animeId: number, statutVisionnage: 'En cours' | 'Terminé' | 'Abandonné' | 'En attente' | 'À regarder') => Promise<{ success: boolean }>;
-      updateAnime: (id: number, animeData: any) => Promise<{ success: boolean }>;
-      deleteUserData: (userName: string) => Promise<{ success: boolean }>;
-      deleteAllData: () => Promise<{ success: boolean }>;
-      
-      // Liens de streaming
-      getStreamingLinks: (animeId: number, malId?: number) => Promise<{ success: boolean; links: Array<{ source: 'anilist' | 'manual'; platform: string; url: string; language: string; id?: number; color?: string; icon?: string; createdAt?: string }> }>;
-      addStreamingLink: (animeId: number, linkData: { platform: string; url: string; language?: string }) => Promise<{ success: boolean; id?: number; error?: string }>;
-      deleteStreamingLink: (linkId: number) => Promise<{ success: boolean; error?: string }>;
-      
-      onMangaImportStart?: (callback: (data: { message: string }) => void) => () => void;
-      onMangaImportComplete?: (callback: () => void) => () => void;
-      onMangaImported?: (callback: (event: any, data: { id: number; titre: string; tomesCreated: number }) => void) => () => void;
-      offMangaImported?: (callback: any) => void;
-      getAllUsers: () => Promise<User[]>;
-      createUser: (userData: { name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
-      updateUser: (userData: { id: number; name: string; emoji: string; color: string }) => Promise<{ success: boolean; user?: User; error?: string }>;
-      deleteUser: (userId: number) => Promise<{ success: boolean; error?: string }>;
-      chooseAvatarFile: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
-      setUserAvatarFromPath: (userId: number, sourcePath: string) => Promise<{ success: boolean; path?: string; error?: string }>;
-      setUserAvatar: (userId: number) => Promise<{ success: boolean; path?: string; error?: string }>;
-      removeUserAvatar: (userId: number) => Promise<{ success: boolean; error?: string }>;
-      
-      // AVN (Adult Visual Novels)
-      getAvnGames: (filters?: AvnFilters) => Promise<AvnGame[]>;
-      getAvnGame: (id: number) => Promise<AvnGame | null>;
-      createAvnGame: (gameData: Partial<AvnGame>) => Promise<{ success: boolean; id?: number }>;
-      importAvnFromJson: (jsonData: any) => Promise<{ success: boolean; id?: number; created?: boolean; updated?: boolean }>;
-      updateAvnGame: (id: number, gameData: Partial<AvnGame>) => Promise<{ success: boolean }>;
-      deleteAvnGame: (id: number) => Promise<{ success: boolean }>;
-      markAvnUpdateSeen: (id: number) => Promise<{ success: boolean }>;
-      launchAvnGame: (id: number) => Promise<{ success: boolean; error?: string }>;
-      checkAvnUpdates: () => Promise<{ checked: number; updated: number }>;
-      searchAvnByF95Id: (f95Id: string) => Promise<{ success: boolean; data?: any; error?: string }>;
-      searchAvnByLewdCornerId: (lewdcornerId: string) => Promise<{ success: boolean; data?: any; error?: string }>;
-      selectAvnExecutable: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
-      selectAvnCoverImage: () => Promise<{ success: boolean; path?: string; canceled?: boolean; error?: string }>;
+// Alias pour compatibilité rétroactive
 
-      // LewdCorner Auth
-      lewdCornerConnect: () => Promise<{ success: boolean; cookiesCount?: number }>;
-      lewdCornerCheckSession: () => Promise<{ success: boolean; connected: boolean; error?: string }>;
-      lewdCornerDisconnect: () => Promise<{ success: boolean; error?: string }>;
-
-      // F95Zone Auth
-      f95zoneConnect: () => Promise<{ success: boolean; cookiesCount?: number }>;
-      f95zoneCheckSession: () => Promise<{ success: boolean; connected: boolean; error?: string }>;
-      f95zoneDisconnect: () => Promise<{ success: boolean; error?: string }>;
-    };
-  }
-}
+// Note: Window.electronAPI interface is declared in vite-env.d.ts

@@ -1,5 +1,7 @@
 import { AlertTriangle, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import Modal from './Modal';
+import { useModalEscape } from './useModalEscape';
 
 interface ConfirmModalProps {
   title: string;
@@ -20,51 +22,36 @@ export default function ConfirmModal({
   cancelText = 'Annuler',
   isDanger = false
 }: ConfirmModalProps) {
-  // Fermer le modal avec la touche Échap (= Annuler)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel();
-      }
-    };
+  useModalEscape(onCancel);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
-
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div 
-        className="modal" 
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '500px' }}
-      >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {isDanger && (
-              <AlertTriangle size={24} style={{ color: 'var(--error)' }} />
-            )}
-            <h2 style={{ fontSize: '20px', fontWeight: '700' }}>{title}</h2>
-          </div>
-          <button
-            onClick={onCancel}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px'
-            }}
-          >
-            <X size={24} />
-          </button>
+  return createPortal(
+    <Modal maxWidth="500px" onClickOverlay={onCancel}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isDanger && (
+            <AlertTriangle size={24} style={{ color: 'var(--error)' }} />
+          )}
+          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>{title}</h2>
         </div>
+        <button
+          onClick={onCancel}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '8px'
+          }}
+        >
+          <X size={24} />
+        </button>
+      </div>
 
         <p style={{
           color: 'var(--text-secondary)',
@@ -93,7 +80,7 @@ export default function ConfirmModal({
             {confirmText}
           </button>
         </div>
-      </div>
-    </div>
+      </Modal>,
+    document.body
   );
 }

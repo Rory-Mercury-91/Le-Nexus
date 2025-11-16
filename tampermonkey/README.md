@@ -28,7 +28,8 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### ✅ Crunchyroll Episode Tracker
 
-**Fichier** : `animes/Crunchyroll Episode Tracker.user.js`
+**Fichier** : `animes/Crunchyroll Episode Tracker.user.js`  
+**Version** : 2.6.1 (support Chrome/Chromium + CSP)
 
 **Fonction** : Marque automatiquement les épisodes visionnés sur Crunchyroll avec import automatique de l'anime si nécessaire.
 
@@ -40,6 +41,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 - 🚀 Import automatique si l'anime n'existe pas encore
 - 🎯 Détection automatique du numéro d'épisode
 - ✨ Animations de feedback (succès/erreur/chargement)
+- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
 
 #### 🎯 Utilisation
 1. Regardez un épisode sur Crunchyroll
@@ -51,7 +53,8 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### ✅ ADN Episode Tracker
 
-**Fichier** : `animes/ADN Episode Tracker.user.js`
+**Fichier** : `animes/ADN Episode Tracker.user.js`  
+**Version** : 1.1.1 (support Chrome/Chromium + CSP)
 
 **Fonction** : Marque automatiquement les épisodes visionnés sur Animation Digital Network avec import automatique.
 
@@ -62,12 +65,14 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 - 🚀 Import automatique complet depuis ADN
 - 🎯 Détection automatique saison/épisode
 - ✨ Gestion intelligente des données ADN
+- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
 
 ---
 
 ### ✅ ADKami Integration
 
-**Fichier** : `animes/ADKami Integration.user.js`
+**Fichier** : `animes/ADKami Episode Tracker.user.js`  
+**Version** : 2.3.1 (support Chrome/Chromium + CSP)
 
 **Fonction** : Intégration complète avec ADKami pour import d'animes et marquage d'épisodes.
 
@@ -77,12 +82,14 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 - ✅ Bouton **✅** pour marquer un épisode (bas à gauche)
 - 📥 Bouton **📥** pour importer l'anime complet (bas à gauche, 80px)
 - 🎯 Détection automatique des métadonnées ADKami
+- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
 
 ---
 
 ### 📥 MyAnimeList Quick Add
 
-**Fichier** : `animes/MyAnimeList Quick Add.user.js`
+**Fichier** : `animes/MyAnimeList Quick Add.user.js`  
+**Version** : 2.0.1 (support CSP)
 
 **Fonction** : Import rapide d'animes depuis MyAnimeList avec enrichissement automatique des données.
 
@@ -102,7 +109,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 4. ✅ L'anime est ajouté avec toutes ses métadonnées !
 
 #### ⚠️ Prérequis
-- **Le Nexus doit être lancé** (serveur d'import sur port 51234)
+- **Le Nexus doit être lancé** (serveur d'import sur port 40000)
 - Connexion Internet pour les API (Jikan, AniList, Groq)
 
 ---
@@ -111,7 +118,8 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### ⋮ Nautiljon Extractor
 
-**Fichier** : `mangas/Nautiljon Extractor.user.js`
+**Fichier** : `mangas/Nautiljon Extractor.user.js`  
+**Version** : 1.6.2 (support CSP)
 
 **Fonction** : Import complet de mangas, manhwa et scans depuis Nautiljon vers Le Nexus.
 
@@ -170,7 +178,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 #### ⚠️ Prérequis
 
-- **Le Nexus doit être lancé** (serveur d'import sur port 51234)
+- **Le Nexus doit être lancé** (serveur d'import sur port 40000)
 - Connexion Internet stable
 - Navigateur compatible (Chrome, Firefox, Edge)
 
@@ -180,13 +188,94 @@ Menu moderne en **bas à gauche** pour éviter les conflits avec les éléments 
 
 ---
 
+### 📥 MyAnimeList Manga Quick Add
+
+**Fichier** : `mangas/MyAnimeList Manga Quick Add.user.js`  
+**Version** : 1.0.1 (support CSP)
+
+**Fonction** : Import rapide de mangas depuis MyAnimeList avec enrichissement automatique des données.
+
+**Pages compatibles** : `https://myanimelist.net/manga/*`
+
+#### 📋 Fonctionnalités
+- 📥 Bouton "Ajouter à Le Nexus" avec design moderne
+- ✅ Import complet automatique (Jikan + Groq)
+- 🎨 Métadonnées enrichies
+- ✨ Feedback visuel (succès/erreur)
+- 🎯 Détection automatique du MAL ID depuis l'URL
+
+#### 🎯 Utilisation
+1. Naviguez vers une page manga sur MyAnimeList
+2. Un bouton apparaît sous le titre
+3. Cliquez sur **"Ajouter à Le Nexus"**
+4. ✅ Le manga est ajouté avec toutes ses métadonnées !
+
+#### ⚠️ Prérequis
+- **Le Nexus doit être lancé** (serveur d'import sur port 40000)
+- Connexion Internet pour les API (Jikan, Groq)
+
+---
+
+## 🎮 Scripts Jeux adulte
+
+### 🎮 AdulteGame Extractor (F95Zone & LewdCorner)
+
+**Fichier** : `adulte-game/AdulteGame Extractor.user.js`  
+**Version** : 2.0.1 (support Chrome/Chromium + CSP)
+
+**Fonction** : Extrait les données des jeux pour adultes depuis F95Zone et LewdCorner pour Le Nexus.
+
+**Pages compatibles** : `https://f95zone.to/threads/*` et `https://lewdcorner.com/threads/*`
+
+#### 📋 Fonctionnalités
+
+**Données extraites** :
+- ✅ Titre du jeu
+- ✅ Version du jeu
+- ✅ Statut (Terminé, En cours, Abandonné)
+- ✅ Tags
+- ✅ Type de moteur (RenPy, Unity, RPGM, etc.)
+- ✅ Image de couverture
+- ✅ Lien vers le topic
+
+**Plateformes supportées** :
+- 🎯 **F95Zone** : Import direct vers Le Nexus
+- 🎯 **LewdCorner** : Copie JSON uniquement
+
+#### 🎯 Utilisation
+
+1. **Naviguez vers une page de jeu** sur F95Zone ou LewdCorner
+   - Exemple : `https://f95zone.to/threads/any-game.12345/`
+
+2. **Un bouton 🎮 Le Nexus apparaît en bas à droite** (fixe)
+   - Cliquez dessus pour ouvrir le menu
+
+3. **Deux options disponibles** :
+   - **📥 Importer vers Le Nexus** (F95Zone uniquement)
+   - **📋 Copier JSON** (les deux plateformes)
+
+4. **Résultat** :
+   - Jeu importé directement dans Le Nexus (F95Zone)
+   - Ou JSON copié pour import manuel (LewdCorner)
+
+#### 🎨 Interface
+
+Bouton rond fixe en **bas à droite** avec icône 🎮. Menu déroulant avec options stylisées et animations fluides.
+
+#### ⚠️ Prérequis
+
+- **Le Nexus doit être lancé** (serveur d'import sur port 40000) pour F95Zone
+- Connexion Internet pour récupérer les données
+
+---
+
 ## 🛠️ Configuration
 
 ### Port du serveur d'import
 
 Par défaut, les scripts communiquent avec **Le Nexus** via :
 ```
-http://localhost:51234
+http://localhost:40000
 ```
 
 Si vous avez modifié le port dans l'application, éditez la variable `PORT` dans le script :
@@ -218,8 +307,16 @@ const PORT = VOTRE_PORT; // Ligne 15 du script
 **Solutions** :
 1. Vérifiez que Tampermonkey est activé (icône dans la barre du navigateur)
 2. Vérifiez que le script est **activé** dans le tableau de bord
-3. Actualisez la page MyAnimeList (`F5` ou `Ctrl+R`)
-4. Vérifiez les logs de la console développeur (`F12`)
+3. Actualisez la page (`F5` ou `Ctrl+R`)
+4. **Ouvrez la console développeur (F12)** et regardez les logs détaillés
+
+**Logs de diagnostic disponibles** :
+- ✅ Script initialisé
+- 🔍 Nombre de scripts JSON-LD trouvés
+- 🔄 Tentatives de création du bouton
+- ⚠️ Erreurs d'extraction de données
+
+**Sur Chrome avec des pages SPA** : Les scripts surveillent automatiquement les changements d'URL toutes les 500ms. Le message "Ce script n'a pas encore été exécuté" est normal au chargement initial sur Chrome.
 
 ### Erreur "Vérifiez que l'app est lancée"
 
@@ -227,8 +324,8 @@ const PORT = VOTRE_PORT; // Ligne 15 du script
 1. **Lancez Le Nexus** (`npm start`)
 2. Vérifiez que le serveur d'import est démarré :
    - Ouvrez l'application
-   - Regardez les logs : `🌐 Serveur d'import démarré sur http://localhost:51234`
-3. Testez manuellement : http://localhost:51234 dans le navigateur
+   - Regardez les logs : `🌐 Serveur d'import démarré sur http://localhost:40000`
+3. Testez manuellement : http://localhost:40000 dans le navigateur
    - Doit afficher : `{"status":"ok","message":"Le Nexus Import Server"}`
 
 ### L'anime est ajouté plusieurs fois
@@ -267,7 +364,7 @@ Le script empêche les doubles clics, mais un clic pendant le chargement créera
 
 ### Pourquoi localhost ?
 
-Les scripts communiquent uniquement avec **votre machine locale** (`localhost:51234`). Aucune donnée n'est envoyée à un serveur externe.
+Les scripts communiquent uniquement avec **votre machine locale** (`localhost:40000`). Aucune donnée n'est envoyée à un serveur externe.
 
 ### Code source ouvert
 
@@ -346,6 +443,6 @@ Problème avec un script ?
 
 ---
 
-**Dernière mise à jour** : Octobre 2025  
-**Version** : 3.0 - Le Nexus  
-**Nouveautés** : Interface unifiée en bas à gauche, icônes simplifiées (✅ 📥), menu Nautiljon (⋮)
+**Dernière mise à jour** : Décembre 2024  
+**Version** : 3.3 - Le Nexus  
+**Nouveautés** : Interface unifiée en bas à gauche, icônes simplifiées (✅ 📥), menu Nautiljon (⋮), **support Chrome/Chromium pour SPAs**, **correction CSP pour tous les scripts**

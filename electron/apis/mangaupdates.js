@@ -67,4 +67,6 @@ function convertMUStatus(status) {
   return statusMap[status] || 'En cours';
 }
 
-export { searchManga };
+module.exports = {
+  searchManga
+};

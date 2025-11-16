@@ -1,25 +1,32 @@
 // ==UserScript==
 // @name         ADN → Le Nexus
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.1.1
 // @description  Importe automatiquement vos animes depuis ADN vers Le Nexus et marque vos épisodes comme vus avec auto-incrémentation
 // @author       Rory-Mercury91
 // @match        https://*.animationdigitalnetwork.com/video/*
 // @match        https://animedigitalnetwork.fr/video/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=animationdigitalnetwork.fr
 // @grant        GM_xmlhttpRequest
+// @connect      localhost
+// @connect      *.animationdigitalnetwork.com
+// @connect      animedigitalnetwork.fr
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
     
-    const PORT = 51234;
+    const PORT = 40000;
     let episodeSaved = null;
     
     console.log('═══════════════════════════════════════════════════');
-    console.log('🎬 ADN → LE NEXUS v1.0.0');
+    console.log('🎬 ADN → LE NEXUS v1.1.0');
     console.log('✨ Import automatique et marquage d\'épisodes');
+    console.log('🔧 Compatibilité Chrome/Chromium SPAs');
     console.log('📍 URL:', window.location.href);
+    console.log('🌐 User Agent:', navigator.userAgent);
+    console.log('⏰ Chargé à:', new Date().toISOString());
     console.log('═══════════════════════════════════════════════════');
     
     // Extraire l'URL de la page principale de l'anime depuis l'URL d'épisode
@@ -51,21 +58,32 @@
     // Extraire les informations de l'épisode (depuis la page épisode)
     const extractEpisodeInfo = () => {
         try {
+            console.log('🔍 Recherche des scripts JSON-LD...');
             const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+            console.log(`📊 ${scripts.length} script(s) JSON-LD trouvé(s)`);
+            
             const parsed = Array.from(scripts).map(script => {
                 try {
                     return JSON.parse(script.innerText);
                 } catch (error) {
+                    console.warn('⚠️ Erreur parsing JSON-LD:', error);
                     return null;
                 }
             }).filter(item => item !== null);
             
+            console.log(`✅ ${parsed.length} JSON-LD parsé(s)`);
+            
             const merged = mergeObjects(parsed);
+            console.log('📦 JSON-LD mergé:', merged);
+            
             const title = merged.partOfSeries?.name;
             const episode = Number(merged.episodeNumber ?? 1);
             const season = merged.partOfSeason?.seasonNumber ?? 1;
             
+            console.log('🔍 Données extraites:', { title, episode, season });
+            
             if (!title || !season) {
+                console.warn('⚠️ Données incomplètes - title:', !!title, 'season:', !!season);
                 throw new Error("Données non trouvées");
             }
             
@@ -246,60 +264,82 @@
     };
     
     // Importer l'anime
-    const importAnime = async (animeData) => {
+    const importAnime = (animeData) => {
         console.log('📥 Import de l\'anime:', animeData.titre);
         
-        try {
-            const response = await fetch(`http://localhost:${PORT}/api/import-anime`, {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
                 method: 'POST',
+                url: `http://localhost:${PORT}/api/import-anime`,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(animeData)
+                data: JSON.stringify(animeData),
+                onload: (response) => {
+                    try {
+                        if (response.status === 200) {
+                            const result = JSON.parse(response.responseText);
+                            console.log('✅ Anime importé:', result);
+                            resolve(result);
+                        } else {
+                            const errorData = JSON.parse(response.responseText);
+                            throw new Error(errorData.error || `HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ Erreur import anime:', error);
+                        reject(error);
+                    }
+                },
+                onerror: (error) => {
+                    console.error('❌ Erreur réseau:', error);
+                    reject(new Error('Erreur réseau'));
+                }
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ Anime importé:', result);
-            return result;
-        } catch (error) {
-            console.error('❌ Erreur import anime:', error);
-            throw error;
-        }
+        });
     };
     
     // Marquer l'épisode comme vu
-    const markEpisodeWatched = async (episodeInfo) => {
-        try {
-            const response = await fetch(`http://localhost:${PORT}/api/mark-episode-watched`, {
+    const markEpisodeWatched = (episodeInfo) => {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
                 method: 'POST',
+                url: `http://localhost:${PORT}/api/mark-episode-watched`,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                data: JSON.stringify({
                     titre: episodeInfo.title,
                     saison_numero: episodeInfo.season,
                     episode_numero: episodeInfo.episode,
                     platform: 'adn'
-                })
+                }),
+                onload: (response) => {
+                    try {
+                        if (response.status === 200) {
+                            const result = JSON.parse(response.responseText);
+                            resolve(result);
+                        } else {
+                            const errorData = JSON.parse(response.responseText);
+                            throw new Error(errorData.error || `HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ Erreur:', error);
+                        reject(error);
+                    }
+                },
+                onerror: (error) => {
+                    console.error('❌ Erreur réseau:', error);
+                    reject(new Error('Erreur réseau'));
+                }
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Erreur:', error);
-            throw error;
-        }
+        });
     };
     
     // Créer le bouton (même logique que l'original)
     const createButton = () => {
+        console.log('🔘 Tentative de création du bouton...');
         const episodeInfo = extractEpisodeInfo();
-        if (!episodeInfo) return;
+        if (!episodeInfo) {
+            console.warn('⚠️ extractEpisodeInfo retourne null, bouton non créé');
+            return;
+        }
+        console.log('✅ EpisodeInfo extrait:', episodeInfo);
         
         const key = `${episodeInfo.title}-${episodeInfo.season}-${episodeInfo.episode}`;
         
@@ -452,8 +492,61 @@
         attributes: true
     });
     
-    // Tentative initiale
-    setTimeout(() => {
+    // Détection des changements d'URL pour Chrome/SPAs
+    let lastUrl = window.location.href;
+    
+    const checkUrlChange = () => {
+        const newUrl = window.location.href;
+        if (newUrl !== lastUrl) {
+            console.log('🔄 Changement d\'URL détecté:', newUrl);
+            lastUrl = newUrl;
+            
+            // Supprimer les boutons existants
+            const existingButton = document.getElementById('adn-episode-tracker');
+            if (existingButton) existingButton.remove();
+            episodeSaved = null;
+            
+            // Re-créer le bouton après un délai
+            setTimeout(() => {
+                createButton();
+            }, 500);
+        }
+    };
+    
+    // Surveiller les changements d'URL toutes les 500ms (pour Chrome/SPAs)
+    console.log('🔍 Démarrage de la surveillance d\'URL (Chrome/SPAs)');
+    setInterval(checkUrlChange, 500);
+    
+    // Utiliser window.onurlchange si disponible (Chrome spécifique)
+    if (typeof window.onurlchange !== 'undefined') {
+        console.log('✅ window.onurlchange disponible, utilisation du support natif Chrome');
+        window.onurlchange = checkUrlChange;
+    } else {
+        console.log('⚠️ window.onurlchange non disponible, utilisation de setInterval');
+    }
+    
+    // Tentative initiale avec retry
+    const tryCreateButton = (retries = 5) => {
+        console.log(`🔄 Tentative création bouton (${6 - retries}/6)...`);
         createButton();
-    }, 2000);
+        
+        // Vérifier si le bouton a été créé
+        setTimeout(() => {
+            const buttonExists = document.getElementById('adn-episode-tracker');
+            if (!buttonExists && retries > 0) {
+                console.log('⚠️ Bouton non créé, retry dans 1s...');
+                tryCreateButton(retries - 1);
+            } else if (buttonExists) {
+                console.log('✅ Bouton créé avec succès');
+            } else {
+                console.error('❌ Impossible de créer le bouton après 6 tentatives');
+            }
+        }, 1000);
+    };
+    
+    setTimeout(() => {
+        tryCreateButton();
+    }, 1000);
+    
+    console.log('✅ Script ADN initialisé');
 })();

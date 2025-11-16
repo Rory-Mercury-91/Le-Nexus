@@ -1,8 +1,10 @@
 import { Languages, Loader2, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useToast } from '../../../hooks/useToast';
+import { useState } from 'react';
+import { useToast } from '../../../hooks/common/useToast';
 import { AnimeSerie } from '../../../types';
 import CoverImage from '../../common/CoverImage';
+import Modal from '../common/Modal';
+import { useModalEscape } from '../common/useModalEscape';
 
 interface AnimeEditModalProps {
   anime: AnimeSerie;
@@ -28,6 +30,8 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
   const [enCoursDiffusion, setEnCoursDiffusion] = useState(anime.en_cours_diffusion || false);
   const [dateDebut, setDateDebut] = useState(anime.date_debut || '');
   const [dateFin, setDateFin] = useState(anime.date_fin || '');
+  const [dateSortieVf, setDateSortieVf] = useState(anime.date_sortie_vf || '');
+  const [dateDebutStreaming, setDateDebutStreaming] = useState(anime.date_debut_streaming || '');
   const [duree, setDuree] = useState(anime.duree || '');
   const [annee, setAnnee] = useState(anime.annee?.toString() || '');
   const [saisonDiffusion, setSaisonDiffusion] = useState(anime.saison_diffusion || '');
@@ -39,30 +43,40 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
   const [rating, setRating] = useState(anime.rating || '');
   const [score, setScore] = useState(anime.score?.toString() || '');
   
+  // Statistiques MAL
+  const [rankMal, setRankMal] = useState(anime.rank_mal?.toString() || '');
+  const [popularityMal, setPopularityMal] = useState(anime.popularity_mal?.toString() || '');
+  const [scoredBy, setScoredBy] = useState(anime.scored_by?.toString() || '');
+  const [favorites, setFavorites] = useState(anime.favorites?.toString() || '');
+  
   // Production
   const [studios, setStudios] = useState(anime.studios || '');
   const [producteurs, setProducteurs] = useState(anime.producteurs || '');
   const [diffuseurs, setDiffuseurs] = useState(anime.diffuseurs || '');
+  const [editeur, setEditeur] = useState(anime.editeur || '');
+  
+  // Informations contextuelles
+  const [background, setBackground] = useState(anime.background || '');
+  const [ageConseille, setAgeConseille] = useState(anime.age_conseille || '');
+  const [siteWeb, setSiteWeb] = useState(anime.site_web || '');
+  
+  // Relations et franchise
+  const [franchiseName, setFranchiseName] = useState(anime.franchise_name || '');
+  const [franchiseOrder, setFranchiseOrder] = useState(anime.franchise_order?.toString() || '');
+  const [prequelMalId, setPrequelMalId] = useState(anime.prequel_mal_id?.toString() || '');
+  const [sequelMalId, setSequelMalId] = useState(anime.sequel_mal_id?.toString() || '');
   
   // Liens
+  const [malUrl, setMalUrl] = useState(anime.mal_url || '');
   const [liensExternes, setLiensExternes] = useState(anime.liens_externes || '');
   const [liensStreaming, setLiensStreaming] = useState(anime.liens_streaming || '');
   
   const [saving, setSaving] = useState(false);
   const [translating, setTranslating] = useState(false);
-  const { showToast, ToastContainer } = useToast();
+  const { showToast } = useToast();
 
   // Fermer le modal avec la touche Échap
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, saving]);
+  useModalEscape(onClose, saving);
 
   const handleUploadImage = async () => {
     // Supprimer l'ancienne image locale si elle existe
@@ -70,7 +84,9 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
       await window.electronAPI.deleteCoverImage(couvertureUrl);
     }
     
-    const result = await window.electronAPI.uploadCustomCover(titre);
+    const result = await window.electronAPI.uploadCustomCover(titre, 'anime', {
+      mediaType: 'Anime'
+    });
     if (result.success && result.localPath) {
       setCouvertureUrl(result.localPath);
       showToast({ title: 'Image téléchargée avec succès', type: 'success' });
@@ -102,6 +118,8 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
         en_cours_diffusion: enCoursDiffusion,
         date_debut: dateDebut || null,
         date_fin: dateFin || null,
+        date_sortie_vf: dateSortieVf || null,
+        date_debut_streaming: dateDebutStreaming || null,
         duree: duree || null,
         annee: annee ? parseInt(annee) : null,
         saison_diffusion: saisonDiffusion || null,
@@ -109,10 +127,23 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
         themes: themes || null,
         demographics: demographics || null,
         rating: rating || null,
+        age_conseille: ageConseille || null,
         score: score ? parseFloat(score) : null,
+        rank_mal: rankMal ? parseInt(rankMal) : null,
+        popularity_mal: popularityMal ? parseInt(popularityMal) : null,
+        scored_by: scoredBy ? parseInt(scoredBy) : null,
+        favorites: favorites ? parseInt(favorites) : null,
         studios: studios || null,
         producteurs: producteurs || null,
         diffuseurs: diffuseurs || null,
+        editeur: editeur || null,
+        site_web: siteWeb || null,
+        background: background || null,
+        franchise_name: franchiseName || null,
+        franchise_order: franchiseOrder ? parseInt(franchiseOrder) : null,
+        prequel_mal_id: prequelMalId ? parseInt(prequelMalId) : null,
+        sequel_mal_id: sequelMalId ? parseInt(sequelMalId) : null,
+        mal_url: malUrl || null,
         liens_externes: liensExternes || null,
         liens_streaming: liensStreaming || null
       });
@@ -155,33 +186,32 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '24px 32px 16px',
-          background: 'var(--card-bg)',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0
-        }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Modifier l'anime</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px'
-            }}
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <Modal maxWidth="1000px" maxHeight="90vh" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '24px 32px 16px',
+        background: 'var(--card-bg)',
+        borderBottom: '1px solid var(--border)',
+        flexShrink: 0
+      }}>
+        <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Modifier l'anime</h2>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '8px',
+            borderRadius: '8px'
+          }}
+        >
+          <X size={24} />
+        </button>
+      </div>
 
         <form id="anime-edit-form" onSubmit={handleSubmit} style={{ flex: 1, overflow: 'auto', padding: '24px 32px' }}>
           <div style={{ display: 'flex', gap: '24px' }}>
@@ -474,7 +504,7 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                    Date début
+                    Date début (VO)
                   </label>
                   <input
                     type="date"
@@ -485,12 +515,37 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                    Date fin
+                    Date fin (VO)
                   </label>
                   <input
                     type="date"
                     value={dateFin}
                     onChange={(e) => setDateFin(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Date sortie VF
+                  </label>
+                  <input
+                    type="date"
+                    value={dateSortieVf}
+                    onChange={(e) => setDateSortieVf(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Date début streaming/simulcast
+                  </label>
+                  <input
+                    type="date"
+                    value={dateDebutStreaming}
+                    onChange={(e) => setDateDebutStreaming(e.target.value)}
                     className="input"
                   />
                 </div>
@@ -552,16 +607,86 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                    Score MAL
+                    Âge conseillé
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
-                    placeholder="8.5"
-                    value={score}
-                    onChange={(e) => setScore(e.target.value)}
+                    type="text"
+                    placeholder="12 ans et +, 16 ans..."
+                    value={ageConseille}
+                    onChange={(e) => setAgeConseille(e.target.value)}
                     className="input"
                   />
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Score MAL
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="8.5"
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                  className="input"
+                />
+              </div>
+
+              {/* Statistiques MAL */}
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text-primary)' }}>
+                  Statistiques MyAnimeList
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Rang MAL
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="#1"
+                      value={rankMal}
+                      onChange={(e) => setRankMal(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Popularité
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="#1"
+                      value={popularityMal}
+                      onChange={(e) => setPopularityMal(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Nombre de notes
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="1000"
+                      value={scoredBy}
+                      onChange={(e) => setScoredBy(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Favoris
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="500"
+                      value={favorites}
+                      onChange={(e) => setFavorites(e.target.value)}
+                      className="input"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -605,32 +730,151 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
                   />
                 </div>
               </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Éditeur (DVD/Blu-ray)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Crunchyroll SAS, KAZÉ..."
+                    value={editeur}
+                    onChange={(e) => setEditeur(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                    Site web officiel
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={siteWeb}
+                    onChange={(e) => setSiteWeb(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
 
-              {/* Liens */}
+              {/* Informations contextuelles */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                  Liens externes
+                  Background / Informations contextuelles
                 </label>
-                <input
-                  type="text"
-                  placeholder="Wikipedia, AniDB..."
-                  value={liensExternes}
-                  onChange={(e) => setLiensExternes(e.target.value)}
+                <textarea
+                  placeholder="Informations contextuelles sur l'anime..."
+                  value={background}
+                  onChange={(e) => setBackground(e.target.value)}
                   className="input"
+                  rows={4}
+                  style={{ resize: 'vertical', minHeight: '100px' }}
                 />
               </div>
 
+              {/* Relations et franchise */}
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                  Liens streaming
-                </label>
-                <input
-                  type="text"
-                  placeholder="Crunchyroll, Netflix..."
-                  value={liensStreaming}
-                  onChange={(e) => setLiensStreaming(e.target.value)}
-                  className="input"
-                />
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text-primary)' }}>
+                  Relations et franchise
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Nom de la franchise
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Fate Series"
+                      value={franchiseName}
+                      onChange={(e) => setFranchiseName(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Ordre dans la franchise
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={franchiseOrder}
+                      onChange={(e) => setFranchiseOrder(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Prequel MAL ID
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="12345"
+                      value={prequelMalId}
+                      onChange={(e) => setPrequelMalId(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                      Sequel MAL ID
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="12346"
+                      value={sequelMalId}
+                      onChange={(e) => setSequelMalId(e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Liens */}
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: 'var(--text-primary)' }}>
+                  Liens
+                </h3>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                    URL MyAnimeList
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://myanimelist.net/anime/12345"
+                    value={malUrl}
+                    onChange={(e) => setMalUrl(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                    Liens externes (JSON)
+                  </label>
+                  <textarea
+                    placeholder='[{"name": "Wikipedia", "url": "https://..."}]'
+                    value={liensExternes}
+                    onChange={(e) => setLiensExternes(e.target.value)}
+                    className="input"
+                    rows={3}
+                    style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: '12px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
+                    Liens streaming (JSON)
+                  </label>
+                  <textarea
+                    placeholder='[{"name": "Crunchyroll", "url": "https://..."}]'
+                    value={liensStreaming}
+                    onChange={(e) => setLiensStreaming(e.target.value)}
+                    className="input"
+                    rows={3}
+                    style={{ resize: 'vertical', fontFamily: 'monospace', fontSize: '12px' }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -669,8 +913,6 @@ export default function AnimeEditModal({ anime, onClose, onSuccess }: AnimeEditM
             )}
           </button>
         </div>
-      </div>
-      <ToastContainer />
-    </div>
+      </Modal>
   );
 }

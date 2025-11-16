@@ -1,12 +1,13 @@
 // ==UserScript==
-// @name         MyAnimeList Quick Add - Le Nexus
+// @name         MyAnimeList → Le Nexus
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.0.1
 // @description  Ajoute un bouton "Ajouter à Le Nexus" sur les pages d'anime MyAnimeList
 // @author       Votre nom
 // @match        https://myanimelist.net/anime/*
 // @icon         https://cdn.myanimelist.net/img/sp/icon/apple-touch-icon-256.png
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      localhost
 // ==/UserScript==
 
 (function() {
@@ -53,29 +54,74 @@
     // Action du bouton
     button.onclick = () => {
         // Envoyer à l'application via le serveur local
-        fetch('http://localhost:51234/add-anime', {
+        GM_xmlhttpRequest({
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+            url: 'http://localhost:40000/add-anime',
+            headers: { 'Content-Type': 'application/json' },
+            data: JSON.stringify({
                 mal_id: parseInt(malId),
                 source: 'myanimelist'
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+            }),
+            onload: (response) => {
+                try {
+                    const data = JSON.parse(response.responseText);
+                    if (data.success) {
+                        button.innerHTML = `
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Ajouté avec succès !
+                        `;
+                        button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                        button.disabled = true;
+
+                        // Réinitialiser après 3 secondes
+                        setTimeout(() => {
+                            button.innerHTML = `
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Ajouter à Le Nexus
+                            `;
+                            button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                            button.disabled = false;
+                        }, 3000);
+                    } else {
+                        throw new Error(data.error || 'Erreur inconnue');
+                    }
+                } catch (error) {
+                    console.error('Erreur:', error);
+                    button.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Erreur - Vérifiez que l'app est lancée
+                    `;
+                    button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+
+                    // Réinitialiser après 5 secondes
+                    setTimeout(() => {
+                        button.innerHTML = `
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Ajouter à Le Nexus
+                        `;
+                        button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    }, 5000);
+                }
+            },
+            onerror: (error) => {
+                console.error('Erreur:', error);
                 button.innerHTML = `
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    Ajouté avec succès !
+                    Erreur - Vérifiez que l'app est lancée
                 `;
-                button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                button.disabled = true;
+                button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
 
-                // Réinitialiser après 3 secondes
+                // Réinitialiser après 5 secondes
                 setTimeout(() => {
                     button.innerHTML = `
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
@@ -84,32 +130,8 @@
                         Ajouter à Le Nexus
                     `;
                     button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    button.disabled = false;
-                }, 3000);
-            } else {
-                throw new Error(data.error || 'Erreur inconnue');
+                }, 5000);
             }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            button.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Erreur - Vérifiez que l'app est lancée
-            `;
-            button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-
-            // Réinitialiser après 5 secondes
-            setTimeout(() => {
-                button.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right: 6px; vertical-align: middle;">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Ajouter à Le Nexus
-                `;
-                button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            }, 5000);
         });
     };
 

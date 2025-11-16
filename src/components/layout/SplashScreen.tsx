@@ -1,5 +1,7 @@
 import { Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import FullScreenOverlay from '../common/FullScreenOverlay';
+import GradientTitle from '../common/GradientTitle';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -18,27 +20,37 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
     try {
       setStatus(`Bienvenue ${currentUser} !`);
       setProgress(10);
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       setStatus('Recherche des bases de données...');
       setProgress(30);
-      
+
       await window.electronAPI.setCurrentUser(currentUser);
-      
+
       setStatus('Fusion des collections...');
       setProgress(60);
-      
+
       const result = await window.electronAPI.mergeDatabase();
-      
+
       if (result.merged) {
-        setStatus(`Fusion terminée : ${result.seriesCount} séries, ${result.tomesCount} tomes`);
+        const parts = [];
+        if (result.seriesCount && result.seriesCount > 0) parts.push(`${result.seriesCount} séries`);
+        if (result.tomesCount && result.tomesCount > 0) parts.push(`${result.tomesCount} tomes`);
+        if (result.animesCount && result.animesCount > 0) parts.push(`${result.animesCount} animes`);
+        if (result.gamesCount && result.gamesCount > 0) parts.push(`${result.gamesCount} jeux`);
+
+        if (parts.length > 0) {
+          setStatus(`Fusion terminée : ${parts.join(', ')}`);
+        } else {
+          setStatus('Aucune nouvelle donnée à fusionner');
+        }
         setProgress(100);
       } else {
         setStatus('Chargement...');
         setProgress(100);
       }
-      
+
       // Attendre un peu pour que l'utilisateur voie le message
       setTimeout(() => {
         onComplete();
@@ -53,19 +65,7 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'linear-gradient(135deg, var(--background) 0%, #1a1f35 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999
-    }}>
+    <FullScreenOverlay>
       {/* Logo/Icône */}
       <div style={{
         marginBottom: '32px',
@@ -75,17 +75,9 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
       </div>
 
       {/* Titre */}
-      <h1 style={{
-        fontSize: '36px',
-        fontWeight: '700',
-        marginBottom: '16px',
-        background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text'
-      }}>
-        Le Nexus
-      </h1>
+      <GradientTitle marginBottom="16px">
+        Nexus
+      </GradientTitle>
 
       {/* Statut */}
       <p style={{
@@ -125,6 +117,6 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
           }
         }
       `}</style>
-    </div>
+    </FullScreenOverlay>
   );
 }

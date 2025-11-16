@@ -1,72 +1,36 @@
-import { Grid3x3, Image, List } from 'lucide-react';
-import { cloneElement, isValidElement, useEffect, useState } from 'react';
+import { Grid3x3 } from 'lucide-react';
+import { cloneElement, isValidElement } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 
 type ViewMode = 'grid' | 'list' | 'images';
 
 interface CollectionViewProps<T> {
   items: T[];
-  viewMode?: ViewMode;
-  onViewModeChange?: (mode: ViewMode) => void;
+  viewMode: ViewMode;
   renderCard: (item: T, onUpdate?: () => void) => React.ReactNode;
   renderListItem?: (item: T, onUpdate?: () => void) => React.ReactNode;
   onUpdate?: () => void;
   loading?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
-  gridColumns?: 2 | 3 | 4 | 5 | 6;
+  gridMinWidth?: number;
+  imageMinWidth?: number;
 }
 
 export default function CollectionView<T extends { id: number | string }>({
   items,
-  viewMode: controlledViewMode,
-  onViewModeChange,
+  viewMode,
   renderCard,
   renderListItem,
   onUpdate,
   loading = false,
   emptyMessage = 'Aucun élément dans votre collection',
   emptyIcon,
-  gridColumns = 4
+  gridMinWidth = 360,
+  imageMinWidth = 200
 }: CollectionViewProps<T>) {
-  // État local du mode de vue (utilisé si non contrôlé)
-  const [localViewMode, setLocalViewMode] = useState<ViewMode>('grid');
-  
-  // Utiliser le mode contrôlé si fourni, sinon utiliser l'état local
-  const viewMode = controlledViewMode || localViewMode;
-  
-  const handleViewModeChange = (mode: ViewMode) => {
-    if (onViewModeChange) {
-      onViewModeChange(mode);
-    } else {
-      setLocalViewMode(mode);
-    }
-  };
-
-  // Charger le mode de vue depuis localStorage au montage
-  useEffect(() => {
-    if (!controlledViewMode) {
-      const savedMode = localStorage.getItem('collectionViewMode') as ViewMode;
-      if (savedMode) {
-        setLocalViewMode(savedMode);
-      }
-    }
-  }, [controlledViewMode]);
-
-  // Sauvegarder le mode de vue dans localStorage quand il change
-  useEffect(() => {
-    if (!controlledViewMode) {
-      localStorage.setItem('collectionViewMode', viewMode);
-    }
-  }, [viewMode, controlledViewMode]);
-
-
   if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '60px' }}>
-        <div className="loading" style={{ width: '40px', height: '40px', margin: '0 auto' }} />
-        <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>Chargement...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (items.length === 0) {
@@ -87,47 +51,26 @@ export default function CollectionView<T extends { id: number | string }>({
 
   return (
     <div>
-      {/* Sélecteur de vue */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '24px',
-        justifyContent: 'flex-end'
-      }}>
-        <button
-          onClick={() => handleViewModeChange('grid')}
-          className={viewMode === 'grid' ? 'btn btn-primary' : 'btn'}
-          style={{ padding: '8px 16px' }}
-          title="Vue grille"
-        >
-          <Grid3x3 size={18} />
-        </button>
-        <button
-          onClick={() => handleViewModeChange('list')}
-          className={viewMode === 'list' ? 'btn btn-primary' : 'btn'}
-          style={{ padding: '8px 16px' }}
-          title="Vue liste"
-        >
-          <List size={18} />
-        </button>
-        <button
-          onClick={() => handleViewModeChange('images')}
-          className={viewMode === 'images' ? 'btn btn-primary' : 'btn'}
-          style={{ padding: '8px 16px' }}
-          title="Images uniquement"
-        >
-          <Image size={18} />
-        </button>
-      </div>
-
       {/* Contenu selon le mode de vue */}
       {viewMode === 'grid' && (
-        <div className={`grid grid-${gridColumns}`}>
-          {items.map((item) => (
-            <div key={item.id}>
-              {renderCard(item, onUpdate)}
-            </div>
-          ))}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`,
+          gap: '12px',
+          overflow: 'visible',
+          position: 'relative'
+        }}>
+          {items.map((item) => {
+            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
+            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
+              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
+              : item.id;
+            return (
+              <div key={itemKey} data-scroll-id={String(item.id)}>
+                {renderCard(item, onUpdate)}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -138,11 +81,17 @@ export default function CollectionView<T extends { id: number | string }>({
           flexDirection: 'column',
           gap: '12px'
         }}>
-          {items.map((item) => (
-            <div key={item.id}>
-              {renderListItem ? renderListItem(item, onUpdate) : renderCard(item, onUpdate)}
-            </div>
-          ))}
+          {items.map((item) => {
+            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
+            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
+              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
+              : item.id;
+            return (
+              <div key={itemKey} data-scroll-id={String(item.id)}>
+                {renderListItem ? renderListItem(item, onUpdate) : renderCard(item, onUpdate)}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -151,11 +100,17 @@ export default function CollectionView<T extends { id: number | string }>({
       {viewMode === 'images' && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gridTemplateColumns: `repeat(auto-fill, minmax(${imageMinWidth}px, 1fr))`,
           gap: '16px',
-          padding: '20px'
+          padding: '20px',
+          overflow: 'visible',
+          position: 'relative'
         }}>
           {items.map((item) => {
+            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
+            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
+              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
+              : item.id;
             const card = renderCard(item, onUpdate);
             // Cloner l'élément et ajouter imageOnly pour mode images
             const enhancedCard = isValidElement(card)
@@ -165,16 +120,7 @@ export default function CollectionView<T extends { id: number | string }>({
               : card;
             
             return (
-              <div key={item.id} style={{
-                transform: 'scale(1)',
-                transition: 'transform 0.2s ease',
-                cursor: 'pointer',
-                borderRadius: '12px',
-                overflow: 'hidden'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
+              <div key={itemKey} data-scroll-id={String(item.id)}>
                 {enhancedCard}
               </div>
             );

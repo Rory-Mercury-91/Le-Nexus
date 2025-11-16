@@ -7,18 +7,9 @@ const { shell } = require('electron');
 const http = require('http');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const Store = require('electron-store');
 
-/**
- * Convertit un Buffer en base64url (RFC 4648)
- * @param {Buffer} buffer - Buffer à convertir
- * @returns {string} String encodée en base64url
- */
-function base64urlEncode(buffer) {
-  return buffer.toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-}
+const store = new Store();
 
 /**
  * Génère un challenge PKCE conforme RFC 7636
@@ -52,10 +43,38 @@ function generatePKCEChallenge() {
 }
 
 // Configuration OAuth MAL
-const MAL_CLIENT_ID = 'e72b02a7bb078afbca8c4184caa53477'; // Client ID de l'app Le Nexus
-const MAL_REDIRECT_URI = 'http://localhost:8888/callback';
+const LEGACY_MAL_CLIENT_ID = 'e72b02a7bb078afbca8c4184caa53477'; // Ancienne valeur codée en dur (fallback)
+const DEFAULT_REDIRECT_URI = 'http://localhost:8888/callback';
 const MAL_AUTH_URL = 'https://myanimelist.net/v1/oauth2/authorize';
 const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
+
+function getConfiguredMalClientId() {
+  const stored = (store.get('mal.clientId', '') || '').trim();
+  if (stored) {
+    return stored;
+  }
+  const envClientId = (process.env.MAL_CLIENT_ID || '').trim();
+  if (envClientId) {
+    return envClientId;
+  }
+  if (LEGACY_MAL_CLIENT_ID) {
+    console.warn('⚠️ Client ID MAL par défaut utilisé. Pensez à configurer votre propre clé dans les paramètres.');
+    return LEGACY_MAL_CLIENT_ID;
+  }
+  return '';
+}
+
+function getConfiguredRedirectUri() {
+  const stored = (store.get('mal.redirectUri', '') || '').trim();
+  if (stored) {
+    return stored;
+  }
+  const envRedirect = (process.env.MAL_REDIRECT_URI || '').trim();
+  if (envRedirect) {
+    return envRedirect;
+  }
+  return DEFAULT_REDIRECT_URI;
+}
 
 /**
  * Génère un code PKCE et démarre le flow OAuth
@@ -69,6 +88,14 @@ function startOAuthFlow(onSuccess, onError) {
   
   // State pour prévenir CSRF
   const state = crypto.randomBytes(16).toString('hex');
+  const clientId = getConfiguredMalClientId();
+  const redirectUri = getConfiguredRedirectUri();
+
+  if (!clientId) {
+    const error = new Error('Client ID MyAnimeList manquant. Configurez votre clé dans les paramètres.');
+    onError(error);
+    return { server: null, codeVerifier: null };
+  }
   
   // Créer un serveur local temporaire pour recevoir le callback
   let callbackReceived = false;
@@ -145,7 +172,7 @@ function startOAuthFlow(onSuccess, onError) {
       
       // Échanger le code contre des tokens
       try {
-        const tokens = await exchangeCodeForTokens(code, code_verifier);
+        const tokens = await exchangeCodeForTokens(code, code_verifier, clientId, redirectUri);
         
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(htmlSuccess);
@@ -168,8 +195,8 @@ function startOAuthFlow(onSuccess, onError) {
     // Construire l'URL d'autorisation
     const authUrl = new URL(MAL_AUTH_URL);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('client_id', MAL_CLIENT_ID);
-    authUrl.searchParams.set('redirect_uri', MAL_REDIRECT_URI);
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', code_challenge);
     authUrl.searchParams.set('code_challenge_method', 'plain'); // MAL ne supporte que 'plain'
@@ -199,20 +226,22 @@ function startOAuthFlow(onSuccess, onError) {
  * Échange le code d'autorisation contre des tokens
  * @param {string} code - Code d'autorisation OAuth
  * @param {string} codeVerifier - Code verifier PKCE
+ * @param {string} clientId - Client ID MAL
+ * @param {string} redirectUri - Redirect URI MAL
  * @returns {Promise<Object>} { access_token, refresh_token, expires_in }
  */
-async function exchangeCodeForTokens(code, codeVerifier) {
+async function exchangeCodeForTokens(code, codeVerifier, clientId, redirectUri) {
   console.log('🔄 Échange du code contre les tokens...');
   console.log('  Code:', code ? `${code.substring(0, 10)}...` : 'MANQUANT');
   console.log('  Code verifier:', codeVerifier ? `${codeVerifier.substring(0, 20)}...` : 'MANQUANT');
   console.log('  Code verifier length:', codeVerifier ? codeVerifier.length : 'MANQUANT');
-  console.log('  Redirect URI:', MAL_REDIRECT_URI);
+  console.log('  Redirect URI:', redirectUri);
   
   const params = new URLSearchParams();
-  params.set('client_id', MAL_CLIENT_ID);
+  params.set('client_id', clientId);
   params.set('grant_type', 'authorization_code');
   params.set('code', code);
-  params.set('redirect_uri', MAL_REDIRECT_URI);
+  params.set('redirect_uri', redirectUri);
   params.set('code_verifier', codeVerifier);
   
   console.log('📤 Body envoyé:', params.toString().substring(0, 150) + '...');
@@ -247,8 +276,12 @@ async function exchangeCodeForTokens(code, codeVerifier) {
  * @returns {Promise<Object>} { access_token, refresh_token, expires_in }
  */
 async function refreshAccessToken(refreshToken) {
+  const clientId = getConfiguredMalClientId();
+  if (!clientId) {
+    throw new Error('Client ID MAL manquant. Configurez votre clé dans les paramètres.');
+  }
   const params = new URLSearchParams();
-  params.set('client_id', MAL_CLIENT_ID);
+  params.set('client_id', clientId);
   params.set('grant_type', 'refresh_token');
   params.set('refresh_token', refreshToken);
   
@@ -298,5 +331,6 @@ module.exports = {
   startOAuthFlow,
   refreshAccessToken,
   getUserInfo,
-  MAL_CLIENT_ID
+  getConfiguredMalClientId,
+  getConfiguredRedirectUri
 };

@@ -1,20 +1,52 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import ImportingOverlay from './components/common/ImportingOverlay';
+import ProtectedContent from './components/common/ProtectedContent';
 import UserSelector from './components/common/UserSelector';
 import Layout from './components/layout/Layout';
 import OnboardingWizard from './components/layout/OnboardingWizard';
 import SplashScreen from './components/layout/SplashScreen';
-import AnimeDetail from './pages/AnimeDetail';
-import Animes from './pages/Animes';
-import AVN from './pages/AVN';
-import AvnDetail from './pages/AvnDetail';
-import Collection from './pages/Collection';
-import Dashboard from './pages/Dashboard';
-import SerieDetail from './pages/SerieDetail';
-import Settings from './pages/Settings';
+import { AdulteGameLockProvider, useAdulteGameLock } from './hooks/useAdulteGameLock';
+import { useBackendLogger } from './hooks/useBackendLogger';
+import AdulteGame from './pages/AdulteGame/AdulteGame';
+import AdulteGameDetail from './pages/AdulteGame/AdulteGameDetail';
+import AnimeDetail from './pages/Animes/AnimeDetail';
+import Animes from './pages/Animes/Animes';
+import Dashboard from './pages/Dashboard/Dashboard';
+import Collection from './pages/Mangas/Mangas';
+import SerieDetail from './pages/Mangas/MangaDetail';
+import MovieDetail from './pages/Movies/MovieDetail';
+import Movies from './pages/Movies/Movies';
+import SeriesDetail from './pages/Series/SeriesDetail';
+import Series from './pages/Series/Series';
+import Settings from './pages/Settings/Settings';
+
+// Wrapper pour protéger les routes jeux adultes
+function ProtectedAdulteGameRoute({ children }: { children: React.ReactNode }) {
+  const { isLocked, hasPassword } = useAdulteGameLock();
+
+  // La section Jeux adulte est toujours considérée comme sensible si verrouillée
+  const isSensitive = hasPassword && isLocked;
+
+  return (
+    <ProtectedContent
+      isSensitive={isSensitive}
+      onCancel={() => {
+        // Rediriger vers le dashboard si l'utilisateur annule
+        window.location.hash = '#/';
+      }}
+    >
+      {children}
+    </ProtectedContent>
+  );
+}
 
 function App() {
+  // Activer le système de logging backend vers frontend
+  useBackendLogger();
+  
+  // Ne plus charger automatiquement l'utilisateur au démarrage
+  // Le UserSelector sera toujours affiché pour choisir qui utilise l'app
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -23,7 +55,18 @@ function App() {
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [checkingUsers, setCheckingUsers] = useState(true);
 
-  // Vérifier si des utilisateurs existent
+  // Ne plus charger automatiquement l'utilisateur au démarrage
+  // Le UserSelector sera toujours affiché pour choisir qui utilise l'app
+
+  // Fonction pour sélectionner un utilisateur et le sauvegarder
+  const handleUserSelected = async (userName: string) => {
+    localStorage.setItem('currentUser', userName);
+    // Sauvegarder aussi dans le store Electron
+    await window.electronAPI.setCurrentUser(userName);
+    setCurrentUser(userName);
+  };
+
+  // Vérifier si des utilisateurs existent et charger l'utilisateur sauvegardé
   useEffect(() => {
     const checkUsers = async () => {
       try {
@@ -32,8 +75,41 @@ function App() {
           setCheckingUsers(false);
           return;
         }
+
         const users = await window.electronAPI.getAllUsers();
-        setNeedsOnboarding(users.length === 0);
+
+        let effectiveUsers = users;
+
+        if (users.length === 0 && window.electronAPI.getBaseDirectory) {
+          const baseDir = await window.electronAPI.getBaseDirectory();
+          if (baseDir) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            effectiveUsers = await window.electronAPI.getAllUsers();
+          }
+        }
+
+        setNeedsOnboarding(effectiveUsers.length === 0);
+
+        // Si plusieurs utilisateurs existent, toujours afficher le sélecteur
+        // Si un seul utilisateur existe, charger automatiquement
+        if (effectiveUsers.length > 1) {
+          localStorage.removeItem('currentUser');
+          await window.electronAPI.setCurrentUser('');
+          setCurrentUser(null);
+        } else if (effectiveUsers.length === 1) {
+          // Un seul utilisateur : charger automatiquement (même s'il y a un utilisateur sauvegardé différent)
+          const singleUser = effectiveUsers[0].name;
+          void handleUserSelected(singleUser);
+        } else if (effectiveUsers.length > 0) {
+          const savedUser = localStorage.getItem('currentUser');
+          if (savedUser && effectiveUsers.some(u => u.name === savedUser)) {
+            setCurrentUser(savedUser);
+          } else {
+            localStorage.removeItem('currentUser');
+            await window.electronAPI.setCurrentUser('');
+            setCurrentUser(null);
+          }
+        }
       } catch (error) {
         console.error('Erreur lors de la vérification des utilisateurs:', error);
         setNeedsOnboarding(true);
@@ -70,7 +146,7 @@ function App() {
       return;
     }
 
-    const unsubscribeStart = window.electronAPI.onMangaImportStart?.((data) => {
+    const unsubscribeStart = window.electronAPI.onMangaImportStart?.((data: { message?: string }) => {
       setImportMessage(data.message || 'Réception de données en cours...');
       setIsImporting(true);
     });
@@ -126,7 +202,7 @@ function App() {
 
   // Étape 2: Sélection utilisateur
   if (!currentUser) {
-    return <UserSelector onUserSelected={setCurrentUser} />;
+    return <UserSelector onUserSelected={handleUserSelected} />;
   }
 
   // Étape 3: Chargement et fusion
@@ -138,20 +214,40 @@ function App() {
   return (
     <>
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Layout currentUser={currentUser}>
-          <Routes>
-            <Route path="/" element={<Dashboard key={refreshTrigger} />} />
-            <Route path="/collection" element={<Collection key={refreshTrigger} />} />
-            <Route path="/serie/:id" element={<SerieDetail key={refreshTrigger} />} />
-            <Route path="/animes" element={<Animes key={refreshTrigger} />} />
-            <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
-            <Route path="/avn" element={<AVN key={refreshTrigger} />} />
-            <Route path="/avn/:id" element={<AvnDetail key={refreshTrigger} />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </Layout>
+        <AdulteGameLockProvider>
+          <Layout currentUser={currentUser}>
+            <Routes>
+              <Route path="/" element={<Dashboard key={refreshTrigger} />} />
+              <Route path="/collection" element={<Collection key={refreshTrigger} />} />
+              <Route path="/serie/:id" element={<SerieDetail key={refreshTrigger} />} />
+              <Route path="/animes" element={<Animes key={refreshTrigger} />} />
+              <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
+              <Route path="/movies" element={<Movies key={refreshTrigger} />} />
+              <Route path="/movies/:tmdbId" element={<MovieDetail key={refreshTrigger} />} />
+              <Route path="/series" element={<Series key={refreshTrigger} />} />
+              <Route path="/series/:tmdbId" element={<SeriesDetail key={refreshTrigger} />} />
+              <Route
+                path="/adulte-game"
+                element={
+                  <ProtectedAdulteGameRoute>
+                    <AdulteGame key={refreshTrigger} />
+                  </ProtectedAdulteGameRoute>
+                }
+              />
+              <Route
+                path="/adulte-game/:id"
+                element={
+                  <ProtectedAdulteGameRoute>
+                    <AdulteGameDetail key={refreshTrigger} />
+                  </ProtectedAdulteGameRoute>
+                }
+              />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </Layout>
+        </AdulteGameLockProvider>
       </HashRouter>
-      
+
       {isImporting && <ImportingOverlay message={importMessage} />}
     </>
   );

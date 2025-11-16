@@ -1,10 +1,10 @@
 // Système de recherche unifié avec fallback automatique
 // AniList → MyAnimeList → Kitsu
 
-import * as AniList from './anilist.js';
-import * as Kitsu from './kitsu.js';
-import * as MyAnimeList from './myanimelist.js';
-import { generateSearchVariants, isFrenchQuery } from './searchHelper.js';
+const AniList = require('./anilist');
+const Kitsu = require('./kitsu');
+const MyAnimeList = require('./myanimelist');
+const { generateSearchVariants, isFrenchQuery } = require('./searchHelper');
 
 /**
  * Recherche d'animes sur toutes les API disponibles avec fallback
@@ -27,14 +27,28 @@ async function searchAnime(query, options = {}) {
   
   const allResults = [];
   
-  // Ordre de priorité des API : AniList > MyAnimeList > Kitsu
+  // Ordre de priorité des API : MyAnimeList > AniList > Kitsu
+  let malHasResults = false;
+  let anilistHasResults = false;
   const apis = [
-    { name: 'AniList', func: AniList.searchAnime, priority: 1 },
-    { name: 'MyAnimeList', func: MyAnimeList.searchAnime, priority: 2 },
+    { name: 'MyAnimeList', func: MyAnimeList.searchAnime, priority: 1 },
+    { name: 'AniList', func: AniList.searchAnime, priority: 2 },
     { name: 'Kitsu', func: Kitsu.searchAnime, priority: 3 }
   ];
   
   for (const api of apis) {
+    // Ne pas appeler AniList/Kitsu si MAL a déjà des résultats
+    if ((api.name === 'AniList' || api.name === 'Kitsu') && malHasResults) {
+      console.log(`⏭️ ${api.name} ignoré car MyAnimeList a retourné des résultats`);
+      continue;
+    }
+    
+    // Ne pas appeler Kitsu si AniList a déjà des résultats
+    if (api.name === 'Kitsu' && anilistHasResults) {
+      console.log(`⏭️ Kitsu ignoré car AniList a retourné des résultats`);
+      continue;
+    }
+    
     try {
       console.log(`🔎 Tentative de recherche sur ${api.name}...`);
       
@@ -59,6 +73,13 @@ async function searchAnime(query, options = {}) {
       }
       
       if (apiResults.length > 0) {
+        // Marquer que MAL/AniList a des résultats
+        if (api.name === 'MyAnimeList') {
+          malHasResults = true;
+        } else if (api.name === 'AniList') {
+          anilistHasResults = true;
+        }
+        
         // Dédupliquer les résultats par titre
         const uniqueResults = deduplicateResults(apiResults);
         allResults.push(...uniqueResults);
@@ -105,14 +126,28 @@ async function searchManga(query, options = {}) {
   
   const allResults = [];
   
-  // Ordre de priorité des API : AniList > MyAnimeList > Kitsu
+  // Ordre de priorité des API : MyAnimeList > AniList > Kitsu
+  let malHasResults = false;
+  let anilistHasResults = false;
   const apis = [
-    { name: 'AniList', func: AniList.searchManga, priority: 1 },
-    { name: 'MyAnimeList', func: MyAnimeList.searchManga, priority: 2 },
+    { name: 'MyAnimeList', func: MyAnimeList.searchManga, priority: 1 },
+    { name: 'AniList', func: AniList.searchManga, priority: 2 },
     { name: 'Kitsu', func: Kitsu.searchManga, priority: 3 }
   ];
   
   for (const api of apis) {
+    // Ne pas appeler AniList/Kitsu si MAL a déjà des résultats
+    if ((api.name === 'AniList' || api.name === 'Kitsu') && malHasResults) {
+      console.log(`⏭️ ${api.name} ignoré car MyAnimeList a retourné des résultats`);
+      continue;
+    }
+    
+    // Ne pas appeler Kitsu si AniList a déjà des résultats
+    if (api.name === 'Kitsu' && anilistHasResults) {
+      console.log(`⏭️ Kitsu ignoré car AniList a retourné des résultats`);
+      continue;
+    }
+    
     try {
       console.log(`🔎 Tentative de recherche sur ${api.name}...`);
       
@@ -136,6 +171,13 @@ async function searchManga(query, options = {}) {
       }
       
       if (apiResults.length > 0) {
+        // Marquer que MAL/AniList a des résultats
+        if (api.name === 'MyAnimeList') {
+          malHasResults = true;
+        } else if (api.name === 'AniList') {
+          anilistHasResults = true;
+        }
+        
         const uniqueResults = deduplicateResults(apiResults);
         allResults.push(...uniqueResults);
         
@@ -185,4 +227,7 @@ function normalizeTitle(title) {
     .replace(/\s+/g, ' '); // Normaliser espaces
 }
 
-export { searchAnime, searchManga };
+module.exports = {
+  searchAnime,
+  searchManga
+};

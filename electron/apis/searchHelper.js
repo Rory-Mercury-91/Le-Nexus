@@ -96,4 +96,8 @@ function isFrenchQuery(query) {
   return frenchIndicators.some(pattern => pattern.test(query));
 }
 
-export { frenchToEnglishKeywords, generateSearchVariants, isFrenchQuery };
+module.exports = {
+  frenchToEnglishKeywords,
+  generateSearchVariants,
+  isFrenchQuery
+};

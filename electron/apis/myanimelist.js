@@ -89,18 +89,6 @@ async function searchAnime(query) {
   }
 }
 
-// Convertir le statut MAL vers notre format
-function convertMALStatus(status) {
-  const statusMap = {
-    'Finished': 'Terminée',
-    'Publishing': 'En cours',
-    'On Hiatus': 'En pause',
-    'Discontinued': 'Annulée',
-    'Not yet published': 'Annoncée'
-  };
-  return statusMap[status] || 'En cours';
-}
-
 // Convertir le statut MAL anime vers notre format
 function convertMALAnimeStatus(status) {
   const statusMap = {
@@ -126,9 +114,20 @@ function convertMALAnimeType(type) {
 
 // Convertir le rating MAL
 function convertMALRating(rating) {
+  if (!rating) return null;
+  // Rx = contenu pornographique explicite (le plus explicite)
+  if (rating.includes('Rx') || rating.includes('Hentai')) return 'erotica';
+  // R+ = contenu adulte explicite
   if (rating.includes('R+') || rating.includes('R-')) return 'erotica';
-  if (rating.includes('PG-13')) return 'suggestive';
+  // R - 17+ = contenu mature (violence, langage) → suggestive
+  if (rating.includes('R - 17') || rating.includes('17+')) return 'suggestive';
+  // PG-13 = contenu pour adolescents (13+) → safe
+  if (rating.includes('PG-13')) return 'safe';
+  // Par défaut = safe
   return 'safe';
 }
 
-export { searchAnime, searchManga };
+module.exports = {
+  searchAnime,
+  searchManga
+};

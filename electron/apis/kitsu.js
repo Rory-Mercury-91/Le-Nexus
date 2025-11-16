@@ -122,4 +122,7 @@ function convertKitsuRating(rating) {
   return ratingMap[rating] || 'safe';
 }
 
-export { searchAnime, searchManga };
+module.exports = {
+  searchAnime,
+  searchManga
+};

@@ -24,7 +24,19 @@ export const genreTranslations: Record<string, string> = {
   'Avant Garde': 'Avant-garde',
   'Gourmet': 'Gastronomie',
   'Girls Love': 'Amour entre filles',
-  'Boys Love': 'Amour entre garçons'
+  'Boys Love': 'Amour entre garçons',
+  // Variantes courantes
+  'Sci-Fi & Fantasy': 'Science-Fiction & Fantastique',
+  'Science Fiction': 'Science-Fiction',
+  'Slice-of-Life': 'Tranche de vie',
+  'Shounen': 'Shōnen',
+  'Shoujo': 'Shōjo',
+  'Seinen': 'Seinen',
+  'Josei': 'Josei',
+  'Isekai': 'Isekai',
+  'Mecha': 'Mecha',
+  'Harem': 'Harem',
+  'Reverse Harem': 'Harem inversé'
 };
 
 // Thèmes
@@ -79,7 +91,12 @@ export const themeTranslations: Record<string, string> = {
   'Video Game': 'Jeu vidéo',
   'Visual Arts': 'Arts visuels',
   'Workplace': 'Travail',
-  'Zombies': 'Zombies'
+  'Zombies': 'Zombies',
+  // Variantes depuis Nautiljon
+  'Autre monde': 'Autre monde',
+  'Magie': 'Magie',
+  'Réincarnation / Transmigration': 'Réincarnation / Transmigration',
+  'Transmigration': 'Transmigration'
 };
 
 // Démographies
@@ -88,7 +105,11 @@ export const demographicTranslations: Record<string, string> = {
   'Shoujo': 'Shōjo',
   'Seinen': 'Seinen',
   'Josei': 'Josei',
-  'Kids': 'Enfants'
+  'Kids': 'Enfants',
+  // Variantes
+  'Shonen': 'Shōnen', // Nautiljon parfois sans accent
+  'Shōnen': 'Shōnen',
+  'Shōjo': 'Shōjo'
 };
 
 // Sources
@@ -109,11 +130,32 @@ export const sourceTranslations: Record<string, string> = {
   'Unknown': 'Inconnu'
 };
 
-// Statuts de diffusion
+// Statuts de diffusion/publication
 export const statusTranslations: Record<string, string> = {
+  // Formats anime standards
   'Currently Airing': 'En cours de diffusion',
   'Finished Airing': 'Terminé',
-  'Not yet aired': 'Pas encore diffusé'
+  'Not yet aired': 'Pas encore diffusé',
+  // Formats anime avec underscore (MAL API)
+  'currently_airing': 'En cours de diffusion',
+  'finished_airing': 'Terminé',
+  'not_yet_aired': 'Pas encore diffusé',
+  // Formats anime minuscules
+  'currently airing': 'En cours de diffusion',
+  'finished airing': 'Terminé',
+  'not yet aired': 'Pas encore diffusé',
+  // Statuts de publication manga
+  'Publishing': 'En cours',
+  'Finished': 'Terminé',
+  'Not yet published': 'Pas encore publié',
+  'On Hiatus': 'En pause',
+  'Discontinued': 'Arrêté',
+  // Variantes françaises
+  'En cours': 'En cours',
+  'Terminée': 'Terminé',
+  'Terminé': 'Terminé',
+  'En pause': 'En pause',
+  'Arrêté': 'Arrêté'
 };
 
 // Ratings
@@ -146,6 +188,38 @@ export function translateGenres(genres: string): string {
     .split(',')
     .map(g => genreTranslations[g.trim()] || g.trim())
     .join(', ');
+}
+
+/**
+ * Traductions des statuts de publication
+ */
+export const publicationStatusTranslations: Record<string, string> = {
+  // Formats MAL standards
+  'Finished': 'Terminée',
+  'Publishing': 'En cours',
+  'On Hiatus': 'En pause',
+  'Discontinued': 'Abandonnée',
+  'Not yet published': 'Annoncée',
+  // Formats alternatifs possibles
+  'currently_publishing': 'En cours',
+  'finished': 'Terminée',
+  'on_hiatus': 'En pause',
+  'discontinued': 'Abandonnée',
+  'not_yet_published': 'Annoncée',
+  // Formats déjà traduits
+  'Terminée': 'Terminée',
+  'En cours': 'En cours',
+  'En pause': 'En pause',
+  'Abandonnée': 'Abandonnée',
+  'Annoncée': 'Annoncée'
+};
+
+/**
+ * Traduit un statut de publication en français
+ */
+export function translatePublicationStatus(status: string | null | undefined): string {
+  if (!status) return 'En cours';
+  return publicationStatusTranslations[status] || status;
 }
 
 /**

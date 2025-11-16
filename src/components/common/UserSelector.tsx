@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import FullScreenOverlay from './FullScreenOverlay';
+import GradientTitle from './GradientTitle';
+import LoadingSpinner from './LoadingSpinner';
 
 interface UserSelectorProps {
   onUserSelected: (user: string) => void;
@@ -16,7 +19,7 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profileImages, setProfileImages] = useState<Record<number, string | null>>({});
+  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     loadUsers();
@@ -28,11 +31,12 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
       const usersData = await window.electronAPI.getAllUsers();
       setUsers(usersData);
 
-      // Charger les images de profil
+      // Charger les images de profil en utilisant le nom (unique) plutôt que l'ID
       const images: Record<string, string | null> = {};
       for (const user of usersData) {
-        const imagePath = await window.electronAPI.getUserAvatar(user.id);
-        images[user.id] = imagePath;
+        // Utiliser getUserProfileImage qui prend le nom de l'utilisateur
+        const imagePath = await window.electronAPI.getUserProfileImage(user.name);
+        images[user.name] = imagePath;
       }
       setProfileImages(images);
     } catch (error) {
@@ -51,32 +55,12 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'linear-gradient(135deg, var(--background) 0%, #1a1f35 100%)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999
-    }}>
+    <FullScreenOverlay>
       {/* Logo */}
       <div style={{ marginBottom: '48px', textAlign: 'center' }}>
-        <h1 style={{
-          fontSize: '42px',
-          fontWeight: '700',
-          marginBottom: '12px',
-          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }}>
-          Le Nexus
-        </h1>
+        <GradientTitle fontSize="42px" style={{ marginBottom: '12px' }}>
+          Nexus
+        </GradientTitle>
         <p style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>
           Qui êtes-vous ?
         </p>
@@ -84,12 +68,10 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
 
       {/* Sélection utilisateur */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <div className="loading" style={{ margin: '0 auto' }} />
-          <p style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>
-            Chargement...
-          </p>
-        </div>
+        <LoadingSpinner 
+          message="Chargement des utilisateurs..."
+          style={{ padding: '40px' }}
+        />
       ) : (
         <div style={{
           display: 'flex',
@@ -131,9 +113,9 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              {profileImages[user.id] ? (
+              {profileImages[user.name] ? (
                 <img
-                  src={profileImages[user.id]!}
+                  src={profileImages[user.name]!}
                   alt={user.name}
                   style={{
                     width: '100px',
@@ -176,6 +158,6 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
           💡 Vos modifications seront automatiquement sauvegardées dans votre base personnelle à la fermeture de l'application
         </p>
       </div>
-    </div>
+    </FullScreenOverlay>
   );
 }

@@ -333,7 +333,7 @@
                         <div class="script-description">
                             Marque automatiquement les épisodes visionnés sur Crunchyroll. Bouton ✅ en bas à gauche avec import automatique si l'anime n'existe pas.
                         </div>
-                        <a href="animes/Crunchyroll Episode Tracker.user.js" class="install-button">📥 Installer</a>
+                        <a href="animes/Crunchyroll Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
 
                     <div class="script-card">
@@ -344,18 +344,18 @@
                         <div class="script-description">
                             Marque automatiquement les épisodes visionnés sur Animation Digital Network (ADN). Import automatique de l'anime si nécessaire.
                         </div>
-                        <a href="animes/ADN Episode Tracker.user.js" class="install-button">📥 Installer</a>
+                        <a href="animes/ADN Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
 
                     <div class="script-card">
                         <div class="script-header">
-                            <span class="script-name">ADKami Integration</span>
+                            <span class="script-name">ADKami Episode Tracker</span>
                             <span class="script-icon">✅</span>
                         </div>
                         <div class="script-description">
                             Intégration complète avec ADKami : import d'animes et marquage d'épisodes. Boutons en bas à gauche.
                         </div>
-                        <a href="animes/ADKami Integration.user.js" class="install-button">📥 Installer</a>
+                        <a href="animes/ADKami Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
 
                     <div class="script-card">
@@ -366,7 +366,18 @@
                         <div class="script-description">
                             Ajoute un bouton sur MyAnimeList pour importer rapidement un anime avec toutes ses métadonnées enrichies (Jikan + AniList + Groq).
                         </div>
-                        <a href="animes/MyAnimeList Quick Add.user.js" class="install-button">📥 Installer</a>
+                        <a href="animes/MyAnimeList Quick Add.user.js" class="install-button" target="_blank">📥 Installer</a>
+                    </div>
+
+                    <div class="script-card">
+                        <div class="script-header">
+                            <span class="script-name">Nautiljon Extractor (Mangas & Animes)</span>
+                            <span class="script-icon">🎬</span>
+                        </div>
+                        <div class="script-description">
+                            Import complet depuis Nautiljon. Détecte automatiquement si vous êtes sur une page manga ou anime. Pour les mangas : menu avec 3 points verticaux (⋮) en bas à gauche avec options Import complet (📚) ou Import tomes uniquement (📖). Pour les animes : bouton d'import simple. Priorise les valeurs françaises (écrase les données des APIs).
+                        </div>
+                        <a href="animes/Nautiljon Extractor.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
                 </div>
 
@@ -376,29 +387,29 @@
 
                     <div class="script-card">
                         <div class="script-header">
-                            <span class="script-name">Nautiljon Extractor</span>
-                            <span class="script-icon">⋮</span>
+                            <span class="script-name">MyAnimeList Manga Quick Add</span>
+                            <span class="script-icon">📥</span>
                         </div>
                         <div class="script-description">
-                            Import complet de mangas depuis Nautiljon. Menu avec 3 points verticaux (⋮) en bas à gauche : Import complet (📚) ou Import tomes uniquement (📖).
+                            Ajoute un bouton sur MyAnimeList pour importer rapidement un manga avec toutes ses métadonnées enrichies (Jikan + Groq).
                         </div>
-                        <a href="mangas/Nautiljon Extractor.user.js" class="install-button">📥 Installer</a>
+                        <a href="mangas/MyAnimeList Manga Quick Add.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
                 </div>
 
-                <!-- Scripts AVN -->
+                <!-- Scripts Jeux adulte -->
                 <div class="scripts-category">
-                    <h3>🎮 Scripts AVN (Adult Visual Novels)</h3>
+                    <h3>🎮 Scripts Jeux adulte</h3>
 
                     <div class="script-card">
                         <div class="script-header">
-                            <span class="script-name">F95Zone AVN Extractor</span>
+                            <span class="script-name">Extractor Jeux adulte (F95Zone & LewdCorner)</span>
                             <span class="script-icon">🎮</span>
                         </div>
                         <div class="script-description">
-                            Extrait les informations des jeux AVN depuis F95Zone pour import dans Le Nexus. Compatible avec l'authentification F95Zone.
+                            Extrait les informations des jeux pour adultes depuis F95Zone et LewdCorner. Menu avec 2 options : Import direct (F95Zone uniquement) ou Copier JSON (les deux plateformes).
                         </div>
-                        <a href="avn/F95Zone AVN Extractor.user.js" class="install-button">📥 Installer</a>
+                        <a href="adulte-game/AdulteGame Extractor.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
                 </div>
             </div>
@@ -406,7 +417,7 @@
 
         <!-- Avertissement -->
         <div class="warning">
-            <strong>⚠️ Important :</strong> Le Nexus doit être lancé pour que les scripts fonctionnent (serveur d'import sur port 51234).
+            <strong>⚠️ Important :</strong> Le Nexus doit être lancé pour que les scripts fonctionnent (serveur d'import sur port 40000).
         </div>
 
         <div class="success">
@@ -440,9 +451,9 @@
                 <p style="margin-bottom: 15px;">Les scripts s'activent automatiquement sur les sites compatibles :</p>
                 <ul class="usage-list">
                     <li>🎬 <strong>Crunchyroll, ADN, ADKami</strong> : Bouton ✅ en bas à gauche pour marquer un épisode comme vu</li>
-                    <li>📥 <strong>MyAnimeList</strong> : Bouton d'import sous le titre de l'anime</li>
-                    <li>📚 <strong>Nautiljon</strong> : Menu ⋮ en bas à gauche avec options 📚 (import complet) et 📖 (import tomes)</li>
-                    <li>🎮 <strong>F95Zone</strong> : Extraction automatique des données AVN (après authentification dans les paramètres)</li>
+                    <li>📥 <strong>MyAnimeList</strong> : Bouton d'import sous le titre de l'anime ou du manga</li>
+                    <li>📚🎬 <strong>Nautiljon (Mangas & Animes)</strong> : Script combiné qui détecte automatiquement le type de page. Pour les mangas : menu ⋮ avec options 📚 (import complet) et 📖 (import tomes). Pour les animes : bouton d'import simple. Priorise les valeurs françaises</li>
+                    <li>🎮 <strong>F95Zone & LewdCorner</strong> : Menu 🎮 Le Nexus pour importer directement les jeux pour adultes (F95Zone) ou copier le JSON (les deux)</li>
                 </ul>
             </div>
         </div>

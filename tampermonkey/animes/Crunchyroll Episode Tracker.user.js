@@ -1,18 +1,21 @@
 // ==UserScript==
 // @name         Crunchyroll → Le Nexus
 // @namespace    http://tampermonkey.net/
-// @version      2.6.0
+// @version      2.6.1
 // @description  Importe automatiquement vos animes depuis Crunchyroll vers Le Nexus et marque vos épisodes comme vus avec auto-incrémentation et création automatique des saisons au marquage
 // @author       Rory-Mercury91
 // @match        https://*.crunchyroll.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=crunchyroll.com
 // @grant        GM_xmlhttpRequest
+// @connect      localhost
+// @connect      *.crunchyroll.com
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
     
-    const PORT = 51234;
+    const PORT = 40000;
     let episodeSaved = null;
     let currentPageType = null;
     let lastUrl = window.location.href;
@@ -623,54 +626,71 @@
     };
     
     // Importer l'anime
-    const importAnime = async (animeData) => {
+    const importAnime = (animeData) => {
         console.log('📥 Import de l\'anime:', animeData.titre);
         
-        try {
-            const response = await fetch(`http://localhost:${PORT}/api/import-anime`, {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
                 method: 'POST',
+                url: `http://localhost:${PORT}/api/import-anime`,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(animeData)
+                data: JSON.stringify(animeData),
+                onload: (response) => {
+                    try {
+                        if (response.status === 200) {
+                            const result = JSON.parse(response.responseText);
+                            console.log('✅ Anime importé:', result);
+                            resolve(result);
+                        } else {
+                            const errorData = JSON.parse(response.responseText);
+                            throw new Error(errorData.error || `HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ Erreur import anime:', error);
+                        reject(error);
+                    }
+                },
+                onerror: (error) => {
+                    console.error('❌ Erreur réseau:', error);
+                    reject(new Error('Erreur réseau'));
+                }
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ Anime importé:', result);
-            return result;
-        } catch (error) {
-            console.error('❌ Erreur import anime:', error);
-            throw error;
-        }
+        });
     };
     
     // Marquer l'épisode comme vu
-    const markEpisodeWatched = async (episodeInfo) => {
-        try {
-            const response = await fetch(`http://localhost:${PORT}/api/mark-episode-watched`, {
+    const markEpisodeWatched = (episodeInfo) => {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
                 method: 'POST',
+                url: `http://localhost:${PORT}/api/mark-episode-watched`,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                data: JSON.stringify({
                     titre: episodeInfo.title,
                     saison_numero: episodeInfo.season,
                     episode_numero: episodeInfo.episode,
                     platform: 'crunchyroll'
-                })
+                }),
+                onload: (response) => {
+                    try {
+                        if (response.status === 200) {
+                            const result = JSON.parse(response.responseText);
+                            resolve(result);
+                        } else {
+                            const errorData = JSON.parse(response.responseText);
+                            throw new Error(errorData.error || `HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ Erreur:', error);
+                        reject(error);
+                    }
+                },
+                onerror: (error) => {
+                    console.error('❌ Erreur réseau:', error);
+                    reject(new Error('Erreur réseau'));
+                }
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error('❌ Erreur:', error);
-            throw error;
-        }
+        });
     };
     
     // Créer le bouton pour marquer l'épisode (page épisode)
