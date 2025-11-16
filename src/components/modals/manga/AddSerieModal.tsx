@@ -72,7 +72,7 @@ export default function AddSerieModal({ onClose, onSuccess, initialMalId }: AddS
       // Lancer la recherche automatiquement
       handleSearchMangadexAuto();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const handleSearchMangadexAuto = async () => {

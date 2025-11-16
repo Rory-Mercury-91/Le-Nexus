@@ -899,7 +899,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     loadGames();
     loadLabels();
     loadCurrentUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {

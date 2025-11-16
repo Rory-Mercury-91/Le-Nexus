@@ -316,7 +316,7 @@ export default function Mangas() {
     if (searchFromFilters && searchFromFilters !== trimmed) {
       setSearchTerm(searchFromFilters);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filters.search]);
 
   const handleFilterChange = (key: string, value: string) => {

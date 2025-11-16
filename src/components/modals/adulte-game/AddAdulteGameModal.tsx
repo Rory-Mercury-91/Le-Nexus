@@ -156,7 +156,7 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         handleSearchAuto(extractedId);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const handleAddFromSearch = async (e: FormEvent) => {

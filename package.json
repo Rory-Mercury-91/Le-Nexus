@@ -17,6 +17,7 @@
     "build:win:fresh": "npm run clean:electron-builder && npm run build:win",
     "preview": "vite preview",
     "clear-cache": "node scripts/clear-cache.js",
+    "clean:all": "node scripts/clean-all.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -56,8 +57,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Nexus",
-      "include": "build/installer.nsh"
+      "shortcutName": "Nexus"
     }
   },
   "dependencies": {

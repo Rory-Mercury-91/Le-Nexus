@@ -147,7 +147,7 @@ export default function Animes() {
     } else {
       filtersNormalizedRef.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filters, setFilters]);
 
 
@@ -354,7 +354,7 @@ export default function Animes() {
     if (!searchFromFilters && hasSearchTerm) {
       // si filtres ne contiennent plus search mais état oui, garder état (aucune action)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [filters.search]);
 
   const sortAnimes = (animesToSort: AnimeSerie[]) => {

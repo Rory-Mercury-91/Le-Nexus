@@ -11,6 +11,7 @@ out/
 # Documentation personnelle
 docs_perso/
 01_données/
+tests/
 
 # Database
 *.db

@@ -64,7 +64,7 @@ export default function AddAnimeModal({ onClose, onSuccess, initialMalId }: AddA
       setMalInput(initialMalId.toString());
       // Ne pas importer automatiquement, laisser l'utilisateur confirmer
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
