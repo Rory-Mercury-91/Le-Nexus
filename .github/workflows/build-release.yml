@@ -136,24 +136,69 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.exe
-          fail_on_unmatched_files: false
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          tag_name: ${{ github.ref_name }}
-          target_commitish: ${{ github.sha }}
-          body: |
-            ## Release version ${{ steps.extract_version.outputs.version }}
-            
-            Cette release inclut la configuration sécurisée de la clé API Google Sheets via GitHub Secrets.
-            
-            ### Changements
-            - Configuration de la clé API Google Sheets via GitHub Secrets
-            - Synchronisation des traductions depuis Google Sheets fonctionnelle
+      - name: Create Release with API
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = "${{ steps.extract_version.outputs.version }}"
+          $repo = "${{ github.repository }}"
+          $token = "${{ secrets.GITHUB_TOKEN }}"
+          
+          Write-Host "=== Création de la release pour le tag: $tag ==="
+          
+          # Trouver le fichier .exe
+          $exeFile = Get-ChildItem -Path "dist" -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object {
+            $_.Name -notmatch 'elevate\.exe' -and
+            $_.DirectoryName -notmatch '\\win-unpacked'
+          } | Select-Object -First 1
+          
+          if (-not $exeFile) {
+            Write-Host "⚠️ Aucun fichier .exe trouvé dans dist/"
+            exit 1
+          }
+          
+          Write-Host "✅ Fichier trouvé: $($exeFile.Name)"
+          
+          # Créer la release via l'API GitHub
+          $releaseBody = @{
+            tag_name = $tag
+            name = "Release $version"
+            body = "## Release version $version`n`nCette release inclut la configuration sécurisée de la clé API Google Sheets via GitHub Secrets.`n`n### Changements`n- Configuration de la clé API Google Sheets via GitHub Secrets`n- Synchronisation des traductions depuis Google Sheets fonctionnelle"
+            draft = $false
+            prerelease = $false
+            target_commitish = "${{ github.sha }}"
+          } | ConvertTo-Json
+          
+          $headers = @{
+            "Authorization" = "token $token"
+            "Accept" = "application/vnd.github.v3+json"
+          }
+          
+          Write-Host "📤 Création de la release..."
+          $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
+          
+          $releaseId = $releaseResponse.id
+          Write-Host "✅ Release créée avec l'ID: $releaseId"
+          
+          # Upload du fichier
+          $uploadUrl = $releaseResponse.upload_url -replace '\{.*$', "?name=$($exeFile.Name)"
+          Write-Host "📤 Upload du fichier: $($exeFile.Name)"
+          
+          $fileBytes = [System.IO.File]::ReadAllBytes($exeFile.FullName)
+          $boundary = [System.Guid]::NewGuid().ToString()
+          
+          $uploadHeaders = @{
+            "Authorization" = "token $token"
+            "Accept" = "application/vnd.github.v3+json"
+            "Content-Type" = "application/octet-stream"
+          }
+          
+          try {
+            $uploadResponse = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $uploadHeaders -Body $fileBytes -ContentType "application/octet-stream"
+            Write-Host "✅ Fichier uploadé avec succès!"
+          } catch {
+            Write-Host "⚠️ Erreur lors de l'upload: $($_.Exception.Message)"
+            Write-Host "   Mais la release a été créée: $($releaseResponse.html_url)"
+          }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
