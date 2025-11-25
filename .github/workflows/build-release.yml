@@ -11,6 +11,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write  # Nécessaire pour créer des releases
+      id-token: write  # Nécessaire pour l'authentification
     
     steps:
       - name: Checkout code
@@ -70,7 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: List build artifacts
+      - name: Find build artifacts
         id: find_files
         shell: pwsh
         run: |
@@ -86,20 +87,30 @@ jobs:
             }
           }
           
-          # Chercher les fichiers .exe dans tout le projet
-          Write-Host "`n=== Fichiers .exe trouvés ==="
-          $exeFiles = Get-ChildItem -Path . -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -notmatch 'node_modules' }
+          # Chercher les fichiers .exe et .zip dans tout le projet (sauf node_modules)
+          Write-Host "`n=== Fichiers .exe et .zip trouvés ==="
+          $buildFiles = Get-ChildItem -Path . -Recurse -Include *.exe,*.zip -ErrorAction SilentlyContinue | Where-Object { 
+            $_.DirectoryName -notmatch 'node_modules' -and 
+            $_.DirectoryName -notmatch '\.git' -and
+            $_.Name -notmatch 'electron\.exe'
+          }
           
-          if ($exeFiles) {
-            $exeFiles | ForEach-Object { 
+          if ($buildFiles) {
+            $buildFiles | ForEach-Object { 
               Write-Host "  - $($_.FullName) ($([math]::Round($_.Length/1MB,2)) MB)"
             }
-            # Sauvegarder les chemins pour l'étape suivante
-            $exeFiles | ForEach-Object { $_.FullName } | Out-File -FilePath "exe_files.txt" -Encoding utf8
-            Write-Host "`n✅ $(@($exeFiles).Count) fichier(s) .exe trouvé(s)"
+            # Sauvegarder les chemins relatifs pour l'étape suivante
+            $relativePaths = $buildFiles | ForEach-Object { $_.FullName.Replace("$PWD\", "").Replace("\", "/") }
+            $relativePaths -join "`n" | Out-File -FilePath "build_files.txt" -Encoding utf8
+            Write-Host "`n✅ $(@($buildFiles).Count) fichier(s) de build trouvé(s)"
+            # Exporter pour les étapes suivantes
+            $relativePaths -join "`n" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            echo "files<<EOF" >> $env:GITHUB_OUTPUT
+            $relativePaths -join "`n" >> $env:GITHUB_OUTPUT
+            echo "EOF" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "❌ Aucun fichier .exe trouvé"
-            "" | Out-File -FilePath "exe_files.txt" -Encoding utf8
+            Write-Host "❌ Aucun fichier de build trouvé"
+            "" | Out-File -FilePath "build_files.txt" -Encoding utf8
           }
       
       - name: Upload Windows artifacts
@@ -114,6 +125,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       
+      - name: Delete existing release if any
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Write-Host "=== Vérification de l'existence d'une release pour le tag: $tag ==="
+          
+          try {
+            $release = gh release view $tag --json id,url 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "⚠️ Une release existe déjà pour ce tag, suppression..."
+              gh release delete $tag --yes
+              Write-Host "✅ Release supprimée"
+            } else {
+              Write-Host "ℹ️ Aucune release existante pour ce tag"
+            }
+          } catch {
+            Write-Host "ℹ️ Aucune release existante (erreur normale si première fois)"
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -126,6 +159,11 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          make_latest: true
           tag_name: ${{ github.ref_name }}
+          body: |
+            Release version ${{ steps.extract_version.outputs.version }} avec nouvelle clé API Google Sheets.
+            
+            Cette release inclut la configuration sécurisée de la clé API Google Sheets via GitHub Secrets.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
