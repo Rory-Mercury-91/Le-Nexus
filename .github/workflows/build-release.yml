@@ -135,28 +135,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       
-      - name: Delete existing release if any
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          Write-Host "=== Vérification de l'existence d'une release pour le tag: $tag ==="
-          
-          try {
-            $release = gh release view $tag --json id,url 2>&1
-            if ($LASTEXITCODE -eq 0) {
-              Write-Host "⚠️ Une release existe déjà pour ce tag, suppression..."
-              gh release delete $tag --yes
-              Write-Host "✅ Release supprimée"
-            } else {
-              Write-Host "ℹ️ Aucune release existante pour ce tag"
-            }
-          } catch {
-            Write-Host "ℹ️ Aucune release existante (erreur normale si première fois)"
-          }
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -170,9 +148,14 @@ jobs:
           prerelease: false
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
           body: |
-            Release version ${{ steps.extract_version.outputs.version }} avec nouvelle clé API Google Sheets.
+            ## Release version ${{ steps.extract_version.outputs.version }}
             
             Cette release inclut la configuration sécurisée de la clé API Google Sheets via GitHub Secrets.
+            
+            ### Changements
+            - Configuration de la clé API Google Sheets via GitHub Secrets
+            - Synchronisation des traductions depuis Google Sheets fonctionnelle
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
