@@ -4,4 +4,3 @@ if [ -f changelog_extract.txt ]; then
 else
   echo "• Nouvelle version disponible"
 fi
-
