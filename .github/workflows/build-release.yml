@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Nécessaire pour avoir accès aux tags
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,6 +52,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: List build artifacts
+        id: find_files
         shell: pwsh
         run: |
           Write-Host "=== Recherche des fichiers de build ==="
@@ -66,7 +69,19 @@ jobs:
           
           # Chercher les fichiers .exe dans tout le projet
           Write-Host "`n=== Fichiers .exe trouvés ==="
-          Get-ChildItem -Path . -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -notmatch 'node_modules' } | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}}
+          $exeFiles = Get-ChildItem -Path . -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -notmatch 'node_modules' }
+          
+          if ($exeFiles) {
+            $exeFiles | ForEach-Object { 
+              Write-Host "  - $($_.FullName) ($([math]::Round($_.Length/1MB,2)) MB)"
+            }
+            # Sauvegarder les chemins pour l'étape suivante
+            $exeFiles | ForEach-Object { $_.FullName } | Out-File -FilePath "exe_files.txt" -Encoding utf8
+            Write-Host "`n✅ $(@($exeFiles).Count) fichier(s) .exe trouvé(s)"
+          } else {
+            Write-Host "❌ Aucun fichier .exe trouvé"
+            "" | Out-File -FilePath "exe_files.txt" -Encoding utf8
+          }
       
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -86,10 +101,12 @@ jobs:
           files: |
             dist_electron/**/*.exe
             dist_electron/**/*.zip
+            dist/**/*.exe
+            dist/**/*.zip
+          fail_on_unmatched_files: false
           draft: false
           prerelease: false
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
-          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
