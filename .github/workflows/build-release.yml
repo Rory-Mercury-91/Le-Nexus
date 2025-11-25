@@ -169,7 +169,6 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          make_latest: true
           tag_name: ${{ github.ref_name }}
           body: |
             Release version ${{ steps.extract_version.outputs.version }} avec nouvelle clé API Google Sheets.
