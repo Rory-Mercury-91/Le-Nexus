@@ -10,11 +10,8 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
-    permissions:
-      contents: write  # Nécessaire pour créer des releases
-      id-token: write  # Nécessaire pour l'authentification
-      pull-requests: write  # Nécessaire pour certaines actions GitHub
-      packages: write  # Nécessaire pour uploader des assets
+    # Les permissions sont gérées par les paramètres globaux du dépôt
+    # (Settings → Actions → General → Workflow permissions → Read and write permissions)
     
     steps:
       - name: Checkout code
