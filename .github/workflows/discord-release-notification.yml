@@ -76,7 +76,7 @@ jobs:
           # Construire le JSON avec jq pour échappement correct
           jq -n \
             --arg username "Nexus Release Bot" \
-            --arg avatar "https://github.com/${{ github.repository_owner }}.png" \
+            --arg avatar "https://github.com/Rory-Mercury-91.png" \
             --arg version "$VERSION" \
             --arg version_num "$VERSION_NUMBER" \
             --arg summary "$SUMMARY_RAW" \
@@ -102,12 +102,12 @@ jobs:
                   },
                   {
                     "name": "⬇️ Téléchargements",
-                    "value": ("**Windows** : [💾 Télécharger l'installateur](https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/download/" + $version + "/Nexus%20Setup%20" + $version_num + ".exe)"),
+                    "value": ("**Windows** : [💾 Télécharger l'installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus%20Setup%20" + $version_num + ".exe)"),
                     "inline": false
                   },
                   {
                     "name": "🔗 Liens Utiles",
-                    "value": ("📦 [Page de la Release](https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/${{ github.repository_owner }}/${{ github.event.repository.name }}/issues)"),
+                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)"),
                     "inline": false
                   }
                 ],
