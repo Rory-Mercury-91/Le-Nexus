@@ -215,6 +215,15 @@ if (tableExists('manga_user_data')) {
       console.warn('⚠️ Impossible d\'ajouter tag_manual_override à manga_user_data:', error.message);
     }
   }
+  if (!columnExists('manga_user_data', 'labels')) {
+    try {
+      db.prepare('ALTER TABLE manga_user_data ADD COLUMN labels TEXT').run();
+      console.log('✅ Colonne labels ajoutée à manga_user_data');
+      changesCount++;
+    } catch (error) {
+      console.warn('⚠️ Impossible d\'ajouter labels à manga_user_data:', error.message);
+    }
+  }
 }
 
 // ========================================

@@ -458,6 +458,13 @@ export default function Settings() {
                 { key: 'section_chapitres', label: 'Gestion des chapitres' },
                 { key: 'section_tomes', label: 'Liste des tomes' }
               ]
+            },
+            {
+              title: 'Personnalisation',
+              icon: '🏷️',
+              fields: [
+                { key: 'labels', label: 'Labels personnalisés' }
+              ]
             }
           ] as DisplayFieldCategory[]}
           mode="global"

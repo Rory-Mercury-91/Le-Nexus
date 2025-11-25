@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimeCard } from '../../components/cards';
@@ -107,6 +107,14 @@ export default function Animes() {
     false,
     { storage: 'session' }
   );
+  const [selectedLabels, setSelectedLabels] = usePersistentState<string[]>(
+    'collection.animes.filters.selectedLabels',
+    [],
+    { storage: 'session' }
+  );
+  const [availableLabels, setAvailableLabels] = useState<Array<{ label: string; color: string }>>([]);
+  const [animeLabels, setAnimeLabels] = useState<Record<number, Array<{ label: string; color: string }>>>({});
+  const [showLabelsFilter, setShowLabelsFilter] = useState(false);
 
   const filtersNormalizedRef = useRef(false);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -188,6 +196,23 @@ export default function Animes() {
 
       setAnimes(animesData);
       calculateStats(animesData);
+
+      // Extraire les labels depuis les données
+      const labelsMap: Record<number, Array<{ label: string; color: string }>> = {};
+      for (const anime of animesData) {
+        if (anime.labels && Array.isArray(anime.labels)) {
+          labelsMap[anime.id] = anime.labels;
+        }
+      }
+      setAnimeLabels(labelsMap);
+
+      // Charger tous les labels disponibles
+      try {
+        const allLabels = await window.electronAPI.getAllAnimeLabels();
+        setAvailableLabels(allLabels);
+      } catch (error) {
+        console.error('Erreur chargement labels:', error);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des animes:', error);
       setAnimes([]);
@@ -283,12 +308,27 @@ export default function Animes() {
       updateAnimeInState(animeId, { is_favorite: isFavorite });
     };
 
+    const handleLabelsUpdateFromDetail = (event: CustomEvent) => {
+      const { animeId } = event.detail;
+      // Recharger les labels pour cet anime
+      if (animeId) {
+        window.electronAPI.getAnimeLabels(animeId).then(labels => {
+          setAnimeLabels(prev => ({
+            ...prev,
+            [animeId]: labels
+          }));
+        }).catch(console.error);
+      }
+    };
+
     window.addEventListener('anime-status-changed', handleStatusChangeFromDetail as EventListener);
     window.addEventListener('anime-favorite-changed', handleFavoriteChangeFromDetail as EventListener);
+    window.addEventListener('anime-labels-updated', handleLabelsUpdateFromDetail as EventListener);
 
     return () => {
       window.removeEventListener('anime-status-changed', handleStatusChangeFromDetail as EventListener);
       window.removeEventListener('anime-favorite-changed', handleFavoriteChangeFromDetail as EventListener);
+      window.removeEventListener('anime-labels-updated', handleLabelsUpdateFromDetail as EventListener);
     };
   }, [updateAnimeInState]);
 
@@ -313,7 +353,18 @@ export default function Animes() {
     setShowHidden(false);
     setShowFavoriteOnly(false);
     setShowMajOnly(false);
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly]);
+    setSelectedLabels([]);
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setSelectedLabels]);
+
+  const handleLabelToggle = useCallback((label: string) => {
+    setSelectedLabels(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(l => l !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  }, [setSelectedLabels]);
 
   useEffect(() => {
     if (searchDebounceRef.current) {
@@ -499,7 +550,7 @@ export default function Animes() {
 
   const {
     sortedItems: sortedAnimes,
-    hasActiveFilters
+    hasActiveFilters: hasActiveFiltersBase
   } = useCollectionFilters({
     items: animes,
     search: searchTerm,
@@ -542,6 +593,13 @@ export default function Animes() {
             episodesTotal > 0 &&
             episodesVus < episodesTotal
           );
+        }
+
+        // Filtre par labels
+        if (selectedLabels.length > 0) {
+          const labels = animeLabels[anime.id] || [];
+          const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
+          if (!hasAnyLabel) return false;
         }
 
         // Filtre visionnage personnalisé
@@ -752,7 +810,7 @@ export default function Animes() {
 
           {/* Recherche et filtres avec composants réutilisables */}
           <CollectionFiltersBar
-            hasActiveFilters={hasActiveFilters}
+            hasActiveFilters={hasActiveFiltersBase || selectedLabels.length > 0}
             onClearFilters={clearFilters}
           >
             <CollectionSearchBar
@@ -842,6 +900,66 @@ export default function Animes() {
                 activeColor="#fb923c"
               />
             </div>
+
+            {/* Filtre par labels */}
+            {availableLabels.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowLabelsFilter(!showLabelsFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showLabelsFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🏷️ Filtrer par labels
+                    {selectedLabels.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedLabels.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showLabelsFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showLabelsFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableLabels.map(labelObj => (
+                      <button
+                        key={labelObj.label}
+                        onClick={() => handleLabelToggle(labelObj.label)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          border: selectedLabels.includes(labelObj.label) ? `2px solid ${labelObj.color}` : `2px solid ${labelObj.color}40`,
+                          background: selectedLabels.includes(labelObj.label) ? labelObj.color : `${labelObj.color}20`,
+                          color: selectedLabels.includes(labelObj.label) ? 'white' : labelObj.color,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {labelObj.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </CollectionFiltersBar>
 
           {/* Message d'ajout depuis URL/ID MAL */}
@@ -953,7 +1071,7 @@ export default function Animes() {
             emptyMessage={
               showAddFromMal
                 ? ''
-                : (hasActiveFilters
+                : ((hasActiveFiltersBase || selectedLabels.length > 0)
                   ? 'Aucun animé ne correspond à vos filtres'
                   : 'Aucun animé dans votre collection')
             }

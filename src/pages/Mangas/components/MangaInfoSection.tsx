@@ -1,5 +1,6 @@
 import { BookOpen, Calendar, FileText, Globe, Layers, Tag, User, Users } from 'lucide-react';
 import { useState } from 'react';
+import LabelsCardContent from '../../../components/common/LabelsCardContent';
 import { useDevMode } from '../../../hooks/common/useDevMode';
 import { Serie } from '../../../types';
 import { organizeMangaTitles } from '../../../utils/manga-titles';
@@ -11,9 +12,10 @@ import MangaRelationsSection from './MangaRelationsSection';
 interface MangaInfoSectionProps {
   serie: Serie;
   shouldShow: (field: string) => boolean;
+  onLabelsChange?: () => void;
 }
 
-export default function MangaInfoSection({ serie, shouldShow }: MangaInfoSectionProps) {
+export default function MangaInfoSection({ serie, shouldShow, onLabelsChange }: MangaInfoSectionProps) {
   // Organiser les titres : titre français en priorité, titre original et titres alternatifs
   const { mainTitle, originalTitle, alternativeTitles } = organizeMangaTitles(serie);
   const { devMode } = useDevMode();
@@ -485,8 +487,37 @@ export default function MangaInfoSection({ serie, shouldShow }: MangaInfoSection
       {/* Section Informations MyAnimeList */}
       <MangaMalBlock serie={serie} shouldShow={shouldShow} />
 
-      {/* Relations */}
-      <MangaRelationsSection serie={serie} shouldShow={shouldShow} />
+      {/* Relations et Labels côte à côte */}
+      {(shouldShow('relations') || shouldShow('labels')) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: shouldShow('relations') && shouldShow('labels') ? '1fr 1fr' : '1fr',
+            gap: '20px',
+            marginTop: '16px'
+          }}
+        >
+          {shouldShow('relations') && (
+            <MangaRelationsSection serie={serie} shouldShow={shouldShow} />
+          )}
+          {shouldShow('labels') && (
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600', marginBottom: '16px' }}>
+                Labels personnalisés
+              </div>
+              <LabelsCardContent
+                itemId={serie.id}
+                onLabelsChange={onLabelsChange}
+                getLabels={window.electronAPI.getMangaLabels}
+                getAllLabels={window.electronAPI.getAllMangaLabels}
+                addLabel={window.electronAPI.addMangaLabel}
+                removeLabel={window.electronAPI.removeMangaLabel}
+                noCard={true}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -163,6 +163,24 @@ export default function AnimeDetail() {
                     onToggleFavorite={handleToggleFavorite}
                     shouldShow={shouldShow}
                     onCoverUpdated={() => loadAnime()}
+                    onLabelsChange={() => {
+                      loadAnime();
+                      // Déclencher un événement pour mettre à jour la liste
+                      window.dispatchEvent(new CustomEvent('anime-labels-updated', {
+                        detail: { animeId: anime.id }
+                      }));
+                    }}
+                    streamingLinks={streamingLinks}
+                    showAddLinkForm={showAddLinkForm}
+                    newLink={newLink}
+                    onShowAddForm={() => setShowAddLinkForm(true)}
+                    onHideAddForm={() => {
+                      setShowAddLinkForm(false);
+                      setNewLink({ platform: '', url: '', language: 'fr' });
+                    }}
+                    onLinkChange={setNewLink}
+                    onAddLink={handleAddLink}
+                    onDeleteLink={handleDeleteLink}
                   />
                 )}
 
@@ -171,21 +189,6 @@ export default function AnimeDetail() {
               </div>
 
               <AnimeExternalLinks anime={anime} liensExternes={liensExternes} shouldShow={shouldShow} />
-
-              <AnimeStreamingLinks
-                streamingLinks={streamingLinks}
-                showAddLinkForm={showAddLinkForm}
-                newLink={newLink}
-                onShowAddForm={() => setShowAddLinkForm(true)}
-                onHideAddForm={() => {
-                  setShowAddLinkForm(false);
-                  setNewLink({ platform: '', url: '', language: 'fr' });
-                }}
-                onLinkChange={setNewLink}
-                onAddLink={handleAddLink}
-                onDeleteLink={handleDeleteLink}
-                shouldShow={shouldShow}
-              />
             </div>
 
             <AnimeEpisodesGrid

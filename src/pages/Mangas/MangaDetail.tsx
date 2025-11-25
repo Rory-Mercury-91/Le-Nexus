@@ -177,9 +177,18 @@ export default function SerieDetail() {
                 />
 
                 {/* Informations */}
-                <MangaInfoSection serie={serie} shouldShow={shouldShow} />
+                <MangaInfoSection 
+                  serie={serie} 
+                  shouldShow={shouldShow}
+                  onLabelsChange={() => {
+                    loadSerie(true);
+                    // Déclencher un événement pour mettre à jour la liste
+                    window.dispatchEvent(new CustomEvent('manga-labels-updated', {
+                      detail: { serieId: serie.id }
+                    }));
+                  }}
+                />
               </div>
-
             </div>
 
             {/* Section Chapitres (pour gérer les chapitres) */}

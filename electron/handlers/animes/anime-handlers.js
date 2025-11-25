@@ -8,6 +8,7 @@ const { registerAnimeEpisodesHandlers } = require('./episodes-handlers');
 const { registerAnimeTagsHandlers } = require('./tags-handlers');
 const { registerAnimeStreamingHandlers } = require('./streaming-handlers');
 const { registerAnimeVisibilityHandlers } = require('./visibility-handlers');
+const { registerAnimeLabelsHandlers } = require('./labels-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour les animes
@@ -22,6 +23,7 @@ function registerAnimeHandlers(ipcMain, getDb, store) {
   registerAnimeTagsHandlers(ipcMain, getDb);
   registerAnimeStreamingHandlers(ipcMain, getDb);
   registerAnimeVisibilityHandlers(ipcMain, getDb, store);
+  registerAnimeLabelsHandlers(ipcMain, getDb, store);
 }
 
 module.exports = { registerAnimeHandlers };

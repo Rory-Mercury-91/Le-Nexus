@@ -100,6 +100,7 @@ export interface Serie {
   tag?: SerieTag | null;
   is_favorite?: boolean;
   is_masquee?: boolean | number;
+  labels?: Array<{ label: string; color: string }>; // Labels personnalisés
 }
 
 export interface Tome {
@@ -297,6 +298,7 @@ export interface AnimeSerie {
   tag?: AnimeTag | null;
   is_favorite?: boolean;
   is_masquee?: boolean | number;
+  labels?: Array<{ label: string; color: string }>; // Labels personnalisés
 }
 
 export interface MovieListItem {

@@ -177,6 +177,7 @@ function initDatabase(dbPath) {
       notes_privees TEXT,
       tome_progress TEXT,
       display_preferences TEXT,
+      labels TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (serie_id) REFERENCES manga_series(id) ON DELETE CASCADE,
@@ -598,6 +599,7 @@ function initDatabase(dbPath) {
     ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
     ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
     ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+    ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
   } catch (compatibilityError) {
     console.warn('⚠️ Erreur lors de la vérification des colonnes obligatoires:', compatibilityError.message);
   }
@@ -685,6 +687,7 @@ function migrateAllDatabases(databasesPath) {
         ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
         ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
         ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+        ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
 
         // Synchroniser les relations existantes pour assurer une navigation cohérente
         propagateAllRelations(db);

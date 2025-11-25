@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSerieTag: (serieId, userId) => ipcRenderer.invoke('get-serie-tag', serieId, userId),
   removeSerieTag: (serieId, userId) => ipcRenderer.invoke('remove-serie-tag', serieId, userId),
 
+  // Labels de séries
+  getMangaLabels: (serieId) => ipcRenderer.invoke('get-manga-labels', serieId),
+  getAllMangaLabels: () => ipcRenderer.invoke('get-all-manga-labels'),
+  addMangaLabel: (serieId, label, color) => ipcRenderer.invoke('add-manga-label', serieId, label, color),
+  removeMangaLabel: (serieId, label) => ipcRenderer.invoke('remove-manga-label', serieId, label),
+
   // Tomes
   createTome: (tome) => ipcRenderer.invoke('create-tome', tome),
   updateTome: (id, tome) => ipcRenderer.invoke('update-tome', id, tome),
@@ -104,6 +110,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleAnimeFavorite: (animeId, userId) => ipcRenderer.invoke('toggle-anime-favorite', animeId, userId),
   getAnimeTag: (animeId, userId) => ipcRenderer.invoke('get-anime-tag', animeId, userId),
   removeAnimeTag: (animeId, userId) => ipcRenderer.invoke('remove-anime-tag', animeId, userId),
+
+  // Labels d'animes
+  getAnimeLabels: (animeId) => ipcRenderer.invoke('get-anime-labels', animeId),
+  getAllAnimeLabels: () => ipcRenderer.invoke('get-all-anime-labels'),
+  addAnimeLabel: (animeId, label, color) => ipcRenderer.invoke('add-anime-label', animeId, label, color),
+  removeAnimeLabel: (animeId, label) => ipcRenderer.invoke('remove-anime-label', animeId, label),
 
   // Animes
   createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),

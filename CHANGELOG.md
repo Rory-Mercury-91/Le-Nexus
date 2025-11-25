@@ -5,6 +5,33 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.1.2] - 2025-11-25
+
+### ✨ Ajouté
+- **Système de labels personnalisés pour Mangas et Animes**
+  - Création et gestion de labels personnalisés avec couleurs
+  - Labels partagés entre tous les éléments d'une même collection
+  - Filtrage par labels dans les collections Mangas et Animes
+  - Affichage des labels dans les pages de détails
+  - Labels intégrés sous la section "Mon statut" pour les animes
+  - Labels intégrés à droite de la section "Relations" pour les mangas
+
+- **Amélioration de l'affichage des liens de streaming**
+  - Affichage uniquement de l'icône SVG pour les plateformes reconnues (Netflix, Crunchyroll, Disney+, etc.)
+  - Icônes agrandies (48x48px) et directement cliquables
+  - Affichage texte + icône pour les plateformes sans icône SVG
+  - Section "Où regarder" intégrée dans la colonne de couverture pour les animes
+
+- **Amélioration des filtres Mangas**
+  - Remplacement du toggle "Mihon" par un select avec options avancées
+  - Filtres disponibles : Tout, Mihon, Pas sur Mihon, My Anime List, Pas sur MyAnimeList, Nautiljon, Pas sur Nautiljon
+  - Filtres combinés pour afficher plusieurs sources simultanément
+
+### 🔧 Amélioré
+- Interface des pages de détails mieux organisée
+- Optimisation de l'espace dans la colonne de couverture
+- Meilleure intégration visuelle des sections personnalisables
+
 ## [1.0.0] - 2025-11-25
 
 ### ✨ Ajouté

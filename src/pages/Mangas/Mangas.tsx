@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoMihon from '../../../assets/logo-128px.png';
@@ -194,6 +194,14 @@ export default function Mangas() {
     'all',
     { storage: 'session' }
   );
+  const [selectedLabels, setSelectedLabels] = usePersistentState<string[]>(
+    'collection.mangas.filters.selectedLabels',
+    [],
+    { storage: 'session' }
+  );
+  const [availableLabels, setAvailableLabels] = useState<Array<{ label: string; color: string }>>([]);
+  const [serieLabels, setSerieLabels] = useState<Record<number, Array<{ label: string; color: string }>>>({});
+  const [showLabelsFilter, setShowLabelsFilter] = useState(false);
 
   // Récupération des sites disponibles depuis l'index des sources
   // Cette liste est basée sur TOUTES les séries de la base, pas seulement celles filtrées
@@ -333,12 +341,27 @@ export default function Mangas() {
       updateSerieInState(serieId, { is_favorite: isFavorite });
     };
 
+    const handleLabelsUpdateFromDetail = (event: CustomEvent) => {
+      const { serieId } = event.detail;
+      // Recharger les labels pour cette série
+      if (serieId) {
+        window.electronAPI.getMangaLabels(serieId).then(labels => {
+          setSerieLabels(prev => ({
+            ...prev,
+            [serieId]: labels
+          }));
+        }).catch(console.error);
+      }
+    };
+
     window.addEventListener('manga-status-changed', handleStatusChangeFromDetail as EventListener);
     window.addEventListener('manga-favorite-changed', handleFavoriteChangeFromDetail as EventListener);
+    window.addEventListener('manga-labels-updated', handleLabelsUpdateFromDetail as EventListener);
 
     return () => {
       window.removeEventListener('manga-status-changed', handleStatusChangeFromDetail as EventListener);
       window.removeEventListener('manga-favorite-changed', handleFavoriteChangeFromDetail as EventListener);
+      window.removeEventListener('manga-labels-updated', handleLabelsUpdateFromDetail as EventListener);
     };
   }, [updateSerieInState]);
 
@@ -371,6 +394,23 @@ export default function Mangas() {
       const data = await window.electronAPI.getSeries(filtersWithHidden);
 
       setSeries(data);
+
+      // Extraire les labels depuis les données
+      const labelsMap: Record<number, Array<{ label: string; color: string }>> = {};
+      for (const serie of data) {
+        if (serie.labels && Array.isArray(serie.labels)) {
+          labelsMap[serie.id] = serie.labels;
+        }
+      }
+      setSerieLabels(labelsMap);
+
+      // Charger tous les labels disponibles
+      try {
+        const allLabels = await window.electronAPI.getAllMangaLabels();
+        setAvailableLabels(allLabels);
+      } catch (error) {
+        console.error('Erreur chargement labels:', error);
+      }
     } catch (error) {
       console.error('Erreur chargement séries:', error);
       setSeries([]);
@@ -457,7 +497,18 @@ export default function Mangas() {
     setShowHidden(false);
     setShowMajOnly(false);
     setMihonFilter('all');
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setMihonFilter]);
+    setSelectedLabels([]);
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setMihonFilter, setSelectedLabels]);
+
+  const handleLabelToggle = useCallback((label: string) => {
+    setSelectedLabels(prev => {
+      if (prev.includes(label)) {
+        return prev.filter(l => l !== label);
+      } else {
+        return [...prev, label];
+      }
+    });
+  }, [setSelectedLabels]);
 
 
   // Fonction pour détecter et extraire l'ID depuis une URL MAL
@@ -540,6 +591,13 @@ export default function Mangas() {
           }
         }
 
+        // Filtre par labels
+        if (selectedLabels.length > 0) {
+          const labels = serieLabels[serie.id] || [];
+          const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
+          if (!hasAnyLabel) return false;
+        }
+
         // Filtres additionnels depuis filters
         if (filters.type_volume && serie.type_volume !== filters.type_volume) {
           return false;
@@ -600,7 +658,7 @@ export default function Mangas() {
 
   // Calculer hasActiveFilters en incluant le filtre Mihon et autres filtres
   const hasActiveFilters = hasActiveFiltersBase || mihonFilter !== 'all' || 
-    !!filters.type_volume || !!filters.tag || !!filters.source_id;
+    !!filters.type_volume || !!filters.tag || !!filters.source_id || selectedLabels.length > 0;
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
   const detectedMalId = searchTerm ? detectMalUrlOrId(searchTerm) : { id: null };
@@ -939,6 +997,66 @@ export default function Mangas() {
                 activeColor="#f59e0b"
               />
             </div>
+
+            {/* Filtre par labels */}
+            {availableLabels.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowLabelsFilter(!showLabelsFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showLabelsFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🏷️ Filtrer par labels
+                    {selectedLabels.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedLabels.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showLabelsFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showLabelsFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableLabels.map(labelObj => (
+                      <button
+                        key={labelObj.label}
+                        onClick={() => handleLabelToggle(labelObj.label)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          border: selectedLabels.includes(labelObj.label) ? `2px solid ${labelObj.color}` : `2px solid ${labelObj.color}40`,
+                          background: selectedLabels.includes(labelObj.label) ? labelObj.color : `${labelObj.color}20`,
+                          color: selectedLabels.includes(labelObj.label) ? 'white' : labelObj.color,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {labelObj.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </CollectionFiltersBar>
 
           {/* Pagination avec contrôles de vue et items par page */}

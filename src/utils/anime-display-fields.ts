@@ -26,7 +26,8 @@ export type AnimeDisplayFieldKey =
   | 'liens_externes'
   | 'liens_streaming'
   | 'episodes'
-  | 'badges';
+  | 'badges'
+  | 'labels';
 
 export interface AnimeDisplayField {
   key: AnimeDisplayFieldKey;
@@ -107,6 +108,13 @@ export const ANIME_DISPLAY_FIELD_CATEGORIES: AnimeDisplayFieldCategory[] = [
       { key: 'episodes', label: 'Liste des épisodes' },
       { key: 'badges', label: 'Badges (en cours, source import)' }
     ]
+  },
+  {
+    title: 'Personnalisation',
+    icon: '🏷️',
+    fields: [
+      { key: 'labels', label: 'Labels personnalisés' }
+    ]
   }
 ];
 
@@ -143,5 +151,6 @@ export const ANIME_DISPLAY_DEFAULTS: Record<AnimeDisplayFieldKey, boolean> = {
   liens_externes: true,
   liens_streaming: true,
   episodes: true,
-  badges: true
+  badges: true,
+  labels: true
 };

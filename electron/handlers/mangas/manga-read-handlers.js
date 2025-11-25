@@ -29,7 +29,8 @@ function handleGetSeries(db, store, filters = {}) {
       mud.chapitres_lus as chapitres_lus_mal,
       mud.date_debut as date_debut_lecture_mal,
       mud.date_fin as date_fin_lecture_mal,
-      mud.is_hidden as is_masquee
+      mud.is_hidden as is_masquee,
+      mud.labels as labels
     FROM manga_series s 
     LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
     WHERE 1=1
@@ -162,6 +163,9 @@ function handleGetSeries(db, store, filters = {}) {
       }
     }
 
+    // Parser les labels
+    const labels = serie.labels ? safeJsonParse(serie.labels, []) : [];
+
     return {
       ...serie,
       tomes: tomesWithLecture,
@@ -173,7 +177,8 @@ function handleGetSeries(db, store, filters = {}) {
       volumes_lus: serie.volumes_lus_mal !== null && serie.volumes_lus_mal !== undefined ? serie.volumes_lus_mal : (serie.volumes_lus || null),
       chapitres_lus: serie.chapitres_lus_mal !== null && serie.chapitres_lus_mal !== undefined ? serie.chapitres_lus_mal : (serie.chapitres_lus || null),
       date_debut_lecture: serie.date_debut_lecture_mal || serie.date_debut_lecture || null,
-      date_fin_lecture: serie.date_fin_lecture_mal || serie.date_fin_lecture || null
+      date_fin_lecture: serie.date_fin_lecture_mal || serie.date_fin_lecture || null,
+      labels: labels
     };
   });
 
@@ -202,7 +207,7 @@ function handleGetSerie(db, store, id) {
   // Récupérer les données utilisateur depuis manga_user_data
   const userId = getUserIdByName(db, currentUser);
   const userData = userId ? db.prepare(`
-    SELECT tag, tag_manual_override, is_favorite, statut_lecture, score, volumes_lus, chapitres_lus, date_debut, date_fin, tome_progress, is_hidden
+    SELECT tag, tag_manual_override, is_favorite, statut_lecture, score, volumes_lus, chapitres_lus, date_debut, date_fin, tome_progress, is_hidden, labels
     FROM manga_user_data
     WHERE serie_id = ? AND user_id = ?
   `).get(id, userId) : null;
@@ -308,6 +313,9 @@ function handleGetSerie(db, store, id) {
     }
   }
 
+  // Parser les labels
+  const labels = userData && userData.labels ? safeJsonParse(userData.labels, []) : [];
+
   // Construire l'objet retourné en s'assurant que nautiljon_url est bien inclus
   const result = {
     ...serie,
@@ -327,7 +335,8 @@ function handleGetSerie(db, store, id) {
       : (serie.chapitres_lus || null),
     date_debut_lecture: statutUtilisateur ? statutUtilisateur.date_debut : (serie.date_debut_lecture || null),
     date_fin_lecture: statutUtilisateur ? statutUtilisateur.date_fin : (serie.date_fin_lecture || null),
-    nautiljon_url: nautiljonUrl
+    nautiljon_url: nautiljonUrl,
+    labels: labels
   };
 
   return result;

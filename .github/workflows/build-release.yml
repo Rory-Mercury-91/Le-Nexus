@@ -104,11 +104,22 @@ jobs:
       
       - name: Create Release
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ github.ref_name }}"
           $version = "${{ steps.extract_version.outputs.version }}"
           $repo = "${{ github.repository }}"
-          $token = "${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}"
+          
+          # Utiliser GH_PAT en priorité, sinon GITHUB_TOKEN
+          if ($env:GH_TOKEN) {
+            $token = $env:GH_TOKEN
+            Write-Host "🔑 Utilisation de GH_PAT"
+          } else {
+            $token = $env:GITHUB_TOKEN
+            Write-Host "🔑 Utilisation de GITHUB_TOKEN"
+          }
           
           Write-Host "=== Création de la release pour le tag: $tag ==="
           
@@ -182,11 +193,12 @@ jobs:
           } catch {
             Write-Host "❌ Erreur lors de la création de la release:"
             Write-Host "   Status: $($_.Exception.Response.StatusCode.value__)"
-            if ($_.Exception.Response) {
-              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-              $responseBody = $reader.ReadToEnd()
-              Write-Host "   Réponse: $responseBody"
-            }
+            Write-Host "   Message: $($_.Exception.Message)"
+            Write-Host ""
+            Write-Host "💡 Vérifiez que:"
+            Write-Host "   1. Le secret GH_PAT existe et a les permissions 'repo'"
+            Write-Host "   2. Les permissions du workflow sont sur 'Read and write permissions'"
+            Write-Host "   3. Une release v$version n'existe pas déjà"
             exit 1
           }
           
@@ -207,12 +219,5 @@ jobs:
             Write-Host "✅ Fichier uploadé avec succès: $($uploadResponse.browser_download_url)"
           } catch {
             Write-Host "⚠️ Erreur lors de l'upload: $($_.Exception.Message)"
-            if ($_.Exception.Response) {
-              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-              $responseBody = $reader.ReadToEnd()
-              Write-Host "   Détails: $responseBody"
-            }
             Write-Host "   Mais la release a été créée: $($releaseResponse.html_url)"
           }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}

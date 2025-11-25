@@ -11,7 +11,8 @@ type FieldKey =
   | 'genres' | 'themes' | 'auteurs' | 'media_type' | 'date_debut' | 'date_fin'
   | 'mal_id' | 'titres_alternatifs' | 'type_volume'
   | 'statut_publication' | 'statut_publication_vf' | 'mal_block'
-  | 'section_costs' | 'section_progression' | 'section_chapitres' | 'section_tomes';
+  | 'section_costs' | 'section_progression' | 'section_chapitres' | 'section_tomes'
+  | 'labels';
 
 interface FieldCategory {
   title: string;
@@ -98,6 +99,13 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       { key: 'section_chapitres', label: 'Gestion des chapitres' },
       { key: 'section_tomes', label: 'Liste des tomes' }
     ]
+  },
+  {
+    title: 'Personnalisation',
+    icon: '🏷️',
+    fields: [
+      { key: 'labels', label: 'Labels personnalisés' }
+    ]
   }
 ];
 
@@ -132,7 +140,8 @@ const DEFAULTS: Record<FieldKey, boolean> = {
   section_costs: true,
   section_progression: true,
   section_chapitres: true,
-  section_tomes: true
+  section_tomes: true,
+  labels: true
 };
 
 interface MangaDisplaySettingsProps {

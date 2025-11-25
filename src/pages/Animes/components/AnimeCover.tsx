@@ -1,5 +1,6 @@
 import { Tv } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import LabelsCardContent from '../../../components/common/LabelsCardContent';
 import CoverImage from '../../../components/common/CoverImage';
 import ExternalLinkIcon from '../../../components/common/ExternalLinkIcon';
 import DetailStatusSection from '../../../components/details/DetailStatusSection';
@@ -7,9 +8,20 @@ import ImageModal from '../../../components/modals/common/ImageModal';
 import { useCoverDragAndDrop } from '../../../hooks/details/useCoverDragAndDrop';
 import { AnimeSerie } from '../../../types';
 import { COMMON_STATUSES } from '../../../utils/status';
+import AnimeStreamingLinks from './AnimeStreamingLinks';
 
 const ANIME_STATUS_OPTIONS = COMMON_STATUSES.ANIME;
 type AnimeStatus = (typeof ANIME_STATUS_OPTIONS)[number];
+
+interface StreamingLink {
+  source: 'anilist' | 'manual';
+  platform: string;
+  url: string;
+  language: string;
+  id?: number;
+  color?: string;
+  icon?: string;
+}
 
 interface AnimeCoverProps {
   anime: AnimeSerie;
@@ -19,6 +31,15 @@ interface AnimeCoverProps {
   onToggleFavorite: () => void;
   shouldShow: (field: string) => boolean;
   onCoverUpdated?: () => void;
+  onLabelsChange?: () => void;
+  streamingLinks?: StreamingLink[];
+  showAddLinkForm?: boolean;
+  newLink?: { platform: string; url: string; language: string };
+  onShowAddForm?: () => void;
+  onHideAddForm?: () => void;
+  onLinkChange?: (link: { platform: string; url: string; language: string }) => void;
+  onAddLink?: () => void;
+  onDeleteLink?: (linkId: number) => void;
 }
 
 export default function AnimeCover({
@@ -28,7 +49,16 @@ export default function AnimeCover({
   onStatusChange,
   onToggleFavorite,
   shouldShow,
-  onCoverUpdated
+  onCoverUpdated,
+  onLabelsChange,
+  streamingLinks = [],
+  showAddLinkForm = false,
+  newLink = { platform: '', url: '', language: 'fr' },
+  onShowAddForm,
+  onHideAddForm,
+  onLinkChange,
+  onAddLink,
+  onDeleteLink
 }: AnimeCoverProps) {
   const [showImageModal, setShowImageModal] = useState(false);
 
@@ -181,6 +211,47 @@ export default function AnimeCover({
         onStatusChange={(status) => onStatusChange(status as AnimeStatus)}
         showLabel={true}
       />
+
+      {/* Labels personnalisés */}
+      {shouldShow('labels') && (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '12px' }}>
+            Labels personnalisés
+          </div>
+          <LabelsCardContent
+            itemId={anime.id}
+            onLabelsChange={onLabelsChange}
+            getLabels={window.electronAPI.getAnimeLabels}
+            getAllLabels={window.electronAPI.getAllAnimeLabels}
+            addLabel={window.electronAPI.addAnimeLabel}
+            removeLabel={window.electronAPI.removeAnimeLabel}
+            noCard={true}
+          />
+        </div>
+      )}
+
+      {/* Où regarder */}
+      {shouldShow('liens_streaming') && (
+        <div style={{ marginTop: '16px', width: '100%' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '12px' }}>
+            Où regarder
+          </div>
+          <div style={{ width: '100%' }}>
+            <AnimeStreamingLinks
+              streamingLinks={streamingLinks}
+              showAddLinkForm={showAddLinkForm}
+              newLink={newLink}
+              onShowAddForm={onShowAddForm || (() => {})}
+              onHideAddForm={onHideAddForm || (() => {})}
+              onLinkChange={onLinkChange || (() => {})}
+              onAddLink={onAddLink || (() => {})}
+              onDeleteLink={onDeleteLink || (() => {})}
+              shouldShow={shouldShow}
+              noCard={true}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modal image plein écran */}
       {showImageModal && anime.couverture_url && (

@@ -20,7 +20,8 @@ function handleGetAnimeSeries(db, store, filters = {}) {
       COALESCE(aud.episodes_vus, 0) as episodes_vus,
       aud.tag,
       COALESCE(aud.is_favorite, 0) as is_favorite,
-      COALESCE(aud.is_hidden, 0) as is_masquee
+      COALESCE(aud.is_hidden, 0) as is_masquee,
+      aud.labels as labels
     FROM anime_series a
     LEFT JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
     WHERE 1=1
@@ -75,7 +76,16 @@ function handleGetAnimeSeries(db, store, filters = {}) {
 
   const animes = db.prepare(query).all(...params);
 
-  return { success: true, animes };
+  // Parser les labels pour chaque anime
+  const animesWithLabels = animes.map(anime => {
+    const labels = anime.labels ? safeJsonParse(anime.labels, []) : [];
+    return {
+      ...anime,
+      labels: labels
+    };
+  });
+
+  return { success: true, animes: animesWithLabels };
 }
 
 /**
@@ -93,7 +103,8 @@ function handleGetAnimeDetail(db, store, animeId) {
       aud.tag,
       COALESCE(aud.is_favorite, 0) as is_favorite,
       aud.episode_progress,
-      aud.display_preferences
+      aud.display_preferences,
+      aud.labels as labels
     FROM anime_series a
     LEFT JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
     WHERE a.id = ?
@@ -174,11 +185,15 @@ function handleGetAnimeDetail(db, store, animeId) {
     }
   }
 
+  // Parser les labels
+  const labels = anime.labels ? safeJsonParse(anime.labels, []) : [];
+
   return {
     success: true,
     anime: {
       ...anime,
-      nautiljon_url: nautiljonUrl
+      nautiljon_url: nautiljonUrl,
+      labels: labels
     },
     episodes,
     franchiseAnimes

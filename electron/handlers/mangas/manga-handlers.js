@@ -8,6 +8,7 @@ const { registerMangaTomesHandlers } = require('./tomes-handlers');
 const { registerMangaTagsHandlers } = require('./tags-handlers');
 const { registerMangaEnrichmentHandlers } = require('./enrichment-handlers');
 const { registerMihonImportHandlers } = require('./mihon-import-handlers');
+const { registerMangaLabelsHandlers } = require('./labels-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour les mangas (séries et tomes)
@@ -23,6 +24,7 @@ function registerMangaHandlers(ipcMain, getDb, getPathManager, store, getMainWin
   registerMangaTagsHandlers(ipcMain, getDb);
   registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store);
   registerMihonImportHandlers(ipcMain, getDb, getPathManager, store, dialog, getMainWindow);
+  registerMangaLabelsHandlers(ipcMain, getDb, store);
 }
 
 module.exports = { registerMangaHandlers };
