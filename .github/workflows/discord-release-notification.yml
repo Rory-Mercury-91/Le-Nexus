@@ -64,7 +64,8 @@ jobs:
           else
             CHANGELOG_RAW=""
           fi
-          SUMMARY_RAW=$(bash .github/scripts/extract-summary.sh)
+          bash .github/scripts/extract-summary.sh > summary_temp.txt
+          SUMMARY_RAW=$(cat summary_temp.txt)
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
