@@ -32,8 +32,32 @@ jobs:
       - name: Extract Changelog
         id: changelog
         run: |
-          chmod +x .github/scripts/extract-changelog.sh
-          bash .github/scripts/extract-changelog.sh "${{ steps.version.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Extraire la section du CHANGELOG pour cette version
+          # Recherche flexible : accepte "## [X.Y.Z] - YYYY-MM-DD"
+          awk -v ver="${VERSION#v}" '
+            /^## \[/ {
+              # Extraire la version entre crochets
+              match($0, /\[([0-9]+\.[0-9]+\.[0-9]+)\]/, arr)
+              if (arr[1] == ver) {
+                started = 1
+                next
+              } else if (started) {
+                exit
+              }
+            }
+            started { print }
+          ' CHANGELOG.md > changelog_extract.txt
+          
+          # Vérifier si le changelog a été extrait
+          if [ ! -s changelog_extract.txt ]; then
+            echo "ATTENTION: Changelog vide pour $VERSION" >&2
+            echo "Contenu disponible dans les prochaines releases." > changelog_extract.txt
+          fi
+          
+          # Limiter à 1000 caractères pour Discord field (limite: 1024)
+          head -c 1000 changelog_extract.txt > changelog_short.txt
 
       - name: Send Discord Notification
         env:
@@ -43,8 +67,7 @@ jobs:
         run: |
           # Lire le changelog et le résumé depuis les fichiers
           CHANGELOG_RAW=$(cat changelog_short.txt)
-          chmod +x .github/scripts/extract-summary.sh
-          SUMMARY_RAW=$(bash .github/scripts/extract-summary.sh)
+          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt | sed 's/### //')
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
@@ -75,7 +98,7 @@ jobs:
                   },
                   {
                     "name": "⬇️ Téléchargements",
-                    "value": ("**Windows** : [💾 Télécharger l'installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus%20Setup%20" + $version_num + ".exe)"),
+                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus%20Setup%20" + $version_num + ".exe)"),
                     "inline": false
                   },
                   {

@@ -3,21 +3,22 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*.*.*'  # Déclenche sur les tags de version (ex: v1.0.0, v1.2.3)
-  workflow_dispatch:  # Permet de déclencher manuellement le workflow
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
 
 jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
-    # Les permissions sont gérées par les paramètres globaux du dépôt
-    # (Settings → Actions → General → Workflow permissions → Read and write permissions)
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Nécessaire pour avoir accès aux tags
+          fetch-depth: 0
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,7 +31,6 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          # Enlever le préfixe 'v' si présent (ex: v1.0.0 -> 1.0.0)
           $version = $tag -replace '^v', ''
           Write-Host "Version extraite du tag: $version"
           echo "version=$version" >> $env:GITHUB_OUTPUT
@@ -54,7 +54,7 @@ jobs:
           /**
            * Fichier de configuration contenant les secrets de l'application
            * Généré automatiquement lors du build depuis GitHub Secrets
-           * ⚠️ Ce fichier ne doit JAMAIS être commité dans Git
+           * ⚠️ Ce fichier ne doit JAMAIS être committé dans Git
            */
           
           module.exports = {
@@ -77,70 +77,37 @@ jobs:
         run: |
           Write-Host "=== Recherche des fichiers de build ==="
           
-          # Chercher dans les dossiers de build
-          $searchPaths = @("dist_electron", "dist")
-          
-          foreach ($searchPath in $searchPaths) {
-            if (Test-Path $searchPath) {
-              Write-Host "`n=== Contenu du dossier $searchPath ==="
-              Get-ChildItem -Path $searchPath -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
-            }
-          }
-          
-          # Chercher uniquement les fichiers de build réels (Setup .exe et .zip dans dist/)
-          Write-Host "`n=== Fichiers de build trouvés ==="
-          $buildFiles = Get-ChildItem -Path . -Recurse -Include *.exe,*.zip -ErrorAction SilentlyContinue | Where-Object { 
-            # Exclure node_modules, .git, et les fichiers utilitaires
-            $_.DirectoryName -notmatch 'node_modules' -and 
-            $_.DirectoryName -notmatch '\.git' -and
-            $_.Name -notmatch 'electron\.exe' -and
+          # Chercher uniquement les fichiers de build réels (Setup .exe dans dist/)
+          $buildFiles = Get-ChildItem -Path "dist" -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object {
             $_.Name -notmatch 'elevate\.exe' -and
-            # Inclure uniquement les fichiers dans dist/ (pas dans dist/win-unpacked/resources/)
-            ($_.FullName -match '\\dist\\[^\\]+\.(exe|zip)$' -or $_.FullName -match '\\dist_electron\\[^\\]+\.(exe|zip)$')
+            $_.DirectoryName -notmatch '\\win-unpacked'
           }
           
           if ($buildFiles) {
-            Write-Host "`n📦 Fichiers de build valides:"
+            Write-Host "✅ $(@($buildFiles).Count) fichier(s) de build trouvé(s)"
             $buildFiles | ForEach-Object { 
               $sizeMB = [math]::Round($_.Length/1MB,2)
-              Write-Host "  ✅ $($_.Name) ($sizeMB MB) - $($_.DirectoryName)"
+              Write-Host "  ✅ $($_.Name) ($sizeMB MB)"
             }
-            Write-Host "`n✅ $(@($buildFiles).Count) fichier(s) de build trouvé(s)"
           } else {
-            Write-Host "⚠️ Aucun fichier de build trouvé avec les critères stricts"
-            Write-Host "   Recherche alternative dans dist/..."
-            $altFiles = Get-ChildItem -Path "dist" -Recurse -Include *.exe,*.zip -ErrorAction SilentlyContinue | Where-Object {
-              $_.Name -notmatch 'elevate\.exe' -and
-              $_.DirectoryName -notmatch '\\resources\\'
-            }
-            if ($altFiles) {
-              Write-Host "   Fichiers trouvés (critères assouplis):"
-              $altFiles | ForEach-Object { 
-                $sizeMB = [math]::Round($_.Length/1MB,2)
-                Write-Host "     - $($_.Name) ($sizeMB MB)"
-              }
-            }
+            Write-Host "❌ Aucun fichier de build trouvé"
+            exit 1
           }
       
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: |
-            dist_electron/**/*.exe
-            dist_electron/**/*.zip
-            dist/**/*.exe
-            dist/**/*.zip
-          if-no-files-found: warn
+          path: dist/*.exe
+          if-no-files-found: error
           retention-days: 30
       
-      - name: Create Release with API
+      - name: Create Release
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
           $version = "${{ steps.extract_version.outputs.version }}"
           $repo = "${{ github.repository }}"
-          # Utiliser PAT si disponible, sinon GITHUB_TOKEN
           $token = "${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}"
           
           Write-Host "=== Création de la release pour le tag: $tag ==="
@@ -152,7 +119,7 @@ jobs:
           } | Select-Object -First 1
           
           if (-not $exeFile) {
-            Write-Host "⚠️ Aucun fichier .exe trouvé dans dist/"
+            Write-Host "❌ Aucun fichier .exe trouvé dans dist/"
             exit 1
           }
           
@@ -161,8 +128,41 @@ jobs:
           # Créer la release via l'API GitHub
           $releaseBody = @{
             tag_name = $tag
-            name = "Release $version"
-            body = "## Release version $version`n`nCette release inclut la configuration sécurisée de la clé API Google Sheets via GitHub Secrets.`n`n### Changements`n- Configuration de la clé API Google Sheets via GitHub Secrets`n- Synchronisation des traductions depuis Google Sheets fonctionnelle"
+            name = "Nexus $version"
+            body = @"
+          ## 🎮 Nexus $version
+          
+          **Gestionnaire personnel complet pour Mangas, Animes, Films, Séries et Jeux Adultes**
+          
+          ---
+          
+          ### ⬇️ Téléchargement
+          
+          | Plateforme | Fichier | Instructions |
+          |------------|---------|--------------|
+          | 🪟 **Windows** | ``Nexus Setup $version.exe`` | Double-cliquer pour installer |
+          
+          ### ✨ Fonctionnalités Principales
+          
+          - 📚 **Gestion complète des Mangas** : Suivi détaillé avec volumes, chapitres, import Nautiljon
+          - 🎬 **Gestion des Animes** : Synchronisation MyAnimeList, traduction IA, streaming
+          - 🎮 **Gestion des Jeux Adultes** : Scraping F95Zone/LewdCorner, vérification MAJ
+          - 🎥 **Films & Séries TV** : Import TMDb, suivi de visionnage personnalisé
+          - 👥 **Multi-utilisateurs** : Profils personnalisés, partage des achats
+          - 🔄 **Synchronisation** : MyAnimeList OAuth, enrichissement automatique
+          - 🎨 **Interface moderne** : Thèmes clair/sombre, recherche globale (Ctrl+K)
+          
+          ### 📚 Documentation
+          
+          - 📖 **README** : https://github.com/Rory-Mercury-91/Le-Nexus
+          - 🐛 **Bugs** : https://github.com/Rory-Mercury-91/Le-Nexus/issues
+          
+          ---
+          
+          Consultez le [CHANGELOG](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md) pour tous les détails.
+          
+          💖 **Merci d'utiliser Nexus !**
+          "@
             draft = $false
             prerelease = $false
             target_commitish = "${{ github.sha }}"
@@ -174,12 +174,11 @@ jobs:
           }
           
           Write-Host "📤 Création de la release..."
-          Write-Host "   Repository: $repo"
-          Write-Host "   Tag: $tag"
-          Write-Host "   Commit: ${{ github.sha }}"
           
           try {
             $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
+            $releaseId = $releaseResponse.id
+            Write-Host "✅ Release créée avec l'ID: $releaseId"
           } catch {
             Write-Host "❌ Erreur lors de la création de la release:"
             Write-Host "   Status: $($_.Exception.Response.StatusCode.value__)"
@@ -188,15 +187,8 @@ jobs:
               $responseBody = $reader.ReadToEnd()
               Write-Host "   Réponse: $responseBody"
             }
-            Write-Host "`n💡 Vérifiez que:"
-            Write-Host "   1. Les permissions du workflow sont sur 'Read and write permissions'"
-            Write-Host "   2. Le dépôt n'a pas de restrictions sur les releases"
-            Write-Host "   3. Le GITHUB_TOKEN a les permissions nécessaires"
             exit 1
           }
-          
-          $releaseId = $releaseResponse.id
-          Write-Host "✅ Release créée avec l'ID: $releaseId"
           
           # Upload du fichier
           $uploadUrl = $releaseResponse.upload_url -replace '\{.*$', "?name=$($exeFile.Name)"
@@ -223,4 +215,4 @@ jobs:
             Write-Host "   Mais la release a été créée: $($releaseResponse.html_url)"
           }
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
