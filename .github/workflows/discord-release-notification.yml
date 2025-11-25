@@ -36,8 +36,8 @@ jobs:
       - name: Extract Changelog
         id: changelog
         run: |
-          chmod +x .github/scripts/extract-changelog.sh
-          .github/scripts/extract-changelog.sh "${{ steps.version.outputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          bash .github/scripts/extract-changelog.sh "$VERSION"
 
       - name: Get Release Notes
         id: release_notes
@@ -59,9 +59,12 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
           # Lire le changelog et le résumé depuis les fichiers
-          CHANGELOG_RAW=$(cat changelog_short.txt)
-          chmod +x .github/scripts/extract-summary.sh
-          SUMMARY_RAW=$(.github/scripts/extract-summary.sh)
+          if [ -f changelog_short.txt ]; then
+            CHANGELOG_RAW=$(cat changelog_short.txt)
+          else
+            CHANGELOG_RAW=""
+          fi
+          SUMMARY_RAW=$(bash .github/scripts/extract-summary.sh)
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
