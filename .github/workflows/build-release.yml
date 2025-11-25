@@ -77,8 +77,8 @@ jobs:
         run: |
           Write-Host "=== Recherche des fichiers de build ==="
           
-          # Chercher dans tous les dossiers possibles
-          $searchPaths = @("dist_electron", "dist", "release", "out")
+          # Chercher dans les dossiers de build
+          $searchPaths = @("dist_electron", "dist")
           
           foreach ($searchPath in $searchPaths) {
             if (Test-Path $searchPath) {
@@ -87,30 +87,39 @@ jobs:
             }
           }
           
-          # Chercher les fichiers .exe et .zip dans tout le projet (sauf node_modules)
-          Write-Host "`n=== Fichiers .exe et .zip trouvés ==="
+          # Chercher uniquement les fichiers de build réels (Setup .exe et .zip dans dist/)
+          Write-Host "`n=== Fichiers de build trouvés ==="
           $buildFiles = Get-ChildItem -Path . -Recurse -Include *.exe,*.zip -ErrorAction SilentlyContinue | Where-Object { 
+            # Exclure node_modules, .git, et les fichiers utilitaires
             $_.DirectoryName -notmatch 'node_modules' -and 
             $_.DirectoryName -notmatch '\.git' -and
-            $_.Name -notmatch 'electron\.exe'
+            $_.Name -notmatch 'electron\.exe' -and
+            $_.Name -notmatch 'elevate\.exe' -and
+            # Inclure uniquement les fichiers dans dist/ (pas dans dist/win-unpacked/resources/)
+            ($_.FullName -match '\\dist\\[^\\]+\.(exe|zip)$' -or $_.FullName -match '\\dist_electron\\[^\\]+\.(exe|zip)$')
           }
           
           if ($buildFiles) {
+            Write-Host "`n📦 Fichiers de build valides:"
             $buildFiles | ForEach-Object { 
-              Write-Host "  - $($_.FullName) ($([math]::Round($_.Length/1MB,2)) MB)"
+              $sizeMB = [math]::Round($_.Length/1MB,2)
+              Write-Host "  ✅ $($_.Name) ($sizeMB MB) - $($_.DirectoryName)"
             }
-            # Sauvegarder les chemins relatifs pour l'étape suivante
-            $relativePaths = $buildFiles | ForEach-Object { $_.FullName.Replace("$PWD\", "").Replace("\", "/") }
-            $relativePaths -join "`n" | Out-File -FilePath "build_files.txt" -Encoding utf8
             Write-Host "`n✅ $(@($buildFiles).Count) fichier(s) de build trouvé(s)"
-            # Exporter pour les étapes suivantes
-            $relativePaths -join "`n" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-            echo "files<<EOF" >> $env:GITHUB_OUTPUT
-            $relativePaths -join "`n" >> $env:GITHUB_OUTPUT
-            echo "EOF" >> $env:GITHUB_OUTPUT
           } else {
-            Write-Host "❌ Aucun fichier de build trouvé"
-            "" | Out-File -FilePath "build_files.txt" -Encoding utf8
+            Write-Host "⚠️ Aucun fichier de build trouvé avec les critères stricts"
+            Write-Host "   Recherche alternative dans dist/..."
+            $altFiles = Get-ChildItem -Path "dist" -Recurse -Include *.exe,*.zip -ErrorAction SilentlyContinue | Where-Object {
+              $_.Name -notmatch 'elevate\.exe' -and
+              $_.DirectoryName -notmatch '\\resources\\'
+            }
+            if ($altFiles) {
+              Write-Host "   Fichiers trouvés (critères assouplis):"
+              $altFiles | ForEach-Object { 
+                $sizeMB = [math]::Round($_.Length/1MB,2)
+                Write-Host "     - $($_.Name) ($sizeMB MB)"
+              }
+            }
           }
       
       - name: Upload Windows artifacts
@@ -151,10 +160,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist_electron/**/*.exe
-            dist_electron/**/*.zip
-            dist/**/*.exe
-            dist/**/*.zip
+            dist/*.exe
+            dist/*.zip
+            dist_electron/*.exe
+            dist_electron/*.zip
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
