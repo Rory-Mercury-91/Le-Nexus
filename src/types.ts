@@ -1,6 +1,31 @@
 export type SerieTag = 'a_lire' | 'en_cours' | 'lu' | 'abandonne' | 'en_pause';
 export type AnimeTag = 'a_regarder' | 'en_cours' | 'termine' | 'abandonne';
 
+// Type pour les erreurs (évite l'utilisation de 'any')
+export interface AppError extends Error {
+  message: string;
+  code?: string | number;
+  details?: unknown;
+}
+
+// Type pour les données JSON de jeux adultes
+export interface AdulteGameJsonData {
+  name?: string;
+  version?: string;
+  status?: string;
+  engine?: string;
+  developer?: string;
+  developpeur?: string;
+  image?: string;
+  cover?: string;
+  tags?: string[] | string;
+  id?: string | number;
+  thread_url?: string;
+  link?: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
 export interface ContentPreferences {
   showMangas: boolean;
   showAnimes: boolean;
@@ -26,6 +51,7 @@ export interface Serie {
   nb_chapitres?: number | null;
   nb_chapitres_vf?: number | null;
   chapitres_lus?: number | null;
+  chapitres_mihon?: number | null; // 0 = non mihon, 1 = mihon
   langue_originale?: string | null;
   demographie?: string | null;
   editeur?: string | null;
@@ -62,11 +88,14 @@ export interface Serie {
   date_fin_lecture?: string | null;
   tags?: string | null; // Tags MAL de l'utilisateur
   relations?: string | null; // JSON string
-  source_donnees?: 'mal' | 'nautiljon' | 'mal+nautiljon' | null;
+  source_donnees?: 'mal' | 'nautiljon' | 'mal+nautiljon' | 'mihon_import' | null;
   nautiljon_url?: string | null; // URL de la page Nautiljon (extrait de relations)
+  source_url?: string | null; // URL de la source (site de scan, ex: sushiscan.fr)
+  source_id?: string | null; // ID de la source Mihon/Tachiyomi (ex: "3196884165456788667")
   
   created_at?: string;
   updated_at?: string;
+  user_modified_fields?: string | null; // JSON array des champs modifiés par l'utilisateur
   tomes?: Tome[];
   tag?: SerieTag | null;
   is_favorite?: boolean;
@@ -88,6 +117,7 @@ export interface Tome {
   created_at?: string;
   lu?: number; // 0 = non lu, 1 = lu
   date_lecture?: string | null;
+  mihon?: number; // 0 = non mihon, 1 = mihon
 }
 
 export interface Statistics {
@@ -105,6 +135,7 @@ export interface Statistics {
   };
   nbSeries: number;
   nbTomes: number;
+  totalMihon: number;
   nbTomesParProprietaire: {
     [userId: number]: number; // Nombre de tomes par utilisateur (user_id)
   };
@@ -164,10 +195,12 @@ export interface SerieFilters {
   search?: string;
   afficherMasquees?: boolean;
   tag?: SerieTag | 'aucun';
+  source_url?: string; // Déprécié, utiliser source_id
+  source_id?: string; // ID de la source Mihon/Tachiyomi
 }
 
-export interface MangaDexResult {
-  source?: string; // Source principale
+export interface MangaSearchResult {
+  source?: string; // Source principale (MyAnimeList, AniList)
   sources?: string[]; // Toutes les sources (pour les résultats mergés)
   id: string;
   titre: string;
@@ -183,7 +216,7 @@ export interface MangaDexResult {
 }
 
 export interface AnimeSearchResult {
-  source: string; // 'anilist', 'kitsu'
+  source: string; // 'MyAnimeList', 'AniList'
   id: string;
   titre: string;
   titre_romaji?: string;
@@ -207,6 +240,7 @@ export interface AnimeSerie {
   id: number;
   mal_id: number;
   mal_url?: string;
+  nautiljon_url?: string | null; // URL de la page Nautiljon (extrait de relations)
   titre: string;
   titre_romaji?: string;
   titre_natif?: string;
@@ -258,6 +292,7 @@ export interface AnimeSerie {
   episodes_vus?: number;
   created_at?: string;
   updated_at?: string;
+  user_modified_fields?: string | null; // JSON array des champs modifiés par l'utilisateur
   // Tags utilisateur
   tag?: AnimeTag | null;
   is_favorite?: boolean;
@@ -521,7 +556,7 @@ export interface AnimeImportResult {
 
 export interface AnimeImportProgress {
   phase: 'batch' | 'anime' | 'manga' | 'pause' | 'complete';
-  type?: 'anime' | 'manga' | 'anime-enrichment' | 'manga-enrichment';
+  type?: 'anime' | 'manga' | 'anime-enrichment' | 'manga-enrichment' | 'mihon-import' | 'adulte-game-updates';
   currentBatch?: number;
   totalBatches?: number;
   currentAnime?: string;
@@ -599,47 +634,48 @@ export type AdulteGameTypeTraduction = 'Manuelle' | 'Semi-automatique' | 'Automa
 
 export interface AdulteGame {
   id: number;
+  
+  // IDs des plateformes (nouveaux champs)
   f95_thread_id?: number | null;
+  Lewdcorner_thread_id?: number | null;
+  
+  // Données générales (nouveaux noms)
   titre: string;
-  version?: string | null;
-  statut_jeu?: AdulteGameStatutJeu | null;
-  moteur?: AdulteGameMoteur | null;
-  developpeur?: string | null;
-  plateforme?: 'F95Zone' | 'LewdCorner' | null;
+  game_version?: string | null; // Nouveau nom
+  game_statut?: AdulteGameStatutJeu | null; // Nouveau nom
+  game_engine?: AdulteGameMoteur | null; // Nouveau nom
+  game_developer?: string | null; // Nouveau nom
+  game_site?: 'F95Zone' | 'LewdCorner' | null; // Nouveau nom
   couverture_url?: string | null;
   tags?: string[]; // Parsé depuis JSON
   lien_f95?: string | null;
-  lien_traduction?: string | null;
-  lien_jeu?: string | null;
+  lien_lewdcorner?: string | null; // Nouveau champ
   
-  // Données utilisateur
-  statut_perso?: AdulteGameStatutPerso | null;
+  // Données utilisateur (depuis adulte_game_user_data)
+  statut_perso?: AdulteGameStatutPerso | null; // Alias pour completion_perso
+  completion_perso?: AdulteGameStatutPerso | null; // Nouveau nom
   notes_privees?: string | null;
   chemin_executable?: string | null;
   version_jouee?: string | null;
   derniere_session?: string | null;
   is_favorite?: boolean | number;
   is_hidden?: boolean | number;
+  labels?: Array<{ label: string; color: string }>; // Nouveau : JSON array
+  display_preferences?: Record<string, boolean>; // Nouveau : JSON object
   
-  // Informations de traduction (anciennes)
-  version_traduction?: string | null;
+  // Traduction
   statut_traduction?: AdulteGameStatutTraduction | null;
   type_traduction?: AdulteGameTypeTraduction | null;
-  
-  // Traduction FR (Google Sheets sync)
   traduction_fr_disponible?: boolean;
   version_traduite?: string | null;
   traducteur?: string | null;
-  f95_trad_id?: number | null;
-  statut_trad_fr?: string | null; // TERMINÉ, EN COURS, ABANDONNÉ
-  type_trad_fr?: string | null; // Traduction Humaine, Semi-Automatique, Automatique
   derniere_sync_trad?: string | null;
   traductions_multiples?: string | null; // JSON array des traductions multiples
   
   // Contrôle de version
-  version_disponible?: string | null;
   maj_disponible?: boolean;
   derniere_verif?: string | null;
+  user_modified_fields?: string | null; // JSON array des champs modifiés par l'utilisateur
   
   // Métadonnées
   created_at?: string;
@@ -647,6 +683,20 @@ export interface AdulteGame {
   
   // Relations
   proprietaires?: string[]; // Liste des propriétaires
+  
+  // Alias pour compatibilité rétroactive (deprecated)
+  version?: string | null; // Alias pour game_version
+  statut_jeu?: AdulteGameStatutJeu | null; // Alias pour game_statut
+  moteur?: AdulteGameMoteur | null; // Alias pour game_engine
+  developpeur?: string | null; // Alias pour game_developer
+  plateforme?: 'F95Zone' | 'LewdCorner' | null; // Alias pour game_site
+  lien_traduction?: string | null; // Ancien champ, non utilisé
+  lien_jeu?: string | null; // Ancien champ, non utilisé
+  version_traduction?: string | null; // Ancien champ, non utilisé
+  f95_trad_id?: number | null; // Ancien champ, non utilisé
+  statut_trad_fr?: string | null; // Alias pour statut_traduction
+  type_trad_fr?: string | null; // Alias pour type_traduction
+  version_disponible?: string | null; // Ancien champ, non utilisé
 }
 
 // Alias pour compatibilité rétroactive
@@ -658,6 +708,7 @@ export interface AdulteGameFilters {
   moteur?: AdulteGameMoteur;
   maj_disponible?: boolean;
   traduction_fr_disponible?: boolean;
+  statut_traduction?: AdulteGameStatutTraduction;
   show_hidden?: boolean;
   search?: string;
   [key: string]: unknown;

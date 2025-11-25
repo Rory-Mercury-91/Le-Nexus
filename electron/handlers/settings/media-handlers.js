@@ -1,6 +1,17 @@
 const { getConfiguration } = require('../../apis/tmdb');
+const { getUserIdByName } = require('../common-helpers');
+const { safeJsonParse } = require('../common-helpers');
+const {
+  createGetJsonDisplayOverridesHandler,
+  createSaveJsonDisplayOverridesHandler,
+  createDeleteJsonDisplayOverridesHandler
+} = require('../common/display-overrides-helpers');
+const {
+  createGetGlobalDisplaySettingsHandler,
+  createSaveGlobalDisplaySettingsHandler
+} = require('../common/display-settings-helpers');
 
-function registerMediaSettingsHandlers(ipcMain, store) {
+function registerMediaSettingsHandlers(ipcMain, getDb, store) {
   ipcMain.handle('get-tmdb-credentials', () => {
     return {
       apiKey: store.get('tmdb.apiKey', ''),
@@ -85,34 +96,67 @@ function registerMediaSettingsHandlers(ipcMain, store) {
     episodes: true,
     metadata: true,
     streaming: true,
-    externalLinks: true
+    externalLinks: true,
+    videos: true,
+    images: true,
+    progression: true,
+    recommendations: true
   };
 
-  ipcMain.handle('get-movie-display-settings', () => {
-    const saved = store.get('movies.displaySettings', {});
-    return {
-      ...defaultMovieDisplay,
-      ...saved
-    };
-  });
+  ipcMain.handle('get-movie-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'movies',
+    defaultDisplay: defaultMovieDisplay,
+    getDb,
+    store,
+    storeKey: 'movies.displaySettings'
+  }));
 
-  ipcMain.handle('save-movie-display-settings', (event, settings) => {
-    store.set('movies.displaySettings', settings);
-    return { success: true };
-  });
+  ipcMain.handle('save-movie-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'movies',
+    getDb,
+    store,
+    useVisibleFormat: false
+  }));
 
-  ipcMain.handle('get-series-display-settings', () => {
-    const saved = store.get('series.displaySettings', {});
-    return {
-      ...defaultSeriesDisplay,
-      ...saved
-    };
-  });
+  ipcMain.handle('get-series-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'tv_shows',
+    defaultDisplay: defaultSeriesDisplay,
+    getDb,
+    store,
+    storeKey: 'series.displaySettings'
+  }));
 
-  ipcMain.handle('save-series-display-settings', (event, settings) => {
-    store.set('series.displaySettings', settings);
-    return { success: true };
-  });
+  ipcMain.handle('save-series-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'tv_shows',
+    getDb,
+    store,
+    useVisibleFormat: false
+  }));
+
+  // Handlers pour les overrides locaux des séries TV (stockés dans tv_show_user_data.display_preferences)
+  const { ensureTvShowUserDataRow } = require('../tv/tv-handlers');
+  
+  ipcMain.handle('get-series-display-overrides', createGetJsonDisplayOverridesHandler({
+    tableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    getDb,
+    store
+  }));
+
+  ipcMain.handle('save-series-display-overrides', createSaveJsonDisplayOverridesHandler({
+    tableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    getDb,
+    store,
+    ensureRowExists: ensureTvShowUserDataRow
+  }));
+
+  ipcMain.handle('delete-series-display-overrides', createDeleteJsonDisplayOverridesHandler({
+    tableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    getDb,
+    store
+  }));
 }
 
 module.exports = {

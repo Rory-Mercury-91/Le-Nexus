@@ -542,7 +542,8 @@
                 
                 // Métadonnées
                 _source: 'Nautiljon',
-                _url: window.location.href
+                _url: window.location.href,
+                nautiljon_url: window.location.href // URL explicite pour le backend
             };
             
             console.log('📦 Données anime extraites:', animeData);
@@ -1872,6 +1873,7 @@
                 // Métadonnées
                 _source: 'Nautiljon',
                 _url: window.location.href,
+                nautiljon_url: window.location.href, // URL explicite pour le backend
                 _themes: themes,
                 _auteurs: auteurs,
                 _prepublication: prepublication,
@@ -2419,12 +2421,14 @@
                     
                     removeScrapingOverlay();
                     
-                    // Si le serveur demande une sélection utilisateur (match à 99%)
-                    if (result.requiresSelection && result.candidate) {
+                    // Si le serveur demande une sélection utilisateur (match avec similarité >= 75%)
+                    // Support des deux formats : candidate (singulier, format Nautiljon) et candidates (array, format MAL)
+                    const candidate = result.candidate || (Array.isArray(result.candidates) && result.candidates.length > 0 ? result.candidates[0] : null);
+                    if (result.requiresSelection && candidate) {
                         const userChoice = await showSelectionOverlay(
                             data.titre,
-                            result.candidate,
-                            result.newMangaData
+                            candidate,
+                            result.newMangaData || { titre: data.titre }
                         );
                         
                         if (userChoice === 'cancel') {
@@ -2657,12 +2661,14 @@
                     // Retirer l'overlay
                     removeScrapingOverlay();
                     
-                    // Si le serveur demande une sélection utilisateur (match à 99%)
-                    if (result.requiresSelection && result.candidate) {
+                    // Si le serveur demande une sélection utilisateur (match avec similarité >= 75%)
+                    // Support des deux formats : candidate (singulier, format Nautiljon) et candidates (array, format MAL)
+                    const candidate = result.candidate || (Array.isArray(result.candidates) && result.candidates.length > 0 ? result.candidates[0] : null);
+                    if (result.requiresSelection && candidate) {
                         const userChoice = await showSelectionOverlay(
                             data.titre,
-                            result.candidate,
-                            result.newAnimeData
+                            candidate,
+                            result.newAnimeData || { titre: data.titre }
                         );
                         
                         if (userChoice === 'cancel') {

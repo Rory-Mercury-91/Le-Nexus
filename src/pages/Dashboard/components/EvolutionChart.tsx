@@ -21,7 +21,7 @@ export default function EvolutionChart({ evolutionStats }: EvolutionChartProps) 
   }
 
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '32px' }}>
+    <div className="card" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showEvolution ? '20px' : '0', flexWrap: 'wrap', gap: '12px' }}>
         <button
           onClick={() => setShowEvolution(!showEvolution)}
@@ -148,4 +148,3 @@ export default function EvolutionChart({ evolutionStats }: EvolutionChartProps) 
     </div>
   );
 }
-

@@ -137,6 +137,7 @@ function mergeSerieData(currentData, parsedData) {
     titre_natif: parsedData.titre_natif || currentData.titre_natif || null,
     type_volume: parsedData.type_volume || currentData.type_volume || 'Broché',
     type_contenu: parsedData.type_contenu || currentData.type_contenu || 'volume',
+    couverture_url: parsedData.couverture_url || currentData.couverture_url || null,
     description: parsedData.description || currentData.description,
     statut_publication: parsedData.statut_publication_vo || currentData.statut_publication, // VO depuis Nautiljon ou conservé
     statut_publication_vf: parsedData.statut_publication || currentData.statut_publication_vf,

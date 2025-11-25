@@ -3,7 +3,9 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { ContentPreferences } from '../../types';
 import { useConfirm } from '../../hooks/common/useConfirm';
+import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import GlobalSearch from '../common/GlobalSearch';
+import GlobalProgressFooter from '../common/GlobalProgressFooter';
 import GradientTitle from '../common/GradientTitle';
 import SavingModal from '../modals/common/SavingModal';
 import { NavLink } from './components';
@@ -29,6 +31,27 @@ export default function Layout({ children, currentUser }: LayoutProps) {
   const [userColor, setUserColor] = useState('#6366f1');
   const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
+  
+  // Vérifier si le footer de progression est visible pour ajuster le padding
+  const {
+    malSyncing,
+    animeProgress,
+    mangaProgress,
+    translating,
+    adulteGameUpdating,
+    adulteGameProgress,
+    isProgressCollapsed
+  } = useGlobalProgress();
+  
+  const hasActiveProgress = malSyncing ||
+    animeProgress !== null ||
+    mangaProgress !== null ||
+    translating ||
+    adulteGameUpdating ||
+    adulteGameProgress !== null;
+  
+  // Calculer le padding en fonction de l'état collapsed (60px si réduit, 200px si étendu)
+  const progressHeaderHeight = hasActiveProgress ? (isProgressCollapsed ? 60 : 200) : 0;
 
   useEffect(() => {
     loadUserData();
@@ -250,7 +273,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
 
           {contentPrefs.showMangas && (
             <NavLink to="/collection" icon="📚" isActive={isActive('/collection')}>
-              Mangas
+              Lectures
             </NavLink>
           )}
 
@@ -345,12 +368,17 @@ export default function Layout({ children, currentUser }: LayoutProps) {
         flex: 1, 
         marginLeft: '260px',
         minHeight: '100vh',
-        overflow: 'auto'
+        overflowY: 'scroll',
+        overflowX: 'hidden',
+        paddingTop: `${progressHeaderHeight}px` // Espace pour le header de progression qui s'adapte à l'état collapsed
       }}
       >
         {children}
       </main>
     </div>
+
+    {/* Header de progression global (en haut de la page) */}
+    <GlobalProgressFooter />
 
     {isSaving && <SavingModal userName={currentUser} onComplete={handleSaveComplete} />}
     <ConfirmDialog />

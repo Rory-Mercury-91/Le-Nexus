@@ -36,7 +36,7 @@ export default function RepartitionChart({ stats }: RepartitionChartProps) {
   }
 
   return (
-    <div className="card" style={{ padding: '24px', marginBottom: '32px' }}>
+    <div className="card" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showRepartition ? '20px' : '0', flexWrap: 'wrap', gap: '12px' }}>
         <button
           onClick={() => setShowRepartition(!showRepartition)}

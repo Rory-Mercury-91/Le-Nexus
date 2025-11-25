@@ -332,8 +332,8 @@ export default function AddTomeModal({ serieId, serieTitre, mediaType, typeVolum
               <select
                 value={typeTome}
                 onChange={(e) => setTypeTome(e.target.value)}
-                className="input"
-                style={{ width: '100%' }}
+                className="select"
+                style={{ width: '100%', fontWeight: 600 }}
               >
                 <option value="Standard">Standard</option>
                 <option value="Collector">Collector</option>

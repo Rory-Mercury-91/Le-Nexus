@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface ModalProps {
   children: ReactNode;
@@ -18,6 +19,9 @@ export default function Modal({
   onClickOverlay,
   style 
 }: ModalProps) {
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
+
   return (
     <div 
       className="modal-overlay"

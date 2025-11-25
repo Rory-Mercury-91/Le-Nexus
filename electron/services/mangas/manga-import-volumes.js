@@ -1,6 +1,6 @@
 /**
- * Service de gestion des volumes/tomes
- * Gère la création et mise à jour des tomes depuis les données Nautiljon
+ * Service de gestion des volumes/manga_tomes
+ * Gère la création et mise à jour des manga_tomes depuis les données Nautiljon
  */
 
 const coverManager = require('../cover/cover-manager');
@@ -56,7 +56,7 @@ async function downloadTomeCover(pm, coverUrl, serieTitle, volumeNumber, options
  */
 async function createTome(db, pm, volume, serieId, serieTitle, userId, options = {}) {
   // Vérifier si le tome existe déjà
-  const stmtCheckTome = db.prepare('SELECT id FROM tomes WHERE serie_id = ? AND numero = ?');
+  const stmtCheckTome = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? AND numero = ?');
   const existingTome = stmtCheckTome.get(serieId, volume.numero);
   
   if (existingTome) {
@@ -64,7 +64,7 @@ async function createTome(db, pm, volume, serieId, serieTitle, userId, options =
   }
   
   const stmtTome = db.prepare(`
-    INSERT INTO tomes (serie_id, numero, prix, date_sortie, couverture_url)
+    INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, couverture_url)
     VALUES (?, ?, ?, ?, ?)
   `);
 
@@ -106,8 +106,8 @@ async function createTome(db, pm, volume, serieId, serieTitle, userId, options =
  */
 async function updateTome(db, pm, volume, serieId, serieTitle, options = {}) {
   const stmtUpdateTome = db.prepare(`
-    UPDATE tomes 
-    SET prix = ?, date_sortie = ?, couverture_url = ?, updated_at = datetime('now')
+    UPDATE manga_tomes 
+    SET prix = ?, date_sortie = ?, couverture_url = ?
     WHERE serie_id = ? AND numero = ?
   `);
 
@@ -115,7 +115,7 @@ async function updateTome(db, pm, volume, serieId, serieTitle, options = {}) {
     let effectiveCover = null;
 
     // Protection: si une couverture locale existe déjà, ne pas l'écraser
-    const currentTome = db.prepare('SELECT couverture_url FROM tomes WHERE serie_id = ? AND numero = ?').get(serieId, volume.numero);
+    const currentTome = db.prepare('SELECT couverture_url FROM manga_tomes WHERE serie_id = ? AND numero = ?').get(serieId, volume.numero);
     const currentCover = currentTome?.couverture_url || '';
     const hasLocalCover = currentCover && !currentCover.includes('://') && !currentCover.startsWith('data:');
 
@@ -150,7 +150,7 @@ async function updateTome(db, pm, volume, serieId, serieTitle, options = {}) {
 }
 
 /**
- * Gère la création de tomes depuis les données Nautiljon
+ * Gère la création de manga_tomes depuis les données Nautiljon
  * @param {Database} db - Instance de la base de données
  * @param {Object} pm - PathManager
  * @param {Array} volumes - Liste des volumes depuis Nautiljon
@@ -163,22 +163,22 @@ async function createVolumes(db, pm, volumes, serieId, serieTitle, userId, optio
   const volumesWithDate = filterVolumesWithDate(volumes);
   const volumesIgnored = volumes.length - volumesWithDate.length;
   
-  const stmtCheckTome = db.prepare('SELECT id FROM tomes WHERE serie_id = ? AND numero = ?');
-  let tomesCreated = 0;
-  let tomesSkipped = 0;
+  const stmtCheckTome = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? AND numero = ?');
+  let manga_tomesCreated = 0;
+  let manga_tomesSkipped = 0;
   
   for (const volume of volumesWithDate) {
     // Vérifier si le tome existe déjà
     const existingTome = stmtCheckTome.get(serieId, volume.numero);
     
     if (existingTome) {
-      tomesSkipped++;
+      manga_tomesSkipped++;
       continue;
     }
     
     const tomeId = await createTome(db, pm, volume, serieId, serieTitle, userId, options);
     if (tomeId) {
-      tomesCreated++;
+      manga_tomesCreated++;
     }
   }
 
@@ -187,29 +187,29 @@ async function createVolumes(db, pm, volumes, serieId, serieTitle, userId, optio
     setExclusiveSerieUserStatus(db, serieId, userId);
   }
   
-  return { created: tomesCreated, ignored: volumesIgnored, skipped: tomesSkipped };
+  return { created: manga_tomesCreated, ignored: volumesIgnored, skipped: manga_tomesSkipped };
 }
 
 /**
- * Gère la mise à jour/création de tomes depuis les données Nautiljon
+ * Gère la mise à jour/création de manga_tomes depuis les données Nautiljon
  * @param {Database} db - Instance de la base de données
  * @param {Object} pm - PathManager
  * @param {Array} volumes - Liste des volumes depuis Nautiljon
  * @param {number} serieId - ID de la série
  * @param {string} serieTitle - Titre de la série
  * @param {number} userId - ID de l'utilisateur propriétaire
- * @returns {Promise<number>} - Nombre de tomes mis à jour/créés
+ * @returns {Promise<number>} - Nombre de manga_tomes mis à jour/créés
  */
 async function updateOrCreateVolumes(db, pm, volumes, serieId, serieTitle, userId, options = {}) {
   const volumesWithDate = filterVolumesWithDate(volumes);
   
-  const stmtCheckTome = db.prepare('SELECT id FROM tomes WHERE serie_id = ? AND numero = ?');
+  const stmtCheckTome = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? AND numero = ?');
   const stmtInsertTome = db.prepare(`
-    INSERT INTO tomes (serie_id, numero, prix, date_sortie, couverture_url)
+    INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, couverture_url)
     VALUES (?, ?, ?, ?, ?)
   `);
   
-  let tomesUpdated = 0;
+  let manga_tomesUpdated = 0;
   
   for (const volume of volumesWithDate) {
     try {
@@ -219,7 +219,7 @@ async function updateOrCreateVolumes(db, pm, volumes, serieId, serieTitle, userI
         // Mise à jour
         const success = await updateTome(db, pm, volume, serieId, serieTitle, options);
         if (success) {
-          tomesUpdated++;
+          manga_tomesUpdated++;
         }
       } else {
         // Création
@@ -242,13 +242,13 @@ async function updateOrCreateVolumes(db, pm, volumes, serieId, serieTitle, userI
         // Ne pas marquer automatiquement la possession lors de l'import Nautiljon
         // La possession sera gérée manuellement par l'utilisateur ou automatiquement si date_achat est renseignée
         
-        tomesUpdated++;
+        manga_tomesUpdated++;
       }
     } catch (error) {
       console.error(`⚠️ Erreur mise à jour tome ${volume.numero}:`, error.message);
     }
   }
-  return tomesUpdated;
+  return manga_tomesUpdated;
 }
 
 module.exports = {

@@ -17,7 +17,7 @@ export default function FavoriteBadge({ isFavorite, onToggle, position = 'cover'
         borderRadius: '20px',
         fontSize: '14px',
         fontWeight: '700',
-        background: 'rgba(239, 68, 68, 0.95)',
+        background: 'var(--error)',
         color: 'white',
         boxShadow: '0 3px 10px rgba(239, 68, 68, 0.4)',
         zIndex: 3,
@@ -47,9 +47,9 @@ export default function FavoriteBadge({ isFavorite, onToggle, position = 'cover'
         width: '28px',
         height: '28px',
         borderRadius: '50%',
-        color: '#ef4444',
+        color: 'var(--error)',
         background: 'rgba(239, 68, 68, 0.1)',
-        border: '2px solid #ef4444',
+        border: '2px solid var(--error)',
         cursor: 'pointer',
         transition: 'all 0.2s',
         flexShrink: 0
@@ -67,8 +67,8 @@ export default function FavoriteBadge({ isFavorite, onToggle, position = 'cover'
         width="14"
         height="14"
         viewBox="0 0 24 24"
-        fill="#ef4444"
-        stroke="#ef4444"
+        fill="var(--error)"
+        stroke="var(--error)"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"

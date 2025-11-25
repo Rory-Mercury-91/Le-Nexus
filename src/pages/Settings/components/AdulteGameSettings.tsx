@@ -1,4 +1,4 @@
-import { CheckCircle, ExternalLink, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle, ExternalLink, Info, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import BlacklistModal from '../../../components/modals/adulte-game/BlacklistModal';
 import { AdulteGameBlacklistCard, AdulteGameMentionsCard, AdulteGameWebhookCard } from './AdulteGameSyncSettings';
@@ -9,6 +9,13 @@ type SyncFrequencyValue = 1 | 3 | 6 | 12 | 24;
 interface AdulteGameSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
 }
+
+const tooltipTexts = {
+  f95: "Connexion requise pour récupérer tous les tags, y compris ceux réservés aux comptes connectés.",
+  manualSync: "Lance immédiatement l'import pour les traducteurs sélectionnés.",
+} as const;
+
+type TooltipId = keyof typeof tooltipTexts;
 
 export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProps) {
 
@@ -71,6 +78,8 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
       setCheckingF95(false);
     }
   };
+
+  const [activeTooltip, setActiveTooltip] = useState<TooltipId | null>(null);
 
   const handleF95Connect = useCallback(async () => {
     try {
@@ -335,6 +344,56 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
     }
   };
 
+  const TooltipIcon = ({ id, placement = 'center' }: { id: TooltipId; placement?: 'center' | 'end' }) => (
+    <span
+      tabIndex={0}
+      onMouseEnter={() => setActiveTooltip(id)}
+      onMouseLeave={() => setActiveTooltip(null)}
+      onFocus={() => setActiveTooltip(id)}
+      onBlur={() => setActiveTooltip(null)}
+      aria-label={tooltipTexts[id]}
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px',
+        cursor: 'pointer',
+        color: 'var(--text-secondary)',
+        outline: 'none',
+        borderRadius: '50%'
+      }}
+    >
+      <Info size={16} aria-hidden="true" />
+      {activeTooltip === id && (
+        <div
+          role="tooltip"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: placement === 'end' ? 'auto' : '50%',
+            right: placement === 'end' ? 0 : 'auto',
+            transform: placement === 'end' ? 'none' : 'translateX(-50%)',
+            background: 'var(--surface-light)',
+            color: 'var(--text)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            boxShadow: '0 16px 32px rgba(0, 0, 0, 0.22)',
+            border: '1px solid var(--border)',
+            fontSize: '12px',
+            lineHeight: 1.45,
+            zIndex: 30,
+            minWidth: '220px',
+            maxWidth: '260px',
+            textAlign: 'center',
+          }}
+        >
+          {tooltipTexts[id]}
+        </div>
+      )}
+    </span>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div
@@ -359,9 +418,12 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
             boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
               Connexion F95Zone
+              </div>
+              <TooltipIcon id="f95" placement="end" />
             </div>
             {checkingF95 ? (
               <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--text-secondary)' }} />
@@ -371,18 +433,6 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
               <XCircle size={16} style={{ color: '#ef4444' }} />
             )}
           </div>
-          <p
-            style={{
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              margin: 0,
-              lineHeight: 1.45
-            }}
-          >
-            {f95Connected
-              ? 'Vous êtes connecté à F95Zone. Les tags nécessitant une authentification seront récupérés lors des imports.'
-              : 'Connectez-vous à F95Zone pour récupérer tous les tags (y compris ceux nécessitant une authentification) lors des imports.'}
-          </p>
           <div style={{ display: 'flex', gap: '10px' }}>
             {f95Connected ? (
               <button
@@ -462,19 +512,12 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
             boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)'
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
             Synchronisation manuelle
+              <TooltipIcon id="manualSync" placement="end" />
+            </div>
           </div>
-          <p
-            style={{
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              margin: 0,
-              lineHeight: 1.45
-            }}
-          >
-            Lance une synchronisation immédiate pour les traducteurs sélectionnés.
-          </p>
           <div
             style={{
               display: 'grid',

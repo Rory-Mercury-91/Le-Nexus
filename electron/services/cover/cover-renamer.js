@@ -13,7 +13,7 @@ function extractCategoryFromPath(pathOrUrl) {
   const normalized = pathOrUrl.replace(/\\/g, '/').replace(/^covers\//, '');
   const firstPart = normalized.split('/')[0];
   if (!firstPart) return null;
-  if (firstPart === 'series') return 'Manga';
+  if (firstPart === 'manga_series') return 'Manga';
   if (firstPart === 'animes') return 'Anime';
   if (firstPart === 'adulte-game') return 'Adult_Game';
   return firstPart;
@@ -28,6 +28,12 @@ function extractCategoryFromPath(pathOrUrl) {
  * @param {number} serieId - ID de la série
  */
 function renameSerieFolder(db, pathManager, oldTitre, newTitre, serieId) {
+  // Vérifier que les titres sont valides avant de créer les slugs
+  if (!oldTitre || !newTitre || typeof oldTitre !== 'string' || typeof newTitre !== 'string') {
+    console.warn('⚠️ Impossible de renommer le dossier : titres invalides', { oldTitre, newTitre });
+    return;
+  }
+
   const oldSlug = createSlug(oldTitre);
   const newSlug = createSlug(newTitre);
 
@@ -35,7 +41,7 @@ function renameSerieFolder(db, pathManager, oldTitre, newTitre, serieId) {
 
   let serieRow = null;
   try {
-    serieRow = db.prepare('SELECT couverture_url, media_type, type_volume FROM series WHERE id = ?').get(serieId);
+    serieRow = db.prepare('SELECT couverture_url, media_type, type_volume FROM manga_series WHERE id = ?').get(serieId);
   } catch (error) {
     console.warn('⚠️ Impossible de récupérer la série pour déterminer la catégorie:', error.message);
   }
@@ -58,19 +64,19 @@ function renameSerieFolder(db, pathManager, oldTitre, newTitre, serieId) {
 
       // Mettre à jour les chemins dans la base de données
       const prefixesToReplace = new Set([
-        `series/${oldSlug}/`,
+        `manga_series/${oldSlug}/`,
         `${inferredCategory}/${oldSlug}/`
       ]);
 
       prefixesToReplace.forEach(oldPrefix => {
         db.prepare(`
-          UPDATE series 
+          UPDATE manga_series 
           SET couverture_url = REPLACE(couverture_url, ?, ?)
           WHERE id = ? AND couverture_url IS NOT NULL
         `).run(oldPrefix, `${inferredCategory}/${newSlug}/`, serieId);
 
         db.prepare(`
-          UPDATE tomes 
+          UPDATE manga_tomes 
           SET couverture_url = REPLACE(couverture_url, ?, ?)
           WHERE serie_id = ? AND couverture_url IS NOT NULL
         `).run(oldPrefix, `${inferredCategory}/${newSlug}/`, serieId);
@@ -92,8 +98,8 @@ function renameTomeCover(pathManager, couvertureUrl, numero, serieTitre) {
 
   // Vérifier que c'est un fichier dans la nouvelle structure
   const normalized = couvertureUrl.replace(/\\/g, '/').replace(/^covers\//, '');
-  const legacyMatch = normalized.match(/^series\/([^/]+)\/tomes\/(custom-\d+|tome-\d+)(\.\w+)$/);
-  const categoryMatch = normalized.match(/^([^/]+)\/([^/]+)\/tomes\/(custom-\d+|tome-\d+)(\.\w+)$/);
+  const legacyMatch = normalized.match(/^manga_series\/([^/]+)\/manga_tomes\/(custom-\d+|tome-\d+)(\.\w+)$/);
+  const categoryMatch = normalized.match(/^([^/]+)\/([^/]+)\/manga_tomes\/(custom-\d+|tome-\d+)(\.\w+)$/);
 
   let category = 'Manga';
   let slug = '';
@@ -119,9 +125,9 @@ function renameTomeCover(pathManager, couvertureUrl, numero, serieTitre) {
 
   if (oldFileName === newFileName) return couvertureUrl;
 
-  const tomesPath = pathManager.getTomesPath(slug, category);
-  const oldFilePath = path.join(tomesPath, oldFileName);
-  const newFilePath = path.join(tomesPath, newFileName);
+  const manga_tomesPath = pathManager.getTomesPath(slug, category);
+  const oldFilePath = path.join(manga_tomesPath, oldFileName);
+  const newFilePath = path.join(manga_tomesPath, newFileName);
 
   if (fs.existsSync(oldFilePath)) {
     if (fs.existsSync(newFilePath)) {
@@ -129,7 +135,7 @@ function renameTomeCover(pathManager, couvertureUrl, numero, serieTitre) {
     }
     fs.renameSync(oldFilePath, newFilePath);
 
-    return `${category}/${slug}/tomes/${newFileName}`;
+    return `${category}/${slug}/manga_tomes/${newFileName}`;
   }
 
   return couvertureUrl;
@@ -146,7 +152,7 @@ function renameSerieCover(pathManager, couvertureUrl, serieTitre) {
   if (!couvertureUrl) return couvertureUrl;
 
   const normalized = couvertureUrl.replace(/\\/g, '/').replace(/^covers\//, '');
-  const legacyMatch = normalized.match(/^series\/([^/]+)\/(custom-\d+|cover|[a-f0-9-]+)(\.\w+)$/);
+  const legacyMatch = normalized.match(/^manga_series\/([^/]+)\/(custom-\d+|cover|[a-f0-9-]+)(\.\w+)$/);
   const categoryMatch = normalized.match(/^([^/]+)\/([^/]+)\/(custom-\d+|cover|[a-f0-9-]+)(\.\w+)$/);
 
   let category = 'Manga';
@@ -173,9 +179,9 @@ function renameSerieCover(pathManager, couvertureUrl, serieTitre) {
 
   if (oldFileName === newFileName) return couvertureUrl;
 
-  const seriesPath = pathManager.getSeriesPath(slug, category);
-  const oldFilePath = path.join(seriesPath, oldFileName);
-  const newFilePath = path.join(seriesPath, newFileName);
+  const manga_seriesPath = pathManager.getSeriesPath(slug, category);
+  const oldFilePath = path.join(manga_seriesPath, oldFileName);
+  const newFilePath = path.join(manga_seriesPath, newFileName);
 
   if (fs.existsSync(oldFilePath)) {
     if (fs.existsSync(newFilePath)) {

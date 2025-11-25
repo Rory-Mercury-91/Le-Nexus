@@ -7,6 +7,7 @@ const { registerMangaSeriesHandlers } = require('./manga-series-handlers');
 const { registerMangaTomesHandlers } = require('./tomes-handlers');
 const { registerMangaTagsHandlers } = require('./tags-handlers');
 const { registerMangaEnrichmentHandlers } = require('./enrichment-handlers');
+const { registerMihonImportHandlers } = require('./mihon-import-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour les mangas (séries et tomes)
@@ -15,12 +16,13 @@ const { registerMangaEnrichmentHandlers } = require('./enrichment-handlers');
  * @param {Function} getPathManager - Fonction pour récupérer le PathManager
  * @param {Store} store - Instance d'electron-store
  */
-function registerMangaHandlers(ipcMain, getDb, getPathManager, store, getMainWindow = null) {
+function registerMangaHandlers(ipcMain, getDb, getPathManager, store, getMainWindow = null, dialog = null) {
   // Enregistrer tous les handlers spécialisés
   registerMangaSeriesHandlers(ipcMain, getDb, getPathManager, store, getMainWindow);
   registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store);
   registerMangaTagsHandlers(ipcMain, getDb);
   registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store);
+  registerMihonImportHandlers(ipcMain, getDb, getPathManager, store, dialog, getMainWindow);
 }
 
 module.exports = { registerMangaHandlers };

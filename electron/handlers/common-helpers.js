@@ -28,6 +28,24 @@ function getUserByName(db, userName) {
 }
 
 /**
+ * Parse JSON de manière sécurisée avec fallback
+ * @param {string|null|undefined} jsonString - La chaîne JSON à parser
+ * @param {any} defaultValue - Valeur par défaut si le parsing échoue
+ * @returns {any} L'objet parsé ou la valeur par défaut
+ */
+function safeJsonParse(jsonString, defaultValue = null) {
+  if (!jsonString || typeof jsonString !== 'string') {
+    return defaultValue;
+  }
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn('⚠️ Erreur parsing JSON:', error.message, 'Valeur:', jsonString?.substring(0, 100));
+    return defaultValue;
+  }
+}
+
+/**
  * Récupère les chemins depuis le PathManager
  * @param {Function} getPathManager - Fonction pour récupérer le PathManager
  * @param {Store} store - Instance electron-store (optionnel, pour fallback)
@@ -64,5 +82,6 @@ function getPaths(getPathManager, store = null) {
 module.exports = {
   getUserIdByName,
   getUserByName,
-  getPaths
+  getPaths,
+  safeJsonParse
 };

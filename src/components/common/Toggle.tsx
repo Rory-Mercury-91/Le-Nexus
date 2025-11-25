@@ -13,7 +13,12 @@ const Toggle: React.FC<ToggleProps> = ({ checked, onChange, disabled = false }) 
       role="switch"
       aria-checked={checked}
       disabled={disabled}
-      onClick={() => !disabled && onChange(!checked)}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!disabled) {
+          onChange(!checked);
+        }
+      }}
       style={{
         position: 'relative',
         display: 'inline-flex',

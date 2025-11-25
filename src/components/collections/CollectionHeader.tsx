@@ -25,7 +25,7 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: '24px',
+      marginBottom: 0,
       flexWrap: 'wrap',
       gap: '16px'
     }}>

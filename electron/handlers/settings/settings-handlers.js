@@ -13,6 +13,7 @@ const { registerTampermonkeyHandlers } = require('./tampermonkey-handlers');
 const { registerBackupHandlers } = require('./backup-handlers');
 const { registerNotificationHandlers } = require('./notification-handlers');
 const { registerTraductionHandlers } = require('./traduction-handlers');
+const { registerDevMergeHandlers } = require('./dev-merge-handlers');
 const { registerMediaSettingsHandlers } = require('./media-handlers');
 
 /**
@@ -34,11 +35,12 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, initDatabase);
   registerAppearanceHandlers(ipcMain, store, app);
   registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager);
-  registerMediaSettingsHandlers(ipcMain, store);
+  registerMediaSettingsHandlers(ipcMain, getDb, store);
   registerTampermonkeyHandlers(ipcMain, app);
   registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatabase);
   registerNotificationHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
-  registerTraductionHandlers(ipcMain, getDb, store);
+  registerTraductionHandlers(ipcMain, getDb, store, getPathManager);
+  registerDevMergeHandlers(ipcMain, getDb, getPathManager);
 }
 
 module.exports = { registerSettingsHandlers };

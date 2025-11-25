@@ -1,21 +1,17 @@
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Edit, Settings, Trash2 } from 'lucide-react';
 import ProtectedContent from '../../components/common/ProtectedContent';
+import DetailPageHeader from '../../components/common/DetailPageHeader';
+import EnrichmentButton from '../../components/common/EnrichmentButton';
 import AnimeEditModal from '../../components/modals/anime/AnimeEditModal';
-import CustomizeDisplayModal from '../../components/modals/anime/CustomizeDisplayModal';
-import ConfirmModal from '../../components/modals/common/ConfirmModal';
+import DisplaySettingsModal from '../../components/modals/common/DisplaySettingsModal';
 import { useAnimeDetail } from '../../hooks/details/useAnimeDetail';
+import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
 import { isSensitiveAnime } from '../../utils/anime-sensitivity';
 import {
-  AnimeBanner,
   AnimeCover,
   AnimeEpisodesGrid,
   AnimeExternalLinks,
-  AnimeHeader,
-  AnimeInfoCards,
-  AnimeMalBlock,
-  AnimeRelationsSection,
-  AnimeStatusSection,
+  AnimeInfoSection,
   AnimeStreamingLinks
 } from './components';
 
@@ -27,13 +23,10 @@ export default function AnimeDetail() {
     streamingLinks,
     liensExternes,
     episodesVus,
-    isCrunchyroll,
-    showDeleteModal,
     showEditModal,
     showCustomizeDisplay,
     showAddLinkForm,
     newLink,
-    setShowDeleteModal,
     setShowEditModal,
     setShowCustomizeDisplay,
     setShowAddLinkForm,
@@ -46,11 +39,13 @@ export default function AnimeDetail() {
     handleChangeStatutVisionnage,
     handleToggleFavorite,
     handleEnrich,
+    handleForceEnrich,
     enriching,
     loadAnime,
     reloadDisplayPreferences,
     shouldShow,
-    ToastContainer
+    ToastContainer,
+    ConfirmDialog
   } = useAnimeDetail();
 
   // Vérifier si l'anime est sensible
@@ -82,82 +77,52 @@ export default function AnimeDetail() {
     >
       <>
         {ToastContainer}
-
-        {/* Header fixe avec bouton retour et actions */}
-        <div
-          className="anime-detail-header"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: '260px',
-            right: 0,
-            zIndex: 1000,
-            background: 'var(--background)',
-            padding: '16px 30px',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-            backdropFilter: 'blur(10px)',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          <Link
-            to="/animes"
-            className="btn"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-              border: 'none',
-              color: 'white',
-              textDecoration: 'none',
-              transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            <ArrowLeft size={18} />
-            Retour aux animes
-          </Link>
-
-          {/* Boutons d'action */}
-          {!loading && (
+        <DetailPageHeader
+          backLabel="Retour aux animes"
+          backTo="/animes"
+          actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowCustomizeDisplay(true)} className="btn btn-primary">
-                ⚙️ Affichage
-              </button>
-              <button onClick={() => setShowEditModal(true)} className="btn btn-primary">
-                <Edit size={18} />
-                Modifier
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowCustomizeDisplay(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Settings size={16} />
+                Personnaliser l'affichage
               </button>
               <button
-                onClick={handleEnrich}
+                type="button"
                 className="btn btn-primary"
-                disabled={enriching}
+                onClick={() => setShowEditModal(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                {enriching ? '⏳ Enrichissement...' : '🚀 Enrichir'}
+                <Edit size={16} />
+                Modifier
               </button>
-              <button onClick={() => setShowDeleteModal(true)} className="btn btn-danger">
-                <Trash2 size={18} />
+              <EnrichmentButton
+                onEnrich={handleEnrich}
+                onForceEnrich={handleForceEnrich}
+                enriching={enriching}
+                buttonLabel="🚀 Enrichir"
+                forceButtonLabel="🔄 Force vérification"
+              />
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDelete}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Trash2 size={16} />
                 Supprimer
               </button>
             </div>
-          )}
-        </div>
-
+          }
+        />
         <div
           className="fade-in"
           style={{
-            padding: '110px 40px 80px',
+            padding: '110px 20px 80px',
             width: '100%',
             boxSizing: 'border-box'
           }}
@@ -168,32 +133,28 @@ export default function AnimeDetail() {
               flexDirection: 'column',
               gap: '32px',
               width: '100%',
-              maxWidth: '1400px',
-              margin: '0 auto'
+              maxWidth: '100%'
             }}
           >
-            {isCrunchyroll && shouldShow('banner') && (
-              <AnimeBanner coverUrl={anime.couverture_url} title={anime.titre} />
-            )}
-
+            {/* En-tête de l'anime */}
             <div
               className="card"
               style={{
-                padding: 'clamp(20px, 3vw, 36px)',
+                padding: 'clamp(16px, 2vw, 20px)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '24px'
+                gap: '20px'
               }}
             >
               <div
                 style={{
                   display: 'flex',
-                  gap: 'clamp(20px, 3vw, 36px)',
+                  gap: 'clamp(17px, 1.5vw, 25px)',
                   flexWrap: 'wrap',
                   width: '100%'
                 }}
               >
-                {!isCrunchyroll && shouldShow('couverture') && (
+                {shouldShow('couverture') && (
                   <AnimeCover
                     anime={anime}
                     episodesVus={episodesVus}
@@ -201,32 +162,13 @@ export default function AnimeDetail() {
                     onStatusChange={handleChangeStatutVisionnage}
                     onToggleFavorite={handleToggleFavorite}
                     shouldShow={shouldShow}
+                    onCoverUpdated={() => loadAnime()}
                   />
                 )}
 
-                <div style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  <AnimeHeader anime={anime} shouldShow={shouldShow} />
-
-                  {isCrunchyroll && shouldShow('couverture') && (
-                    <AnimeStatusSection
-                      anime={anime}
-                      currentStatus={
-                        anime.nb_episodes > 0 && episodesVus >= anime.nb_episodes
-                          ? 'Terminé'
-                          : (anime.statut_visionnage === 'En attente' ? 'En pause' : (anime.statut_visionnage as 'En cours' | 'Terminé' | 'Abandonné' | 'À regarder' | 'En pause') || 'En cours')
-                      }
-                      onStatusChange={handleChangeStatutVisionnage}
-                      onToggleFavorite={handleToggleFavorite}
-                    />
-                  )}
-
-                  <AnimeInfoCards anime={anime} shouldShow={shouldShow} />
-                </div>
+                {/* Informations */}
+                <AnimeInfoSection anime={anime} shouldShow={shouldShow} />
               </div>
-
-              <AnimeMalBlock anime={anime} shouldShow={shouldShow} />
-
-              <AnimeRelationsSection anime={anime} shouldShow={shouldShow} />
 
               <AnimeExternalLinks anime={anime} liensExternes={liensExternes} shouldShow={shouldShow} />
 
@@ -258,16 +200,6 @@ export default function AnimeDetail() {
           </div>
         </div>
 
-        {/* Modal de confirmation de suppression */}
-        {showDeleteModal && (
-          <ConfirmModal
-            title="Supprimer cet anime ?"
-            message={`Êtes-vous sûr de vouloir supprimer "${anime.titre}" ? Cette action est irréversible.`}
-            onConfirm={handleDelete}
-            onCancel={() => setShowDeleteModal(false)}
-          />
-        )}
-
         {/* Modal d'édition */}
         {showEditModal && anime && (
           <AnimeEditModal
@@ -281,12 +213,34 @@ export default function AnimeDetail() {
         )}
 
         {showCustomizeDisplay && anime && (
-          <CustomizeDisplayModal
-            animeId={anime.id}
+          <DisplaySettingsModal
+            title="Personnaliser l'affichage de l'anime"
+            description="Les modifications locales surchargent les paramètres globaux pour cet anime"
+            fields={ANIME_DISPLAY_FIELD_CATEGORIES}
+            mode="global-local"
+            itemId={anime.id}
+            loadGlobalPrefs={async () => {
+              const prefs = await window.electronAPI.getAnimeDisplaySettings?.();
+              return prefs || {};
+            }}
+            loadLocalOverrides={async (itemId) => {
+              const overrides = await window.electronAPI.getAnimeDisplayOverrides?.(itemId);
+              return overrides || {};
+            }}
+            saveLocalOverrides={async (itemId, overrides) => {
+              await window.electronAPI.saveAnimeDisplayOverrides?.(itemId, overrides);
+            }}
+            deleteLocalOverrides={async (itemId, keys) => {
+              await window.electronAPI.deleteAnimeDisplayOverrides?.(itemId, keys);
+            }}
+            onSave={() => {
+              reloadDisplayPreferences();
+            }}
             onClose={() => setShowCustomizeDisplay(false)}
-            onSave={reloadDisplayPreferences}
           />
         )}
+
+        <ConfirmDialog />
       </>
     </ProtectedContent>
   );

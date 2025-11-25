@@ -61,7 +61,11 @@ async function handleImportAdulteGame(req, res, getDb, store) {
     // Vérifier si le jeu existe déjà
     let existingGame = null;
     if (gameData.f95_thread_id) {
-      existingGame = db.prepare('SELECT * FROM adulte_game_games WHERE f95_thread_id = ? AND plateforme = ?').get(gameData.f95_thread_id, plateforme);
+      if (plateforme === 'LewdCorner') {
+        existingGame = db.prepare('SELECT * FROM adulte_game_games WHERE Lewdcorner_thread_id = ? AND game_site = ?').get(gameData.f95_thread_id, plateforme);
+      } else {
+        existingGame = db.prepare('SELECT * FROM adulte_game_games WHERE f95_thread_id = ? AND game_site = ?').get(gameData.f95_thread_id, plateforme);
+      }
     }
 
     if (existingGame) {
@@ -82,15 +86,32 @@ async function handleImportAdulteGame(req, res, getDb, store) {
         // ignorer, utiliser effectiveCover tel quel
       }
 
+      // Déterminer les IDs selon la plateforme
+      let f95_thread_id = null;
+      let Lewdcorner_thread_id = null;
+      let lien_f95 = null;
+      let lien_lewdcorner = null;
+      
+      if (plateforme === 'F95Zone' || plateforme === 'F95z') {
+        f95_thread_id = gameData.f95_thread_id;
+        lien_f95 = gameData.lien_f95;
+      } else if (plateforme === 'LewdCorner') {
+        Lewdcorner_thread_id = gameData.f95_thread_id;
+        lien_lewdcorner = gameData.lien_f95;
+      }
+      
       db.prepare(`
         UPDATE adulte_game_games 
-        SET version = ?,
-            statut_jeu = ?,
-            moteur = ?,
-            developpeur = ?,
+        SET game_version = ?,
+            game_statut = ?,
+            game_engine = ?,
+            game_developer = ?,
             couverture_url = ?,
             tags = ?,
-            lien_f95 = ?,
+            f95_thread_id = COALESCE(?, f95_thread_id),
+            Lewdcorner_thread_id = COALESCE(?, Lewdcorner_thread_id),
+            lien_f95 = COALESCE(?, lien_f95),
+            lien_lewdcorner = COALESCE(?, lien_lewdcorner),
             updated_at = datetime('now')
         WHERE id = ?
       `).run(
@@ -100,7 +121,10 @@ async function handleImportAdulteGame(req, res, getDb, store) {
         gameData.developpeur,
         effectiveCover,
         JSON.stringify(gameData.tags),
-        gameData.lien_f95,
+        f95_thread_id,
+        Lewdcorner_thread_id,
+        lien_f95,
+        lien_lewdcorner,
         existingGame.id
       );
 
@@ -112,16 +136,30 @@ async function handleImportAdulteGame(req, res, getDb, store) {
         action: 'updated'
       });
     } else {
+      // Déterminer les IDs selon la plateforme
+      let f95_thread_id = null;
+      let Lewdcorner_thread_id = null;
+      let lien_f95 = null;
+      let lien_lewdcorner = null;
+      
+      if (plateforme === 'F95Zone' || plateforme === 'F95z') {
+        f95_thread_id = gameData.f95_thread_id;
+        lien_f95 = gameData.lien_f95;
+      } else if (plateforme === 'LewdCorner') {
+        Lewdcorner_thread_id = gameData.f95_thread_id;
+        lien_lewdcorner = gameData.lien_f95;
+      }
+      
       // Créer un nouveau jeu
       const result = db.prepare(`
         INSERT INTO adulte_game_games (
-          f95_thread_id, titre, version, statut_jeu, moteur, developpeur, plateforme,
-          couverture_url, tags, lien_f95, lien_traduction, lien_jeu,
-          statut_perso, notes_privees, chemin_executable,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          f95_thread_id, Lewdcorner_thread_id, titre, game_version, game_statut, 
+          game_engine, game_developer, game_site, couverture_url, tags, 
+          lien_f95, lien_lewdcorner, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `).run(
-        gameData.f95_thread_id,
+        f95_thread_id,
+        Lewdcorner_thread_id,
         gameData.titre,
         gameData.version,
         gameData.statut_jeu,
@@ -130,23 +168,27 @@ async function handleImportAdulteGame(req, res, getDb, store) {
         plateforme,
         gameData.couverture_url,
         JSON.stringify(gameData.tags),
-        gameData.lien_f95,
-        gameData.lien_traduction,
-        gameData.lien_jeu,
-        gameData.statut_perso,
-        gameData.notes_privees,
-        gameData.chemin_executable
+        lien_f95,
+        lien_lewdcorner
       );
 
       const gameId = result.lastInsertRowid;
 
-      // Ajouter le propriétaire actuel (convertir le nom d'utilisateur en ID)
+      // Créer l'entrée dans adulte_game_user_data pour le propriétaire
       const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
       if (user) {
         db.prepare(`
-          INSERT INTO adulte_game_proprietaires (game_id, user_id)
-          VALUES (?, ?)
-        `).run(gameId, user.id);
+          INSERT INTO adulte_game_user_data (
+            game_id, user_id, completion_perso, notes_privees, 
+            chemin_executable, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(
+          gameId,
+          user.id,
+          gameData.statut_perso || 'À jouer',
+          gameData.notes_privees,
+          gameData.chemin_executable
+        );
       } else {
         console.warn(`⚠️ Utilisateur "${currentUser}" non trouvé, le jeu n'aura pas de propriétaire`);
       }

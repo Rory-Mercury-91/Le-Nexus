@@ -1,5 +1,6 @@
 import { CheckCircle, Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface SavingModalProps {
   userName: string;
@@ -10,6 +11,9 @@ export default function SavingModal({ userName, onComplete }: SavingModalProps) 
   const [status, setStatus] = useState('Sauvegarde en cours...');
   const [progress, setProgress] = useState(0);
   const [isDone, setIsDone] = useState(false);
+
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
 
   useEffect(() => {
     performSave();

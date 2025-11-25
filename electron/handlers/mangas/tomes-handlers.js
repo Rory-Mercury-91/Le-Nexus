@@ -6,7 +6,7 @@ const { renameTomeCover } = require('../../services/cover/cover-manager');
 const { getSerieTitle, getSerieCover, updateSerieCover, getUserIdByName, setExclusiveSerieOwnership } = require('./manga-helpers');
 
 /**
- * Enregistre les handlers IPC pour les opérations CRUD sur les tomes
+ * Enregistre les handlers IPC pour les opérations CRUD sur les manga_tomes
  */
 function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
   // Créer un tome
@@ -40,7 +40,7 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       }
       
       const stmt = db.prepare(`
-        INSERT INTO tomes (serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome)
+        INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       const result = stmt.run(
@@ -58,10 +58,10 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       // Ajouter les propriétaires dans la table de liaison
       if (tome.proprietaireIds && tome.proprietaireIds.length > 0) {
         const insertProprietaire = db.prepare(`
-          INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+          INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
         `);
         tome.proprietaireIds.forEach(userId => {
-          insertProprietaire.run(tomeId, userId);
+          insertProprietaire.run(tome.serie_id, tomeId, userId);
         });
       } else {
         // Si aucun propriétaire n'est spécifié, ajouter l'utilisateur connecté par défaut
@@ -69,9 +69,9 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         const userId = getUserIdByName(db, currentUser);
         if (userId) {
           db.prepare(`
-            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
-          `).run(tomeId, userId);
-          db.prepare('DELETE FROM tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
+            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
+          `).run(tome.serie_id, tomeId, userId);
+          db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
             .run(tomeId, userId);
           setExclusiveSerieOwnership(db, tome.serie_id, userId);
         }
@@ -95,8 +95,8 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       // Récupérer les infos actuelles du tome et de la série pour le renommage
       const currentTome = db.prepare(`
         SELECT t.numero, t.couverture_url, s.titre as serie_titre, t.serie_id
-        FROM tomes t
-        JOIN series s ON t.serie_id = s.id
+        FROM manga_tomes t
+        JOIN manga_series s ON t.serie_id = s.id
         WHERE t.id = ?
       `).get(id);
       
@@ -150,7 +150,7 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       values.push(id);
       
       if (fields.length > 0) {
-        const query = `UPDATE tomes SET ${fields.join(', ')} WHERE id = ?`;
+        const query = `UPDATE manga_tomes SET ${fields.join(', ')} WHERE id = ?`;
         const stmt = db.prepare(query);
         stmt.run(...values);
       }
@@ -158,15 +158,15 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       // Mettre à jour les propriétaires si fournis
       if (tome.proprietaireIds !== undefined) {
         // Supprimer les anciens propriétaires
-        db.prepare('DELETE FROM tomes_proprietaires WHERE tome_id = ?').run(id);
+        db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ?').run(id);
         
         // Ajouter les nouveaux propriétaires
         if (tome.proprietaireIds.length > 0) {
           const insertProprietaire = db.prepare(`
-            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
           `);
           tome.proprietaireIds.forEach(userId => {
-            insertProprietaire.run(id, userId);
+            insertProprietaire.run(currentTome.serie_id, id, userId);
           });
         }
       } else if (tome.date_achat !== undefined && tome.date_achat) {
@@ -176,9 +176,9 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
           const userId = getUserIdByName(db, currentUser);
           if (userId) {
             db.prepare(`
-              INSERT OR IGNORE INTO tomes_proprietaires (tome_id, user_id)
-              VALUES (?, ?)
-            `).run(id, userId);
+              INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
+              VALUES (?, ?, ?)
+            `).run(currentTome.serie_id, id, userId);
           }
         }
       }
@@ -193,11 +193,11 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         }
       }
       
-      // Si c'est le tome 1 et qu'on modifie le prix, propager aux autres tomes
+      // Si c'est le tome 1 et qu'on modifie le prix, propager aux autres manga_tomes
       if (finalNumero === 1 && currentTome && tome.prix !== undefined) {
-        // Propager uniquement aux tomes encore à 0.00€ (non personnalisés)
+        // Propager uniquement aux manga_tomes encore à 0.00€ (non personnalisés)
         const propagationQuery = `
-          UPDATE tomes 
+          UPDATE manga_tomes 
           SET prix = ? 
           WHERE serie_id = ? 
             AND id != ? 
@@ -211,26 +211,26 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         }
       }
       
-      // Si c'est le tome 1 et qu'on modifie les propriétaires, propager aux autres tomes sans propriétaires
+      // Si c'est le tome 1 et qu'on modifie les propriétaires, propager aux autres manga_tomes sans propriétaires
       if (finalNumero === 1 && currentTome && tome.proprietaireIds !== undefined && tome.proprietaireIds.length > 0) {
-        // Trouver les tomes de la série qui n'ont aucun propriétaire
-        const tomesWithoutOwners = db.prepare(`
-          SELECT t.id
-          FROM tomes t
-          LEFT JOIN tomes_proprietaires tp ON t.id = tp.tome_id
+        // Trouver les manga_tomes de la série qui n'ont aucun propriétaire
+        const manga_tomesWithoutOwners = db.prepare(`
+          SELECT t.id, t.serie_id
+          FROM manga_tomes t
+          LEFT JOIN manga_manga_tomes_proprietaires tp ON t.id = tp.tome_id
           WHERE t.serie_id = ?
             AND t.id != ?
             AND tp.tome_id IS NULL
         `).all(currentTome.serie_id, id);
         
-        if (tomesWithoutOwners.length > 0) {
+        if (manga_tomesWithoutOwners.length > 0) {
           const insertProprietaire = db.prepare(`
-            INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
           `);
           
-          tomesWithoutOwners.forEach(tomeRow => {
+          manga_tomesWithoutOwners.forEach(tomeRow => {
             tome.proprietaireIds.forEach(userId => {
-              insertProprietaire.run(tomeRow.id, userId);
+              insertProprietaire.run(tomeRow.serie_id, tomeRow.id, userId);
             });
           });
         }
@@ -254,13 +254,13 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       // Récupérer les infos du tome avant suppression
       const tome = db.prepare(`
         SELECT t.couverture_url
-        FROM tomes t
+        FROM manga_tomes t
         WHERE t.id = ?
       `).get(id);
       
       if (tome && tome.couverture_url) {
         // Construire le chemin absolu de l'image
-        // couverture_url est stocké comme "series/slug/tomes/tome-X.jpg" (relatif à covers/)
+        // couverture_url est stocké comme "manga_series/slug/manga_tomes/tome-X.jpg" (relatif à covers/)
         const paths = getPaths(getPathManager);
         const tomeImagePath = path.join(paths.covers, tome.couverture_url);
         
@@ -272,7 +272,7 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       }
       
       // Supprimer le tome de la base de données
-      db.prepare('DELETE FROM tomes WHERE id = ?').run(id);
+      db.prepare('DELETE FROM manga_tomes WHERE id = ?').run(id);
 
       return true;
     } catch (error) {

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimeCard } from '../../components/cards';
 import {
+  BackToBottomButton,
   BackToTopButton,
   CollectionFiltersBar,
   CollectionHeader,
@@ -18,6 +19,7 @@ import AddAnimeModal from '../../components/modals/anime/AddAnimeModal';
 import MalCandidateSelectionModal from '../../components/modals/common/MalCandidateSelectionModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
+import { useCollectionFilters } from '../../hooks/common/useCollectionFilters';
 import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
@@ -73,7 +75,7 @@ export default function Animes() {
     }>;
   } | null>(null);
   const [resolvingCandidate, setResolvingCandidate] = useState(false);
-  const [viewMode] = useCollectionViewMode('animes');
+  const [viewMode, handleViewModeChange] = useCollectionViewMode('animes');
   const [sortBy, setSortBy] = usePersistentState<AnimeSortOption>(
     'collection.animes.sortBy',
     'title-asc',
@@ -147,7 +149,7 @@ export default function Animes() {
     } else {
       filtersNormalizedRef.current = true;
     }
-     
+
   }, [filters, setFilters]);
 
 
@@ -206,9 +208,11 @@ export default function Animes() {
 
   // Écouter les événements d'import depuis Tampermonkey (une seule fois au montage)
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
     const handleRefresh = () => {
       // Attendre un peu pour s'assurer que la base de données est bien mise à jour
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (loadAnimesRef.current) {
           loadAnimesRef.current();
         }
@@ -219,6 +223,9 @@ export default function Animes() {
     const unsubscribe = window.electronAPI.onAnimeImportComplete?.(handleRefresh);
 
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       if (unsubscribe) {
         unsubscribe();
       }
@@ -354,33 +361,9 @@ export default function Animes() {
     if (!searchFromFilters && hasSearchTerm) {
       // si filtres ne contiennent plus search mais état oui, garder état (aucune action)
     }
-     
+
   }, [filters.search]);
 
-  const sortAnimes = (animesToSort: AnimeSerie[]) => {
-    const sorted = [...animesToSort];
-
-    switch (sortBy) {
-      case 'title-asc':
-        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
-      case 'title-desc':
-        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
-      case 'date-desc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateB - dateA;
-        });
-      case 'date-asc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateA - dateB;
-        });
-      default:
-        return sorted;
-    }
-  };
 
   const handleStatusChange = async (animeId: number, newStatus: string) => {
     try {
@@ -474,7 +457,6 @@ export default function Animes() {
 
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
   const hasSearchTerm = normalizedSearchTerm.length > 0;
-  const hasActiveFilters = Object.keys(filters).length > 0 || hasSearchTerm || showHidden || showFavoriteOnly || showMajOnly;
 
   // Fonction pour détecter et extraire l'ID depuis une URL MAL
   const detectMalUrlOrId = (input: string): { id: number | null } => {
@@ -514,79 +496,113 @@ export default function Animes() {
   }
 
   const malSearchInfo = hasSearchTerm ? detectMalUrlOrId(searchTerm) : { id: null };
-  const isNumericSearchTerm = hasSearchTerm && /^\d+$/.test(normalizedSearchTerm);
-  const searchMalId = isNumericSearchTerm
-    ? parseInt(normalizedSearchTerm, 10)
-    : (malSearchInfo.id ?? null);
 
-  const filteredAnimes = animes.filter(anime => {
-    // Si un toggle exclusif est activé, ignorer tous les autres filtres
-    if (showFavoriteOnly) {
-      return Boolean(anime.is_favorite);
-    }
+  const {
+    sortedItems: sortedAnimes,
+    hasActiveFilters
+  } = useCollectionFilters({
+    items: animes,
+    search: searchTerm,
+    statusFilter: filters.visionnage || '',
+    showFavoriteOnly,
+    showHidden,
+    showMajOnly,
+    sortBy,
+    searchConfig: {
+      getTitle: (a) => a.titre,
+      getExternalId: (a) => a.mal_id,
+      detectIdFromSearch: (term) => detectMalUrlOrId(term)
+    },
+    filterConfig: {
+      getIsHidden: (a) => !!a.is_masquee,
+      getIsFavorite: (a) => !!a.is_favorite,
+      getStatus: (a) => resolveAnimeStatus(a),
+      getHasUpdates: (a) => {
+        const episodesVus = a.episodes_vus || 0;
+        const episodesTotal = a.nb_episodes || 0;
+        return (
+          a.statut_diffusion === 'En cours' &&
+          episodesTotal > 0 &&
+          episodesVus < episodesTotal
+        );
+      },
+      customFilter: (anime) => {
+        // Si un toggle exclusif est activé, ignorer tous les autres filtres
+        if (showFavoriteOnly) {
+          return Boolean(anime.is_favorite);
+        }
+        if (showHidden) {
+          return Boolean(anime.is_masquee);
+        }
+        if (showMajOnly) {
+          const episodesVus = anime.episodes_vus || 0;
+          const episodesTotal = anime.nb_episodes || 0;
+          return (
+            anime.statut_diffusion === 'En cours' &&
+            episodesTotal > 0 &&
+            episodesVus < episodesTotal
+          );
+        }
 
-    if (showHidden) {
-      return Boolean(anime.is_masquee);
-    }
+        // Filtre visionnage personnalisé
+        if (filters.visionnage) {
+          const targetStatus = filters.visionnage as (typeof COMMON_STATUSES.ANIME)[number];
+          const episodesVus = anime.episodes_vus || 0;
+          const episodesTotal = anime.nb_episodes || 0;
+          const resolvedStatus = resolveAnimeStatus(anime);
 
-    if (showMajOnly) {
-      const episodesVus = anime.episodes_vus || 0;
-      const episodesTotal = anime.nb_episodes || 0;
-      return (
-        anime.statut_diffusion === 'En cours' &&
-        episodesTotal > 0 &&
-        episodesVus < episodesTotal
-      );
-    }
+          if (targetStatus === 'Terminé') {
+            if (!(resolvedStatus === 'Terminé' || (episodesTotal > 0 && episodesVus >= episodesTotal))) {
+              return false;
+            }
+          } else if (targetStatus === 'En cours') {
+            if (resolvedStatus !== 'En cours') {
+              return false;
+            }
+          } else if (targetStatus === 'À regarder') {
+            if (!(resolvedStatus === 'À regarder' || episodesVus === 0)) {
+              return false;
+            }
+          } else if (targetStatus === 'En pause' || targetStatus === 'Abandonné') {
+            if (resolvedStatus !== targetStatus) {
+              return false;
+            }
+          }
+        }
 
-    // Sinon, appliquer les filtres normaux
-
-    if (hasSearchTerm) {
-      const matchesSearch =
-        (isNumericSearchTerm || malSearchInfo.id !== null)
-          ? anime.mal_id === searchMalId
-          : anime.titre.toLowerCase().includes(normalizedSearchTerm);
-
-      if (!matchesSearch) {
-        return false;
+        return true;
       }
+    },
+    sortConfig: {
+      sortOptions: {
+        'title-asc': {
+          label: 'Titre A-Z',
+          compare: (a, b) => a.titre.localeCompare(b.titre)
+        },
+        'title-desc': {
+          label: 'Titre Z-A',
+          compare: (a, b) => b.titre.localeCompare(a.titre)
+        },
+        'date-desc': {
+          label: 'Date ↓',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+          }
+        },
+        'date-asc': {
+          label: 'Date ↑',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateA - dateB;
+          }
+        }
+      },
+      defaultSort: 'title-asc'
     }
-
-    if (filters.visionnage) {
-      const targetStatus = filters.visionnage as (typeof COMMON_STATUSES.ANIME)[number];
-      const episodesVus = anime.episodes_vus || 0;
-      const episodesTotal = anime.nb_episodes || 0;
-      const resolvedStatus = resolveAnimeStatus(anime);
-
-      if (targetStatus === 'Terminé') {
-        if (!(resolvedStatus === 'Terminé' || (episodesTotal > 0 && episodesVus >= episodesTotal))) {
-          return false;
-        }
-      } else if (targetStatus === 'En cours') {
-        if (resolvedStatus !== 'En cours') {
-          return false;
-        }
-      } else if (targetStatus === 'À regarder') {
-        if (!(resolvedStatus === 'À regarder' || episodesVus === 0)) {
-          return false;
-        }
-      } else if (targetStatus === 'En pause' || targetStatus === 'Abandonné') {
-        if (resolvedStatus !== targetStatus) {
-          return false;
-        }
-      }
-    }
-
-    // Filtre masqués (si le toggle n'est pas activé, cacher les masqués)
-    const isMasquee = Boolean(anime.is_masquee);
-    if (!showHidden && isMasquee) {
-      return false;
-    }
-
-    return true;
   });
-
-  const sortedAnimes = sortAnimes(filteredAnimes);
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
   const detectedMalId = hasSearchTerm ? malSearchInfo : { id: null };
@@ -652,6 +668,7 @@ export default function Animes() {
     totalPages,
     itemsPerPage,
     setCurrentPage,
+    setItemsPerPage,
     goToFirstPage,
     goToLastPage,
     goToNextPage,
@@ -698,8 +715,8 @@ export default function Animes() {
           <CollectionHeader
             title="Collection Animés"
             icon="🎬"
-            count={filteredAnimes.length}
-            countLabel={filteredAnimes.length > 1 ? 'animes' : 'anime'}
+            count={sortedAnimes.length}
+            countLabel={sortedAnimes.length > 1 ? 'animes' : 'anime'}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter un anime"
             extraButtons={
@@ -719,7 +736,7 @@ export default function Animes() {
                     });
                   }
                 }}
-                className="btn btn-primary"
+                className="btn btn-outline"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <RefreshCw size={18} />
@@ -729,7 +746,9 @@ export default function Animes() {
           />
 
           {/* Stats de progression */}
-          <ProgressionHeader type="anime" stats={stats} />
+          <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
+            <ProgressionHeader type="anime" stats={stats} />
+          </div>
 
           {/* Recherche et filtres avec composants réutilisables */}
           <CollectionFiltersBar
@@ -744,12 +763,12 @@ export default function Animes() {
               showSubmitButton={false}
             />
 
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto' }}>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as AnimeSortOption)}
                 className="select"
-                style={{ minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="title-asc">📖 Titre (A → Z)</option>
                 <option value="title-desc">📖 Titre (Z → A)</option>
@@ -761,7 +780,7 @@ export default function Animes() {
                 className="select"
                 value={filters.statut || ''}
                 onChange={(e) => handleFilterChange('statut', e.target.value)}
-                style={{ width: 'auto', minWidth: '180px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 {statusOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -774,7 +793,7 @@ export default function Animes() {
                 className="select"
                 value={filters.type || ''}
                 onChange={(e) => handleFilterChange('type', e.target.value)}
-                style={{ width: 'auto', minWidth: '150px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 {typeOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -787,7 +806,7 @@ export default function Animes() {
                 className="select"
                 value={filters.visionnage || ''}
                 onChange={(e) => handleFilterChange('visionnage', e.target.value)}
-                style={{ width: 'auto', minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 {completionOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -795,53 +814,35 @@ export default function Animes() {
                   </option>
                 ))}
               </select>
+            </div>
 
-              {/* Toggles */}
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', alignItems: 'center' }}>
-                <FilterToggle
-                  checked={showMajOnly}
-                  onChange={setShowMajOnly}
-                  label="🔔 MAJ"
-                  icon="🔔"
-                  activeColor="#22c55e"
-                />
+            {/* Ligne 2 : Toggles */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', alignItems: 'center', marginTop: '12px' }}>
+              <FilterToggle
+                checked={showMajOnly}
+                onChange={setShowMajOnly}
+                label="🔔 MAJ"
+                icon="🔔"
+                activeColor="#22c55e"
+              />
 
-                <FilterToggle
-                  checked={showFavoriteOnly}
-                  onChange={setShowFavoriteOnly}
-                  label="❤️ Favoris"
-                  icon="❤️"
-                  activeColor="var(--error)"
-                />
+              <FilterToggle
+                checked={showFavoriteOnly}
+                onChange={setShowFavoriteOnly}
+                label="❤️ Favoris"
+                icon="❤️"
+                activeColor="var(--error)"
+              />
 
-                <FilterToggle
-                  checked={showHidden}
-                  onChange={setShowHidden}
-                  label="👁️ Animés masqués"
-                  icon="👁️"
-                  activeColor="#fb923c"
-                />
-              </div>
+              <FilterToggle
+                checked={showHidden}
+                onChange={setShowHidden}
+                label="👁️ Animés masqués"
+                icon="👁️"
+                activeColor="#fb923c"
+              />
             </div>
           </CollectionFiltersBar>
-
-          {/* Pagination */}
-          {sortedAnimes.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              itemsPerPage={itemsPerPage}
-              totalItems={sortedAnimes.length}
-              onPageChange={setCurrentPage}
-              onFirstPage={goToFirstPage}
-              onLastPage={goToLastPage}
-              onNextPage={goToNextPage}
-              onPreviousPage={goToPreviousPage}
-              canGoNext={canGoNext}
-              canGoPrevious={canGoPrevious}
-              hideItemsPerPageSelect
-            />
-          )}
 
           {/* Message d'ajout depuis URL/ID MAL */}
           {showAddFromMal && (
@@ -949,8 +950,14 @@ export default function Animes() {
               );
             }}
             loading={loading}
-            emptyMessage={animes.length === 0 ? 'Aucun anime dans votre collection' : (showAddFromMal ? '' : 'Aucun anime trouvé')}
-            emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3 }}>🎬</span>}
+            emptyMessage={
+              showAddFromMal
+                ? ''
+                : (hasActiveFilters
+                  ? 'Aucun animé ne correspond à vos filtres'
+                  : 'Aucun animé dans votre collection')
+            }
+            emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3, margin: '0 auto 24px', display: 'block' }}>🎬</span>}
           />
 
           {showAddModal && (
@@ -988,26 +995,30 @@ export default function Animes() {
           )}
         </div>
 
+        {/* Pagination en bas */}
         {sortedAnimes.length > 0 && (
-          <div style={{ marginTop: '32px' }}>
+          <div style={{ marginTop: '24px' }}>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               itemsPerPage={itemsPerPage}
               totalItems={sortedAnimes.length}
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
               onFirstPage={goToFirstPage}
               onLastPage={goToLastPage}
               onNextPage={goToNextPage}
               onPreviousPage={goToPreviousPage}
               canGoNext={canGoNext}
               canGoPrevious={canGoPrevious}
-              hideItemsPerPageSelect
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           </div>
         )}
 
         <BackToTopButton />
+        <BackToBottomButton />
       </div>
     </>
   );

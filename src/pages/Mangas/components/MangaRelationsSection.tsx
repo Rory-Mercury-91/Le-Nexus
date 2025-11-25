@@ -1,5 +1,7 @@
+import { ArrowLeftRight, BookOpen, Film, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import CoverImage from '../../../components/common/CoverImage';
 import { rememberScrollTarget } from '../../../hooks/common/useScrollRestoration';
 import { Serie } from '../../../types';
 
@@ -12,12 +14,13 @@ interface RelatedManga {
   id: number;
   titre: string;
   mal_id: number | null;
+  couverture_url?: string | null;
 }
 
 export default function MangaRelationsSection({ serie, shouldShow }: MangaRelationsSectionProps) {
   const [prequel, setPrequel] = useState<RelatedManga | null>(null);
   const [sequel, setSequel] = useState<RelatedManga | null>(null);
-  const [animeAdaptation, setAnimeAdaptation] = useState<{ id: number; titre: string; mal_id: number } | null>(null);
+  const [animeAdaptation, setAnimeAdaptation] = useState<{ id: number; titre: string; mal_id: number; couverture_url?: string | null } | null>(null);
   const [lightNovel, setLightNovel] = useState<RelatedManga | null>(null);
   const [mangaAdaptation, setMangaAdaptation] = useState<RelatedManga | null>(null);
   const [loading, setLoading] = useState(false);
@@ -90,271 +93,163 @@ export default function MangaRelationsSection({ serie, shouldShow }: MangaRelati
     return null;
   }
 
-  return (
-    <div style={{
-      marginBottom: '20px',
-      padding: '16px',
-      border: '1px solid var(--border)',
-      borderRadius: '8px',
-      background: 'var(--surface)'
-    }}>
-      <div style={{
-        fontSize: '14px',
-        fontWeight: '600',
-        color: 'var(--text-secondary)',
-        marginBottom: '12px'
-      }}>
-        Relations
-      </div>
-      
-      {loading ? (
+  const relations = [
+    prequel ? { type: 'Prequel', item: prequel, icon: ArrowLeftRight, isManga: true } : null,
+    sequel ? { type: 'Sequel', item: sequel, icon: ArrowLeftRight, isManga: true } : null,
+    animeAdaptation ? { type: 'Adaptation anime', item: animeAdaptation, icon: Film, isManga: false } : null,
+    lightNovel ? { type: 'Source light novel', item: lightNovel, icon: BookOpen, isManga: true } : null,
+    mangaAdaptation ? { type: 'Adaptation manga', item: mangaAdaptation, icon: Layers, isManga: true } : null
+  ].filter(Boolean) as Array<{ type: string; item: RelatedManga | { id: number; titre: string; mal_id: number; couverture_url?: string | null }; icon: any; isManga: boolean }>;
+
+  if (loading) {
+    return (
+      <div style={{ marginTop: '16px' }}>
+        <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600', marginBottom: '16px' }}>
+          Relations
+        </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
           Chargement des relations...
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {prequel && (
-            <div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600', marginRight: '8px' }}>
-                Prequel :
-              </span>
-              <Link
-                to={`/serie/${prequel.id}`}
-                style={{
-                  fontSize: '14px',
-                  color: 'var(--primary)',
-                  textDecoration: 'none',
-                  fontWeight: '500'
-                }}
-                onClick={() => rememberMangaTarget(prequel.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                {prequel.titre}
-              </Link>
-              {prequel.mal_id && (
-                <a
-                  href={`https://myanimelist.net/manga/${prequel.mal_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                  }}
-                >
-                  (MAL)
-                </a>
-              )}
-            </div>
-          )}
-          
-          {sequel && (
-            <div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600', marginRight: '8px' }}>
-                Sequel :
-              </span>
-              <Link
-                to={`/serie/${sequel.id}`}
-                style={{
-                  fontSize: '14px',
-                  color: 'var(--primary)',
-                  textDecoration: 'none',
-                  fontWeight: '500'
-                }}
-                onClick={() => rememberMangaTarget(sequel.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                {sequel.titre}
-              </Link>
-              {sequel.mal_id && (
-                <a
-                  href={`https://myanimelist.net/manga/${sequel.mal_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                  }}
-                >
-                  (MAL)
-                </a>
-              )}
-            </div>
-          )}
-          
-          {animeAdaptation && (
-            <div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600', marginRight: '8px' }}>
-                Adaptation anime :
-              </span>
-              <Link
-                to={`/animes/${animeAdaptation.id}`}
-                style={{
-                  fontSize: '14px',
-                  color: 'var(--primary)',
-                  textDecoration: 'none',
-                  fontWeight: '500'
-                }}
-                onClick={() => rememberAnimeTarget(animeAdaptation.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                {animeAdaptation.titre}
-              </Link>
-              {animeAdaptation.mal_id && (
-                <a
-                  href={`https://myanimelist.net/anime/${animeAdaptation.mal_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                  }}
-                >
-                  (MAL)
-                </a>
-              )}
-            </div>
-          )}
-          
-          {lightNovel && (
-            <div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600', marginRight: '8px' }}>
-                Source light novel :
-              </span>
-              <Link
-                to={`/serie/${lightNovel.id}`}
-                style={{
-                  fontSize: '14px',
-                  color: 'var(--primary)',
-                  textDecoration: 'none',
-                  fontWeight: '500'
-                }}
-                onClick={() => rememberMangaTarget(lightNovel.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                {lightNovel.titre}
-              </Link>
-              {lightNovel.mal_id && (
-                <a
-                  href={`https://myanimelist.net/manga/${lightNovel.mal_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                  }}
-                >
-                  (MAL)
-                </a>
-              )}
-            </div>
-          )}
-          
-          {mangaAdaptation && (
-            <div>
-              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600', marginRight: '8px' }}>
-                Adaptation manga :
-              </span>
-              <Link
-                to={`/serie/${mangaAdaptation.id}`}
-                style={{
-                  fontSize: '14px',
-                  color: 'var(--primary)',
-                  textDecoration: 'none',
-                  fontWeight: '500'
-                }}
-                onClick={() => rememberMangaTarget(mangaAdaptation.id)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none';
-                }}
-              >
-                {mangaAdaptation.titre}
-              </Link>
-              {mangaAdaptation.mal_id && (
-                <a
-                  href={`https://myanimelist.net/manga/${mangaAdaptation.mal_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    marginLeft: '8px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    textDecoration: 'none'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                  }}
-                >
-                  (MAL)
-                </a>
-              )}
-            </div>
-          )}
-          
-          {!prequel && !sequel && !animeAdaptation && !lightNovel && !mangaAdaptation && (serie.prequel_mal_id || serie.sequel_mal_id || serie.anime_adaptation_mal_id || serie.light_novel_mal_id || serie.manga_adaptation_mal_id) && (
-            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              Relations disponibles mais contenus non trouvés dans la base de données
-            </div>
-          )}
+      </div>
+    );
+  }
+
+  if (relations.length === 0 && (serie.prequel_mal_id || serie.sequel_mal_id || serie.anime_adaptation_mal_id || serie.light_novel_mal_id || serie.manga_adaptation_mal_id)) {
+    return (
+      <div style={{ marginTop: '16px' }}>
+        <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600', marginBottom: '16px' }}>
+          Relations
         </div>
-      )}
+        <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)' }}>
+          Relations disponibles mais contenus non trouvés dans la base de données
+        </div>
+      </div>
+    );
+  }
+
+  if (relations.length === 0) {
+    return null;
+  }
+
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600', marginBottom: '16px' }}>
+        Relations
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '16px'
+        }}
+      >
+        {relations.map((relation, index) => {
+          const Icon = relation.icon;
+          const route = relation.isManga ? `/serie/${relation.item.id}` : `/animes/${relation.item.id}`;
+          const rememberTarget = relation.isManga ? rememberMangaTarget : rememberAnimeTarget;
+          const malUrl = relation.isManga 
+            ? `https://myanimelist.net/manga/${relation.item.mal_id}` 
+            : `https://myanimelist.net/anime/${relation.item.mal_id}`;
+          const coverUrl = relation.item.couverture_url;
+
+          return (
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                <Icon size={14} style={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                {relation.type}
+              </div>
+              <Link
+                to={route}
+                onClick={() => rememberTarget(relation.item.id)}
+                style={{
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '12px',
+                  alignItems: 'flex-start'
+                }}
+                onMouseEnter={(e) => {
+                  const cover = e.currentTarget.querySelector('div[style*="transform"]') as HTMLElement;
+                  if (cover) {
+                    cover.style.transform = 'scale(1.05)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const cover = e.currentTarget.querySelector('div[style*="transform"]') as HTMLElement;
+                  if (cover) {
+                    cover.style.transform = 'scale(1)';
+                  }
+                }}
+              >
+                <div
+                  style={{
+                    width: '80px',
+                    height: '120px',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'transform 0.2s ease',
+                    cursor: 'pointer',
+                    flexShrink: 0
+                  }}
+                >
+                  {coverUrl ? (
+                    <CoverImage
+                      src={coverUrl}
+                      alt={relation.item.titre}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <Icon size={24} style={{ color: 'var(--text-secondary)' }} />
+                  )}
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500', lineHeight: '1.4' }}>
+                    {relation.item.titre}
+                  </div>
+                  {relation.item.mal_id && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.electronAPI?.openExternal?.(malUrl);
+                      }}
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)',
+                        textDecoration: 'none',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.textDecoration = 'underline';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.textDecoration = 'none';
+                      }}
+                    >
+                      (MAL)
+                    </button>
+                  )}
+                </div>
+              </Link>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

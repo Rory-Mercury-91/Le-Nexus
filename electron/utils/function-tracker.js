@@ -89,7 +89,7 @@ class FunctionTracker {
   }
 
   /**
-   * Génère un rapport de coverage basé sur les appels
+   * Génère un rapport de suivi basé sur les appels
    */
   generateReport(functionListPath) {
     if (!this.isEnabled || !fs.existsSync(functionListPath)) {
@@ -103,7 +103,7 @@ class FunctionTracker {
       trackedAt: new Date().toISOString(),
       totalFunctions: 0,
       trackedFunctions: this.trackedCalls.size,
-      coverage: {},
+      usage: {},
       unusedFunctions: []
     };
 

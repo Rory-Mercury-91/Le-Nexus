@@ -30,7 +30,7 @@ const BackToTopButton: React.FC = () => {
       aria-label="Retour en haut"
       style={{
         position: 'fixed',
-        bottom: '24px',
+        bottom: '84px', // Au-dessus du bouton "Aller en bas" (24px + 50px + 10px d'espace)
         right: '24px',
         zIndex: 1000,
         width: '50px',

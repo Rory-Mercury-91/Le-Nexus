@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, cloneElement, isValidElement } from 'react';
 
 interface CollectionFiltersBarProps {
   children: ReactNode;
@@ -11,21 +11,32 @@ const CollectionFiltersBar: React.FC<CollectionFiltersBarProps> = ({
   onClearFilters,
   hasActiveFilters = false
 }) => {
+  // Cloner les enfants pour passer les props au CollectionSearchBar s'il existe
+  const clonedChildren = React.Children.map(children, (child) => {
+    if (isValidElement(child)) {
+      // Vérifier si c'est un CollectionSearchBar via displayName ou type
+      const componentType = child.type as any;
+      
+      // Essayer plusieurs méthodes de détection
+      const displayName = componentType?.displayName;
+      const componentName = componentType?.name;
+      const isSearchBar = displayName === 'CollectionSearchBar' || 
+                         componentName === 'CollectionSearchBar' ||
+                         (typeof componentType === 'function' && componentType.displayName === 'CollectionSearchBar');
+      
+      if (isSearchBar) {
+        return cloneElement(child as React.ReactElement<any>, {
+          hasActiveFilters,
+          onClearFilters
+        });
+      }
+    }
+    return child;
+  });
+
   return (
     <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-      {children}
-      
-      {hasActiveFilters && onClearFilters && (
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginTop: '12px' }}>
-          <button
-            onClick={onClearFilters}
-            className="btn btn-outline"
-            style={{ marginLeft: 'auto' }}
-          >
-            Réinitialiser
-          </button>
-        </div>
-      )}
+      {clonedChildren}
     </div>
   );
 };

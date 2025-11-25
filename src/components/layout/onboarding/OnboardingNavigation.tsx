@@ -2,25 +2,36 @@ import { ArrowLeft, ArrowRight, CheckCircle, Folder } from 'lucide-react';
 
 interface OnboardingNavigationProps {
   step: number;
-  adulteGamePassword: string;
   baseDirectory: string | null;
   loading: boolean;
   onBack: () => void;
   onNext: () => void;
   onChooseDirectory: () => Promise<void>;
   onComplete: () => void;
+  hasExistingDatabases?: boolean;
+  existingUsers?: Array<{ name: string; emoji: string; color: string; avatar_path: string | null }>;
+  showCreateButton?: boolean;
 }
 
 export default function OnboardingNavigation({
   step,
-  adulteGamePassword,
   baseDirectory,
   loading,
   onBack,
   onNext,
   onChooseDirectory,
-  onComplete
+  onComplete,
+  hasExistingDatabases = false,
+  existingUsers = [],
+  showCreateButton = false
 }: OnboardingNavigationProps) {
+  // À l'étape 2, si des bases existent et qu'un emplacement est sélectionné,
+  // on ne montre pas les boutons de navigation (le sélecteur gère la sélection)
+  // Mais si aucune base n'existe, on doit montrer le bouton "Suivant" pour passer à l'étape 3
+  if (step === 2 && hasExistingDatabases && baseDirectory && existingUsers.length > 0) {
+    return null;
+  }
+
   return (
     <div style={{
       display: 'flex',
@@ -28,7 +39,7 @@ export default function OnboardingNavigation({
       marginTop: '32px',
       justifyContent: step === 1 ? 'center' : 'space-between'
     }}>
-      {step > 1 && step < 7 && (
+      {step > 1 && (
         <button
           onClick={onBack}
           className="btn btn-outline"
@@ -42,9 +53,9 @@ export default function OnboardingNavigation({
         </button>
       )}
 
-      {step < 6 ? (
+      {step < 3 ? (
         <button
-          onClick={step === 3 && !baseDirectory ? onChooseDirectory : onNext}
+          onClick={step === 2 && !baseDirectory ? onChooseDirectory : onNext}
           className="btn btn-primary"
           style={{
             padding: '12px 32px',
@@ -52,20 +63,10 @@ export default function OnboardingNavigation({
             flex: step === 1 ? 'none' : '1'
           }}
         >
-          {step === 3 && !baseDirectory ? (
+          {step === 2 && !baseDirectory ? (
             <>
               <Folder size={20} />
               Choisir l'emplacement
-            </>
-          ) : step === 4 ? (
-            <>
-              Valider mes choix
-              <ArrowRight size={20} />
-            </>
-          ) : step === 5 ? (
-            <>
-              {adulteGamePassword ? 'Définir et continuer' : 'Continuer sans protection'}
-              <ArrowRight size={20} />
             </>
           ) : (
             <>
@@ -81,19 +82,20 @@ export default function OnboardingNavigation({
           style={{
             padding: '12px 32px',
             fontSize: '16px',
-            width: '100%'
+            width: showCreateButton ? '100%' : 'auto',
+            flex: showCreateButton ? 'none' : '1'
           }}
           disabled={loading}
         >
           {loading ? (
             <>
               <div className="loading" style={{ width: '18px', height: '18px' }} />
-              Finalisation...
+              Création du profil...
             </>
           ) : (
             <>
               <CheckCircle size={20} />
-              Commencer
+              Créer le profil
             </>
           )}
         </button>

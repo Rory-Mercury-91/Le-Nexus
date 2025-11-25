@@ -105,11 +105,14 @@ interface ElectronAPI {
   setTheme: (theme: 'dark' | 'light') => Promise<{ success: boolean }>;
   getAutoLaunch: () => Promise<boolean>;
   setAutoLaunch: (enabled: boolean) => Promise<{ success: boolean; message?: string; error?: string }>;
+  getAutoDownloadCovers?: () => Promise<boolean>;
+  setAutoDownloadCovers?: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   getGroqApiKey: () => Promise<string>;
   setGroqApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
   getBaseDirectory: () => Promise<string | null>;
   chooseBaseDirectory: () => Promise<{ success: boolean; path?: string; error?: string }>;
   setBaseDirectory: (path: string) => Promise<{ success: boolean; error?: string }>;
+  checkDatabasesInLocation: (basePath: string) => Promise<{ success: boolean; hasDatabases: boolean; count: number; databases?: string[]; error?: string }>;
   changeBaseDirectory: () => Promise<{ success: boolean; path?: string; message?: string; error?: string }>;
   exportDatabase: () => Promise<{ success: boolean; error?: string }>;
   importDatabase: () => Promise<{ success: boolean; error?: string }>;
@@ -125,6 +128,8 @@ interface ElectronAPI {
   deleteAllData: () => Promise<{ success: boolean; error?: string }>;
   quitApp: (options?: { shouldRelaunch?: boolean }) => Promise<void>;
   minimizeToTray: () => Promise<void>;
+  toggleFullscreen: () => Promise<{ success: boolean; isFullScreen?: boolean; error?: string }>;
+  isFullscreen: () => Promise<{ success: boolean; isFullScreen: boolean }>;
   nautiljonGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number; includeTomes: boolean }>;
   nautiljonSetAutoSync: (enabled: boolean, intervalHours: number, includeTomes: boolean) => Promise<{ success: boolean; error?: string }>;
   chooseAvatarFile: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -146,6 +151,7 @@ interface ElectronAPI {
   getAnimeSeries: (filters: Record<string, unknown>) => Promise<{ success: boolean; animes: AnimeSerie[] }>;
   searchAnime: (titre: string) => Promise<import('./types').AnimeSearchResult[]>;
   translateText: (text: string, targetLang: string) => Promise<{ success: boolean; text?: string; error?: string }>;
+  createAnime: (animeData: Record<string, unknown>) => Promise<{ success: boolean; id?: number; error?: string }>;
   updateAnime: (id: number, animeData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   getAnimeDetail: (animeId: number) => Promise<{
     success: boolean;
@@ -167,7 +173,8 @@ interface ElectronAPI {
   getEvolutionStatistics: () => Promise<EvolutionStatistics>;
   getAdulteGameGames: (filters: Record<string, unknown>) => Promise<AdulteGame[]>;
   getAdulteGameGame: (id: number) => Promise<AdulteGame | null>;
-  checkAdulteGameUpdates: (gameId: number) => Promise<{ updated: number; sheetSynced: number }>;
+  checkAdulteGameUpdates: (gameId: number, force?: boolean) => Promise<{ updated: number; sheetSynced: number }>;
+  markAdulteGameUpdateSeen: (id: number) => Promise<{ success: boolean }>;
   launchAdulteGameGame: (id: number, version?: string) => Promise<{ success: boolean }>;
   deleteAdulteGameGame: (id: number) => Promise<{ success: boolean }>;
   getAdulteGameTagPreferences: (userId: number) => Promise<Record<string, 'liked' | 'disliked' | 'neutral'>>;
@@ -176,7 +183,7 @@ interface ElectronAPI {
   updateAdulteGameGame: (id: number, gameData: Record<string, unknown>) => Promise<{ success: boolean }>;
   selectAdulteGameExecutable: () => Promise<{ success: boolean; path?: string }>;
   updateUser: (userData: { id: number; name: string; emoji: string; color: string }) => Promise<{ success: boolean; error?: string }>;
-  deleteUser: (userId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteUser: (userName: string) => Promise<{ success: boolean; error?: string }>;
   onAnimeImportProgress: (callback: (progress: AnimeImportProgress) => void) => () => void;
   onAdulteGameUpdatesProgress: (callback: (progress: {
     phase: 'start' | 'sheet' | 'scraping' | 'complete' | 'error';
@@ -187,6 +194,9 @@ interface ElectronAPI {
     updated?: number;
     sheetSynced?: number;
   }) => void) => () => void;
+  stopAdulteGameUpdatesCheck?: () => Promise<{ success: boolean; error?: string }>;
+  pauseAdulteGameUpdatesCheck?: () => Promise<{ success: boolean; error?: string }>;
+  resumeAdulteGameUpdatesCheck?: () => Promise<{ success: boolean; error?: string }>;
   openTampermonkeyInstallation: () => Promise<{ success: boolean; error?: string }>;
   getAllUsers: () => Promise<UserSummary[]>;
   getUserProfileImage: (userName: string) => Promise<string | null>;
@@ -242,6 +252,8 @@ interface ElectronAPI {
   getCoverFullPath: (relativePath: string) => Promise<string | null>;
   cleanEmptyFolders: () => Promise<{ success: boolean; count?: number; error?: string }>;
   openExternal?: (url: string) => Promise<void>;
+  openPath?: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+  saveImageToDisk?: (imageUrl: string, defaultFileName?: string) => Promise<{ success: boolean; canceled?: boolean; path?: string; error?: string }>;
   normalizeSerieOwnership: (serieId: number) => Promise<{ success: boolean; error?: string }>;
   addMangaByMalId: (
     malIdOrUrl: number | string,
@@ -452,13 +464,15 @@ interface ElectronAPI {
       timestamp: string;
     }>;
   }) => void) => () => void;
-  exportEntityData?: (type: 'manga' | 'anime' | 'adulte-game', id: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+  exportEntityData?: (type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'serie', id: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
 
   // Anime Enrichment Config
   getAnimeEnrichmentConfig: () => Promise<EnrichmentConfig>;
   saveAnimeEnrichmentConfig: (config: EnrichmentConfig) => Promise<void>;
   startAnimeEnrichment: () => Promise<{ success: boolean; error?: string }>;
   stopAnimeEnrichment: () => Promise<{ success: boolean; error?: string }>;
+  pauseAnimeEnrichment?: () => Promise<{ success: boolean; error?: string }>;
+  resumeAnimeEnrichment?: () => Promise<{ success: boolean; error?: string }>;
   onAnimeEnrichmentProgress?: (callback: (event: unknown, progress: EnrichmentProgress) => void) => () => void;
   onAnimeEnrichmentComplete?: (callback: (event: unknown, stats: EnrichmentStats) => void) => () => void;
   
@@ -467,10 +481,28 @@ interface ElectronAPI {
   saveMangaEnrichmentConfig: (config: EnrichmentConfig) => Promise<void>;
   startMangaEnrichment: () => Promise<{ success: boolean; error?: string }>;
   stopMangaEnrichment: () => Promise<{ success: boolean; error?: string }>;
+  pauseMangaEnrichment?: () => Promise<{ success: boolean; error?: string }>;
+  resumeMangaEnrichment?: () => Promise<{ success: boolean; error?: string }>;
   onMangaEnrichmentProgress?: (callback: (event: unknown, progress: EnrichmentProgress) => void) => () => void;
   onMangaEnrichmentComplete?: (callback: (event: unknown, stats: EnrichmentStats) => void) => () => void;
   onMangaImportStart?: (callback: (data: { message?: string }) => void) => () => void;
   onMangaImportComplete?: (callback: () => void) => () => void;
+  onMihonImportProgress?: (callback: (event: unknown, progress: {
+    step?: string;
+    message?: string;
+    progress?: number;
+    total?: number;
+    current?: number;
+    imported?: number;
+    updated?: number;
+    errors?: number;
+    item?: string;
+    elapsedMs?: number;
+    etaMs?: number;
+    speed?: number;
+  }) => void) => () => void;
+  selectMihonBackupFile?: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string }>;
+  importMihonBackup?: (filePath: string) => Promise<{ success: boolean; stats?: { created: number; updated: number; withMalId: number }; error?: string }>;
   
   // Manga Display Preferences
   getMangaDisplaySettings?: () => Promise<Record<string, boolean>>;
@@ -542,6 +574,36 @@ interface ElectronAPI {
   saveMovieDisplaySettings?: (_prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
   toggleMovieFavorite: (_movieId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
   toggleMovieHidden: (_movieId: number) => Promise<{ success: boolean; isHidden: boolean }>;
+  createMovie: (_movieData: Record<string, unknown>) => Promise<{ success: boolean; movieId?: number; error?: string }>;
+  updateMovie: (_movieId: number, _movieData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+  deleteMovie: (_movieId: number) => Promise<{ success: boolean; error?: string }>;
+  // Galerie d'images utilisateur
+  addMovieUserImageUrl: (movieId: number, imageUrl: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
+  addMovieUserImageFile: (movieId: number, title?: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
+  getMovieUserImages: (movieId: number) => Promise<{ success: boolean; images: Array<{ id: number; file_path: string; file_name: string; file_size?: number; mime_type?: string; created_at?: string; url: string }>; error?: string }>;
+  deleteMovieUserImage: (movieId: number, imageId: number) => Promise<{ success: boolean; error?: string }>;
+  addMovieUserVideoUrl: (movieId: number, url: string, title?: string) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'url'; url?: string; title?: string | null; site?: string | null; video_key?: string | null; error?: string }>;
+  // Galerie d'images utilisateur pour séries TV
+  addTvShowUserImageUrl: (showId: number, imageUrl: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
+  addTvShowUserImageFile: (showId: number, title?: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
+  getTvShowUserImages: (showId: number) => Promise<{ success: boolean; images: Array<{ id: number; title?: string; file_path: string; file_name: string; file_size?: number; mime_type?: string; created_at?: string; url: string }>; error?: string }>;
+  deleteTvShowUserImage: (showId: number, imageId: number) => Promise<{ success: boolean; error?: string }>;
+  
+  // Vidéos utilisateur pour séries TV
+  addTvShowUserVideoUrl: (showId: number, url: string, title?: string) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'url'; url?: string; title?: string | null; site?: string | null; video_key?: string | null; error?: string }>;
+  addTvShowUserVideoFile: (showId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
+  getTvShowUserVideos: (showId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string; is_reference?: boolean }>; error?: string }>;
+  deleteTvShowUserVideo: (showId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  
+  // Vidéos utilisateur pour épisodes de séries TV
+  addTvEpisodeUserVideoUrl: (episodeId: number, url: string, title?: string) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'url'; url?: string; title?: string | null; site?: string | null; video_key?: string | null; error?: string }>;
+  addTvEpisodeUserVideoFile: (episodeId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
+  getTvEpisodeUserVideos: (episodeId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string; is_reference?: boolean }>; error?: string }>;
+  deleteTvEpisodeUserVideo: (episodeId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  addMovieUserVideoFile: (movieId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
+  getMovieUserVideos: (movieId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string }>; error?: string }>;
+  deleteMovieUserVideo: (movieId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  getVideoTracks: (filePath: string) => Promise<{ success: boolean; tracks?: { audio: Array<{ index: number; audioIndex?: number; language: string; title: string; codec: string }>; subtitles: Array<{ index: number; language: string; title: string; codec: string }> }; error?: string }>;
   syncTvShowFromTmdb: (_tmdbId: number, _options?: { autoTranslate?: boolean; includeEpisodes?: boolean }) => Promise<{ id: number | null; tmdbId: number; seasons: number; episodes: number }>;
   getTvShows: (_filters?: TvQueryFilters) => Promise<TvShowListItem[]>;
   getTvShowDetail: (_identifiers: { showId?: number; tmdbId?: number }) => Promise<TvShowDetail | null>;
@@ -549,14 +611,49 @@ interface ElectronAPI {
   setTvShowStatus: (_payload: { showId: number; statut?: string; score?: number; saisonsVues?: number; episodesVus?: number; dateDebut?: string | null; dateFin?: string | null }) => Promise<{ success: boolean; statut: string }>;
   toggleTvFavorite: (_showId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
   toggleTvHidden: (_showId: number) => Promise<{ success: boolean; isHidden: boolean }>;
+  createTvShow: (_tvShowData: Record<string, unknown>) => Promise<{ success: boolean; showId?: number; error?: string }>;
+  updateTvShow: (_showId: number, _tvShowData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+  createTvSeason?: (_payload: {
+    showId: number;
+    seasonNumber: number;
+    episodeCount?: number;
+    title?: string | null;
+    synopsis?: string | null;
+    defaultEpisodeDuration?: number | null;
+    duplicateFromSeasonId?: number | null;
+  }) => Promise<{ success: boolean; seasonId?: number; seasons?: any[]; episodes?: any[]; error?: string }>;
+  updateTvSeason?: (_payload: {
+    showId: number;
+    seasonId: number;
+    title?: string | null;
+    synopsis?: string | null;
+    datePremiere?: string | null;
+    posterPath?: string | null;
+  }) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  deleteTvSeason?: (_showId: number, _seasonId: number) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  updateTvEpisode?: (_payload: {
+    showId: number;
+    episodeId: number;
+    title?: string | null;
+    synopsis?: string | null;
+    dateDiffusion?: string | null;
+    duree?: number | null;
+  }) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  deleteTvEpisode?: (_showId: number, _episodeId: number) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  reorderTvEpisodes?: (_payload: { showId: number; seasonNumber: number; order: Array<{ episodeId: number; episodeNumber: number }> }) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  updateTvSeasonPoster?: (_payload: { showId: number; seasonId: number; posterPath: string }) => Promise<{ success: boolean; seasons?: any[]; episodes?: any[]; error?: string }>;
+  deleteTvShow: (_showId: number) => Promise<{ success: boolean; error?: string }>;
   markTvEpisode: (_payload: { episodeId: number; userId: number; vu: boolean; dateVisionnage?: string | null }) => Promise<{ success: boolean; dateVisionnage?: string | null; episodesVus?: number; saisonsVues?: number }>;
   markAllTvEpisodes: (_payload: { showId: number; vu?: boolean }) => Promise<{ success: boolean; episodesVus?: number; saisonsVues?: number; dateVisionnage?: string | null; totalEpisodes?: number }>;
   getSeriesDisplaySettings?: () => Promise<Record<string, boolean>>;
   saveSeriesDisplaySettings?: (_prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
+  getSeriesDisplayOverrides?: (showId: number) => Promise<Record<string, boolean>>;
+  saveSeriesDisplayOverrides?: (showId: number, prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
+  deleteSeriesDisplayOverrides?: (showId: number, keys: string[]) => Promise<{ success: boolean }>;
   getSeries: (filters?: import('./types').SerieFilters) => Promise<import('./types').Serie[]>;
   getSerie: (id: number) => Promise<import('./types').Serie | null>;
   createSerie: (serieData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
-  searchManga: (titre: string) => Promise<import('./types').MangaDexResult[]>;
+  searchManga: (titre: string) => Promise<import('./types').MangaSearchResult[]>;
   toggleSerieFavorite: (serieId: number, userId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
   setSerieTag: (serieId: number, userId: number, tag: import('./types').SerieTag | null) => Promise<{ success: boolean }>;
   removeSerieTag: (serieId: number, userId: number) => Promise<{ success: boolean }>;
@@ -568,11 +665,41 @@ interface ElectronAPI {
   updateTome: (id: number, updates: Partial<import('./types').Tome>) => Promise<{ success: boolean }>;
   deleteTome: (id: number) => Promise<{ success: boolean }>;
   isSerieMasquee: (serieId: number) => Promise<boolean>;
+  getDevMergePreview: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number }) => Promise<{
+    success: boolean;
+    error?: string;
+    type?: string;
+    entityLabel?: string;
+    source?: { id: number; title: string; cover?: string | null };
+    target?: { id: number; title: string; cover?: string | null };
+    fields?: Array<{
+      key: string;
+      label: string;
+      type: string;
+      sourceValue: any;
+      sourceDisplayValue: string;
+      targetValue: any;
+      targetDisplayValue: string;
+      targetHasValue: boolean;
+      identical: boolean;
+    }>;
+  }>;
+  performDevMerge: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number; selectedFields: string[] }) => Promise<{
+    success: boolean;
+    error?: string;
+    targetId?: number;
+    targetTitle?: string;
+    sourceTitle?: string;
+    updatedFields?: string[];
+    transfers?: Record<string, number>;
+    reportPath?: string | null;
+  }>;
   demasquerSerie: (serieId: number) => Promise<{ success: boolean }>;
   masquerSerie: (serieId: number) => Promise<{ success: boolean }>;
   marquerSerieLue: (serieId: number) => Promise<{ success: boolean }>;
   toggleTomeLu: (tomeId: number, lu: boolean) => Promise<{ success: boolean }>;
   toggleTomePossede: (tomeId: number, possede: boolean) => Promise<{ success: boolean }>;
+  toggleTomeMihon: (tomeId: number, mihon: boolean) => Promise<{ success: boolean }>;
   possederTousLesTomes: (serieId: number) => Promise<{ success: boolean; tomesUpdated?: number }>;
 
   // MyAnimeList (MAL)
@@ -621,6 +748,13 @@ interface ElectronAPI {
   
   // Anime Import Events
   onAnimeImportComplete?: (_callback: () => void) => (() => void) | undefined;
+  
+  // Sources Mihon/Tachiyomi
+  getAvailableSources?: () => Promise<{
+    success: boolean;
+    sources?: Array<{ id: string; name: string }>;
+    error?: string;
+  }>;
   
   [key: string]: unknown;
 }

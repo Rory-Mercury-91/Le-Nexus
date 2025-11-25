@@ -1,4 +1,5 @@
 import { Serie } from '../../../types';
+import { cleanMalRewriteText } from '../../../utils/text-utils';
 
 interface MangaMalBlockProps {
   serie: Serie;
@@ -15,11 +16,7 @@ export default function MangaMalBlock({ serie, shouldShow }: MangaMalBlockProps)
 
   return (
     <div style={{
-      padding: '16px',
-      marginBottom: '20px',
-      border: '1px solid var(--border)',
-      borderRadius: '8px',
-      background: 'var(--surface)'
+      marginTop: '16px'
     }}>
       <div style={{ 
         fontSize: '12px', 
@@ -127,7 +124,7 @@ export default function MangaMalBlock({ serie, shouldShow }: MangaMalBlockProps)
               Background (historique/description détaillée)
             </span>
             <p style={{ fontSize: '16px', color: 'var(--text)', lineHeight: '1.6', margin: 0 }}>
-              {serie.background}
+              {cleanMalRewriteText(serie.background)}
             </p>
           </div>
         )}

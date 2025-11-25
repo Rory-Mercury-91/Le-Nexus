@@ -9,6 +9,7 @@ interface CollapsibleSectionProps {
   defaultIcon?: ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  headerActions?: ReactNode;
 }
 
 export default function CollapsibleSection({
@@ -19,7 +20,8 @@ export default function CollapsibleSection({
   children,
   defaultIcon,
   className = '',
-  style = {}
+  style = {},
+  headerActions
 }: CollapsibleSectionProps) {
   return (
     <div 
@@ -63,8 +65,17 @@ export default function CollapsibleSection({
         }}>
           {title}
         </h2>
-        <span style={{ marginLeft: 'auto', fontSize: '14px', opacity: 0.6 }}>
-          {isOpen ? '▲ Masquer' : '▼ Cliquez pour afficher'}
+        {headerActions && (
+          <div
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}
+          >
+            {headerActions}
+          </div>
+        )}
+        <span style={{ marginLeft: headerActions ? '12px' : 'auto', fontSize: '14px', opacity: 0.6 }}>
+          {isOpen ? '▲ Masquer' : '▼ Afficher'}
         </span>
       </div>
       {isOpen && (

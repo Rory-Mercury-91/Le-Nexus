@@ -6,21 +6,27 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
-const { net } = require('electron');
+const { net, session } = require('electron');
 const { createSlug } = require('../../utils/slug');
 
 /**
  * Télécharge une image en utilisant Electron.net.request (moteur Chromium)
- * Utilisé pour contourner les protections anti-scraping de certains sites
+ * Utilisé pour contourner les protections anti-scraping de certains sites (Cloudflare, etc.)
+ * Utilise la session persistante pour récupérer les cookies de navigation
  */
 function downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl) {
   return new Promise((resolve, reject) => {
     console.log(`🌐 Téléchargement via Electron.net: ${imageUrl}`);
     
+    // Utiliser la session persistante pour récupérer les cookies
+    // Les cookies sont automatiquement sauvegardés quand vous visitez le site dans Electron
+    const persistentSession = session.fromPartition('persist:lenexus');
+    
     const request = net.request({
       url: imageUrl,
       method: 'GET',
-      redirect: 'follow'
+      redirect: 'follow',
+      session: persistentSession // Utiliser la session persistante pour les cookies
     });
 
     // Ajouter les headers
@@ -191,20 +197,54 @@ async function downloadCover(pathManager, imageUrl, serieTitre, type = 'serie', 
       return await downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl);
     }
 
-    // Headers pour contourner les protections anti-scraping
+    // Headers pour contourner les protections anti-scraping (Cloudflare, etc.)
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Referer': refererUrl,
+      'Referer': refererUrl || imageUrl.split('/').slice(0, 3).join('/'), // Utiliser le domaine de l'image si pas de referer
       'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
       'Accept-Encoding': 'gzip, deflate, br',
       'Connection': 'keep-alive',
       'Sec-Fetch-Dest': 'image',
       'Sec-Fetch-Mode': 'no-cors',
-      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-Site': refererUrl ? 'same-origin' : 'cross-site',
       'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache'
+      'Pragma': 'no-cache',
+      'DNT': '1',
+      'Upgrade-Insecure-Requests': '1'
     };
+    
+    // Détecter si c'est un site protégé par Cloudflare
+    const isCloudflareProtected = imageUrl.includes('sushiscan.fr') || 
+                                   imageUrl.includes('scan-manga.com') ||
+                                   imageUrl.includes('lelscan.com') ||
+                                   imageUrl.includes('japscan.fr') ||
+                                   imageUrl.includes('mangascantrad.com');
+    
+    // Pour les sites Cloudflare, utiliser Electron.net avec session persistante
+    if (isCloudflareProtected) {
+      console.log(`🛡️ Site Cloudflare détecté, utilisation de Electron.net avec session persistante pour ${imageUrl}`);
+      
+      // Vérifier si des cookies existent pour ce domaine
+      const persistentSession = session.fromPartition('persist:lenexus');
+      try {
+        const urlObj = new URL(imageUrl);
+        const domain = urlObj.hostname;
+        const cookies = await persistentSession.cookies.get({ domain });
+        
+        if (cookies.length === 0) {
+          console.warn(`⚠️ Aucun cookie trouvé pour ${domain}`);
+          console.warn(`💡 Pour contourner Cloudflare, ouvrez le site dans Electron (via le bouton "Voir sur [Site]")`);
+          console.warn(`   Les cookies seront automatiquement sauvegardés pour les prochaines requêtes`);
+        } else {
+          console.log(`✅ ${cookies.length} cookie(s) trouvé(s) pour ${domain}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erreur vérification cookies: ${error.message}`);
+      }
+      
+      return await downloadWithElectronNet(imageUrl, fullPath, relativePath, refererUrl || imageUrl.split('/').slice(0, 3).join('/'));
+    }
 
     const response = await fetch(imageUrl, { headers });
     

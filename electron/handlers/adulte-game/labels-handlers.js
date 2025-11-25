@@ -1,4 +1,5 @@
 const { getUserIdByName } = require('./adulte-game-helpers');
+const { safeJsonParse } = require('../common-helpers');
 
 /**
  * Enregistre les handlers IPC pour la gestion des labels personnalisés jeux adultes
@@ -23,12 +24,17 @@ function registerLabelsHandlers(ipcMain, getDb, store) {
         return [];
       }
       
-      const labels = db.prepare(`
-        SELECT * FROM adulte_game_labels
+      // Récupérer les labels depuis adulte_game_user_data
+      const userData = db.prepare(`
+        SELECT labels FROM adulte_game_user_data
         WHERE game_id = ? AND user_id = ?
-      `).all(gameId, userId);
+      `).get(gameId, userId);
       
-      return labels;
+      if (!userData || !userData.labels) {
+        return [];
+      }
+      
+      return safeJsonParse(userData.labels, []);
     } catch (error) {
       console.error('Erreur get-adulte-game-labels:', error);
       throw error;
@@ -50,13 +56,29 @@ function registerLabelsHandlers(ipcMain, getDb, store) {
         return [];
       }
       
-      const labels = db.prepare(`
-        SELECT DISTINCT label, color FROM adulte_game_labels
-        WHERE user_id = ?
-        ORDER BY label ASC
+      // Récupérer tous les labels distincts de l'utilisateur
+      const allUserData = db.prepare(`
+        SELECT labels FROM adulte_game_user_data
+        WHERE user_id = ? AND labels IS NOT NULL
       `).all(userId);
       
-      return labels;
+      const labelMap = new Map();
+      
+      for (const row of allUserData) {
+        try {
+          const labels = safeJsonParse(row.labels, []);
+          for (const label of labels) {
+            if (!labelMap.has(label.label)) {
+              labelMap.set(label.label, label.color || '#8b5cf6');
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur parsing labels:', e);
+        }
+      }
+      
+      return Array.from(labelMap.entries()).map(([label, color]) => ({ label, color }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     } catch (error) {
       console.error('Erreur get-all-adulte-game-labels:', error);
       throw error;
@@ -78,10 +100,34 @@ function registerLabelsHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
       
+      // Récupérer les labels existants
+      const userData = db.prepare(`
+        SELECT labels FROM adulte_game_user_data
+        WHERE game_id = ? AND user_id = ?
+      `).get(gameId, userId);
+      
+      let labels = [];
+      if (userData && userData.labels) {
+        labels = safeJsonParse(userData.labels, []);
+      }
+      
+      // Vérifier si le label existe déjà
+      const existingIndex = labels.findIndex(l => l.label === label);
+      if (existingIndex === -1) {
+        labels.push({ label, color });
+      } else {
+        // Mettre à jour la couleur si différente
+        labels[existingIndex].color = color;
+      }
+      
+      // Sauvegarder
       db.prepare(`
-        INSERT OR IGNORE INTO adulte_game_labels (game_id, user_id, label, color)
-        VALUES (?, ?, ?, ?)
-      `).run(gameId, userId, label, color);
+        INSERT INTO adulte_game_user_data (game_id, user_id, labels, created_at, updated_at)
+        VALUES (?, ?, ?, datetime('now'), datetime('now'))
+        ON CONFLICT(game_id, user_id) DO UPDATE SET
+          labels = ?,
+          updated_at = datetime('now')
+      `).run(gameId, userId, JSON.stringify(labels), JSON.stringify(labels));
       
       console.log(`✅ Label ajouté: "${label}" au jeu ID ${gameId}`);
       
@@ -107,12 +153,31 @@ function registerLabelsHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
       
-      db.prepare(`
-        DELETE FROM adulte_game_labels
-        WHERE game_id = ? AND user_id = ? AND label = ?
-      `).run(gameId, userId, label);
+      // Récupérer les labels existants
+      const userData = db.prepare(`
+        SELECT labels FROM adulte_game_user_data
+        WHERE game_id = ? AND user_id = ?
+      `).get(gameId, userId);
       
-      console.log(`✅ Label retiré: "${label}" du jeu ID ${gameId}`);
+      if (!userData || !userData.labels) {
+        return { success: true };
+      }
+      
+      try {
+        let labels = safeJsonParse(userData.labels, []);
+        labels = labels.filter(l => l.label !== label);
+        
+        // Sauvegarder
+        db.prepare(`
+          UPDATE adulte_game_user_data
+          SET labels = ?, updated_at = datetime('now')
+          WHERE game_id = ? AND user_id = ?
+        `).run(JSON.stringify(labels), gameId, userId);
+        
+        console.log(`✅ Label retiré: "${label}" du jeu ID ${gameId}`);
+      } catch (e) {
+        console.warn('Erreur parsing labels:', e);
+      }
       
       return { success: true };
     } catch (error) {

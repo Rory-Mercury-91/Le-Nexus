@@ -5,7 +5,7 @@ import { Serie } from '../../types';
 import { computeMangaProgress } from '../../utils/manga-progress';
 import { isSensitiveManga } from '../../utils/manga-sensitivity';
 import { getSerieStatusLabel } from '../../utils/manga-status';
-import { CardActionsMenu, CardBadge, CardContent, CardCover, COMMON_STATUSES, FavoriteBadge, ImageOnlyCard, StatusBadge, useIsNew } from './common';
+import { CardActionsMenu, CardBadge, CardContent, CardCover, COMMON_STATUSES, FavoriteBadge, ImageOnlyCard, MihonBadge, StatusBadge, useIsNew } from './common';
 
 interface MangaCardProps {
   serie: Serie;
@@ -38,6 +38,9 @@ export default function MangaCard({
   }, [serie.id]);
 
   const progress = computeMangaProgress(serie);
+
+  // Vérifier si la série a des tomes ou chapitres Mihon
+  const hasMihon = serie.tomes?.some(tome => tome.mihon === 1) || serie.chapitres_mihon === 1;
 
   const checkIsNew = useIsNew(serie.created_at, {
     hideIfCompleted: true,
@@ -89,6 +92,7 @@ export default function MangaCard({
         shouldBlur={shouldBlurImage}
         hasMasterPassword={hasPassword}
         statusCategory="manga"
+        showMihonBadge={hasMihon}
       />
     );
   }
@@ -134,6 +138,9 @@ export default function MangaCard({
 
         {/* Badge Statut (Abandonné, En pause, etc.) */}
         <StatusBadge key={`status-${serie.id}-${currentStatus}`} status={currentStatus} type="manga" />
+
+        {/* Badge Mihon (coin inférieur gauche) */}
+        <MihonBadge show={hasMihon} />
 
         {/* Menu actions */}
         <CardActionsMenu

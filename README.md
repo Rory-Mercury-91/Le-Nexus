@@ -1,6 +1,6 @@
 # Le Nexus
 
-Application de gestion de collections multimédias (Mangas, Animés, Jeux Adultes) développée avec Electron et React.
+Application de gestion de collections multimédias (Mangas, Animés, Films, Séries TV, Jeux Adultes) développée avec Electron et React.
 
 ## ✨ Fonctionnalités
 
@@ -9,6 +9,9 @@ Application de gestion de collections multimédias (Mangas, Animés, Jeux Adulte
 - Suivi détaillé de chaque tome et progression des scans/manhwa
 - Import automatique depuis **Nautiljon** via script Tampermonkey
 - Import complet (série + tomes) ou import de tomes uniquement
+- **Enrichissement automatique** : Synchronisation avec Jikan API pour métadonnées complètes
+- **Nettoyage intelligent des titres** : Déduplication automatique des titres alternatifs (romaji, natif, anglais)
+- **Propagation logique des relations** : Relations bidirectionnelles automatiques (prequel/sequel, adaptations)
 - Masquage de séries (conserve les données pour les autres utilisateurs)
 - Recherche et filtres avancés
 
@@ -19,17 +22,21 @@ Application de gestion de collections multimédias (Mangas, Animés, Jeux Adulte
 - Progression de visionnage avec timestamps précis
 - 28 champs enrichis (titres multiples, genres, thèmes, studios, etc.)
 - Traduction automatique synopsis (Groq AI)
-- Scripts Tampermonkey (ADKami, Crunchyroll, ADN)
+- **Enrichissement automatique** : Synchronisation avec Jikan API et AniList pour métadonnées complètes
+- **Liens de streaming** : Intégration AniList (Netflix, Crunchyroll, Disney+, Prime Video, etc.)
+- **Propagation logique des relations** : Relations bidirectionnelles automatiques (prequel/sequel, adaptations)
+- Scripts Tampermonkey (Nautiljon, MyAnimeList)
 
 ### 🎮 Gestion des Jeux Adultes
 - Scraping automatique **F95Zone** et **LewdCorner**
 - Recherche par ID avec extraction complète (titre, version, statut, moteur, tags)
 - **Authentification F95Zone & LewdCorner** : Système OAuth intégré pour accès contenu protégé
-- Vérification automatique des mises à jour
+- Vérification automatique des mises à jour avec notifications
 - Import JSON depuis scripts Tampermonkey (F95 Extractor, LC Extractor)
 - Données utilisateur-spécifiques : chemin exécutable, notes privées, statut personnel
 - Lancement direct des jeux depuis l'application
 - Protection images locales (conservation lors MAJ)
+- **Protection par mot de passe** : Section verrouillable pour préserver la confidentialité
 
 ### 👥 Multi-utilisateurs
 - **Onboarding au premier lancement** : Assistant guidé pour créer votre profil
@@ -53,23 +60,35 @@ Application de gestion de collections multimédias (Mangas, Animés, Jeux Adulte
 - Carousels pour séries/animes en cours
 
 ### 🎨 Interface utilisateur
-- **Mode sombre/clair** : Basculement depuis les Paramètres avec thème clair adapté
+- **Mode sombre/clair** : Basculement depuis les Paramètres avec thème clair adapté (textes adaptatifs)
 - **Sidebar collapsible** : Réduire la barre latérale pour afficher uniquement les icônes
 - **Page Paramètres dédiée** : Interface complète avec auto-save (création/édition utilisateurs, thème, DB...)
+- **Personnalisation de l'affichage** : Choisissez quelles sections afficher sur chaque type de fiche
+- **Recherche globale** : Raccourci clavier Ctrl+K pour rechercher dans toutes les collections
 - **Animations fluides** : Transitions CSS pour un rendu professionnel
 - **Bordures dynamiques** : Couleur de l'avatar liée au profil utilisateur
+- **Barres de progression** : Suivi visuel des opérations en cours (enrichissement, synchronisation)
 
 ### 🖼️ Gestion des images
-- Intégration avec MangaDex pour les couvertures
+- Intégration avec MyAnimeList (Jikan) et AniList pour les couvertures
 - Drag & Drop pour ajouter des images rapidement
 - Organisation automatique (covers/series/slug/tomes/)
 - Suppression intelligente (conserve si utilisée par d'autres utilisateurs)
 - Synchronisation cloud automatique
 
+### 🎞️ Gestion des Films et Séries TV
+- Import depuis **TMDb** avec métadonnées complètes
+- Gestion des saisons et épisodes pour les séries TV
+- Suivi de visionnage personnalisé par utilisateur
+- Distribution, genres, et informations détaillées
+- Couvertures HD et affiches depuis TMDb
+- Personnalisation de l'affichage des sections
+
 ### 🔄 Partage et synchronisation
 - Export/Import de la base de données
 - Fusion automatique des bases de données familiales
 - Compatible Proton Drive, OneDrive, Google Drive
+- **Synchronisation MAL automatique** : Synchronisation périodique avec MyAnimeList
 
 ### 🛠️ Import automatisé
 - Script Tampermonkey optimisé pour **Nautiljon** :
@@ -82,6 +101,15 @@ Application de gestion de collections multimédias (Mangas, Animés, Jeux Adulte
   - 📖 **Import tomes uniquement** : Compléter une série existante
 - Overlay visuel pendant l'import
 - Rafraîchissement automatique des données
+
+### 🔀 Fusion avancée d'entités
+- **Système de fusion générique** : Disponible pour tous les types de contenu (Mangas, Animes, Films, Séries, Jeux Adultes)
+- **Interface visuelle** : Modal de comparaison côte à côte (source vs cible)
+- **Sélection personnalisée** : Choisissez quels champs transférer depuis la source
+- **Aperçu des images** : Visualisation des couvertures avant fusion
+- **Indicateurs visuels** : Flèches vertes/rouges pour les champs sélectionnés/désélectionnés
+- **Suppression automatique** : La source est supprimée après fusion réussie
+- Accessible depuis **Paramètres → Dev Settings**
 
 ## 🚀 Installation
 
@@ -102,15 +130,36 @@ npm install
 npm start
 ```
 
-## 📦 Compilation en .exe
+## 📦 Compilation et Release
 
-Pour créer un fichier exécutable Windows :
+### Build local
+
+Pour créer un fichier exécutable Windows localement :
 
 ```bash
 npm run build:win
 ```
 
 Le fichier .exe sera disponible dans le dossier `dist/`.
+
+### Build automatique avec GitHub Actions
+
+Le projet inclut un workflow GitHub Actions qui :
+- Se déclenche automatiquement lors du push d'un tag (format `v*.*.*`)
+- Met à jour automatiquement la version dans `package.json` depuis le tag
+- Build l'application Windows
+- Crée une release GitHub avec les fichiers de build
+- Envoie une notification Discord automatique
+
+**Utilisation :**
+```bash
+# Mettre à jour la version manuellement (optionnel)
+npm run version:update 1.2.3
+
+# Créer et pousser le tag
+git tag v1.2.3
+git push origin v1.2.3
+```
 
 **Icône de l'application :**
 - L'icône est située dans `assets/icon.ico`
@@ -119,9 +168,18 @@ Le fichier .exe sera disponible dans le dossier `dist/`.
 
 ## 🧩 Conventions de développement
 
+### Migrations de base de données
+
 - Toute évolution du schéma SQLite (ajout/modification de colonnes, nouvelles tables, index, triggers, etc.) doit obligatoirement passer par une **migration versionnée** dans `electron/services/database/migrations/`.
 - Les migrations suivent le format horodaté (ex. `20250108_add_new_column.js`) et doivent être référencées par le gestionnaire de migrations côté Electron afin d'être exécutées au démarrage.
 - Lors d'une Pull Request ou d'une revue de code, vérifiez systématiquement que la migration correspondante est présente dès qu'un changement de schéma est introduit et qu'elle couvre aussi les données existantes (valeurs par défaut, backfill, nettoyage…).
+
+### Versioning
+
+- Le versioning suit le [Semantic Versioning](https://semver.org/lang/fr/)
+- La version est définie dans `package.json` et synchronisée avec les tags Git
+- Utilisez `npm run version:update <version>` pour mettre à jour la version manuellement
+- Le CHANGELOG.md suit le format [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 
 ## ⚙️ Configuration
 
@@ -339,7 +397,7 @@ Dans Paramètres → Zone dangereuse → **TOUT supprimer**
 - Titre, statut, type de volume, description
 - Genres, démographie, langue originale
 - Année de publication, nombre de chapitres
-- Couverture (automatique depuis MangaDex ou personnalisée)
+- Couverture (automatique depuis MyAnimeList/AniList ou personnalisée)
 
 ### Tome
 - Numéro, prix, **multi-propriétaires** (partage possible), date d'achat
@@ -360,13 +418,17 @@ Dans Paramètres → Zone dangereuse → **TOUT supprimer**
 
 - **Frontend** : React, TypeScript, Vite
 - **Backend** : Electron
-- **Base de données** : SQLite (better-sqlite3)
+- **Base de données** : SQLite (better-sqlite3) avec migrations automatiques
 - **API externes** : 
-  - MangaDex (couvertures mangas)
-  - Jikan (MyAnimeList pour animes)
-  - Nautiljon (import mangas via Tampermonkey)
+  - **MyAnimeList** (via Jikan API) - recherche, métadonnées et enrichissement animes/mangas
+  - **AniList** - couvertures HD et liens de streaming
+  - **TMDb** - import et métadonnées films/séries TV
+  - **Groq AI** - traduction automatique des synopsis
+  - **Nautiljon** (import mangas via Tampermonkey)
+  - **F95Zone & LewdCorner** - scraping et vérification mises à jour jeux adultes
 - **Icônes** : Lucide React
 - **Build** : Electron Builder
+- **CI/CD** : GitHub Actions (build automatique et notifications Discord)
 
 ## 📝 Licence
 

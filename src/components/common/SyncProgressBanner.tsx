@@ -115,7 +115,7 @@ export default function SyncProgressBanner({
         flexDirection: 'column',
         gap: '12px'
       }}>
-        {/* Progression Mangas */}
+        {/* Progression Lectures */}
         {mangaProgress && (
           <div style={{
             padding: '12px',
@@ -132,7 +132,7 @@ export default function SyncProgressBanner({
               alignItems: 'center',
               gap: '6px'
             }}>
-              📚 Mangas
+              📚 Lectures
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
@@ -270,7 +270,7 @@ export default function SyncProgressBanner({
               alignItems: 'center',
               gap: '6px'
             }}>
-              {animeProgress.type === 'manga' ? '📚' : '🎬'} {animeProgress.type === 'manga' ? 'Mangas' : 'Animes'}
+              {animeProgress.type === 'manga' ? '📚' : '🎬'} {animeProgress.type === 'manga' ? 'Lectures' : 'Animes'}
               {animeProgress.currentBatch && animeProgress.totalBatches && (
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
                   📦 Lot {animeProgress.currentBatch}/{animeProgress.totalBatches}

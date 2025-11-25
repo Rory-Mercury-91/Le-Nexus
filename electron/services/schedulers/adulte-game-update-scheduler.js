@@ -31,7 +31,8 @@ function startScheduler(checkAdulteGameUpdatesHandler) {
           console.log(`✅ ${result.updated} mise(s) à jour jeux adultes détectée(s)`);
           
           // Notification desktop (optionnel)
-          // TODO: Implémenter notifications desktop si souhaité
+          // Note: Les notifications desktop peuvent être implémentées via electron-notifications
+          // ou en utilisant le système de notifications natif de l'OS si nécessaire
         } else {
           console.log('✅ Aucune mise à jour jeux adultes détectée');
         }

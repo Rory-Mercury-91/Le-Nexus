@@ -1,3 +1,6 @@
+const { ensureMangaUserDataRow } = require('./manga-helpers');
+const { safeJsonParse } = require('../common-helpers');
+
 /**
  * Enregistre les handlers IPC pour la gestion de la visibilité des séries (masquer/démasquer)
  */
@@ -21,17 +24,21 @@ function registerMangaSeriesVisibilityHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
-      // 1. Supprimer les données de lecture de l'utilisateur
-      db.prepare(`
-        DELETE FROM lecture_tomes 
-        WHERE tome_id IN (SELECT id FROM tomes WHERE serie_id = ?) 
-        AND user_id = ?
-      `).run(serieId, userId);
+      // S'assurer qu'une entrée manga_user_data existe
+      ensureMangaUserDataRow(db, serieId, userId);
 
-      // 2. Ajouter dans la table series_masquees
+      // 1. Supprimer les données de progression (tome_progress, volumes_lus, chapitres_lus, statut_lecture)
+      // 2. Marquer comme masquée (is_hidden = 1)
       db.prepare(`
-        INSERT OR IGNORE INTO series_masquees (serie_id, user_id) 
-        VALUES (?, ?)
+        UPDATE manga_user_data SET
+          is_hidden = 1,
+          tome_progress = NULL,
+          volumes_lus = 0,
+          chapitres_lus = 0,
+          statut_lecture = 'À lire',
+          tag = NULL,
+          updated_at = datetime('now')
+        WHERE serie_id = ? AND user_id = ?
       `).run(serieId, userId);
 
       return { success: true };
@@ -60,9 +67,14 @@ function registerMangaSeriesVisibilityHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
-      // Retirer de la table series_masquees
+      // S'assurer qu'une entrée manga_user_data existe
+      ensureMangaUserDataRow(db, serieId, userId);
+
+      // Retirer le masquage (is_hidden = 0)
       db.prepare(`
-        DELETE FROM series_masquees 
+        UPDATE manga_user_data SET
+          is_hidden = 0,
+          updated_at = datetime('now')
         WHERE serie_id = ? AND user_id = ?
       `).run(serieId, userId);
 
@@ -93,12 +105,12 @@ function registerMangaSeriesVisibilityHandlers(ipcMain, getDb, store) {
       }
 
       const result = db.prepare(`
-        SELECT COUNT(*) as count 
-        FROM series_masquees 
+        SELECT is_hidden 
+        FROM manga_user_data 
         WHERE serie_id = ? AND user_id = ?
       `).get(serieId, userId);
 
-      return result && result.count > 0;
+      return result && result.is_hidden === 1;
     } catch (error) {
       console.error('❌ Erreur is-serie-masquee:', error);
       return false;

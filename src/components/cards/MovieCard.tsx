@@ -1,8 +1,8 @@
-import { Calendar, Clock, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { useState } from 'react';
 import { MovieListItem } from '../../types';
-import { formatAirDate, formatRuntime, formatVoteAverage, getTmdbImageUrl } from '../../utils/tmdb';
-import { CardActionsMenu, CardCover, FavoriteBadge, ImageOnlyCard, StatusBadge, COMMON_STATUSES } from './common';
+import { getTmdbImageUrl } from '../../utils/tmdb';
+import { CardActionsMenu, CardCover, CardTitle, FavoriteBadge, ImageOnlyCard, StatusBadge, COMMON_STATUSES } from './common';
 
 interface MovieCardProps {
   movie: MovieListItem;
@@ -25,9 +25,6 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const posterUrl = getTmdbImageUrl(movie.poster_path, 'w342');
-  const releaseDate = formatAirDate(movie.date_sortie);
-  const runtime = formatRuntime(movie.duree);
-  const score = formatVoteAverage(movie.note_moyenne);
   const currentStatus = movie.statut_visionnage || 'À regarder';
 
   if (imageOnly) {
@@ -102,95 +99,12 @@ export default function MovieCard({
         />
       </div>
 
-      <div style={{
-        padding: '14px 16px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
+      {/* Contenu : Titre */}
+      <div style={{ 
+        padding: '10px 12px 6px 12px', 
         borderTop: '1px solid var(--border)'
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)', flex: 1 }}>
-              {movie.titre}
-            </h3>
-            {score && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: '#fde68a',
-                background: 'rgba(234, 179, 8, 0.15)',
-                padding: '4px 8px',
-                borderRadius: '999px'
-              }}>
-                <Star size={12} />
-                {score}
-              </span>
-            )}
-          </div>
-          {movie.titre_original && movie.titre_original !== movie.titre && (
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {movie.titre_original}
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {releaseDate && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={14} />
-              {releaseDate}
-            </span>
-          )}
-          {runtime && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={14} />
-              {runtime}
-            </span>
-          )}
-        </div>
-
-        {movie.genres && movie.genres.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {movie.genres.slice(0, 3).map((genre) => (
-              <span
-                key={genre.id}
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--text-secondary)',
-                  background: 'rgba(var(--primary-rgb), 0.12)',
-                  borderRadius: '999px',
-                  padding: '4px 10px'
-                }}
-              >
-                {genre.name}
-              </span>
-            ))}
-            {movie.genres.length > 3 && (
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.8 }}>
-                +{movie.genres.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-
-        {movie.synopsis && movie.synopsis.trim().length > 0 && (
-          <p style={{
-            fontSize: '12px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-            margin: 0,
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
-          }}>
-            {movie.synopsis}
-          </p>
-        )}
+        <CardTitle title={movie.titre}>{movie.titre}</CardTitle>
       </div>
     </div>
   );

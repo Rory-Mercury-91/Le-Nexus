@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 
 interface NotificationSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
+  onHeaderActionsChange?: (node: ReactNode | null) => void;
+  globalSyncInterval: 1 | 3 | 6 | 12 | 24;
 }
 
 type NotificationFrequency = '6h' | '12h' | 'daily' | 'manual';
@@ -88,7 +90,7 @@ const TOOLTIP_TEXTS: Record<string, string> = {
   enrichment: 'Détails complétés : Alerte quand les informations secondaires (Jikan/AniList) ont fini d’enrichir les données MAL.',
 };
 
-export default function NotificationSettings({ showToast }: NotificationSettingsProps) {
+export default function NotificationSettings({ showToast, onHeaderActionsChange, globalSyncInterval }: NotificationSettingsProps) {
   const [config, setConfig] = useState<NotificationConfig>(DEFAULT_CONFIG);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
@@ -270,6 +272,29 @@ export default function NotificationSettings({ showToast }: NotificationSettings
 
   const webhookConfigured = Boolean(traductionConfig.discordWebhookUrl && traductionConfig.discordWebhookUrl.trim().length > 0);
 
+  useEffect(() => {
+    if (!onHeaderActionsChange) {
+      return;
+    }
+
+    onHeaderActionsChange?.(
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+      >
+        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          Activer les notifications
+          <TooltipIcon id="general" icon="💡" ariaLabel={TOOLTIP_TEXTS.general} />
+        </span>
+        <Toggle
+          checked={config.enabled}
+          onChange={(checked) => updateConfig('enabled', checked)}
+        />
+      </div>
+    );
+  }, [config.enabled, onHeaderActionsChange]);
+
   const handleToggleAdulteGameNotification = (type: 'game' | 'translation', value: boolean) => {
     setAdulteGameNotifications((prev) => {
       const updatedState = { ...prev, [type]: value };
@@ -342,27 +367,25 @@ export default function NotificationSettings({ showToast }: NotificationSettings
     },
   ];
 
+  const intervalLabel = globalSyncInterval === 24 ? '24h (quotidien)' : `${globalSyncInterval}h`;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
-          Activer les notifications
-          <TooltipIcon id="general" icon="💡" ariaLabel={TOOLTIP_TEXTS.general} />
+      {config.enabled && (
+        <div
+          style={{
+            padding: '14px 18px',
+            borderRadius: '10px',
+            border: '1px solid rgba(99, 102, 241, 0.4)',
+            background: 'rgba(99, 102, 241, 0.12)',
+            color: 'var(--text)',
+            fontSize: '13px',
+            lineHeight: 1.5
+          }}
+        >
+          🔄 Les vérifications suivent la fréquence de synchronisation globale&nbsp;: toutes les {intervalLabel}.
         </div>
-        <Toggle checked={config.enabled} onChange={(checked) => updateConfig('enabled', checked)} />
-      </div>
+      )}
 
       {config.enabled ? (
         <>

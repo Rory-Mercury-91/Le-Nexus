@@ -6,7 +6,7 @@ const traductionSync = require('../../services/adulte-game/traduction-sync');
  * @param {Function} getDb - Fonction pour récupérer l'instance de la base de données
  * @param {Store} store - Instance d'electron-store
  */
-function registerTraductionHandlers(ipcMain, getDb, store) {
+function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
   
   // Récupérer la configuration des traducteurs
   ipcMain.handle('get-traduction-config', () => {
@@ -66,7 +66,7 @@ function registerTraductionHandlers(ipcMain, getDb, store) {
       
       const db = getDb();
       if (db && sanitizedConfig.enabled) {
-        traductionSync.initScheduler(sanitizedConfig, getDb, store);
+        traductionSync.initScheduler(sanitizedConfig, getDb, store, getPathManager);
       } else if (!sanitizedConfig.enabled) {
         traductionSync.stopScheduler();
       }
@@ -113,7 +113,8 @@ function registerTraductionHandlers(ipcMain, getDb, store) {
           discordWebhookUrl: (config.discordWebhookUrl || '').trim(),
           discordMentions: config.discordMentions || {},
           notifyGameUpdates: config.discordNotifyGameUpdates !== false,
-          notifyTranslationUpdates: config.discordNotifyTranslationUpdates !== false
+          notifyTranslationUpdates: config.discordNotifyTranslationUpdates !== false,
+          getPathManager
         }
       );
       

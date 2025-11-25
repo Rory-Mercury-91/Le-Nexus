@@ -6,6 +6,7 @@ export { default as CardFooter } from './CardFooter';
 export { default as CardTitle } from './CardTitle';
 export { default as FavoriteBadge } from './FavoriteBadge';
 export { default as ImageOnlyCard } from './ImageOnlyCard';
+export { default as MihonBadge } from './MihonBadge';
 export { default as ProgressBar } from './ProgressBar';
 export { default as StatusBadge } from './StatusBadge';
 export { COMMON_STATUSES } from './statuses';

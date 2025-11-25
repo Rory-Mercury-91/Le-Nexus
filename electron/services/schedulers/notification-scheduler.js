@@ -27,7 +27,6 @@ class NotificationScheduler {
   init(config, db, store, context = {}) {
     this.config = {
       ...config,
-      frequency: config.frequency || '12h',
     };
     this.db = db;
     this.store = store;
@@ -41,17 +40,27 @@ class NotificationScheduler {
       this.task.stop();
     }
 
-    if (this.config.enabled && this.config.frequency !== 'manual') {
-      const cronExpression = this.getCronExpression(this.config.frequency);
+    const intervalHours = this.resolveGlobalIntervalHours();
+    const derivedFrequency = this.mapIntervalToFrequency(intervalHours);
+    this.config.frequency = derivedFrequency;
+    this.config.intervalHours = intervalHours;
+
+    if (this.task) {
+      this.task.stop();
+      this.task = null;
+    }
+
+    if (this.config.enabled) {
+      const cronExpression = this.getCronExpressionFromHours(intervalHours);
 
       this.task = cron.schedule(cronExpression, async () => {
         console.log('🔔 Vérification notifications programmée...');
         await this.checkForUpdates();
       });
 
-      console.log(`✅ Notification scheduler initialisé (fréquence: ${this.config.frequency})`);
+      console.log(`✅ Notification scheduler initialisé (fréquence globale: toutes les ${intervalHours}h)`);
     } else {
-      console.log('⏸️  Notification scheduler désactivé (mode manuel ou service inactif)');
+      console.log('⏸️  Notification scheduler désactivé (service inactif)');
     }
 
     if (this.config.enabled && this.config.checkOnStartup) {
@@ -62,21 +71,56 @@ class NotificationScheduler {
     }
   }
 
-  getCronExpression(frequency) {
-    switch (frequency) {
-      case '6h':
-        return '0 */6 * * *';
-      case '12h':
-        return '0 */12 * * *';
-      case 'daily':
-        return '0 9 * * *';
-      default:
-        return '0 9 * * *';
+  resolveGlobalIntervalHours() {
+    if (!this.store) {
+      return 6;
     }
+    const allowed = [1, 3, 6, 12, 24];
+    const malInterval = this.store.get('mal_auto_sync_interval');
+    if (typeof malInterval === 'number' && allowed.includes(malInterval)) {
+      return malInterval;
+    }
+    const nautiljonInterval = this.store.get('nautiljon_auto_sync_interval');
+    if (typeof nautiljonInterval === 'number' && allowed.includes(nautiljonInterval)) {
+      return nautiljonInterval;
+    }
+    return 6;
+  }
+
+  mapIntervalToFrequency(intervalHours) {
+    switch (intervalHours) {
+      case 1:
+        return '1h';
+      case 3:
+        return '3h';
+      case 6:
+        return '6h';
+      case 12:
+        return '12h';
+      case 24:
+        return '24h';
+      default:
+        return '6h';
+    }
+  }
+
+  getCronExpressionFromHours(intervalHours) {
+    if (intervalHours >= 24) {
+      return '0 */24 * * *';
+    }
+    const safeInterval = Math.max(1, Math.min(24, intervalHours));
+    return `0 */${safeInterval} * * *`;
   }
 
   async performStartupChecks() {
     try {
+      // Obtenir une référence fraîche à la base de données
+      const db = this.context.getDb ? this.context.getDb() : this.db;
+      if (!db) {
+        console.warn('⚠️ Base de données non disponible pour performStartupChecks');
+        return;
+      }
+
       const tasks = [];
 
       // Synchronisation MAL si nécessaire
@@ -85,7 +129,7 @@ class NotificationScheduler {
         tasks.push(
           malScheduler
             .syncOnStartup(
-              this.db,
+              db,
               this.store,
               this.context.getDb || null,
               this.context.getPathManager || null,
@@ -101,7 +145,7 @@ class NotificationScheduler {
         const { performAdulteGameUpdatesCheck } = require('../../handlers/adulte-game/adulte-game-updates-check-handlers');
         tasks.push(
           adulteGameScheduler
-            .checkOnStartup(() => performAdulteGameUpdatesCheck(this.db, this.store, null))
+            .checkOnStartup(() => performAdulteGameUpdatesCheck(db, this.store, null, null, this.context.getPathManager))
             .catch((err) => console.warn('⚠️ Vérification jeux adultes au démarrage ignorée:', err.message))
         );
       }
@@ -113,7 +157,7 @@ class NotificationScheduler {
         const pathManager = this.context.getPathManager ? this.context.getPathManager() : null;
         tasks.push(
           nautiljonScheduler
-            .syncOnStartup(this.db, this.store, mainWindow, pathManager)
+            .syncOnStartup(db, this.store, mainWindow, pathManager)
             .catch((err) => console.warn('⚠️ Sync Nautiljon au démarrage ignorée:', err.message))
         );
       }
@@ -204,10 +248,17 @@ class NotificationScheduler {
 
       if (!currentUser) return notifications;
 
-      const userId = getUserIdByName(this.db, currentUser);
+      // Obtenir une référence fraîche à la base de données
+      const db = this.context.getDb ? this.context.getDb() : this.db;
+      if (!db) {
+        console.warn('⚠️ Base de données non disponible pour checkAnimeUpdates');
+        return notifications;
+      }
+
+      const userId = getUserIdByName(db, currentUser);
       if (!userId) return notifications;
 
-      const animes = this.db
+      const animes = db
         .prepare(
           `
         SELECT 
@@ -303,16 +354,27 @@ class NotificationScheduler {
 
       if (!currentUser) return notifications;
 
-      const userId = getUserIdByName(this.db, currentUser);
+      // Obtenir une référence fraîche à la base de données
+      const db = this.context.getDb ? this.context.getDb() : this.db;
+      if (!db) {
+        console.warn('⚠️ Base de données non disponible pour checkAdulteGameUpdates');
+        return notifications;
+      }
+
+      const userId = getUserIdByName(db, currentUser);
       if (!userId) return notifications;
 
-      const games = this.db
+      // Récupérer l'état des notifications déjà envoyées
+      const rawState = this.store.get('notificationState', {});
+      const notifiedGameIds = new Set(rawState.notifiedAdulteGameIds || []);
+
+      const games = db
         .prepare(
           `
-        SELECT DISTINCT g.id, g.titre, g.version, g.version_disponible
+        SELECT DISTINCT g.id, g.titre, g.game_version as version, g.maj_disponible as version_disponible
         FROM adulte_game_games g
-        INNER JOIN adulte_game_proprietaires p ON g.id = p.game_id
-        WHERE p.user_id = ?
+        INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id
+        WHERE ud.user_id = ?
         AND g.maj_disponible = 1
       `
         )
@@ -320,7 +382,18 @@ class NotificationScheduler {
 
       console.log(`🔍 ${games.length} jeux adultes avec MAJ disponible`);
 
+      const newlyNotifiedIds = [];
+      let hasRemovedIds = false;
+
       games.forEach((game) => {
+        // Si l'ID est dans la liste mais que maj_disponible = 1, c'est une nouvelle mise à jour
+        // On retire l'ID de la liste pour permettre la notification
+        if (notifiedGameIds.has(game.id)) {
+          console.log(`  ℹ️ Nouvelle mise à jour détectée pour "${game.titre}" (ID: ${game.id}), notification renouvelée`);
+          notifiedGameIds.delete(game.id);
+          hasRemovedIds = true;
+        }
+
         // Utiliser version_disponible si disponible, sinon version (qui a été mise à jour)
         const currentVersion = game.version || '—';
         const newVersion = game.version_disponible || game.version || '—';
@@ -336,7 +409,21 @@ class NotificationScheduler {
           body: `${game.titre}\n${versionText}`,
           adulteGameId: game.id,
         });
+
+        newlyNotifiedIds.push(game.id);
       });
+
+      // Mettre à jour l'état avec les nouveaux IDs notifiés (et les IDs retirés si nouvelle mise à jour)
+      if (newlyNotifiedIds.length > 0 || hasRemovedIds) {
+        const updatedState = {
+          ...rawState,
+          notifiedAdulteGameIds: [...Array.from(notifiedGameIds), ...newlyNotifiedIds]
+        };
+        this.store.set('notificationState', updatedState);
+        if (newlyNotifiedIds.length > 0) {
+          console.log(`  ✅ ${newlyNotifiedIds.length} nouvelle(s) notification(s) enregistrée(s)`);
+        }
+      }
 
       return notifications;
     } catch (error) {

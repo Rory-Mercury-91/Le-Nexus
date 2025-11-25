@@ -19,13 +19,10 @@ function normalizeTitle(title) {
 function extractAlternativeTitles(rawValue) {
   if (!rawValue) return [];
 
-  try {
-    const parsed = JSON.parse(rawValue);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch {
-    // ignore, fallback to string split
+  const { safeJsonParse } = require('../common-helpers');
+  const parsed = safeJsonParse(rawValue, null);
+  if (parsed && Array.isArray(parsed)) {
+    return parsed;
   }
 
   return String(rawValue)
@@ -459,10 +456,14 @@ function handleCreateAnime(db, store, animeData) {
     const episodesVus = animeData.episodes_vus || 0;
     let statutFr = statutMap[animeData.statut] || (episodesVus === 0 ? 'À regarder' : 'En cours');
 
+    const { ensureAnimeUserDataRow } = require('./anime-helpers');
+    ensureAnimeUserDataRow(db, animeId, userId);
+    
     db.prepare(`
-      INSERT INTO anime_statut_utilisateur (anime_id, user_id, statut_visionnage, date_modification)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-    `).run(animeId, userId, statutFr);
+      UPDATE anime_user_data 
+      SET statut_visionnage = ?, updated_at = datetime('now')
+      WHERE anime_id = ? AND user_id = ?
+    `).run(statutFr, animeId, userId);
 
     console.log(`📊 Statut défini: ${statutFr}`);
   }
@@ -621,34 +622,45 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
           // Insérer dans la base de données avec la fonction partagée
           const animeId = insertAnimeIntoDatabase(db, animeData);
 
+          // S'assurer que la ligne anime_user_data existe
+          const { ensureAnimeUserDataRow } = require('./anime-helpers');
+          ensureAnimeUserDataRow(db, animeId, userId);
+
+          // Créer episode_progress si des épisodes ont été vus
+          let episodeProgress = {};
           if (watchedEpisodes > 0) {
-            const insertEpisodeVu = db.prepare(`
-              INSERT INTO anime_episodes_vus (anime_id, user_id, episode_numero, vu, date_visionnage)
-              VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
-            `);
-            
+            const now = new Date().toISOString();
             for (let ep = 1; ep <= watchedEpisodes; ep++) {
-              insertEpisodeVu.run(animeId, userId, ep);
+              episodeProgress[String(ep)] = {
+                vu: true,
+                date_visionnage: now
+              };
             }
           }
 
-          if (myStatus) {
-            const statutMap = {
-              'Watching': 'En cours',
-              'Completed': 'Terminé',
-              'On-Hold': 'En attente',
-              'Dropped': 'Abandonné',
-              'Plan to Watch': 'À regarder'
-            };
-            
-            // Si episodes_vus est à 0, utiliser "À regarder" par défaut au lieu de "En cours"
-            const episodesVus = animeData.episodes_vus || 0;
-            const statut = statutMap[myStatus] || (episodesVus === 0 ? 'À regarder' : 'En cours');
-            db.prepare(`
-              INSERT INTO anime_statut_utilisateur (anime_id, user_id, statut_visionnage)
-              VALUES (?, ?, ?)
-            `).run(animeId, userId, statut);
-          }
+          // Déterminer le statut
+          const statutMap = {
+            'Watching': 'En cours',
+            'Completed': 'Terminé',
+            'On-Hold': 'En pause',
+            'Dropped': 'Abandonné',
+            'Plan to Watch': 'À regarder'
+          };
+          const episodesVus = watchedEpisodes || 0;
+          const statut = myStatus ? (statutMap[myStatus] || (episodesVus === 0 ? 'À regarder' : 'En cours')) : (episodesVus === 0 ? 'À regarder' : 'En cours');
+
+          // Mettre à jour anime_user_data
+          db.prepare(`
+            UPDATE anime_user_data 
+            SET episode_progress = ?, episodes_vus = ?, statut_visionnage = ?, updated_at = datetime('now')
+            WHERE anime_id = ? AND user_id = ?
+          `).run(
+            Object.keys(episodeProgress).length > 0 ? JSON.stringify(episodeProgress) : null,
+            episodesVus,
+            statut,
+            animeId,
+            userId
+          );
 
           imported++;
           console.log(`✅ ${titre} importé avec succès`);

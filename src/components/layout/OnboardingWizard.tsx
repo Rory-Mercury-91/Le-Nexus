@@ -1,21 +1,22 @@
+import { useEffect } from 'react';
 import { useOnboarding } from '../../hooks/useOnboarding';
 import FullScreenOverlay from '../common/FullScreenOverlay';
+import UserSelector from '../common/UserSelector';
 import {
-  AdulteGamePasswordStep,
-  ContentPreferencesStep,
+  CreateProfileStep,
   DirectoryStep,
   OnboardingNavigation,
   OnboardingProgress,
-  ProfileStep,
-  SummaryStep,
   WelcomeStep
 } from './onboarding';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
+  initialStep?: number;
+  initialBaseDirectory?: string | null;
 }
 
-export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+export default function OnboardingWizard({ onComplete, initialStep = 1, initialBaseDirectory = null }: OnboardingWizardProps) {
   const {
     step,
     data,
@@ -23,6 +24,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     error,
     showAdulteGamePassword,
     showAdulteGamePasswordConfirm,
+    hasExistingDatabases,
+    existingUsers,
+    autoConnectUser,
     setName,
     setEmoji,
     setColor,
@@ -40,122 +44,131 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     handleChooseDirectory,
     handleAvatarSelect,
     handleRemoveAvatar,
-    handleComplete
-  } = useOnboarding();
+    handleComplete,
+    handleSelectExistingUser,
+    handleCreateNewProfile
+  } = useOnboarding(initialStep, initialBaseDirectory);
+
+  // Connexion automatique si une seule base de données
+  useEffect(() => {
+    if (autoConnectUser && step === 2) {
+      handleSelectExistingUser(autoConnectUser, onComplete);
+    }
+  }, [autoConnectUser, step, handleSelectExistingUser, onComplete]);
+
+  const isWideStep = step === 3; // Étape 3 = page complète avec 2 colonnes
+  const isUserSelectorStep = step === 2 && hasExistingDatabases && existingUsers.length > 1;
 
   return (
     <FullScreenOverlay padding="40px">
-      <OnboardingProgress step={step} totalSteps={6} />
+      <OnboardingProgress step={step} totalSteps={3} />
 
       {/* Contenu */}
-      <div className="card" style={{
-        maxWidth: '600px',
-        width: '100%',
-        padding: '48px',
-        textAlign: 'center',
-        position: 'relative'
-      }}>
+      <div
+        className="card"
+        style={{
+          maxWidth: isWideStep ? '1200px' : isUserSelectorStep ? '900px' : '600px',
+          width: '100%',
+          padding: isWideStep ? '48px 56px' : isUserSelectorStep ? '48px 56px' : '48px',
+          textAlign: 'center',
+          position: 'relative',
+          transition: 'max-width 0.2s ease'
+        }}
+      >
         {/* Étape 1 : Bienvenue */}
         {step === 1 && <WelcomeStep />}
 
-        {/* Étape 2 : Profil */}
+        {/* Étape 2 : Choix de l'emplacement + Sélecteur utilisateur si bases existent */}
         {step === 2 && (
-          <ProfileStep
+          <>
+            {!data.baseDirectory ? (
+              <DirectoryStep
+                baseDirectory={data.baseDirectory}
+                onChooseDirectory={handleChooseDirectory}
+                error={error}
+              />
+            ) : autoConnectUser ? (
+              // Connexion automatique en cours - afficher un indicateur de chargement
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
+                <h2 style={{ marginBottom: '10px', color: 'var(--text-primary)' }}>
+                  Connexion automatique...
+                </h2>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                  Connexion au profil "{autoConnectUser}"
+                </p>
+              </div>
+            ) : hasExistingDatabases && existingUsers.length > 1 ? (
+              <UserSelector
+                onUserSelected={(userName) => handleSelectExistingUser(userName, onComplete)}
+                onCreateNewProfile={handleCreateNewProfile}
+                showCreateButton={true}
+                title="Qui êtes-vous ?"
+                subtitle="Des profils existent déjà dans cet emplacement. Sélectionnez le vôtre ou créez-en un nouveau."
+                isInOnboarding={true}
+              />
+            ) : (
+              <DirectoryStep
+                baseDirectory={data.baseDirectory}
+                onChooseDirectory={handleChooseDirectory}
+                error={error}
+              />
+            )}
+          </>
+        )}
+
+        {/* Étape 3 : Page complète de création de profil */}
+        {step === 3 && (
+          <CreateProfileStep
             name={data.name}
             emoji={data.emoji}
             color={data.color}
             avatarPreview={data.avatarPreview}
+            showMangas={data.showMangas}
+            showAnimes={data.showAnimes}
+            showMovies={data.showMovies}
+            showSeries={data.showSeries}
+            showAdulteGame={data.showAdulteGame}
+            adulteGamePassword={data.adulteGamePassword}
+            adulteGamePasswordConfirm={data.adulteGamePasswordConfirm}
+            showAdulteGamePassword={showAdulteGamePassword}
+            showAdulteGamePasswordConfirm={showAdulteGamePasswordConfirm}
             onNameChange={setName}
             onEmojiChange={setEmoji}
             onColorChange={setColor}
             onAvatarSelect={handleAvatarSelect}
             onRemoveAvatar={handleRemoveAvatar}
-          />
-        )}
-
-        {/* Étape 3 : Emplacement de la base de données */}
-        {step === 3 && (
-          <DirectoryStep
-            baseDirectory={data.baseDirectory}
-            onChooseDirectory={handleChooseDirectory}
-            error={error}
-          />
-        )}
-
-        {/* Étape 4 : Préférences de contenu */}
-        {step === 4 && (
-          <ContentPreferencesStep
-            showMangas={data.showMangas}
-            showAnimes={data.showAnimes}
-            showMovies={data.showMovies}
-            showSeries={data.showSeries}
-            showAdulteGame={data.showAdulteGame}
             onShowMangasChange={setShowMangas}
             onShowAnimesChange={setShowAnimes}
             onShowMoviesChange={setShowMovies}
             onShowSeriesChange={setShowSeries}
             onShowAdulteGameChange={setShowAdulteGame}
-            error={error}
-          />
-        )}
-
-        {/* Étape 5 : Mot de passe contenus adultes (optionnel) */}
-        {step === 5 && (
-          <AdulteGamePasswordStep
-            adulteGamePassword={data.adulteGamePassword}
-            adulteGamePasswordConfirm={data.adulteGamePasswordConfirm}
-            showAdulteGamePassword={showAdulteGamePassword}
-            showAdulteGamePasswordConfirm={showAdulteGamePasswordConfirm}
             onAdulteGamePasswordChange={setAdulteGamePassword}
             onAdulteGamePasswordConfirmChange={setAdulteGamePasswordConfirm}
             onShowAdulteGamePasswordToggle={() => setShowAdulteGamePassword(!showAdulteGamePassword)}
             onShowAdulteGamePasswordConfirmToggle={() => setShowAdulteGamePasswordConfirm(!showAdulteGamePasswordConfirm)}
+            onBack={handleBack}
+            onComplete={() => handleComplete(onComplete)}
+            loading={loading}
+            error={error}
           />
         )}
 
-        {/* Étape 6 : Terminé */}
-        {step === 6 && (
-          <SummaryStep
-            name={data.name}
-            emoji={data.emoji}
-            color={data.color}
-            avatarPreview={data.avatarPreview}
+        {/* Boutons (uniquement pour les étapes 1 et 2) */}
+        {step !== 3 && (
+          <OnboardingNavigation
+            step={step}
             baseDirectory={data.baseDirectory}
-            showMangas={data.showMangas}
-            showAnimes={data.showAnimes}
-            showMovies={data.showMovies}
-            showSeries={data.showSeries}
-            showAdulteGame={data.showAdulteGame}
-            adulteGamePassword={data.adulteGamePassword}
+            loading={loading}
+            onBack={handleBack}
+            onNext={handleNext}
+            onChooseDirectory={handleChooseDirectory}
+            onComplete={() => handleComplete(onComplete)}
+            hasExistingDatabases={hasExistingDatabases}
+            existingUsers={existingUsers}
+            showCreateButton={false}
           />
         )}
-
-        {/* Erreur */}
-        {error && step !== 3 && step !== 4 && (
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '8px',
-            color: '#ef4444',
-            fontSize: '14px',
-            marginTop: '16px'
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Boutons */}
-        <OnboardingNavigation
-          step={step}
-          adulteGamePassword={data.adulteGamePassword}
-          baseDirectory={data.baseDirectory}
-          loading={loading}
-          onBack={handleBack}
-          onNext={handleNext}
-          onChooseDirectory={handleChooseDirectory}
-          onComplete={() => handleComplete(onComplete)}
-        />
       </div>
     </FullScreenOverlay>
   );

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import CoverImage from '../../../components/common/CoverImage';
+import ImageModal from '../../../components/modals/common/ImageModal';
+import { useCoverDragAndDrop } from '../../../hooks/details/useCoverDragAndDrop';
 import { useDevMode } from '../../../hooks/common/useDevMode';
 
 interface AdulteGameBannerProps {
@@ -10,53 +12,36 @@ interface AdulteGameBannerProps {
 }
 
 const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, gameId, onCoverUpdated }) => {
-  const [dragging, setDragging] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const { devMode } = useDevMode();
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-
-    if (imageFile && title) {
-      // Supprimer l'ancienne image locale si elle existe
-      if (coverUrl && coverUrl.startsWith('covers/')) {
-        await window.electronAPI.deleteCoverImage(coverUrl);
+  // Utiliser le hook générique pour le drag & drop
+  const {
+    isDragging,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop
+  } = useCoverDragAndDrop({
+    itemId: gameId,
+    title: title,
+    mediaType: 'adulte-game',
+    currentCoverUrl: coverUrl || null,
+    saveOptions: {},
+    updateCoverApi: async (itemId, newCoverUrl) => {
+      await window.electronAPI.updateAdulteGameGame(Number(itemId), {
+        couverture_url: newCoverUrl
+      });
+    },
+    onCoverUpdated: () => {
+      if (onCoverUpdated) {
+        onCoverUpdated();
       }
-
-      // Sauvegarder la nouvelle image
-      const filePath = (imageFile as any).path;
-      const result = await window.electronAPI.saveCoverFromPath(filePath, title, 'adulte-game');
-      
-      if (result.success && result.localPath) {
-        // Mettre à jour la base de données
-        await window.electronAPI.updateAdulteGameGame(gameId, {
-          couverture_url: result.localPath
-        });
-        
-        // Notifier le parent pour recharger les données
-        if (onCoverUpdated) {
-          onCoverUpdated();
-        }
-      }
+    },
+    onError: (error) => {
+      console.error('Erreur drag & drop couverture:', error);
     }
-  };
+  });
   const handleExport = async () => {
     if (!window.electronAPI?.exportEntityData) {
       window.alert('Export indisponible dans ce contexte.');
@@ -79,7 +64,7 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
   };
 
   return (
-    <div style={{ padding: '0 30px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div>
       <div
         style={{
           width: '100%',
@@ -87,10 +72,10 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
           position: 'relative',
           borderRadius: '12px',
           overflow: 'hidden',
-          border: dragging ? '4px dashed var(--primary)' : 'none',
-          background: dragging ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+          border: isDragging ? '4px dashed var(--primary)' : 'none',
+          background: isDragging ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
           transition: 'all 0.2s',
-          cursor: dragging ? 'copy' : 'default'
+          cursor: isDragging ? 'copy' : 'default'
         }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -136,7 +121,7 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
           </div>
         )}
 
-        {dragging && (
+        {isDragging && (
           <div
             style={{
               position: 'absolute',
@@ -157,23 +142,51 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
             Déposez l'image ici pour la remplacer
           </div>
         )}
-        
-        <CoverImage
-          src={coverUrl || null}
-          alt={title}
+
+        <div
+          onClick={() => coverUrl && setShowImageModal(true)}
+          onMouseEnter={(e) => {
+            if (coverUrl && !isDragging) {
+              e.currentTarget.style.cursor = 'pointer';
+              e.currentTarget.style.transform = 'scale(1.02)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             height: '100%',
             width: '100%',
-            objectFit: 'contain',
-            opacity: dragging ? 0.3 : 1,
-            transition: 'opacity 0.2s',
-            borderRadius: '12px'
+            transition: 'transform 0.2s',
+            borderRadius: '12px',
+            overflow: 'hidden'
           }}
-        />
+        >
+          <CoverImage
+            src={coverUrl || null}
+            alt={title}
+            style={{
+              height: '100%',
+              width: '100%',
+              objectFit: 'contain',
+              opacity: isDragging ? 0.3 : 1,
+              transition: 'opacity 0.2s',
+              borderRadius: '12px'
+            }}
+          />
+        </div>
       </div>
+
+      {showImageModal && coverUrl && (
+        <ImageModal
+          src={coverUrl}
+          alt={title}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
     </div>
   );
 };

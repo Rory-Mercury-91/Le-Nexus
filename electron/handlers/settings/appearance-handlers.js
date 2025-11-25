@@ -48,6 +48,17 @@ function registerAppearanceHandlers(ipcMain, store, app) {
     }
   });
 
+  // Récupérer l'état du téléchargement automatique des couvertures
+  ipcMain.handle('get-auto-download-covers', () => {
+    return store.get('autoDownloadCovers', false);
+  });
+
+  // Définir le téléchargement automatique des couvertures
+  ipcMain.handle('set-auto-download-covers', (event, enabled) => {
+    store.set('autoDownloadCovers', enabled);
+    return { success: true };
+  });
+
   // Mode développeur
   ipcMain.handle('get-dev-mode', () => {
     return store.get('devMode', false);

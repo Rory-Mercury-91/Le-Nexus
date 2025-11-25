@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { AnimeImportProgress } from '../../types';
+import { useCallback, useEffect, useState } from 'react';
+import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
 
@@ -15,141 +15,254 @@ export function useMalSettings() {
   const [malUser, setMalUser] = useState<any>(null);
   const [malLastSync, setMalLastSync] = useState<any>(null);
   const [malLastStatusSync, setMalLastStatusSync] = useState<any>(null);
-  const [malSyncing, setMalSyncing] = useState(false);
   const [malStatusSyncing, setMalStatusSyncing] = useState(false);
   const [malAutoSyncEnabled, setMalAutoSyncEnabled] = useState(false);
   const [malAutoSyncInterval, setMalAutoSyncInterval] = useState(6);
+  const [localImportStartTime, setLocalImportStartTime] = useState(0);
 
-  // Traduction des synopsis
-  const [translating, setTranslating] = useState(false);
-  const [translationProgress, setTranslationProgress] = useState<{
-    current: number;
-    total: number;
-    translated: number;
-    skipped: number;
-    currentAnime: string;
-  } | null>(null);
-
-  const [animeImportProgress, setAnimeImportProgress] = useState<AnimeImportProgress | null>(null);
-  const [mangaImportProgress, setMangaImportProgress] = useState<AnimeImportProgress | null>(null);
-  const [importStartTime, setImportStartTime] = useState<number>(0);
-  const [stoppingAnimeEnrichment, setStoppingAnimeEnrichment] = useState(false);
-  const [stoppingMangaEnrichment, setStoppingMangaEnrichment] = useState(false);
+  // Utiliser le contexte global pour les progressions
+  const {
+    malSyncing,
+    setMalSyncing,
+    animeProgress,
+    setAnimeProgress,
+    mangaProgress,
+    setMangaProgress,
+    translating,
+    setTranslating,
+    translationProgress,
+    setTranslationProgress,
+    stoppingAnimeEnrichment,
+    stoppingMangaEnrichment,
+    setStopCallbacks,
+    setImportStartTime: setGlobalImportStartTime
+  } = useGlobalProgress();
 
   // Paramètres d'enrichissement
   const [autoTranslate, setAutoTranslate] = useState(false);
   const [imageSource, setImageSource] = useState<'mal' | 'anilist' | 'tmdb'>('anilist');
+  const [pausedAnimeEnrichment, setPausedAnimeEnrichment] = useState(false);
+  const [pausedMangaEnrichment, setPausedMangaEnrichment] = useState(false);
 
   const { confirm, ConfirmDialog } = useConfirm();
   const { showToast, ToastContainer } = useToast();
+
+  const loadMalStatus = useCallback(async () => {
+    try {
+      const status = await window.electronAPI.malGetStatus();
+      setMalConnected(status.connected);
+      setMalUser(status.user);
+      setMalLastSync(status.lastSync);
+      setMalLastStatusSync(status.lastStatusSync || null);
+    } catch (error) {
+      console.error('Erreur chargement statut MAL:', error);
+    }
+  }, []);
+
+  const loadMalAutoSyncSettings = useCallback(async () => {
+    try {
+      const settings = await window.electronAPI.malGetAutoSyncSettings();
+      setMalAutoSyncEnabled(settings.enabled);
+      setMalAutoSyncInterval(settings.intervalHours);
+    } catch (error) {
+      console.error('Erreur chargement paramètres sync auto MAL:', error);
+    }
+  }, []);
+
+  const loadEnrichmentSettings = useCallback(async () => {
+    try {
+      // Charger depuis la config anime (qui contient aussi imageSource)
+      const animeConfig = (await window.electronAPI.getAnimeEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
+      if (animeConfig) {
+        setAutoTranslate(Boolean(animeConfig.autoTranslate));
+        const source = animeConfig.imageSource;
+        if (source === 'mal' || source === 'anilist' || source === 'tmdb') {
+          setImageSource(source);
+        } else {
+          setImageSource('anilist');
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement paramètres enrichissement:', error);
+    }
+  }, []);
+
+  const handleStopAnimeEnrichment = useCallback(async () => {
+    if (stoppingAnimeEnrichment) return;
+    setStopCallbacks({ stoppingAnimeEnrichment: true });
+    try {
+      const result = await window.electronAPI.stopAnimeEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible d'arrêter",
+          message: result?.error || 'Aucun enrichissement anime en cours',
+          type: 'warning',
+          duration: 4000
+        });
+      } else {
+        showToast({
+          title: '⏹️ Arrêt enrichissement anime',
+          message: "La file en cours va s'interrompre sous peu.",
+          type: 'info',
+          duration: 3500
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur arrêt enrichissement anime:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible d'arrêter l'enrichissement anime",
+        type: 'error'
+      });
+    } finally {
+      setStopCallbacks({ stoppingAnimeEnrichment: false });
+    }
+  }, [stoppingAnimeEnrichment, setStopCallbacks, showToast]);
+
+  const handleStopMangaEnrichment = useCallback(async () => {
+    if (stoppingMangaEnrichment) return;
+    setStopCallbacks({ stoppingMangaEnrichment: true });
+    try {
+      const result = await window.electronAPI.stopMangaEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible d'arrêter",
+          message: result?.error || 'Aucun enrichissement manga en cours',
+          type: 'warning',
+          duration: 4000
+        });
+      } else {
+        showToast({
+          title: '⏹️ Arrêt enrichissement manga',
+          message: "La file en cours va s'interrompre sous peu.",
+          type: 'info',
+          duration: 3500
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur arrêt enrichissement manga:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible d'arrêter l'enrichissement manga",
+        type: 'error'
+      });
+    } finally {
+      setStopCallbacks({ stoppingMangaEnrichment: false });
+    }
+  }, [stoppingMangaEnrichment, setStopCallbacks, showToast]);
+
+  const handlePauseAnimeEnrichment = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.pauseAnimeEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible de mettre en pause",
+          message: result?.error || 'Aucun enrichissement anime en cours',
+          type: 'warning',
+          duration: 3000
+        });
+      } else {
+        setPausedAnimeEnrichment(true);
+      }
+    } catch (error: any) {
+      console.error('Erreur pause enrichissement anime:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible de mettre en pause l'enrichissement anime",
+        type: 'error'
+      });
+    }
+  }, [showToast]);
+
+  const handleResumeAnimeEnrichment = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.resumeAnimeEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible de reprendre",
+          message: result?.error || 'Aucun enrichissement anime en pause',
+          type: 'warning',
+          duration: 3000
+        });
+      } else {
+        setPausedAnimeEnrichment(false);
+      }
+    } catch (error: any) {
+      console.error('Erreur reprise enrichissement anime:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible de reprendre l'enrichissement anime",
+        type: 'error'
+      });
+    }
+  }, [showToast]);
+
+  const handlePauseMangaEnrichment = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.pauseMangaEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible de mettre en pause",
+          message: result?.error || 'Aucun enrichissement manga en cours',
+          type: 'warning',
+          duration: 3000
+        });
+      } else {
+        setPausedMangaEnrichment(true);
+      }
+    } catch (error: any) {
+      console.error('Erreur pause enrichissement manga:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible de mettre en pause l'enrichissement manga",
+        type: 'error'
+      });
+    }
+  }, [showToast]);
+
+  const handleResumeMangaEnrichment = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.resumeMangaEnrichment?.();
+      if (!result?.success) {
+        showToast({
+          title: "Impossible de reprendre",
+          message: result?.error || 'Aucun enrichissement manga en pause',
+          type: 'warning',
+          duration: 3000
+        });
+      } else {
+        setPausedMangaEnrichment(false);
+      }
+    } catch (error: any) {
+      console.error('Erreur reprise enrichissement manga:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || "Impossible de reprendre l'enrichissement manga",
+        type: 'error'
+      });
+    }
+  }, [showToast]);
 
   useEffect(() => {
     loadMalStatus();
     loadMalAutoSyncSettings();
     loadEnrichmentSettings();
 
-    // Écouter les mises à jour de progression MAL sync
-    const unsubscribeMal = window.electronAPI.onMalSyncProgress?.((_event: any, progress: {
-      type: 'anime' | 'manga';
-      total: number;
-      current: number;
-      imported?: number;
-      updated?: number;
-      item: string;
-      elapsedMs?: number;
-      etaMs?: number;
-      speed?: number;
-    }) => {
-      const progressData: AnimeImportProgress = {
-        phase: 'anime',
-        type: progress.type,
-        total: progress.total,
-        currentIndex: progress.current,
-        imported: progress.imported || 0,
-        updated: progress.updated || 0,
-        skipped: 0,
-        errors: 0,
-        currentAnime: progress.item,
-        elapsedMs: progress.elapsedMs || (importStartTime > 0 && importStartTime < Date.now() ? Date.now() - importStartTime : undefined),
-        etaMs: progress.etaMs || undefined,
-        speed: progress.speed || undefined
-      };
-
-      if (progress.type === 'manga') {
-        setMangaImportProgress(progressData);
-      } else {
-        setAnimeImportProgress(progressData);
-      }
-    });
-
-    const unsubscribeMalCompleted = window.electronAPI.onMalSyncCompleted?.((_event: any, result: {
+    // Écouter les événements de completion pour mettre à jour le statut MAL
+    const unsubscribeMalCompleted = window.electronAPI.onMalSyncCompleted?.((_event: any, _result: {
       mangas?: { created?: number; updated?: number };
       animes?: { created?: number; updated?: number };
     }) => {
-      // Mettre à jour les progressions finales
-      if (result.mangas) {
-        const mangasData = result.mangas;
-        setMangaImportProgress((prev) => prev ? {
-          ...prev,
-          imported: mangasData.created || 0,
-          updated: mangasData.updated || 0,
-          phase: 'complete'
-        } : null);
-      }
-      if (result.animes) {
-        const animesData = result.animes;
-        setAnimeImportProgress((prev) => prev ? {
-          ...prev,
-          imported: animesData.created || 0,
-          updated: animesData.updated || 0,
-          phase: 'complete'
-        } : null);
-      }
-
-      // Fermer la bannière rapidement après la synchronisation
-      // L'enrichissement se fera en arrière-plan avec des notifications
-      setTimeout(() => {
-        setMalSyncing(false);
-        setAnimeImportProgress(null);
-        setMangaImportProgress(null);
-      }, 500); // 0.5 secondes pour voir les résultats finaux
+      // Mettre à jour le statut MAL après la synchronisation
+      loadMalStatus();
     });
 
-    // Écouter les événements d'enrichissement pour afficher la progression
-    const unsubscribeAnimeEnrichment = window.electronAPI.onAnimeEnrichmentProgress?.((_event: any, progress: {
-      current: number;
-      total: number;
-      item: string;
-      elapsedMs?: number;
-      etaMs?: number;
-      speed?: number;
-      processed?: number;
-      enriched?: number;
-      errors?: number;
-    }) => {
-      // Mettre à jour la progression d'enrichissement des animes
-      const progressData: AnimeImportProgress = {
-        phase: 'anime',
-        type: 'anime-enrichment', // Type distinct pour l'enrichissement
-        total: progress.total,
-        currentIndex: progress.current,
-        imported: progress.enriched || 0,
-        updated: progress.processed || 0,
-        skipped: 0,
-        errors: progress.errors || 0,
-        currentAnime: progress.item,
-        elapsedMs: progress.elapsedMs,
-        etaMs: progress.etaMs,
-        speed: progress.speed
-      };
-      setAnimeImportProgress(progressData);
-    });
-
+    // Écouter les événements d'enrichissement pour afficher les toasts
     const unsubscribeAnimeEnrichmentComplete = window.electronAPI.onAnimeEnrichmentComplete?.((_event: any, stats: EnrichmentStats) => {
-      setAnimeImportProgress(null);
       if (stats?.alreadyRunning) {
         return;
       }
+      setPausedAnimeEnrichment(false); // Réinitialiser l'état de pause quand terminé
       if (stats?.cancelled) {
         showToast({
           title: '⏹️ Enrichissement anime interrompu',
@@ -169,40 +282,11 @@ export function useMalSettings() {
       }
     });
 
-    const unsubscribeMangaEnrichment = window.electronAPI.onMangaEnrichmentProgress?.((_event: any, progress: {
-      current: number;
-      total: number;
-      item: string;
-      elapsedMs?: number;
-      etaMs?: number;
-      speed?: number;
-      processed?: number;
-      enriched?: number;
-      errors?: number;
-    }) => {
-      // Mettre à jour la progression d'enrichissement des mangas
-      const progressData: AnimeImportProgress = {
-        phase: 'manga',
-        type: 'manga-enrichment', // Type distinct pour l'enrichissement
-        total: progress.total,
-        currentIndex: progress.current,
-        imported: progress.enriched || 0,
-        updated: progress.processed || 0,
-        skipped: 0,
-        errors: progress.errors || 0,
-        currentAnime: progress.item,
-        elapsedMs: progress.elapsedMs,
-        etaMs: progress.etaMs,
-        speed: progress.speed
-      };
-      setMangaImportProgress(progressData);
-    });
-
     const unsubscribeMangaEnrichmentComplete = window.electronAPI.onMangaEnrichmentComplete?.((_event: any, stats: EnrichmentStats) => {
-      setMangaImportProgress(null);
       if (stats?.alreadyRunning) {
         return;
       }
+      setPausedMangaEnrichment(false); // Réinitialiser l'état de pause quand terminé
       if (stats?.cancelled) {
         showToast({
           title: '⏹️ Enrichissement manga interrompu',
@@ -222,19 +306,8 @@ export function useMalSettings() {
       }
     });
 
-    // Listeners pour la traduction des synopsis
-    const unsubscribeTranslationStarted = window.electronAPI.onMalTranslationStarted?.(() => {
-      setTranslating(true);
-      setTranslationProgress(null);
-    });
-
-    const unsubscribeTranslationProgress = window.electronAPI.onMalTranslationProgress?.((_event: any, progress: any) => {
-      setTranslationProgress(progress);
-    });
-
+    // Listeners pour la traduction des synopsis (pour les toasts)
     const unsubscribeTranslationCompleted = window.electronAPI.onMalTranslationCompleted?.((_event: any, result: any) => {
-      setTranslating(false);
-      setTranslationProgress(null);
       showToast({
         title: '🎉 Traduction terminée !',
         message: `${result.translated}/${result.total} synopsis traduits en français`,
@@ -243,8 +316,6 @@ export function useMalSettings() {
     });
 
     const unsubscribeTranslationError = window.electronAPI.onMalTranslationError?.((_event: any, data: any) => {
-      setTranslating(false);
-      setTranslationProgress(null);
       showToast({
         title: 'Erreur de traduction',
         message: data.error || 'Une erreur est survenue',
@@ -252,59 +323,28 @@ export function useMalSettings() {
       });
     });
 
+    // Enregistrer les callbacks d'arrêt/pause/reprise dans le contexte global
+    setStopCallbacks({
+      onStopAnimeEnrichment: handleStopAnimeEnrichment,
+      onStopMangaEnrichment: handleStopMangaEnrichment,
+      onPauseAnimeEnrichment: handlePauseAnimeEnrichment,
+      onResumeAnimeEnrichment: handleResumeAnimeEnrichment,
+      onPauseMangaEnrichment: handlePauseMangaEnrichment,
+      onResumeMangaEnrichment: handleResumeMangaEnrichment,
+      stoppingAnimeEnrichment: stoppingAnimeEnrichment,
+      stoppingMangaEnrichment: stoppingMangaEnrichment,
+      pausedAnimeEnrichment: pausedAnimeEnrichment,
+      pausedMangaEnrichment: pausedMangaEnrichment
+    });
+
     return () => {
-      if (unsubscribeMal) unsubscribeMal();
       if (unsubscribeMalCompleted) unsubscribeMalCompleted();
-      if (unsubscribeTranslationStarted) unsubscribeTranslationStarted();
-      if (unsubscribeTranslationProgress) unsubscribeTranslationProgress();
       if (unsubscribeTranslationCompleted) unsubscribeTranslationCompleted();
       if (unsubscribeTranslationError) unsubscribeTranslationError();
-      if (unsubscribeAnimeEnrichment) unsubscribeAnimeEnrichment();
       if (unsubscribeAnimeEnrichmentComplete) unsubscribeAnimeEnrichmentComplete();
-      if (unsubscribeMangaEnrichment) unsubscribeMangaEnrichment();
       if (unsubscribeMangaEnrichmentComplete) unsubscribeMangaEnrichmentComplete();
     };
-  }, [importStartTime, showToast]);
-
-  const loadMalStatus = async () => {
-    try {
-      const status = await window.electronAPI.malGetStatus();
-      setMalConnected(status.connected);
-      setMalUser(status.user);
-      setMalLastSync(status.lastSync);
-      setMalLastStatusSync(status.lastStatusSync || null);
-    } catch (error) {
-      console.error('Erreur chargement statut MAL:', error);
-    }
-  };
-
-  const loadMalAutoSyncSettings = async () => {
-    try {
-      const settings = await window.electronAPI.malGetAutoSyncSettings();
-      setMalAutoSyncEnabled(settings.enabled);
-      setMalAutoSyncInterval(settings.intervalHours);
-    } catch (error) {
-      console.error('Erreur chargement paramètres sync auto MAL:', error);
-    }
-  };
-
-  const loadEnrichmentSettings = async () => {
-    try {
-      // Charger depuis la config anime (qui contient aussi imageSource)
-      const animeConfig = (await window.electronAPI.getAnimeEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
-      if (animeConfig) {
-        setAutoTranslate(Boolean(animeConfig.autoTranslate));
-        const source = animeConfig.imageSource;
-        if (source === 'mal' || source === 'anilist' || source === 'tmdb') {
-          setImageSource(source);
-        } else {
-          setImageSource('anilist');
-        }
-      }
-    } catch (error) {
-      console.error('Erreur chargement paramètres enrichissement:', error);
-    }
-  };
+  }, [showToast, setStopCallbacks, stoppingAnimeEnrichment, stoppingMangaEnrichment, pausedAnimeEnrichment, pausedMangaEnrichment, loadMalStatus, loadMalAutoSyncSettings, loadEnrichmentSettings, handleStopAnimeEnrichment, handleStopMangaEnrichment, handlePauseAnimeEnrichment, handleResumeAnimeEnrichment, handlePauseMangaEnrichment, handleResumeMangaEnrichment]);
 
   const handleAutoTranslateChange = async (enabled: boolean) => {
     setAutoTranslate(enabled);
@@ -396,10 +436,15 @@ export function useMalSettings() {
     if (malSyncing) return;
 
     try {
+      // Réinitialiser les progressions avant de démarrer une nouvelle synchronisation
+      setAnimeProgress(null);
+      setMangaProgress(null);
+      // Utiliser setImportStartTime du contexte global
+      const startTime = Date.now();
+      setGlobalImportStartTime(startTime);
+      setLocalImportStartTime(startTime);
+      // Mettre malSyncing à true IMMÉDIATEMENT pour que le footer s'affiche
       setMalSyncing(true);
-      setAnimeImportProgress(null);
-      setMangaImportProgress(null);
-      setImportStartTime(Date.now());
 
       const result = await window.electronAPI.malSyncNow();
 
@@ -410,7 +455,7 @@ export function useMalSettings() {
         const totalCreated = (result.mangas?.created || 0) + (result.animes?.created || 0);
         const totalUpdated = (result.mangas?.updated || 0) + (result.animes?.updated || 0);
 
-        const elapsedTime = importStartTime > 0 ? Math.round((Date.now() - importStartTime) / 1000) : null;
+        const elapsedTime = localImportStartTime > 0 ? Math.round((Date.now() - localImportStartTime) / 1000) : null;
         const durationText = elapsedTime ? ` | ⏱️ ${elapsedTime}s` : '';
 
         showToast({
@@ -422,8 +467,8 @@ export function useMalSettings() {
       } else if (result && result.requiresReconnect) {
         // Si erreur de session, fermer immédiatement l'overlay
         setMalSyncing(false);
-        setAnimeImportProgress(null);
-        setMangaImportProgress(null);
+        setAnimeProgress(null);
+        setMangaProgress(null);
         showToast({
           title: 'Session expirée',
           message: result.error || 'Votre session MyAnimeList a expiré. Veuillez vous reconnecter.',
@@ -435,8 +480,8 @@ export function useMalSettings() {
     } catch (error: any) {
       // En cas d'erreur, fermer immédiatement l'overlay
       setMalSyncing(false);
-      setAnimeImportProgress(null);
-      setMangaImportProgress(null);
+      setAnimeProgress(null);
+      setMangaProgress(null);
 
       if (error.message && (error.message.includes('expiré') || error.message.includes('reconnecter') || error.message.includes('401'))) {
         showToast({
@@ -595,69 +640,13 @@ export function useMalSettings() {
     }
   };
 
-  const handleStopAnimeEnrichment = async () => {
-    if (stoppingAnimeEnrichment) return;
-    setStoppingAnimeEnrichment(true);
-    try {
-      const result = await window.electronAPI.stopAnimeEnrichment?.();
-      if (!result?.success) {
-        showToast({
-          title: 'Impossible d’arrêter',
-          message: result?.error || 'Aucun enrichissement anime en cours',
-          type: 'warning',
-          duration: 4000
-        });
-      } else {
-        showToast({
-          title: '⏹️ Arrêt enrichissement anime',
-          message: 'La file en cours va s’interrompre sous peu.',
-          type: 'info',
-          duration: 3500
-        });
-      }
-    } catch (error: any) {
-      console.error('Erreur arrêt enrichissement anime:', error);
-      showToast({
-        title: 'Erreur',
-        message: error?.message || 'Impossible d’arrêter l’enrichissement anime',
-        type: 'error'
-      });
-    } finally {
-      setStoppingAnimeEnrichment(false);
-    }
-  };
-
-  const handleStopMangaEnrichment = async () => {
-    if (stoppingMangaEnrichment) return;
-    setStoppingMangaEnrichment(true);
-    try {
-      const result = await window.electronAPI.stopMangaEnrichment?.();
-      if (!result?.success) {
-        showToast({
-          title: 'Impossible d’arrêter',
-          message: result?.error || 'Aucun enrichissement manga en cours',
-          type: 'warning',
-          duration: 4000
-        });
-      } else {
-        showToast({
-          title: '⏹️ Arrêt enrichissement manga',
-          message: 'La file en cours va s’interrompre sous peu.',
-          type: 'info',
-          duration: 3500
-        });
-      }
-    } catch (error: any) {
-      console.error('Erreur arrêt enrichissement manga:', error);
-      showToast({
-        title: 'Erreur',
-        message: error?.message || 'Impossible d’arrêter l’enrichissement manga',
-        type: 'error'
-      });
-    } finally {
-      setStoppingMangaEnrichment(false);
-    }
-  };
+  // Enregistrer les callbacks dans le contexte global
+  useEffect(() => {
+    setStopCallbacks({
+      onStopAnimeEnrichment: handleStopAnimeEnrichment,
+      onStopMangaEnrichment: handleStopMangaEnrichment
+    });
+  }, [setStopCallbacks]);
 
   return {
     // State
@@ -671,8 +660,8 @@ export function useMalSettings() {
     malAutoSyncInterval,
     translating,
     translationProgress,
-    animeImportProgress,
-    mangaImportProgress,
+    animeImportProgress: animeProgress,
+    mangaImportProgress: mangaProgress,
     stoppingAnimeEnrichment,
     stoppingMangaEnrichment,
     autoTranslate,
@@ -689,6 +678,10 @@ export function useMalSettings() {
     handleMalIntervalChange,
     handleStopAnimeEnrichment,
     handleStopMangaEnrichment,
+    handlePauseAnimeEnrichment,
+    handleResumeAnimeEnrichment,
+    handlePauseMangaEnrichment,
+    handleResumeMangaEnrichment,
     handleAutoTranslateChange,
     handleImageSourceChange,
 

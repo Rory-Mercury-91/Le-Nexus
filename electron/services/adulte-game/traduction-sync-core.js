@@ -28,32 +28,27 @@ const {
 } = require('./traduction-data-processor');
 const { notifyGameUpdate } = require('./discord-notifier');
 const { recordSyncError } = require('../../utils/sync-error-reporter');
+const { generateReport } = require('../../utils/report-generator');
 
 /**
  * Normalise la version depuis le Google Sheet
- * Transforme "Final", "Completed" ou une version vide en "v1.0"
+ * Retourne la version telle quelle (sans transformation)
  * @param {string|null|undefined} version - Version à normaliser
- * @returns {string} - Version normalisée (toujours une string, jamais null)
+ * @returns {string|null} - Version normalisée ou null
  */
 function normalizeVersionFromSheet(version) {
   if (!version || typeof version !== 'string') {
-    return 'v1.0';
+    return null;
   }
   
   const trimmed = version.trim();
   
-  // Si vide, retourner v1.0
+  // Si vide, retourner null
   if (trimmed === '') {
-    return 'v1.0';
+    return null;
   }
   
-  // Si "Final" ou "Completed" (insensible à la casse), retourner v1.0
-  const upper = trimmed.toUpperCase();
-  if (upper === 'FINAL' || upper === 'COMPLETED') {
-    return 'v1.0';
-  }
-  
-  // Sinon, retourner la version telle quelle
+  // Retourner la version telle quelle (support de "Final", "Completed", etc.)
   return trimmed;
 }
 
@@ -75,7 +70,7 @@ function computeChanges(existingGame, activeEntry) {
 
   const changes = [];
   const previousVersion = existingGame.version || '';
-  // Normaliser la nouvelle version (Final/Completed/vide → v1.0)
+  // Normaliser la nouvelle version (conserver telle quelle)
   const rawNewVersion = activeEntry.version || '';
   const normalizedNewVersion = normalizeVersionFromSheet(rawNewVersion);
   const fallbackTraducteur = activeEntry.traducteur || existingGame.traducteur || null;
@@ -155,13 +150,15 @@ function filterChangesByNotifications(changes, { notifyGameUpdates = true, notif
  * @returns {Promise<object>} Résultat de la synchronisation
  */
 async function syncTraductions(db, traducteurs, options = {}) {
+  const syncStart = Date.now();
   try {
     console.log('🔄 Début synchronisation traductions...');
     const {
       discordWebhookUrl = '',
       discordMentions = {},
       notifyGameUpdates = true,
-      notifyTranslationUpdates = true
+      notifyTranslationUpdates = true,
+      getPathManager = null
     } = options;
     const mentionMap = buildMentionMap(discordMentions);
     
@@ -176,14 +173,15 @@ async function syncTraductions(db, traducteurs, options = {}) {
       SELECT 
         id,
         f95_thread_id,
+        Lewdcorner_thread_id,
         lien_f95,
-        lien_traduction,
+        lien_lewdcorner,
         titre,
         traductions_multiples,
-        version,
+        game_version as version,
         version_traduite,
         traducteur,
-        plateforme,
+        game_site as plateforme,
         couverture_url
       FROM adulte_game_games
     `).all();
@@ -220,6 +218,11 @@ async function syncTraductions(db, traducteurs, options = {}) {
     let updated = 0;
     let notFound = 0;
     let created = 0;
+    const reportData = {
+      created: [],
+      updated: [],
+      failed: []
+    };
     
     // ÉTAPE 1 : Synchronisation TOUTES PLATEFORMES (LewdCorner, F95Zone, autres)
     // Grouper par ID pour traiter toutes les traductions d'un même jeu ensemble
@@ -253,27 +256,33 @@ async function syncTraductions(db, traducteurs, options = {}) {
       
       // Chercher si le jeu existe déjà
       const existingGame = adulteGames.find(g => {
-        const linkId = extractF95Id(g.lien_f95);
-        const storedId = g.f95_thread_id ? parseInt(g.f95_thread_id) : null;
-        const normalizedExisting = normalizePlatform(g.plateforme, g.lien_f95);
-        if (normalizedExisting !== targetHostKey) {
-          return false;
-        }
-        const existingHostKey = getPlatformKeyFromLink(g.lien_f95);
-        if (existingHostKey !== 'unknown' && existingHostKey !== targetHostKey) {
-          return false;
-        }
-        const sameId = (storedId && storedId === gameThreadId) || (linkId && linkId === gameThreadId);
-        if (!sameId) {
-          return false;
-        }
-        if (g.lien_f95) {
-          const normalizedLink = g.lien_f95.toString().toLowerCase();
-          if (!normalizedLink.includes(String(gameThreadId))) {
-            return false;
+        // Vérifier selon la plateforme
+        if (targetHostKey === 'f95zone') {
+          const linkId = extractF95Id(g.lien_f95);
+          const storedId = g.f95_thread_id ? parseInt(g.f95_thread_id) : null;
+          const sameId = (storedId && storedId === gameThreadId) || (linkId && linkId === gameThreadId);
+          if (!sameId) return false;
+          if (g.lien_f95) {
+            const normalizedLink = g.lien_f95.toString().toLowerCase();
+            if (!normalizedLink.includes(String(gameThreadId))) {
+              return false;
+            }
           }
+          return true;
+        } else if (targetHostKey === 'lewdcorner') {
+          const linkId = extractF95Id(g.lien_lewdcorner);
+          const storedId = g.Lewdcorner_thread_id ? parseInt(g.Lewdcorner_thread_id) : null;
+          const sameId = (storedId && storedId === gameThreadId) || (linkId && linkId === gameThreadId);
+          if (!sameId) return false;
+          if (g.lien_lewdcorner) {
+            const normalizedLink = g.lien_lewdcorner.toString().toLowerCase();
+            if (!normalizedLink.includes(String(gameThreadId))) {
+              return false;
+            }
+          }
+          return true;
         }
-        return true;
+        return false;
       });
       
       // Construire le tableau des traductions avec le flag "actif"
@@ -303,47 +312,83 @@ async function syncTraductions(db, traducteurs, options = {}) {
       }
       
       if (existingGame) {
-        // Mettre à jour le jeu existant avec les données de l'entrée ACTIVE
-        updateGameWithTranslation(db, existingGame.id, activeEntry, traductions, imageUrl);
-        
-        updated++;
-        console.log(`🔄 ${platformLabel} mis à jour: ${activeEntry.nom} (${traductions.length} traduction(s))`);
-
-        const changes = computeChanges(existingGame, activeEntry);
-        const filteredChanges = filterChangesByNotifications(changes, { notifyGameUpdates, notifyTranslationUpdates });
-        if (filteredChanges.length > 0) {
-          await notifyGameUpdate({
-            webhookUrl: discordWebhookUrl,
-            gameTitle: activeEntry.nom || existingGame.titre,
-            changes: filteredChanges,
-            threadUrl: resolveThreadUrl(existingGame, effectiveThreadLink),
-            platform: existingGame.plateforme || platformLabel,
-            coverUrl: imageUrl || existingGame.couverture_url || null,
-            mentionMap
+        try {
+          // Mettre à jour le jeu existant avec les données de l'entrée ACTIVE
+          updateGameWithTranslation(db, existingGame.id, activeEntry, traductions, imageUrl);
+          
+          updated++;
+          reportData.updated.push({
+            titre: activeEntry.nom || existingGame.titre,
+            id: existingGame.id,
+            f95_thread_id: gameThreadId,
+            plateforme: platformLabel,
+            traducteur: activeEntry.traducteur || null,
+            traductions: traductions.length
           });
+          console.log(`🔄 ${platformLabel} mis à jour: ${activeEntry.nom} (${traductions.length} traduction(s))`);
+
+          const changes = computeChanges(existingGame, activeEntry);
+          const filteredChanges = filterChangesByNotifications(changes, { notifyGameUpdates, notifyTranslationUpdates });
+          if (filteredChanges.length > 0) {
+            await notifyGameUpdate({
+              webhookUrl: discordWebhookUrl,
+              gameTitle: activeEntry.nom || existingGame.titre,
+              changes: filteredChanges,
+              threadUrl: resolveThreadUrl(existingGame, effectiveThreadLink),
+              platform: existingGame.plateforme || platformLabel,
+              coverUrl: imageUrl || existingGame.couverture_url || null,
+              mentionMap
+            });
+          }
+        } catch (error) {
+          reportData.failed.push({
+            titre: activeEntry.nom || 'Sans titre',
+            error: error.message || String(error),
+            f95_thread_id: gameThreadId,
+            plateforme: platformLabel
+          });
+          console.error(`❌ Erreur mise à jour "${activeEntry.nom}":`, error.message);
         }
       } else {
-        // Créer un nouveau jeu avec les données de l'entrée ACTIVE
-        const newGameId = createGameWithTranslation(db, gameThreadId, activeEntry, platformLabel, effectiveThreadLink, traductions, imageUrl);
-        
-        if (newGameId) {
-          // Ajouter à la liste pour la suite
-          adulteGames.push({
-            id: newGameId,
-            f95_thread_id: gameThreadId,
-            lien_f95: effectiveThreadLink,
-            lien_traduction: activeEntry.lienTraduction || null,
-            titre: activeEntry.nom,
-            traductions_multiples: JSON.stringify(traductions),
-            version: activeEntry.version || null,
-            version_traduite: activeEntry.versionTraduite || null,
-            traducteur: activeEntry.traducteur || null,
-            plateforme: platformLabel,
-            couverture_url: imageUrl || null
-          });
+        try {
+          // Créer un nouveau jeu avec les données de l'entrée ACTIVE
+          const newGameId = createGameWithTranslation(db, gameThreadId, activeEntry, platformLabel, effectiveThreadLink, traductions, imageUrl);
           
-          created++;
-          console.log(`🆕 ${platformLabel} créé: ${activeEntry.nom} (ID: ${gameThreadId}, ${traductions.length} traduction(s))`);
+          if (newGameId) {
+            // Ajouter à la liste pour la suite
+            adulteGames.push({
+              id: newGameId,
+              f95_thread_id: gameThreadId,
+              lien_f95: effectiveThreadLink,
+              lien_traduction: activeEntry.lienTraduction || null,
+              titre: activeEntry.nom,
+              traductions_multiples: JSON.stringify(traductions),
+              version: activeEntry.version || null,
+              version_traduite: activeEntry.versionTraduite || null,
+              traducteur: activeEntry.traducteur || null,
+              plateforme: platformLabel,
+              couverture_url: imageUrl || null
+            });
+            
+            created++;
+            reportData.created.push({
+              titre: activeEntry.nom,
+              id: newGameId,
+              f95_thread_id: gameThreadId,
+              plateforme: platformLabel,
+              traducteur: activeEntry.traducteur || null,
+              traductions: traductions.length
+            });
+            console.log(`🆕 ${platformLabel} créé: ${activeEntry.nom} (ID: ${gameThreadId}, ${traductions.length} traduction(s))`);
+          }
+        } catch (error) {
+          reportData.failed.push({
+            titre: activeEntry.nom || 'Sans titre',
+            error: error.message || String(error),
+            f95_thread_id: gameThreadId,
+            plateforme: platformLabel
+          });
+          console.error(`❌ Erreur création "${activeEntry.nom}":`, error.message);
         }
       }
     }
@@ -391,6 +436,14 @@ async function syncTraductions(db, traducteurs, options = {}) {
           updateGameTranslationsOnly(db, game.id, activeEntry, traductions);
           
           additionalUpdated++;
+          reportData.updated.push({
+            titre: game.titre,
+            id: game.id,
+            f95_thread_id: gameThreadId,
+            plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone'),
+            traducteur: activeEntry.traducteur || null,
+            traductions: traductions.length
+          });
           console.log(`🔄 Traduction trouvée pour "${game.titre}" (traducteur: ${activeEntry.traducteur}, ${traductions.length} traduction(s))`);
 
           const changes = computeChanges(game, activeEntry);
@@ -413,6 +466,13 @@ async function syncTraductions(db, traducteurs, options = {}) {
           }
         } catch (error) {
           console.error(`❌ Erreur MAJ traduction "${game.titre}":`, error.message);
+          reportData.failed.push({
+            titre: game.titre,
+            error: error.message || String(error),
+            id: game.id,
+            f95_thread_id: gameThreadId,
+            plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone')
+          });
           recordSyncError({
             entityType: 'adulte-game',
             entityId: game.id,
@@ -436,6 +496,30 @@ async function syncTraductions(db, traducteurs, options = {}) {
     }
     
     console.log(`\n✅ Synchronisation terminée: ${updated} mis à jour, ${created} créés, ${additionalUpdated} complétés`);
+    
+    const durationMs = Date.now() - syncStart;
+    
+    // Générer le rapport d'état
+    if (getPathManager) {
+      generateReport(getPathManager, {
+        type: 'adulte-game-sync',
+        stats: {
+          total: filteredData.length,
+          created: created,
+          updated: updated + additionalUpdated,
+          errors: reportData.failed.length,
+          matched: filteredData.length
+        },
+        created: reportData.created,
+        updated: reportData.updated,
+        failed: reportData.failed,
+        metadata: {
+          traducteurs: traducteurs || [],
+          duration: durationMs,
+          additional: additionalUpdated
+        }
+      });
+    }
     
     return {
       success: true,
@@ -472,13 +556,15 @@ async function syncTraductions(db, traducteurs, options = {}) {
  * @returns {Promise<object>} Résultat de la synchronisation
  */
 async function syncTraductionsForExistingGames(db, options = {}) {
+  const syncStart = Date.now();
   try {
     console.log('🔄 Synchronisation traductions pour jeux existants (tous traducteurs)...');
     const {
       discordWebhookUrl = '',
       discordMentions = {},
       notifyGameUpdates = true,
-      notifyTranslationUpdates = true
+      notifyTranslationUpdates = true,
+      getPathManager = null
     } = options;
     const mentionMap = buildMentionMap(discordMentions);
     
@@ -494,14 +580,15 @@ async function syncTraductionsForExistingGames(db, options = {}) {
       SELECT 
         id,
         f95_thread_id,
+        Lewdcorner_thread_id,
         lien_f95,
-        lien_traduction,
+        lien_lewdcorner,
         titre,
         traductions_multiples,
-        version,
+        game_version as version,
         version_traduite,
         traducteur,
-        plateforme,
+        game_site as plateforme,
         couverture_url
       FROM adulte_game_games
     `).all();
@@ -510,6 +597,10 @@ async function syncTraductionsForExistingGames(db, options = {}) {
     
     let matched = 0;
     let updated = 0;
+    const reportData = {
+      updated: [],
+      failed: []
+    };
     
     // Pour chaque jeu existant, chercher ses traductions dans le sheet
     for (const game of adulteGames) {
@@ -556,6 +647,14 @@ async function syncTraductionsForExistingGames(db, options = {}) {
         updateExistingGameTranslations(db, game.id, activeEntry, traductions, imageUrl);
         
         updated++;
+        reportData.updated.push({
+          titre: game.titre,
+          id: game.id,
+          f95_thread_id: gameThreadId,
+          plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone'),
+          traducteur: activeEntry.traducteur || null,
+          traductions: traductions.length
+        });
         console.log(`✅ "${game.titre}" : ${traductions.length} traduction(s) synchronisée(s) (${gameTranslations.length} trouvée(s), traducteur: ${activeEntry.traducteur})`);
 
         const changes = computeChanges(game, activeEntry);
@@ -574,6 +673,13 @@ async function syncTraductionsForExistingGames(db, options = {}) {
         }
       } catch (error) {
         console.error(`❌ Erreur MAJ "${game.titre}":`, error.message);
+        reportData.failed.push({
+          titre: game.titre,
+          error: error.message || String(error),
+          id: game.id,
+          f95_thread_id: gameThreadId,
+          plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone')
+        });
         recordSyncError({
           entityType: 'adulte-game',
           entityId: game.id,
@@ -592,6 +698,28 @@ async function syncTraductionsForExistingGames(db, options = {}) {
     }
     
     console.log(`\n✅ Synchronisation terminée: ${matched} jeu(x) avec traduction(s), ${updated} mis à jour`);
+    
+    const durationMs = Date.now() - syncStart;
+    
+    // Générer le rapport d'état
+    if (getPathManager) {
+      generateReport(getPathManager, {
+        type: 'adulte-game-sync-existing',
+        stats: {
+          total: adulteGames.length,
+          matched: matched,
+          updated: updated,
+          errors: reportData.failed.length,
+          notFound: adulteGames.length - matched
+        },
+        created: [],
+        updated: reportData.updated,
+        failed: reportData.failed,
+        metadata: {
+          duration: durationMs
+        }
+      });
+    }
     
     return {
       success: true,

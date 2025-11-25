@@ -1,4 +1,5 @@
 import { ExternalLink, Link2, Play, Plus, X } from 'lucide-react';
+import { getPlatformIcon } from '../../../utils/platformIcons';
 
 interface StreamingLink {
   source: 'anilist' | 'manual';
@@ -38,7 +39,6 @@ export default function AnimeStreamingLinks({
   return (
     <div style={{ 
       padding: '16px', 
-      marginBottom: '20px',
       border: '1px solid var(--border)',
       borderRadius: '8px',
       background: 'var(--surface)'
@@ -72,7 +72,7 @@ export default function AnimeStreamingLinks({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '12px', marginBottom: '12px' }}>
             <input
               type="text"
-              placeholder="Plateforme (ex: ADN)"
+              placeholder="Plateforme (ex: Netflix, Crunchyroll, ADN)"
               value={newLink.platform}
               onChange={(e) => onLinkChange({ ...newLink, platform: e.target.value })}
               className="input"
@@ -155,11 +155,24 @@ export default function AnimeStreamingLinks({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                    {link.icon ? (
-                      <img src={link.icon} alt={link.platform} style={{ width: '24px', height: '24px', borderRadius: '4px' }} />
-                    ) : (
-                      <Play size={20} style={{ color: link.color || 'var(--primary)' }} />
-                    )}
+                    {(() => {
+                      const iconPath = link.icon || getPlatformIcon(link.platform);
+                      if (iconPath) {
+                        return (
+                          <img 
+                            src={iconPath} 
+                            alt={link.platform} 
+                            style={{ 
+                              width: '24px', 
+                              height: '24px', 
+                              objectFit: 'contain',
+                              borderRadius: '4px' 
+                            }} 
+                          />
+                        );
+                      }
+                      return <Play size={20} style={{ color: link.color || 'var(--primary)' }} />;
+                    })()}
                     <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text)' }}>
                       {link.platform}
                     </div>

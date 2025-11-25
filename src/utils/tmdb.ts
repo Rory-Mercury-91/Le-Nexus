@@ -47,3 +47,55 @@ export function formatVoteAverage(score?: number | null) {
   }
   return (Math.round(score * 10) / 10).toFixed(1);
 }
+
+export function translateTmdbStatus(status?: string | null, _type: 'tv' | 'movie' = 'tv'): string {
+  if (!status) {
+    return 'Indisponible';
+  }
+
+  const statusTranslations: Record<string, string> = {
+    // Statuts séries TV
+    'Ended': 'Terminée',
+    'Returning Series': 'En cours',
+    'Planned': 'Prévue',
+    'In Production': 'En production',
+    'Canceled': 'Annulée',
+    'Pilot': 'Pilote',
+    // Statuts films
+    'Released': 'Sorti',
+    'Rumored': 'Rumeur',
+    'Post Production': 'Post-production'
+  };
+
+  return statusTranslations[status] || status;
+}
+
+export type TmdbImageAsset = {
+  file_path?: string | null;
+  iso_639_1?: string | null;
+};
+
+export function getUniqueTmdbImages<T extends TmdbImageAsset>(images?: T[] | null, limit = 12): T[] {
+  if (!Array.isArray(images) || images.length === 0) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const unique: T[] = [];
+
+  for (const image of images) {
+    if (!image?.file_path) {
+      continue;
+    }
+    if (seen.has(image.file_path)) {
+      continue;
+    }
+    seen.add(image.file_path);
+    unique.push(image);
+    if (unique.length >= limit) {
+      break;
+    }
+  }
+
+  return unique;
+}

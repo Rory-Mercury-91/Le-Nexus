@@ -18,7 +18,7 @@ const { registerMangaSeriesDeleteHandlers } = require('./manga-delete-handlers')
  */
 function registerMangaSeriesCrudHandlers(ipcMain, getDb, getPathManager, store, getMainWindow = null) {
   // Enregistrer tous les handlers spécialisés par opération
-  registerMangaSeriesReadHandlers(ipcMain, getDb, store);
+  registerMangaSeriesReadHandlers(ipcMain, getDb, store, getPathManager);
   registerMangaSeriesCreateHandlers(ipcMain, getDb, getPathManager, store);
   registerMangaSeriesUpdateHandlers(ipcMain, getDb, getPathManager, store);
   registerMangaSeriesDeleteHandlers(ipcMain, getDb, getPathManager, store);

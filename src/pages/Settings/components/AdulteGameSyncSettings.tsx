@@ -1,4 +1,5 @@
-import { Ban } from 'lucide-react';
+import { Ban, Info } from 'lucide-react';
+import { useState } from 'react';
 
 type WebhookCardProps = {
   webhookUrl: string;
@@ -16,6 +17,66 @@ type BlacklistCardProps = {
   count?: number;
 };
 
+const tooltipTexts = {
+  webhook: "Collez l'URL d'un webhook Discord pour recevoir les alertes jeux adultes.",
+  mentions: "Associez l'ID Discord de chaque traducteur pour qu'il soit mentionné automatiquement.",
+} as const;
+
+type TooltipId = keyof typeof tooltipTexts;
+
+const TooltipIcon = ({ id, placement = 'center' }: { id: TooltipId; placement?: 'center' | 'end' }) => {
+  const [active, setActive] = useState(false);
+  return (
+    <span
+      tabIndex={0}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+      aria-label={tooltipTexts[id]}
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px',
+        cursor: 'pointer',
+        color: 'var(--text-secondary)',
+        outline: 'none',
+        borderRadius: '50%'
+      }}
+    >
+      <Info size={16} aria-hidden="true" />
+      {active && (
+        <div
+          role="tooltip"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: placement === 'end' ? 'auto' : '50%',
+            right: placement === 'end' ? 0 : 'auto',
+            transform: placement === 'end' ? 'none' : 'translateX(-50%)',
+            background: 'var(--surface-light)',
+            color: 'var(--text)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            boxShadow: '0 16px 32px rgba(0, 0, 0, 0.22)',
+            border: '1px solid var(--border)',
+            fontSize: '12px',
+            lineHeight: 1.45,
+            zIndex: 30,
+            minWidth: '200px',
+            maxWidth: '260px',
+            textAlign: 'center'
+          }}
+        >
+          {tooltipTexts[id]}
+        </div>
+      )}
+    </span>
+  );
+};
+
 export function AdulteGameWebhookCard({
   webhookUrl,
   onChangeWebhook
@@ -31,6 +92,7 @@ export function AdulteGameWebhookCard({
         gap: '12px'
       }}
     >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
       <label
         style={{
           fontSize: '14px',
@@ -40,28 +102,14 @@ export function AdulteGameWebhookCard({
       >
         Webhook Discord (notifications MAJ jeux adultes)
       </label>
-      <p
-        style={{
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          margin: 0,
-          lineHeight: '1.45'
-        }}
-      >
-        Collez l’URL du webhook Discord dédié pour recevoir une alerte lorsqu’un jeu suivi reçoit une nouvelle version ou une nouvelle traduction.
-      </p>
+        <TooltipIcon id="webhook" placement="end" />
+      </div>
       <input
         type="url"
         value={webhookUrl}
         onChange={(event) => onChangeWebhook(event.target.value)}
         placeholder="https://discord.com/api/webhooks/..."
         className="input"
-        style={{
-          width: '100%',
-          background: 'var(--surface)',
-          borderColor: 'var(--border)',
-          color: 'var(--text)'
-        }}
       />
       <span
         style={{
@@ -87,19 +135,12 @@ export function AdulteGameMentionsCard({ traducteurs, discordMentions, onChangeM
         gap: '12px'
       }}
     >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
       <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
         Mentions Discord automatiques
+        </div>
+        <TooltipIcon id="mentions" placement="end" />
       </div>
-      <p
-        style={{
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          margin: 0,
-          lineHeight: '1.45'
-        }}
-      >
-        Saisissez l’ID Discord (numérique) de chaque traducteur pour qu’il soit mentionné lorsqu’une nouvelle version du jeu est disponible.
-      </p>
       {traducteurs.length === 0 ? (
         <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
           Ajoutez d’abord des traducteurs pour configurer leurs mentions.
@@ -130,12 +171,6 @@ export function AdulteGameMentionsCard({ traducteurs, discordMentions, onChangeM
                 onChange={(event) => onChangeMention(trad, event.target.value)}
                 placeholder="Ex. 394893413843206155"
                 className="input"
-                style={{
-                  width: '100%',
-                  background: 'var(--surface)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)'
-                }}
               />
             </div>
           ))}

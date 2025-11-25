@@ -1,22 +1,33 @@
-import { ArrowLeft, Calendar, Clapperboard, Clock, Globe2, Heart, MapPin, Settings, Star } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Edit, Plus, Settings, Star, Trash2 } from 'lucide-react';
+import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { BackToTopButton } from '../../components/collections';
+import { CardCover, CardTitle } from '../../components/cards/common';
+import { BackToBottomButton, BackToTopButton } from '../../components/collections';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
-import MovieDisplaySettingsModal from '../../components/modals/common/MovieDisplaySettingsModal';
+import LazyImage from '../../components/common/LazyImage';
+import SimpleCarousel from '../../components/common/SimpleCarousel';
+import ConfirmModal from '../../components/modals/common/ConfirmModal';
+import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
+import ImageModal from '../../components/modals/common/ImageModal';
+import VideoModal from '../../components/modals/common/VideoModal';
+import AddImageModal from '../../components/modals/movie/AddImageModal';
+import AddVideoModal from '../../components/modals/movie/AddVideoModal';
+import EditMovieModal from '../../components/modals/movie/EditMovieModal';
+import { useConfirm } from '../../hooks/common/useConfirm';
 import { useToast } from '../../hooks/common/useToast';
-import { MovieDetail as MovieDetailType, WatchProviderMap, WatchProviderResponse } from '../../types';
-import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
-import { formatAirDate, formatRuntime, formatVoteAverage, getTmdbImageUrl } from '../../utils/tmdb';
+import { useDetailPage } from '../../hooks/details/useDetailPage';
+import { useItemActions } from '../../hooks/details/useItemActions';
+import { useMediaGallery } from '../../hooks/details/useMediaGallery';
+import { MovieDetail as MovieDetailType, MovieImage } from '../../types';
+import { getTmdbImageUrl, getUniqueTmdbImages } from '../../utils/tmdb';
+import { MovieCover, MovieInfoSection } from './components';
 
 type MovieDisplayPrefs = {
   banner: boolean;
   synopsis: boolean;
   metadata: boolean;
-  keywords: boolean;
   videos: boolean;
   images: boolean;
-  providers: boolean;
   recommendations: boolean;
   externalLinks: boolean;
 };
@@ -25,142 +36,332 @@ const movieDisplayDefaults: MovieDisplayPrefs = {
   banner: true,
   synopsis: true,
   metadata: true,
-  keywords: true,
   videos: true,
   images: true,
-  providers: true,
   recommendations: true,
   externalLinks: true
 };
 
-const MOVIE_STATUS_OPTIONS = COMMON_STATUSES.MOVIE;
-type MovieStatus = (typeof MOVIE_STATUS_OPTIONS)[number];
 
 export default function MovieDetail() {
   const { tmdbId } = useParams();
   const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
-  const [movie, setMovie] = useState<MovieDetailType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [displayPrefs, setDisplayPrefs] = useState<MovieDisplayPrefs>(movieDisplayDefaults);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [togglingFavorite, setTogglingFavorite] = useState(false);
-  const [showDisplaySettingsModal, setShowDisplaySettingsModal] = useState(false);
+  const { confirm, ConfirmDialog } = useConfirm();
 
-  const refreshDisplayPrefs = useCallback(async () => {
-    try {
-      const prefs = await window.electronAPI.getMovieDisplaySettings?.();
-      if (prefs) {
-        setDisplayPrefs({ ...movieDisplayDefaults, ...prefs });
-      } else {
-        setDisplayPrefs(movieDisplayDefaults);
-      }
-    } catch (err) {
-      console.error('Erreur chargement préférences films:', err);
-    }
+  // Mémoriser les fonctions pour éviter les re-renders en boucle
+  const loadDetailApi = useCallback(async (id: number) => {
+    const detail = await window.electronAPI.getMovieDetail({ tmdbId: id });
+    return detail;
   }, []);
 
-  useEffect(() => {
-    if (!tmdbId) {
-      setError('Identifiant TMDb manquant');
-      setLoading(false);
-      return;
-    }
+  const loadDisplaySettingsApi = useCallback(async () => {
+    const result = await window.electronAPI.getMovieDisplaySettings?.();
+    return (result as MovieDisplayPrefs) || null;
+  }, []);
 
-    const fetchDetail = async () => {
-      try {
-        setLoading(true);
-        const [detail, prefs] = await Promise.all([
-          window.electronAPI.getMovieDetail({ tmdbId: Number(tmdbId) }),
-          window.electronAPI.getMovieDisplaySettings?.()
-        ]);
-        if (!detail) {
-          setError('Film introuvable dans votre collection');
-          setMovie(null);
-        } else {
+  const normalizeData = useCallback((data: MovieDetailType) => ({
+    ...data,
+    genres: data.genres || [],
+    langues_parlees: data.langues_parlees || [],
+    compagnies: data.compagnies || []
+  }), []);
+
+  const isEventForCurrentItem = useCallback((event: CustomEvent, item: MovieDetailType | null, itemId: string | undefined) => {
+    const { movieId, tmdbId: eventTmdbId } = event.detail;
+    const currentTmdbId = itemId ? Number(itemId) : null;
+    return (
+      (currentTmdbId && eventTmdbId && Number(currentTmdbId) === Number(eventTmdbId)) ||
+      (item && (item.id === movieId || (eventTmdbId && item.tmdb_id === eventTmdbId)))
+    );
+  }, []);
+
+  const reloadAfterEvent = useCallback(async (event: CustomEvent, itemId: string | undefined) => {
+    const { tmdbId: eventTmdbId } = event.detail;
+    const targetTmdbId = eventTmdbId || (itemId ? Number(itemId) : null);
+    if (targetTmdbId) {
+      return await window.electronAPI.getMovieDetail({ tmdbId: targetTmdbId });
+    }
+    return null;
+  }, []);
+
+  // Hook pour la page de détails (chargement, états, modales)
+  const {
+    item: movie,
+    setItem: setMovie,
+    loading,
+    error,
+    displayPrefs,
+    showDisplaySettingsModal,
+    showEditModal,
+    setShowEditModal,
+    handleOpenDisplaySettings,
+    handleCloseDisplaySettings,
+    loadDetail
+  } = useDetailPage<MovieDetailType, MovieDisplayPrefs>({
+    itemId: tmdbId,
+    displayDefaults: movieDisplayDefaults,
+    loadDetailApi,
+    loadDisplaySettingsApi,
+    normalizeData,
+    statusEventName: 'movie-status-changed',
+    isEventForCurrentItem,
+    reloadAfterEvent,
+    missingIdError: 'Identifiant TMDb manquant',
+    notFoundError: 'Film introuvable dans votre collection'
+  });
+
+  // Hook pour les actions communes (favorite, status)
+  const {
+    updatingStatus,
+    togglingFavorite,
+    handleStatusChange,
+    handleToggleFavorite
+  } = useItemActions<MovieDetailType>({
+    itemId: movie?.id,
+    item: movie,
+    updateItem: setMovie,
+    reloadItem: async () => {
+      if (movie?.tmdb_id) {
+        const detail = await window.electronAPI.getMovieDetail({ tmdbId: movie.tmdb_id });
+        if (detail) {
           setMovie({
             ...detail,
             genres: detail.genres || [],
             langues_parlees: detail.langues_parlees || [],
             compagnies: detail.compagnies || []
           });
-          if (prefs) {
-            setDisplayPrefs({ ...movieDisplayDefaults, ...prefs });
-          }
-          setError(null);
         }
-      } catch (err: any) {
-        console.error('Erreur chargement film:', err);
-        setError(err?.message || 'Impossible de charger les détails du film');
-        setMovie(null);
-      } finally {
-        setLoading(false);
       }
-    };
+    },
+    setStatusApi: ({ itemId, statut }) => window.electronAPI.setMovieStatus({ movieId: itemId, statut }),
+    toggleFavoriteApi: (itemId) => window.electronAPI.toggleMovieFavorite(itemId),
+    deleteApi: (itemId) => window.electronAPI.deleteMovie(itemId),
+    statusEventName: 'movie-status-changed',
+    getStatusEventData: (item) => ({
+      movieId: item.id,
+      tmdbId: item.tmdb_id,
+      statut: item.statut_visionnage
+    }),
+    redirectRoute: '/movies',
+    itemName: 'film',
+    getItemTitle: (item) => item.titre,
+    getCurrentStatus: (item) => item.statut_visionnage
+  });
 
-    fetchDetail();
-  }, [tmdbId]);
+  // Mémoriser les fonctions API pour la galerie média
+  const getUserImagesApi = useCallback((id: number) => window.electronAPI.getMovieUserImages?.(id), []);
+  const getUserVideosApi = useCallback((id: number) => window.electronAPI.getMovieUserVideos?.(id), []);
+  const addImageUrlApi = useCallback((id: number, url: string) => window.electronAPI.addMovieUserImageUrl?.(id, url), []);
+  const addImageFileApi = useCallback((id: number, title?: string) => window.electronAPI.addMovieUserImageFile?.(id, title), []);
+  const deleteImageApi = useCallback((imageId: number) => {
+    if (!movie?.id) return Promise.resolve({ success: false, error: 'Film introuvable' });
+    return window.electronAPI.deleteMovieUserImage?.(movie.id, imageId);
+  }, [movie?.id]);
+  const addVideoUrlApi = useCallback((id: number, url: string, title: string) => window.electronAPI.addMovieUserVideoUrl?.(id, url, title), []);
+  const addVideoFileApi = useCallback((id: number, title?: string, isReference?: boolean) => window.electronAPI.addMovieUserVideoFile?.(id, title, isReference), []);
+  const deleteVideoApi = useCallback((videoId: number) => {
+    if (!movie?.id) return Promise.resolve({ success: false, error: 'Film introuvable' });
+    return window.electronAPI.deleteMovieUserVideo?.(movie.id, videoId);
+  }, [movie?.id]);
 
-  const backgroundUrl = useMemo(() => {
-    if (!displayPrefs.banner || !movie?.backdrop_path) return undefined;
-    return getTmdbImageUrl(movie.backdrop_path, 'w780');
-  }, [movie, displayPrefs.banner]);
-
-  const posterUrl = useMemo(() => {
-    if (!displayPrefs.banner || !movie?.poster_path) return undefined;
-    return getTmdbImageUrl(movie.poster_path, 'w500');
-  }, [movie, displayPrefs.banner]);
-
-  const releaseDate = formatAirDate(movie?.date_sortie);
-  const runtime = formatRuntime(movie?.duree);
-  const score = formatVoteAverage(movie?.note_moyenne);
-
-  const keywords = useMemo(() => {
-    const keywordCollection = (movie?.mots_cles || []) as Array<{ id: number; name: string }>;
-    return keywordCollection.filter(Boolean);
-  }, [movie]);
-
-  const streamingProviders = useMemo(() => {
-    if (!movie?.fournisseurs) {
-      return [];
+  // Hook pour la galerie média (images/vidéos utilisateur)
+  const {
+    userImages,
+    loadingUserImages,
+    addingImage,
+    showAddImageModal,
+    setShowAddImageModal,
+    selectedImage,
+    setSelectedImage,
+    imageToDelete,
+    setImageToDelete,
+    handleAddImageUrl,
+    handleAddImageFile,
+    handleDeleteUserImageClick,
+    handleConfirmDeleteImage,
+    userVideos,
+    loadingUserVideos,
+    addingVideo,
+    showAddVideoModal,
+    setShowAddVideoModal,
+    selectedVideo,
+    setSelectedVideo,
+    videoToDelete,
+    setVideoToDelete,
+    handleAddVideoUrl,
+    handleAddVideoFile,
+    handleDeleteUserVideoClick,
+    handleConfirmDeleteVideo
+  } = useMediaGallery({
+    itemId: movie?.id,
+    getUserImagesApi,
+    getUserVideosApi,
+    addImageUrlApi,
+    addImageFileApi,
+    deleteImageApi,
+    addVideoUrlApi,
+    addVideoFileApi,
+    deleteVideoApi
+  });
+  const [selectedImageMeta, setSelectedImageMeta] = useState<{ url: string; fileName?: string } | null>(null);
+  useEffect(() => {
+    if (!selectedImage) {
+      setSelectedImageMeta(null);
     }
-    const providerData = movie.fournisseurs;
-    const providerMap =
-      ((providerData as WatchProviderResponse).results ??
-        (providerData as WatchProviderMap | undefined)) ?? undefined;
+  }, [selectedImage]);
 
-    const france = providerMap?.FR;
-    if (!france) return [];
+  // Suppression avec confirmation
+  const handleDelete = useCallback(async () => {
+    if (!movie) return;
 
-    const unique = new Map<number, { provider_id: number; provider_name: string; logo_path: string; type: string }>();
-    (['flatrate', 'rent', 'buy'] as const).forEach((type) => {
-      (france[type] || []).forEach((provider) => {
-        unique.set(provider.provider_id, { ...provider, type });
-      });
+    const confirmed = await confirm({
+      title: 'Supprimer le film',
+      message: `Êtes-vous sûr de vouloir supprimer "${movie.titre}" de votre collection ? Cette action est irréversible.`,
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDanger: true
     });
-    return Array.from(unique.values());
-  }, [movie]);
+
+    if (!confirmed) return;
+
+    try {
+      const result = await window.electronAPI.deleteMovie(movie.id);
+      if (result?.success) {
+        showToast({
+          title: 'Film supprimé',
+          message: `"${movie.titre}" a été supprimé de votre collection.`,
+          type: 'success'
+        });
+        navigate('/movies');
+      } else {
+        showToast({
+          title: 'Erreur',
+          message: result?.error || 'Impossible de supprimer le film.',
+          type: 'error'
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur suppression film:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || 'Impossible de supprimer le film.',
+        type: 'error'
+      });
+    }
+  }, [movie, confirm, showToast, navigate]);
+
+
 
   const videos = useMemo(() => {
     const directResults = movie?.videos?.results;
     const rawVideos = movie?.donnees_brutes?.videos as { results?: Array<{ site: string; key: string; id: string; name?: string; type?: string }> } | undefined;
-    const list = directResults || rawVideos?.results || [];
-    if (!Array.isArray(list)) {
+    const tmdbList = directResults || rawVideos?.results || [];
+    if (!Array.isArray(tmdbList)) {
       return [];
     }
-    return list.filter((video) => video.site === 'YouTube' || video.site === 'Vimeo');
-  }, [movie]);
+    const tmdbVideos = tmdbList.filter((video) => video.site === 'YouTube' || video.site === 'Vimeo').map(v => ({ ...v, isUserVideo: false }));
+    const userVideoList = userVideos.map(v => ({
+      id: `user-${v.id}`,
+      site: v.site || 'Other',
+      key: v.video_key || '',
+      name: v.title || undefined,
+      type: v.type === 'file' ? 'Fichier local' : undefined,
+      url: v.url,
+      file_path: v.file_path,
+      file_name: v.file_name,
+      isUserVideo: true,
+      videoId: v.id
+    }));
+    return [...tmdbVideos, ...userVideoList];
+  }, [movie, userVideos]);
 
   const backdrops = useMemo(() => {
     const directBackdrops = movie?.images?.backdrops;
     const rawImages = movie?.donnees_brutes?.images as { backdrops?: Array<{ file_path: string; iso_639_1?: string }> } | undefined;
     const list = directBackdrops || rawImages?.backdrops || [];
-    if (!Array.isArray(list)) {
-      return [];
-    }
-    return list.slice(0, 8);
+    return getUniqueTmdbImages(list as MovieImage[], 12);
   }, [movie]);
+
+  type GalleryItem = {
+    key: string;
+    thumbnailUrl: string;
+    fullUrl: string;
+    source: 'tmdb' | 'user';
+    userImageId?: number;
+    fileName?: string;
+  };
+
+  const galleryItems = useMemo<GalleryItem[]>(() => {
+    const tmdbItems: GalleryItem[] = [];
+    for (const image of backdrops) {
+      const thumbnailUrl = getTmdbImageUrl(image.file_path, 'w342');
+      const fullUrl = getTmdbImageUrl(image.file_path, 'original');
+      if (thumbnailUrl && fullUrl) {
+        tmdbItems.push({
+          key: `tmdb-${image.file_path}`,
+          thumbnailUrl,
+          fullUrl,
+          source: 'tmdb' as const
+        });
+      }
+    }
+
+    const userItems = userImages.map((userImage) => ({
+      key: `user-${userImage.id}`,
+      thumbnailUrl: userImage.url,
+      fullUrl: userImage.url,
+      source: 'user' as const,
+      userImageId: userImage.id,
+      fileName: userImage.file_name
+    }));
+
+    return [...tmdbItems, ...userItems];
+  }, [backdrops, userImages]);
+
+  const getGalleryFileName = useCallback((item: GalleryItem) => {
+    const title = movie?.titre || movie?.titre_original || 'film';
+    const suffix = item.source === 'tmdb' ? 'tmdb' : 'user';
+    return item.fileName || `${title}-${suffix}`;
+  }, [movie?.titre, movie?.titre_original]);
+
+  const handleSaveImageToDisk = useCallback(async (url: string, fileName?: string) => {
+    if (!url || !window.electronAPI.saveImageToDisk) {
+      window.electronAPI.openExternal?.(url);
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.saveImageToDisk(url, fileName);
+      if (result?.success) {
+        showToast({
+          title: 'Image enregistrée',
+          type: 'success',
+          duration: 2000
+        });
+      } else if (!result?.canceled) {
+        showToast({
+          title: 'Erreur',
+          message: result?.error || 'Impossible d\'enregistrer l\'image',
+          type: 'error'
+        });
+        window.electronAPI.openExternal?.(url);
+      }
+    } catch (error) {
+      console.error('Erreur save-image-to-disk:', error);
+      showToast({
+        title: 'Erreur',
+        message: 'Impossible d\'enregistrer l\'image',
+        type: 'error'
+      });
+      window.electronAPI.openExternal?.(url);
+    }
+  }, [showToast]);
+
+  const handleGalleryImageContextMenu = useCallback((event: MouseEvent<HTMLDivElement>, item: GalleryItem) => {
+    event.preventDefault();
+    handleSaveImageToDisk(item.fullUrl, getGalleryFileName(item));
+  }, [getGalleryFileName, handleSaveImageToDisk]);
 
   const recommendations = useMemo(() => {
     const rawRecommendations = movie?.donnees_brutes?.recommendations as { results?: Array<{ id: number; title?: string; name?: string; poster_path?: string }> } | undefined;
@@ -172,79 +373,6 @@ export default function MovieDetail() {
     return recs.slice(0, 8).filter((item) => item && item.id);
   }, [movie]);
 
-  const handleStatusChange = useCallback(
-    async (newStatus: MovieStatus) => {
-      if (!movie || updatingStatus || movie.statut_visionnage === newStatus) {
-        return;
-      }
-
-      try {
-        setUpdatingStatus(true);
-        const result = await window.electronAPI.setMovieStatus({
-          movieId: movie.id,
-          statut: newStatus
-        });
-
-        if (result?.success) {
-          setMovie((prev) => (prev ? { ...prev, statut_visionnage: result.statut || newStatus } : prev));
-          showToast({
-            title: 'Statut mis à jour',
-            message: `Le film est maintenant marqué comme « ${result?.statut || newStatus} ».`,
-            type: 'success'
-          });
-        }
-      } catch (err: any) {
-        console.error('Erreur changement statut film:', err);
-        showToast({
-          title: 'Erreur',
-          message: err?.message || 'Impossible de mettre à jour le statut.',
-          type: 'error'
-        });
-      } finally {
-        setUpdatingStatus(false);
-      }
-    },
-    [movie, showToast, updatingStatus]
-  );
-
-  const handleToggleFavorite = useCallback(async () => {
-    if (!movie || togglingFavorite) {
-      return;
-    }
-
-    try {
-      setTogglingFavorite(true);
-      const result = await window.electronAPI.toggleMovieFavorite(movie.id);
-      if (result?.success) {
-        setMovie((prev) => (prev ? { ...prev, is_favorite: result.isFavorite } : prev));
-        showToast({
-          title: result.isFavorite ? 'Ajouté aux favoris' : 'Retiré des favoris',
-          message: result.isFavorite
-            ? 'Ce film apparaît désormais dans vos favoris.'
-            : 'Ce film ne fait plus partie de vos favoris.',
-          type: 'success'
-        });
-      }
-    } catch (err: any) {
-      console.error('Erreur bascule favori film:', err);
-      showToast({
-        title: 'Erreur',
-        message: err?.message || 'Impossible de mettre à jour le favori.',
-        type: 'error'
-      });
-    } finally {
-      setTogglingFavorite(false);
-    }
-  }, [movie, showToast, togglingFavorite]);
-
-  const handleOpenDisplaySettings = useCallback(() => {
-    setShowDisplaySettingsModal(true);
-  }, []);
-
-  const handleCloseDisplaySettings = useCallback(async () => {
-    setShowDisplaySettingsModal(false);
-    await refreshDisplayPrefs();
-  }, [refreshDisplayPrefs]);
 
   if (loading) {
     return (
@@ -274,237 +402,20 @@ export default function MovieDetail() {
   return (
     <>
       {ToastContainer}
-      <DetailPageHeader backLabel="Retour aux films" backTo="/movies" />
-      <div className="fade-in" style={{ minHeight: '100vh', paddingBottom: '80px', paddingTop: '110px' }}>
-        <div
-          style={{
-            position: 'relative',
-            height: '420px',
-            background: backgroundUrl ? `linear-gradient(90deg, rgba(8, 12, 24, 0.92) 0%, rgba(8, 12, 24, 0.4) 60%), url(${backgroundUrl}) center/cover`
-              : 'linear-gradient(135deg, #111826 0%, #1f2937 100%)'
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, rgba(8,12,24,0.85) 0%, rgba(8,12,24,0.95) 60%, #080c18 100%)'
-            }}
-          />
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              display: 'flex',
-              gap: '32px',
-              padding: '40px 60px'
-            }}
-          >
-            {displayPrefs.banner && (
-              <div
-                style={{
-                  width: '220px',
-                  flexShrink: 0,
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 18px 30px rgba(0,0,0,0.35)',
-                  background: 'rgba(0,0,0,0.25)'
-                }}
-              >
-                {posterUrl ? (
-                  <img src={posterUrl} alt={movie.titre} style={{ width: '100%', display: 'block' }} />
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '320px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'rgba(255,255,255,0.6)',
-                      fontSize: '14px',
-                      padding: '16px',
-                      textAlign: 'center'
-                    }}
-                  >
-                    Pas d&apos;image
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ color: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-              <div>
-                <h1 style={{ fontSize: '34px', fontWeight: 800, margin: 0 }}>
-                  {movie.titre}
-                </h1>
-                {movie.titre_original && movie.titre_original !== movie.titre && (
-                  <p style={{ margin: '6px 0 0 0', opacity: 0.75, fontSize: '15px' }}>
-                    {movie.titre_original}
-                  </p>
-                )}
-                {movie.tagline && (
-                  <p style={{ margin: '12px 0 0 0', fontStyle: 'italic', opacity: 0.8 }}>
-                    « {movie.tagline} »
-                  </p>
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '16px',
-                  fontSize: '14px'
-                }}
-              >
-                {score && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      background: 'rgba(34, 197, 94, 0.15)',
-                      color: '#34d399',
-                      borderRadius: '999px',
-                      padding: '8px 14px',
-                      border: '1px solid rgba(34, 197, 94, 0.3)'
-                    }}
-                  >
-                    <Star size={16} />
-                    {score} / 10
-                  </span>
-                )}
-                {releaseDate && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      opacity: 0.85
-                    }}
-                  >
-                    <Calendar size={16} />
-                    {releaseDate}
-                  </span>
-                )}
-                {runtime && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: 0.85 }}>
-                    <Clock size={16} />
-                    {runtime}
-                  </span>
-                )}
-                {movie.statut && (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', opacity: 0.85 }}>
-                    <Clapperboard size={16} />
-                    {movie.statut}
-                  </span>
-                )}
-              </div>
-
-              {movie.genres && movie.genres.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {movie.genres.map((genre) => (
-                    <span
-                      key={genre.id}
-                      style={{
-                        fontSize: '13px',
-                        padding: '6px 12px',
-                        borderRadius: '999px',
-                        background: 'rgba(59, 130, 246, 0.15)',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                        color: '#bfdbfe'
-                      }}
-                    >
-                      {genre.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '40px 60px', marginTop: '-40px' }}>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '16px',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '40px',
-              background: 'var(--surface)',
-              borderRadius: '16px',
-              border: '1px solid var(--border)',
-              padding: '18px 24px'
-            }}
-          >
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Statut de visionnage</span>
-                <select
-                  className="select"
-                  value={movie.statut_visionnage || 'À regarder'}
-                  onChange={(e) => handleStatusChange(e.target.value as MovieStatus)}
-                  disabled={updatingStatus}
-                  style={{ minWidth: '200px' }}
-                >
-                  {MOVIE_STATUS_OPTIONS.map((option) => {
-                    const label = formatStatusLabel(option, { category: 'movie' });
-                    return (
-                      <option key={option} value={option}>
-                        {label}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={handleToggleFavorite}
-                disabled={togglingFavorite}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px 16px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 800,
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  background: movie.is_favorite ? '#ef4444' : 'rgba(239, 68, 68, 0.15)',
-                  color: movie.is_favorite ? '#ffffff' : '#ef4444',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow: movie.is_favorite ? '0 3px 10px rgba(0, 0, 0, 0.35)' : 'none',
-                  cursor: togglingFavorite ? 'progress' : 'pointer',
-                  transition: 'all 0.2s',
-                  minWidth: '200px',
-                  opacity: togglingFavorite ? 0.85 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!movie.is_favorite && !togglingFavorite) {
-                    e.currentTarget.style.background = '#ef4444';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.5)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!movie.is_favorite && !togglingFavorite) {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                    e.currentTarget.style.color = '#ef4444';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <Heart size={16} fill={movie.is_favorite ? '#ffffff' : '#ef4444'} />
-                <span>{movie.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
-              </button>
-            </div>
-
+      <DetailPageHeader
+        backLabel="Retour aux films"
+        backTo="/movies"
+        actions={
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowEditModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Edit size={16} />
+              Modifier
+            </button>
             <button
               type="button"
               className="btn btn-outline"
@@ -512,359 +423,512 @@ export default function MovieDetail() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
               <Settings size={16} />
-              Personnaliser l’affichage
+              Personnaliser l'affichage
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleDelete}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Trash2 size={16} />
+              Supprimer
             </button>
           </div>
-
+        }
+      />
+      <div className="fade-in" style={{ padding: '110px 20px 80px', width: '100%', boxSizing: 'border-box' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '32px',
+            width: '100%',
+            maxWidth: '100%'
+          }}
+        >
+          {/* En-tête du film */}
           <div
+            className="card"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
-              gap: '32px',
-              alignItems: 'flex-start'
+              padding: 'clamp(16px, 2vw, 20px)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '20px'
             }}
           >
-            {(displayPrefs.synopsis || (displayPrefs.keywords && keywords.length > 0)) && (
-              <section
-                style={{
-                  background: 'var(--surface)',
-                  borderRadius: '18px',
-                  border: '1px solid var(--border)',
-                  padding: '28px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px'
-                }}
-              >
-                {displayPrefs.synopsis && (
-                  <>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'var(--text)' }}>Synopsis</h2>
-                    <p style={{ lineHeight: 1.7, color: 'var(--text-secondary)' }}>
-                      {movie.synopsis || 'Aucun synopsis disponible.'}
-                    </p>
-                  </>
-                )}
-
-                {displayPrefs.keywords && keywords.length > 0 && (
-                  <>
-                    <h3 style={{ margin: '16px 0 0', fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
-                      Mots-clés
-                    </h3>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {keywords.map((keyword) => (
-                        <span
-                          key={keyword.id}
-                          style={{
-                            fontSize: '12px',
-                            padding: '6px 12px',
-                            borderRadius: '999px',
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
-                          {keyword.name}
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
-
-            {displayPrefs.videos && videos.length > 0 && (
-              <section
-                style={{
-                  background: 'var(--surface)',
-                  borderRadius: '18px',
-                  border: '1px solid var(--border)',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px'
-                }}
-              >
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Bandes-annonces & vidéos</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                  {videos.slice(0, 6).map((video) => (
-                    <button
-                      key={video.id}
-                      className="btn btn-outline"
-                      onClick={() => window.electronAPI.openExternal?.(video.site === 'YouTube'
-                        ? `https://www.youtube.com/watch?v=${video.key}`
-                        : `https://vimeo.com/${video.key}`)}
-                      style={{
-                        justifyContent: 'flex-start',
-                        minWidth: '220px',
-                        padding: '10px 14px',
-                        borderRadius: '10px'
-                      }}
-                    >
-                      {video.name || video.type}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {displayPrefs.images && backdrops.length > 0 && (
-              <section
-                style={{
-                  background: 'var(--surface)',
-                  borderRadius: '18px',
-                  border: '1px solid var(--border)',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px'
-                }}
-              >
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Galerie</h3>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                    gap: '12px'
-                  }}
-                >
-                  {backdrops.map((image) => (
-                    <div
-                      key={`${image.file_path}-${image.iso_639_1 || 'default'}`}
-                      style={{
-                        borderRadius: '12px',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border)',
-                        cursor: 'zoom-in'
-                      }}
-                      onClick={() => {
-                        const full = getTmdbImageUrl(image.file_path, 'original');
-                        if (full) {
-                          window.electronAPI.openExternal?.(full);
-                        }
-                      }}
-                    >
-                      <img
-                        src={getTmdbImageUrl(image.file_path, 'w342')}
-                        alt={image.iso_639_1 || 'Backdrop'}
-                        style={{ width: '100%', display: 'block' }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {displayPrefs.recommendations && recommendations.length > 0 && (
-              <section
-                style={{
-                  background: 'var(--surface)',
-                  borderRadius: '18px',
-                  border: '1px solid var(--border)',
-                  padding: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px'
-                }}
-              >
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>Recommandations TMDb</h3>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: '12px'
-                  }}
-                >
-                  {recommendations.map((rec) => (
-                    <div
-                      key={rec.id}
-                      style={{
-                        borderRadius: '12px',
-                        border: '1px solid var(--border)',
-                        overflow: 'hidden',
-                        background: 'var(--bg-secondary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column'
-                      }}
-                      onClick={() => window.electronAPI.openExternal?.(`https://www.themoviedb.org/movie/${rec.id}`)}
-                    >
-                      {rec.poster_path ? (
-                        <img
-                          src={getTmdbImageUrl(rec.poster_path, 'w185')}
-                          alt={rec.title || rec.name}
-                          style={{ width: '100%', display: 'block' }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: '100%',
-                            paddingBottom: '150%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
-                          Pas d&apos;image
-                        </div>
-                      )}
-                      <div style={{ padding: '12px', fontSize: '13px', color: 'var(--text)' }}>
-                        {rec.title || rec.name}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <aside
+            <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '20px'
+                gap: 'clamp(12px, 1.5vw, 20px)',
+                flexWrap: 'wrap',
+                width: '100%'
               }}
             >
-              {displayPrefs.metadata && (
-                <div
-                  style={{
-                    background: 'var(--surface)',
-                    borderRadius: '18px',
-                    border: '1px solid var(--border)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}
-                >
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Informations</h3>
-                  <InfoLine icon={<MapPin size={16} />} label="Pays">
-                    {movie.pays_production?.map((p) => p.name).join(', ') || 'Inconnu'}
-                  </InfoLine>
-                  <InfoLine icon={<Globe2 size={16} />} label="Langues">
-                    {movie.langues_parlees?.map((l) => l.name || l.english_name).join(', ') || 'Inconnues'}
-                  </InfoLine>
-                  <InfoLine icon={<Clapperboard size={16} />} label="Studios">
-                    {movie.compagnies?.map((c: { id: number; name: string; logo_path: string | null; origin_country: string }) => c.name).join(', ') || 'Non renseigné'}
-                  </InfoLine>
-                </div>
+              {displayPrefs.banner && (
+                <MovieCover
+                  movie={movie}
+                  onStatusChange={handleStatusChange}
+                  onToggleFavorite={handleToggleFavorite}
+                  updatingStatus={updatingStatus}
+                  togglingFavorite={togglingFavorite}
+                  onCoverUpdated={() => loadDetail({ silent: false })}
+                />
               )}
 
-              {displayPrefs.providers && streamingProviders.length > 0 && (
-                <div
-                  style={{
-                    background: 'var(--surface)',
-                    borderRadius: '18px',
-                    border: '1px solid var(--border)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '14px'
-                  }}
-                >
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>
-                    Disponibilité (France)
-                  </h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                    {streamingProviders.map((provider) => (
-                      <span
-                        key={provider.provider_id}
-                        style={{
-                          fontSize: '12px',
-                          padding: '6px 12px',
-                          borderRadius: '999px',
-                          background: 'rgba(var(--primary-rgb), 0.12)',
-                          border: '1px solid rgba(var(--primary-rgb), 0.25)',
-                          color: 'var(--text)'
-                        }}
-                      >
-                        {provider.provider_name} <small style={{ opacity: 0.7 }}>({provider.type})</small>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {displayPrefs.externalLinks && (
-                <div
-                  style={{
-                    background: 'var(--surface)',
-                    borderRadius: '18px',
-                    border: '1px solid var(--border)',
-                    padding: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                  }}
-                >
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>Liens externes</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {movie.ids_externes?.imdb_id && (
-                      <ExternalLinkButton
-                        href={`https://www.imdb.com/title/${movie.ids_externes.imdb_id}`}
-                        label="Voir sur IMDb"
-                      />
-                    )}
-                    {movie.site_officiel && (
-                      <ExternalLinkButton href={movie.site_officiel} label="Site officiel" />
-                    )}
-                    {!movie.ids_externes?.imdb_id && !movie.site_officiel && (
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                        Aucun lien externe disponible.
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </aside>
+              <MovieInfoSection
+                movie={movie}
+                shouldShow={(field) => displayPrefs[field as keyof MovieDisplayPrefs] ?? true}
+              />
+            </div>
           </div>
+
+          {/* Section Media : Vidéos et Galerie */}
+          {(displayPrefs.videos || displayPrefs.images) && (
+            <section
+              style={{
+                background: 'var(--surface)',
+                borderRadius: '18px',
+                border: '1px solid var(--border)',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px'
+              }}
+            >
+              <h3 className="detail-section-title">Media</h3>
+
+              {/* Sous-section Vidéos */}
+              {displayPrefs.videos && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 className="detail-subsection-title">Bandes-annonces & vidéos</h4>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setShowAddVideoModal(true)}
+                      disabled={addingVideo || loadingUserVideos}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        padding: '6px 12px',
+                        opacity: (addingVideo || loadingUserVideos) ? 0.6 : 1,
+                        cursor: (addingVideo || loadingUserVideos) ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Plus size={16} />
+                      {addingVideo ? 'Ajout en cours...' : 'Ajouter une vidéo'}
+                    </button>
+                  </div>
+                  {videos.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                      {videos.map((video) => {
+                        const isUserVideo = (video as any).isUserVideo;
+                        const videoId = (video as any).videoId;
+                        const isLocalFile = (video as any).file_path;
+                        return (
+                          <div
+                            key={video.id}
+                            style={{
+                              position: 'relative',
+                              display: 'inline-block'
+                            }}
+                          >
+                            <button
+                              className="btn btn-outline"
+                              onClick={() => {
+                                // Seules les vidéos locales s'ouvrent dans le player intégré
+                                if (isLocalFile && (video as any).url) {
+                                  setSelectedVideo({
+                                    site: 'local',
+                                    videoUrl: (video as any).url,
+                                    mimeType: (video as any).mime_type || undefined,
+                                    title: (video as any).title || video.name || video.type || undefined
+                                  });
+                                } else if ((video as any).url) {
+                                  // Toutes les URLs (YouTube, Vimeo, autres) s'ouvrent dans le navigateur
+                                  window.electronAPI.openExternal?.((video as any).url);
+                                } else if (video.site === 'YouTube' && video.key) {
+                                  // YouTube : construire l'URL et ouvrir dans le navigateur
+                                  window.electronAPI.openExternal?.(`https://www.youtube.com/watch?v=${video.key}`);
+                                } else if (video.site === 'Vimeo' && video.key) {
+                                  // Vimeo : construire l'URL et ouvrir dans le navigateur
+                                  window.electronAPI.openExternal?.(`https://vimeo.com/${video.key}`);
+                                }
+                              }}
+                              style={{
+                                justifyContent: 'flex-start',
+                                minWidth: '220px',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                position: 'relative'
+                              }}
+                            >
+                              {video.name || video.type || 'Vidéo'}
+                            </button>
+                            {isUserVideo && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteUserVideoClick(videoId);
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '4px',
+                                  right: '4px',
+                                  background: 'rgba(239, 68, 68, 0.9)',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '4px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'white',
+                                  width: '20px',
+                                  height: '20px'
+                                }}
+                                title="Supprimer cette vidéo"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {videos.length === 0 && !loadingUserVideos && (
+                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
+                      <p style={{ margin: 0 }}>Aucune vidéo disponible</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sous-section Galerie */}
+              {displayPrefs.images && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 className="detail-subsection-title">Galerie</h4>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setShowAddImageModal(true)}
+                      disabled={addingImage || loadingUserImages}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '13px',
+                        padding: '6px 12px',
+                        opacity: addingImage || loadingUserImages ? 0.6 : 1,
+                        cursor: addingImage || loadingUserImages ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <Plus size={16} />
+                      {addingImage ? 'Ajout en cours...' : 'Ajouter une photo'}
+                    </button>
+                  </div>
+                  {galleryItems.length > 0 && (
+                    <SimpleCarousel cardWidth={240} gap={16}>
+                      {galleryItems.map((item) => (
+                        <div
+                          key={item.key}
+                          style={{
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                            border: '1px solid var(--border)',
+                            cursor: 'zoom-in',
+                            position: 'relative',
+                            height: '140px'
+                          }}
+                          onClick={() => {
+                            if (item.fullUrl) {
+                              setSelectedImage(item.fullUrl);
+                              setSelectedImageMeta({
+                                url: item.fullUrl,
+                                fileName: getGalleryFileName(item)
+                              });
+                            }
+                          }}
+                          onContextMenu={(event) => handleGalleryImageContextMenu(event, item)}
+                        >
+                          <LazyImage
+                            src={item.thumbnailUrl}
+                            alt={item.source === 'tmdb' ? 'Backdrop TMDb' : (item.fileName || 'Image utilisateur')}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                            fileName={item.fileName}
+                            showError={item.source === 'user'}
+                          />
+                          {item.source === 'user' && item.userImageId && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteUserImageClick(item.userImageId!, item.fileName || 'Image utilisateur');
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                background: 'rgba(0, 0, 0, 0.7)',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                transition: 'background 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
+                              }}
+                              title="Supprimer cette image"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </SimpleCarousel>
+                  )}
+                  {galleryItems.length === 0 && !loadingUserImages && (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                      <p style={{ margin: 0 }}>Aucune image disponible</p>
+                    </div>
+                  )}
+                  {loadingUserImages && (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                      <p style={{ margin: 0 }}>Chargement des images...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
+          {displayPrefs.recommendations && recommendations.length > 0 && (
+            <section
+              style={{
+                background: 'var(--surface)',
+                borderRadius: '18px',
+                border: '1px solid var(--border)',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}
+            >
+              <h3 className="detail-section-title">Recommandations TMDb</h3>
+              <SimpleCarousel cardWidth={160} gap={12}>
+                {recommendations.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="card"
+                    style={{
+                      padding: 0,
+                      borderRadius: '12px',
+                      border: '1px solid var(--border)',
+                      overflow: 'hidden',
+                      background: 'var(--surface)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                    onClick={async () => {
+                      if (rec.id) {
+                        // Vérifier si le film est dans la collection
+                        try {
+                          const movieDetail = await window.electronAPI.getMovieDetail({ tmdbId: rec.id });
+                          if (movieDetail) {
+                            // Le film est dans la collection, naviguer vers sa page
+                            navigate(`/movies/${rec.id}`);
+                          } else {
+                            // Le film n'est pas dans la collection, ouvrir le lien TMDb
+                            window.electronAPI.openExternal?.(`https://www.themoviedb.org/movie/${rec.id}`);
+                          }
+                        } catch (error) {
+                          console.error('Erreur lors de la vérification du film:', error);
+                          // En cas d'erreur, ouvrir le lien TMDb par défaut
+                          window.electronAPI.openExternal?.(`https://www.themoviedb.org/movie/${rec.id}`);
+                        }
+                      }
+                    }}
+                  >
+                    <div style={{
+                      width: '100%',
+                      aspectRatio: '2/3',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: 'var(--surface)'
+                    }}>
+                      <CardCover
+                        src={rec.poster_path ? getTmdbImageUrl(rec.poster_path, 'w342') : undefined}
+                        alt={rec.title || rec.name || ''}
+                        fallbackIcon={<Star size={48} />}
+                        objectFit="cover"
+                      />
+                    </div>
+                    <div style={{
+                      padding: '10px 12px 6px 12px',
+                      borderTop: '1px solid var(--border)'
+                    }}>
+                      <CardTitle title={rec.title || rec.name || ''}>
+                        {rec.title || rec.name}
+                      </CardTitle>
+                    </div>
+                  </div>
+                ))}
+              </SimpleCarousel>
+            </section>
+          )}
         </div>
-        {showDisplaySettingsModal && (
-          <MovieDisplaySettingsModal onClose={handleCloseDisplaySettings} showToast={showToast} />
-        )}
-        <BackToTopButton />
       </div>
+      {showDisplaySettingsModal && (
+        <DisplaySettingsModal
+          title="Affichage des films"
+          description="Activez ou désactivez les sections visibles sur les fiches films."
+          fields={[
+            {
+              title: 'Présentation',
+              icon: '🎬',
+              fields: [
+                { key: 'banner', label: 'Bannière & affiches' },
+                { key: 'synopsis', label: 'Synopsis' }
+              ]
+            },
+            {
+              title: 'Métadonnées',
+              icon: '📊',
+              fields: [
+                { key: 'metadata', label: 'Informations principales' }
+              ]
+            },
+            {
+              title: 'Médias',
+              icon: '🎞️',
+              fields: [
+                { key: 'videos', label: 'Bandes-annonces' },
+                { key: 'images', label: 'Galerie d\'images' }
+              ]
+            },
+            {
+              title: 'Découverte',
+              icon: '✨',
+              fields: [
+                { key: 'recommendations', label: 'Recommandations & similaires' },
+                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getMovieDisplaySettings?.();
+            return prefs || movieDisplayDefaults;
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveMovieDisplaySettings?.(prefs);
+          }}
+          onSave={() => {
+            handleCloseDisplaySettings();
+          }}
+          onClose={handleCloseDisplaySettings}
+          showToast={showToast}
+        />
+      )}
+      {showEditModal && movie && (
+        <EditMovieModal
+          movie={movie}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={async () => {
+            setShowEditModal(false);
+            const detail = await window.electronAPI.getMovieDetail({ movieId: movie.id });
+            if (detail) {
+              setMovie({
+                ...detail,
+                genres: detail.genres || [],
+                langues_parlees: detail.langues_parlees || [],
+                compagnies: detail.compagnies || []
+              });
+            }
+          }}
+        />
+      )}
+      <BackToTopButton />
+      <BackToBottomButton />
+
+      {selectedImage && (
+        <ImageModal
+          src={selectedImage}
+          alt="Galerie"
+          onClose={() => {
+            setSelectedImage(null);
+            setSelectedImageMeta(null);
+          }}
+          onSaveImage={selectedImageMeta ? () => handleSaveImageToDisk(selectedImageMeta.url, selectedImageMeta.fileName) : undefined}
+        />
+      )}
+
+      {selectedVideo && (
+        <VideoModal
+          videoUrl={selectedVideo.videoUrl}
+          title={selectedVideo.title}
+          onClose={() => setSelectedVideo(null)}
+        />
+      )}
+
+      {showAddVideoModal && (
+        <AddVideoModal
+          onClose={() => setShowAddVideoModal(false)}
+          onAddUrl={handleAddVideoUrl}
+          onAddFile={handleAddVideoFile}
+          adding={addingVideo}
+        />
+      )}
+
+      {showAddImageModal && (
+        <AddImageModal
+          onClose={() => setShowAddImageModal(false)}
+          onAddUrl={handleAddImageUrl}
+          onAddFile={handleAddImageFile}
+          adding={addingImage}
+        />
+      )}
+
+      {imageToDelete && (
+        <ConfirmModal
+          title="Supprimer l'image"
+          message={`Êtes-vous sûr de vouloir supprimer l'image "${imageToDelete.fileName}" ?`}
+          onConfirm={handleConfirmDeleteImage}
+          onCancel={() => setImageToDelete(null)}
+          confirmText="Supprimer"
+          cancelText="Annuler"
+          isDanger={true}
+        />
+      )}
+
+      {videoToDelete && (
+        <ConfirmModal
+          title="Supprimer la vidéo"
+          message="Êtes-vous sûr de vouloir supprimer cette vidéo ?"
+          onConfirm={handleConfirmDeleteVideo}
+          onCancel={() => setVideoToDelete(null)}
+          confirmText="Supprimer"
+          cancelText="Annuler"
+          isDanger={true}
+        />
+      )}
+
+      <ConfirmDialog />
     </>
-  );
-}
-
-interface InfoLineProps {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}
-
-function InfoLine({ icon, label, children }: InfoLineProps) {
-  return (
-    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', fontSize: '13px' }}>
-      <span style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>{icon}</span>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{label}</span>
-        <span style={{ color: 'var(--text-secondary)' }}>{children}</span>
-      </div>
-    </div>
-  );
-}
-
-interface ExternalLinkButtonProps {
-  href: string;
-  label: string;
-}
-
-function ExternalLinkButton({ href, label }: ExternalLinkButtonProps) {
-  return (
-    <button
-      onClick={() => window.electronAPI.openExternal?.(href)}
-      className="btn btn-outline"
-      style={{
-        justifyContent: 'flex-start',
-        padding: '10px 14px',
-        fontSize: '13px',
-        color: 'var(--text)',
-        borderRadius: '10px'
-      }}
-    >
-      {label}
-    </button>
   );
 }

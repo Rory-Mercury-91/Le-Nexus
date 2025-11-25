@@ -1,6 +1,7 @@
 import { Lock } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface AdulteGameUnlockModalProps {
   onUnlock: () => void;
@@ -22,6 +23,9 @@ export default function AdulteGameUnlockModal({
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

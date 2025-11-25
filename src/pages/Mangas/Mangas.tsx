@@ -1,8 +1,10 @@
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import logoMihon from '../../../assets/logo-128px.png';
 import { MangaCard } from '../../components/cards';
 import {
+  BackToBottomButton,
   BackToTopButton,
   CollectionFiltersBar,
   CollectionHeader,
@@ -18,6 +20,7 @@ import MalCandidateSelectionModal from '../../components/modals/common/MalCandid
 import AddSerieModal from '../../components/modals/manga/AddSerieModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
+import { useCollectionFilters } from '../../hooks/common/useCollectionFilters';
 import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
@@ -25,6 +28,65 @@ import { Serie, SerieFilters, SerieTag } from '../../types';
 import { computeMangaProgress } from '../../utils/manga-progress';
 import { getSerieStatusLabel } from '../../utils/manga-status';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
+
+// Composant wrapper pour ListItem qui gère isHidden dynamiquement (comme MangaCard)
+function ListItemWrapper({
+  serie,
+  title,
+  subtitle,
+  progression,
+  currentStatus,
+  badges,
+  onOpenDetail,
+  onToggleFavorite,
+  onChangeStatus,
+  onToggleHidden
+}: {
+  serie: Serie;
+  title: string;
+  subtitle?: string | React.ReactNode;
+  progression?: number | null;
+  currentStatus: string;
+  badges?: React.ReactNode;
+  onOpenDetail: () => void;
+  onToggleFavorite: () => Promise<void>;
+  onChangeStatus: (status: string) => Promise<void>;
+  onToggleHidden: () => Promise<void>;
+}) {
+  const [isHidden, setIsHidden] = useState(false);
+
+  useEffect(() => {
+    const checkIfMasquee = async () => {
+      const masquee = await window.electronAPI.isSerieMasquee(serie.id);
+      setIsHidden(masquee);
+    };
+    checkIfMasquee();
+  }, [serie.id]);
+
+  const handleToggleHidden = async () => {
+    await onToggleHidden();
+    // Re-vérifier le statut après le toggle
+    const masquee = await window.electronAPI.isSerieMasquee(serie.id);
+    setIsHidden(masquee);
+  };
+
+  return (
+    <ListItem
+      title={title}
+      subtitle={subtitle}
+      progression={progression}
+      currentStatus={currentStatus}
+      availableStatuses={[...COMMON_STATUSES.MANGA]}
+      isFavorite={serie.is_favorite || false}
+      isHidden={isHidden}
+      badges={badges}
+      onClick={onOpenDetail}
+      onToggleFavorite={onToggleFavorite}
+      onChangeStatus={onChangeStatus}
+      onToggleHidden={handleToggleHidden}
+    />
+  );
+}
 
 const MANGA_SORT_OPTIONS = ['title-asc', 'title-desc', 'date-desc', 'date-asc', 'cost-desc', 'cost-asc'] as const;
 type MangaSortOption = (typeof MANGA_SORT_OPTIONS)[number];
@@ -65,7 +127,7 @@ const isSerieFilters = (value: unknown): value is SerieFilters => {
   if (!value || typeof value !== 'object') {
     return false;
   }
-  const allowedKeys = new Set(['statut', 'type_volume', 'proprietaire', 'search', 'afficherMasquees', 'tag']);
+  const allowedKeys = new Set(['statut', 'type_volume', 'proprietaire', 'search', 'afficherMasquees', 'tag', 'source_url', 'source_id']);
   return Object.entries(value as Record<string, unknown>).every(([key, val]) => allowedKeys.has(key) && isSerieFiltersValue(val));
 };
 
@@ -102,7 +164,7 @@ export default function Mangas() {
   );
   const [scrollPosition, setScrollPosition] = useState<number | null>(null);
   const [stats, setStats] = useState<ProgressionStats>({});
-  const [viewMode] = useCollectionViewMode('mangas');
+  const [viewMode, handleViewModeChange] = useCollectionViewMode('mangas');
   const [sortBy, setSortBy] = usePersistentState<MangaSortOption>(
     'collection.mangas.sortBy',
     'title-asc',
@@ -127,6 +189,65 @@ export default function Mangas() {
     false,
     { storage: 'session' }
   );
+  const [showMihonOnly, setShowMihonOnly] = usePersistentState<boolean>(
+    'collection.mangas.filters.showMihonOnly',
+    false,
+    { storage: 'session' }
+  );
+
+  // Récupération des sites disponibles depuis l'index des sources
+  // Cette liste est basée sur TOUTES les séries de la base, pas seulement celles filtrées
+  const [availableSites, setAvailableSites] = useState<Array<{ id: string; name: string; baseUrl: string }>>([]);
+
+  useEffect(() => {
+    const loadAvailableSites = async () => {
+      try {
+        // Charger tous les sites utilisés dans la base de données (pas seulement ceux filtrés)
+        if (!window.electronAPI.getAvailableSources) return;
+        const result = await window.electronAPI.getAvailableSources();
+        if (result.success && result.sources) {
+          setAvailableSites(result.sources.map(source => ({
+            ...source,
+            baseUrl: '' // baseUrl n'est pas fourni par l'API, on utilise une valeur par défaut
+          })));
+        } else {
+          console.warn('⚠️ Impossible de charger les sites depuis l\'index, utilisation du fallback');
+          // Fallback : charger depuis toutes les séries de la base (via get-series sans filtres)
+          try {
+            const allSeries = await window.electronAPI.getSeries({});
+            const domains = new Set<string>();
+            allSeries.forEach((serie: Serie) => {
+              if (serie.source_url) {
+                try {
+                  const url = new URL(serie.source_url);
+                  const hostname = url.hostname.replace(/^www\./, '');
+                  if (hostname) {
+                    domains.add(hostname);
+                  }
+                } catch (e) {
+                  // Ignorer les erreurs
+                }
+              }
+            });
+            // Convertir en format compatible
+            const fallbackSites = Array.from(domains).map(domain => ({
+              id: domain,
+              name: domain,
+              baseUrl: `https://${domain}`
+            }));
+            setAvailableSites(fallbackSites);
+          } catch (fallbackError) {
+            console.error('Erreur chargement sites (fallback):', fallbackError);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement sites:', error);
+      }
+    };
+
+    // Charger une seule fois au montage du composant, pas à chaque changement de filtres
+    loadAvailableSites();
+  }, []); // Dépendance vide = chargement unique au montage
 
   const filtersNormalizedRef = useRef(false);
 
@@ -316,7 +437,7 @@ export default function Mangas() {
     if (searchFromFilters && searchFromFilters !== trimmed) {
       setSearchTerm(searchFromFilters);
     }
-     
+
   }, [filters.search]);
 
   const handleFilterChange = (key: string, value: string) => {
@@ -335,10 +456,9 @@ export default function Mangas() {
     setShowFavoriteOnly(false);
     setShowHidden(false);
     setShowMajOnly(false);
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly]);
+    setShowMihonOnly(false);
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setShowMihonOnly]);
 
-  const normalizedSearch = searchTerm.trim();
-  const hasActiveFilters = Object.keys(filters).length > 0 || normalizedSearch.length > 0 || showHidden || showFavoriteOnly || showMajOnly;
 
   // Fonction pour détecter et extraire l'ID depuis une URL MAL
   const detectMalUrlOrId = (input: string): { id: string | null } => {
@@ -360,75 +480,95 @@ export default function Mangas() {
     return { id: null };
   };
 
-  // Filtrage des séries
-  const filterSeries = (seriesToFilter: Serie[]) => {
-    let filtered = seriesToFilter;
+  const {
+    sortedItems: sortedSeries,
+    hasActiveFilters
+  } = useCollectionFilters({
+    items: series,
+    search: searchTerm,
+    statusFilter: filters.statut || '',
+    showFavoriteOnly,
+    showHidden,
+    sortBy,
+    searchConfig: {
+      getTitle: (s) => s.titre,
+      getExternalId: (s) => s.mal_id ? parseInt(s.mal_id.toString(), 10) : null,
+      detectIdFromSearch: (term) => {
+        const result = detectMalUrlOrId(term);
+        return result.id ? { id: parseInt(result.id, 10) } : { id: null };
+      }
+    },
+    filterConfig: {
+      getIsHidden: (s) => !!s.is_masquee,
+      getIsFavorite: (s) => !!s.is_favorite,
+      getStatus: (s) => getSerieStatusLabel(s),
+      customFilter: (serie) => {
+        // Filtre Mihon
+        if (showMihonOnly) {
+          const hasTomesMihon = serie.tomes?.some(tome => tome.mihon === 1);
+          const hasChapitresMihon = serie.chapitres_mihon === 1;
+          if (!(hasTomesMihon || hasChapitresMihon)) {
+            return false;
+          }
+        }
 
-    // Ne pas filtrer les mangas sensibles - ils seront juste floutés avec le badge +18
-    // L'accès à la page de détail sera protégé par la modal de déverrouillage
+        // Filtres additionnels depuis filters
+        if (filters.type_volume && serie.type_volume !== filters.type_volume) {
+          return false;
+        }
+        if (filters.statut && serie.statut_publication !== filters.statut) {
+          return false;
+        }
 
-    if (showFavoriteOnly) {
-      filtered = filtered.filter(serie => serie.is_favorite);
+        return true;
+      }
+    },
+    sortConfig: {
+      sortOptions: {
+        'title-asc': {
+          label: 'Titre A-Z',
+          compare: (a, b) => a.titre.localeCompare(b.titre)
+        },
+        'title-desc': {
+          label: 'Titre Z-A',
+          compare: (a, b) => b.titre.localeCompare(a.titre)
+        },
+        'date-desc': {
+          label: 'Date ↓',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+          }
+        },
+        'date-asc': {
+          label: 'Date ↑',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateA - dateB;
+          }
+        },
+        'cost-desc': {
+          label: 'Coût ↓',
+          compare: (a, b) => {
+            const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+            const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+            return costB - costA;
+          }
+        },
+        'cost-asc': {
+          label: 'Coût ↑',
+          compare: (a, b) => {
+            const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+            const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
+            return costA - costB;
+          }
+        }
+      },
+      defaultSort: 'title-asc'
     }
-
-    // Note: MAJ n'existe pas pour les mangas, mais le toggle est présent pour la cohérence
-    // if (showMajOnly) {
-    //   filtered = filtered.filter(serie => serie.maj_disponible);
-    // }
-
-    if (showHidden) {
-      // Afficher uniquement les séries masquées
-      filtered = filtered.filter(serie => {
-        // Vérifier si la série est masquée pour l'utilisateur actuel
-        return serie.is_masquee;
-      });
-    } else {
-      // Par défaut, exclure les séries masquées si le toggle n'est pas activé
-      filtered = filtered.filter(serie => !serie.is_masquee);
-    }
-
-    return filtered;
-  };
-
-  const sortSeries = (seriesToSort: Serie[]) => {
-    const sorted = [...seriesToSort];
-
-    switch (sortBy) {
-      case 'title-asc':
-        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
-      case 'title-desc':
-        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
-      case 'date-desc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateB - dateA;
-        });
-      case 'date-asc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateA - dateB;
-        });
-      case 'cost-desc':
-        return sorted.sort((a, b) => {
-          const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
-          const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
-          return costB - costA;
-        });
-      case 'cost-asc':
-        return sorted.sort((a, b) => {
-          const costA = a.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
-          const costB = b.tomes?.reduce((sum, tome) => sum + (tome.prix || 0), 0) || 0;
-          return costA - costB;
-        });
-      default:
-        return sorted;
-    }
-  };
-
-  const filteredSeries = filterSeries(series);
-  const sortedSeries = sortSeries(filteredSeries);
+  });
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
   const detectedMalId = searchTerm ? detectMalUrlOrId(searchTerm) : { id: null };
@@ -495,6 +635,7 @@ export default function Mangas() {
     totalPages,
     itemsPerPage,
     setCurrentPage,
+    setItemsPerPage,
     goToFirstPage,
     goToLastPage,
     goToNextPage,
@@ -536,6 +677,7 @@ export default function Mangas() {
       };
 
       const tag = statusToTagMap[newStatus];
+      let newStatut: string | null = null;
       if (tag) {
         await window.electronAPI.setSerieTag(serieId, currentUser.id, tag);
 
@@ -544,17 +686,33 @@ export default function Mangas() {
 
         if (newStatus === 'Abandonné') {
           await window.electronAPI.updateSerie(serieId, { statut: 'Abandonnée', statut_lecture: lectureStatus });
+          newStatut = 'Abandonnée';
         } else if (newStatus === 'En cours') {
           await window.electronAPI.updateSerie(serieId, { statut: 'En cours', statut_lecture: lectureStatus });
+          newStatut = 'En cours';
         } else if (newStatus === 'Terminé') {
           await window.electronAPI.updateSerie(serieId, { statut: 'Terminée', statut_lecture: lectureStatus });
+          newStatut = 'Terminée';
         } else if (newStatus === 'En pause' || newStatus === 'À lire') {
           await window.electronAPI.updateSerie(serieId, { statut_lecture: lectureStatus });
         }
 
         // Utiliser la fonction commune pour mettre à jour
         const updates: Partial<Serie> = { tag: tag as SerieTag, statut_lecture: lectureStatus };
+        if (newStatut) {
+          updates.statut = newStatut as Serie['statut'];
+        }
         updateSerieInState(serieId, updates);
+
+        window.dispatchEvent(new CustomEvent('manga-status-changed', {
+          detail: {
+            serieId,
+            status: newStatus,
+            tag,
+            statut: newStatut,
+            statutLecture: lectureStatus
+          }
+        }));
       }
     } catch (error) {
       console.error('Erreur changement statut:', error);
@@ -591,10 +749,10 @@ export default function Mangas() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           {/* En-tête avec composant réutilisable */}
           <CollectionHeader
-            title="Collection Mangas"
+            title="Collection Lectures"
             icon="📚"
             count={series.length}
-            countLabel={series.length > 1 ? 'séries' : 'série'}
+            countLabel={series.length > 1 ? 'lectures' : 'lecture'}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter une série"
             extraButtons={
@@ -610,7 +768,7 @@ export default function Mangas() {
                     alert('Erreur lors de la synchronisation MAL');
                   }
                 }}
-                className="btn btn-primary"
+                className="btn btn-outline"
                 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 <RefreshCw size={18} />
@@ -620,7 +778,9 @@ export default function Mangas() {
           />
 
           {/* Stats de progression */}
-          <ProgressionHeader type="manga" stats={stats} />
+          <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
+            <ProgressionHeader type="manga" stats={stats} />
+          </div>
 
           {/* Recherche et filtres avec composants réutilisables */}
           <CollectionFiltersBar
@@ -635,12 +795,12 @@ export default function Mangas() {
               showSubmitButton={false}
             />
 
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto' }}>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as MangaSortOption)}
                 className="select"
-                style={{ minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="title-asc">📖 Titre (A → Z)</option>
                 <option value="title-desc">📖 Titre (Z → A)</option>
@@ -654,7 +814,7 @@ export default function Mangas() {
                 className="select"
                 value={filters.statut || ''}
                 onChange={(e) => handleFilterChange('statut', e.target.value)}
-                style={{ width: 'auto', minWidth: '150px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="">🔍 Tous les statuts</option>
                 <option value="En cours">🔵 En cours</option>
@@ -666,7 +826,7 @@ export default function Mangas() {
                 className="select"
                 value={filters.type_volume || ''}
                 onChange={(e) => handleFilterChange('type_volume', e.target.value)}
-                style={{ width: 'auto', minWidth: '180px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="">🔍 Tous les types</option>
                 {MANGA_VOLUME_TYPE_OPTIONS.map(option => (
@@ -680,7 +840,7 @@ export default function Mangas() {
                 className="select"
                 value={filters.tag || ''}
                 onChange={(e) => handleFilterChange('tag', e.target.value)}
-                style={{ width: 'auto', minWidth: '160px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 {MANGA_TAG_OPTIONS.map(option => (
                   <option key={option.value} value={option.value}>
@@ -689,6 +849,21 @@ export default function Mangas() {
                 ))}
               </select>
 
+              {availableSites.length > 0 && (
+                <select
+                  className="select"
+                  value={filters.source_id || ''}
+                  onChange={(e) => handleFilterChange('source_id', e.target.value)}
+                  style={{ width: 'auto', flex: '0 0 auto' }}
+                >
+                  <option value="">🔍 Tous les sites</option>
+                  {availableSites.map((site: { id: string; name: string; baseUrl: string }) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Ligne 2 : Toggles MAJ, Favoris et Masqués */}
@@ -712,14 +887,32 @@ export default function Mangas() {
               <FilterToggle
                 checked={showHidden}
                 onChange={setShowHidden}
-                label="👁️ Mangas masqués"
+                label="👁️ Lectures masquées"
                 icon="👁️"
+                activeColor="#f59e0b"
+              />
+
+              <FilterToggle
+                checked={showMihonOnly}
+                onChange={setShowMihonOnly}
+                label="Mihon"
+                icon={
+                  <img
+                    src={logoMihon}
+                    alt="Mihon"
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      objectFit: 'contain'
+                    }}
+                  />
+                }
                 activeColor="#f59e0b"
               />
             </div>
           </CollectionFiltersBar>
 
-          {/* Pagination */}
+          {/* Pagination avec contrôles de vue et items par page */}
           {sortedSeries.length > 0 && (
             <Pagination
               currentPage={currentPage}
@@ -727,13 +920,15 @@ export default function Mangas() {
               itemsPerPage={itemsPerPage}
               totalItems={sortedSeries.length}
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
               onFirstPage={goToFirstPage}
               onLastPage={goToLastPage}
               onNextPage={goToNextPage}
               onPreviousPage={goToPreviousPage}
               canGoNext={canGoNext}
               canGoPrevious={canGoPrevious}
-              hideItemsPerPageSelect
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           )}
 
@@ -801,10 +996,7 @@ export default function Mangas() {
             renderListItem={(serie) => {
               const progress = computeMangaProgress(serie);
               const progression = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
-
-              const subtitle = progress.source !== 'none'
-                ? progress.label
-                : undefined;
+              const currentStatus = getSerieStatusLabel(serie);
 
               // Badge favori
               const badgeFavori = !!serie.is_favorite ? (
@@ -827,17 +1019,120 @@ export default function Mangas() {
                 </span>
               ) : null;
 
+              // Badge Mihon (version inline pour liste)
+              const hasMihon = serie.tomes?.some(tome => tome.mihon === 1) || serie.chapitres_mihon === 1;
+              const badgeMihon = hasMihon ? (
+                <img
+                  src={logoMihon}
+                  alt="Mihon"
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    objectFit: 'contain',
+                    flexShrink: 0
+                  }}
+                />
+              ) : null;
+
+              // Badge de statut (version inline pour liste) - pour tous les statuts
+              const getStatusBadgeInline = (status: string) => {
+                if (!status) return null;
+                const getStatusConfig = () => {
+                  switch (status) {
+                    case 'À lire':
+                      return {
+                        color: '#ffffff',
+                        bg: '#3b82f6',
+                        icon: '👁️',
+                        label: 'À lire'
+                      };
+                    case 'En cours':
+                      return {
+                        color: '#ffffff',
+                        bg: '#8b5cf6',
+                        icon: '📖',
+                        label: 'En cours'
+                      };
+                    case 'Terminé':
+                      return {
+                        color: '#ffffff',
+                        bg: '#10b981',
+                        icon: '✅',
+                        label: 'Terminé'
+                      };
+                    case 'Abandonné':
+                      return {
+                        color: '#ffffff',
+                        bg: '#ef4444',
+                        icon: '🚫',
+                        label: 'Abandonné'
+                      };
+                    case 'En pause':
+                      return {
+                        color: '#000000',
+                        bg: '#fbbf24',
+                        icon: '⏸️',
+                        label: 'En pause'
+                      };
+                    default:
+                      return null;
+                  }
+                };
+                const config = getStatusConfig();
+                if (!config) return null;
+                return (
+                  <span style={{
+                    padding: '3px 8px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    background: config.bg,
+                    color: config.color,
+                    flexShrink: 0,
+                    letterSpacing: '0.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    border: '2px solid rgba(255, 255, 255, 0.2)'
+                  }}>
+                    <span style={{ fontSize: '12px' }}>{config.icon}</span>
+                    <span>{config.label}</span>
+                  </span>
+                );
+              };
+              const statusBadgeInline = getStatusBadgeInline(currentStatus);
+
+              // Badges combinés pour le titre (favori + Mihon)
+              const allBadges = (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {badgeFavori}
+                  {badgeMihon}
+                </div>
+              );
+
+              // Subtitle avec badge de statut devant la progression "X/Y"
+              const subtitleWithBadge = progress.source !== 'none' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {statusBadgeInline}
+                  <span>{progress.label}</span>
+                </div>
+              ) : statusBadgeInline ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {statusBadgeInline}
+                </div>
+              ) : undefined;
+
+              // Wrapper pour ListItem qui gère isHidden dynamiquement
               return (
-                <ListItem
+                <ListItemWrapper
                   key={`${serie.id}-${serie.tag}-${serie.statut}-${serie.statut_lecture}-${serie.is_favorite}-${updateKey}`}
+                  serie={serie}
                   title={serie.titre}
-                  subtitle={subtitle}
+                  subtitle={subtitleWithBadge}
                   progression={progression}
-                  currentStatus={getSerieStatusLabel(serie)}
-                  availableStatuses={['À lire', 'En cours', 'Terminé', 'Abandonné', 'En pause']}
-                  isFavorite={serie.is_favorite || false}
-                  badges={badgeFavori}
-                  onClick={() => handleOpenSerieDetail(serie)}
+                  currentStatus={currentStatus}
+                  badges={allBadges}
+                  onOpenDetail={() => handleOpenSerieDetail(serie)}
                   onToggleFavorite={() => handleToggleFavorite(serie.id)}
                   onChangeStatus={(status) => handleChangeStatus(serie.id, status)}
                   onToggleHidden={() => handleToggleHidden(serie.id)}
@@ -849,8 +1144,8 @@ export default function Mangas() {
               showAddFromMal
                 ? ''
                 : (hasActiveFilters
-                  ? 'Aucune série trouvée. Essayez de modifier vos filtres de recherche.'
-                  : 'Aucune série dans votre collection. Commencez par ajouter votre première série !')
+                  ? 'Aucune lecture ne correspond à vos filtres'
+                  : 'Aucune lecture dans votre collection')
             }
             emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3, margin: '0 auto 24px', display: 'block' }}>📚</span>}
             gridMinWidth={200}
@@ -893,26 +1188,30 @@ export default function Mangas() {
           )}
         </div>
 
+        {/* Pagination en bas */}
         {sortedSeries.length > 0 && (
-          <div style={{ marginTop: '32px' }}>
+          <div style={{ marginTop: '24px' }}>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               itemsPerPage={itemsPerPage}
               totalItems={sortedSeries.length}
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
               onFirstPage={goToFirstPage}
               onLastPage={goToLastPage}
               onNextPage={goToNextPage}
               onPreviousPage={goToPreviousPage}
               canGoNext={canGoNext}
               canGoPrevious={canGoPrevious}
-              hideItemsPerPageSelect
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
           </div>
         )}
 
         <BackToTopButton />
+        <BackToBottomButton />
       </div>
     </>
   );

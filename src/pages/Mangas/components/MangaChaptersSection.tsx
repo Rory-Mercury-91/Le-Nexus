@@ -1,13 +1,15 @@
+import { FileText } from 'lucide-react';
 import { Serie } from '../../../types';
 
 interface MangaChaptersSectionProps {
   serie: Serie;
   onChapitresLusChange: (value: number) => Promise<void>;
   onNbChapitresChange: (value: number) => Promise<void>;
+  onChapitresMihonChange: (value: boolean) => Promise<void>;
   shouldShow: boolean;
 }
 
-export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitresChange, shouldShow }: MangaChaptersSectionProps) {
+export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitresChange, onChapitresMihonChange, shouldShow }: MangaChaptersSectionProps) {
   const shouldShowChapters = (serie.type_contenu && (serie.type_contenu === 'chapitre' || serie.type_contenu === 'volume+chapitre')) || 
     (serie.chapitres_lus !== null && serie.chapitres_lus !== undefined) || 
     (serie.nb_chapitres !== null && serie.nb_chapitres !== undefined);
@@ -23,14 +25,15 @@ export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitre
       }}
     >
       <div style={{
-        fontSize: '12px',
-        fontWeight: '600',
-        color: 'var(--text-secondary)',
+        fontSize: '20px',
+        fontWeight: '700',
+        color: 'var(--text)',
         display: 'flex',
         alignItems: 'center',
         gap: '8px'
       }}>
-        📖 Chapitres ({serie.nb_chapitres || 0})
+        <FileText size={20} />
+        Chapitres ({serie.nb_chapitres || 0})
       </div>
       
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -84,6 +87,32 @@ export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitre
             textAlign: 'center'
           }}
         />
+        
+        <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+          |
+        </span>
+        
+        {/* Checkbox Mihon */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={serie.chapitres_mihon === 1}
+            onChange={async (e) => {
+              await onChapitresMihonChange(e.target.checked);
+            }}
+            style={{
+              width: '18px',
+              height: '18px',
+              cursor: 'pointer',
+              accentColor: 'var(--warning)',
+              flexShrink: 0
+            }}
+            title={serie.chapitres_mihon === 1 ? 'Marquer comme non Mihon' : 'Marquer comme Mihon'}
+          />
+          <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+            Mihon
+          </span>
+        </label>
       </div>
     </div>
   );

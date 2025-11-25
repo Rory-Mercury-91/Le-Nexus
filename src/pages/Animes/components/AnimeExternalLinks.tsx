@@ -91,17 +91,20 @@ export default function AnimeExternalLinks({ anime, liensExternes, shouldShow }:
     });
   }
 
-  // Ajouter le lien MAL si présent
-  if (anime.mal_url && !allLinks.find(l => l.url === anime.mal_url)) {
+  // Ajouter le lien MAL si présent (mais exclure les URLs Nautiljon qui sont affichées sous la couverture)
+  if (anime.mal_url && !anime.mal_url.includes('nautiljon.com') && !allLinks.find(l => l.url === anime.mal_url)) {
     allLinks.push({
       name: 'MyAnimeList',
       url: anime.mal_url,
       source: 'MAL'
     });
   }
+  
+  // Exclure aussi les URLs Nautiljon des liens externes génériques
+  const filteredLinks = allLinks.filter(link => !link.url.includes('nautiljon.com'));
 
   // Trier les liens : Wikipedia français en premier, puis par ordre alphabétique
-  allLinks.sort((a, b) => {
+  filteredLinks.sort((a, b) => {
     // Wikipedia français en premier
     if (a.langCode === 'FR') return -1;
     if (b.langCode === 'FR') return 1;
@@ -109,13 +112,12 @@ export default function AnimeExternalLinks({ anime, liensExternes, shouldShow }:
     return a.name.localeCompare(b.name);
   });
 
-  if (allLinks.length === 0) {
+  if (filteredLinks.length === 0) {
     return null;
   }
 
   return (
     <div style={{
-      marginBottom: '20px',
       padding: '16px',
       border: '1px solid var(--border)',
       borderRadius: '8px',
@@ -135,10 +137,10 @@ export default function AnimeExternalLinks({ anime, liensExternes, shouldShow }:
       </h3>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${Math.min(allLinks.length, 4)}, 1fr)`,
+        gridTemplateColumns: `repeat(${Math.min(filteredLinks.length, 4)}, 1fr)`,
         gap: '12px'
       }}>
-        {allLinks.map((link, index) => (
+        {filteredLinks.map((link, index) => (
           <a
             key={index}
             href={link.url}

@@ -3,22 +3,50 @@
  */
 
 // Import des fonctions communes
-const { getUserIdByName } = require('../common-helpers');
+const { getUserIdByName, safeJsonParse } = require('../common-helpers');
+
 /**
- * Force l'exclusivité d'un propriétaire sur tous les tomes d'une série
+ * S'assure qu'une ligne manga_user_data existe pour une série et un utilisateur
  */
+function ensureMangaUserDataRow(db, serieId, userId) {
+  if (!userId) return;
+  
+  const existing = db.prepare('SELECT id FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+  if (!existing) {
+    db.prepare(`
+      INSERT INTO manga_user_data (
+        serie_id, user_id, statut_lecture, score, volumes_lus, chapitres_lus,
+        date_debut, date_fin, tag, is_favorite, is_hidden, notes_privees,
+        tome_progress, display_preferences, created_at, updated_at
+      )
+      VALUES (?, ?, 'À lire', NULL, 0, 0, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, datetime('now'), datetime('now'))
+    `).run(serieId, userId);
+  }
+}
+/**
+ * Force l'exclusivité d'un propriétaire sur tous les manga_tomes d'une série
+ */
+function tableExists(db, tableName) {
+  return Boolean(db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`).get(tableName));
+}
+
 function setExclusiveSerieOwnership(db, serieId, userId) {
   if (!userId) return;
+  const tableName = 'manga_manga_tomes_proprietaires';
+  if (!tableExists(db, tableName)) {
+    console.warn(`⚠️ Table ${tableName} introuvable, impossible d'appliquer la propriété exclusive.`);
+    return;
+  }
 
   db.prepare(`
-    DELETE FROM tomes_proprietaires
-    WHERE tome_id IN (SELECT id FROM tomes WHERE serie_id = ?)
+    DELETE FROM ${tableName}
+    WHERE tome_id IN (SELECT id FROM manga_tomes WHERE serie_id = ?)
       AND user_id != ?
   `).run(serieId, userId);
 
   db.prepare(`
-    INSERT OR IGNORE INTO tomes_proprietaires (tome_id, user_id)
-    SELECT id, ? FROM tomes WHERE serie_id = ?
+    INSERT OR IGNORE INTO ${tableName} (tome_id, user_id)
+    SELECT id, ? FROM manga_tomes WHERE serie_id = ?
   `).run(userId, serieId);
 }
 
@@ -28,27 +56,24 @@ function setExclusiveSerieOwnership(db, serieId, userId) {
 function setExclusiveSerieUserStatus(db, serieId, userId, statutLecture = 'À lire') {
   if (!userId) return;
 
-  db.prepare(`
-    DELETE FROM serie_statut_utilisateur
-    WHERE serie_id = ?
-      AND user_id != ?
-  `).run(serieId, userId);
+  // Supprimer les entrées des autres utilisateurs (si nécessaire)
+  // Note: Avec manga_user_data, chaque utilisateur a sa propre entrée, donc pas besoin de DELETE
 
+  ensureMangaUserDataRow(db, serieId, userId);
+  
   db.prepare(`
-    INSERT INTO serie_statut_utilisateur (
-      serie_id, user_id, statut_lecture, volumes_lus, chapitres_lus, date_modification
-    ) VALUES (?, ?, ?, 0, 0, datetime('now'))
-    ON CONFLICT(serie_id, user_id) DO UPDATE SET
-      statut_lecture = excluded.statut_lecture,
-      date_modification = datetime('now')
-  `).run(serieId, userId, statutLecture);
+    UPDATE manga_user_data SET
+      statut_lecture = ?,
+      updated_at = datetime('now')
+    WHERE serie_id = ? AND user_id = ?
+  `).run(statutLecture, serieId, userId);
 }
 
 /**
  * Récupérer le titre d'une série
  */
 function getSerieTitle(db, serieId) {
-  const serie = db.prepare('SELECT titre FROM series WHERE id = ?').get(serieId);
+  const serie = db.prepare('SELECT titre FROM manga_series WHERE id = ?').get(serieId);
   return serie ? serie.titre : null;
 }
 
@@ -56,7 +81,7 @@ function getSerieTitle(db, serieId) {
  * Récupérer la couverture d'une série
  */
 function getSerieCover(db, serieId) {
-  const serie = db.prepare('SELECT couverture_url FROM series WHERE id = ?').get(serieId);
+  const serie = db.prepare('SELECT couverture_url FROM manga_series WHERE id = ?').get(serieId);
   return serie ? serie.couverture_url : null;
 }
 
@@ -64,13 +89,13 @@ function getSerieCover(db, serieId) {
  * Mettre à jour la couverture d'une série
  */
 function updateSerieCover(db, serieId, coverUrl) {
-  db.prepare('UPDATE series SET couverture_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+  db.prepare('UPDATE manga_series SET couverture_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(coverUrl, serieId);
 }
 
 /**
  * Calcule automatiquement le tag de completion pour une série basé sur les progressions
- * Prend en compte les tomes ET les chapitres
+ * Prend en compte les manga_tomes ET les chapitres
  * @param {Database} db - Instance de la base de données
  * @param {number} serieId - ID de la série
  * @param {number} userId - ID de l'utilisateur
@@ -79,43 +104,42 @@ function updateSerieCover(db, serieId, coverUrl) {
 function calculateAutoCompletionTag(db, serieId, userId) {
   if (!userId) return null;
 
+  // Récupérer les données utilisateur depuis manga_user_data
+  const userData = db.prepare(`
+    SELECT tag, volumes_lus, chapitres_lus, tome_progress
+    FROM manga_user_data
+    WHERE serie_id = ? AND user_id = ?
+  `).get(serieId, userId);
+
   // Vérifier s'il y a un tag manuel (a_lire ou abandonne)
-  const manualTag = db.prepare('SELECT tag FROM serie_tags WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
-  if (manualTag && (manualTag.tag === 'a_lire' || manualTag.tag === 'abandonne')) {
+  if (userData && userData.tag && (userData.tag === 'a_lire' || userData.tag === 'abandonne')) {
     // Ne pas écraser un tag manuel
     return null;
   }
 
-  // Récupérer les progressions depuis serie_statut_utilisateur
-  const statutUtilisateur = db.prepare(`
-    SELECT volumes_lus, chapitres_lus
-    FROM serie_statut_utilisateur
-    WHERE serie_id = ? AND user_id = ?
-  `).get(serieId, userId);
-
-  // Récupérer aussi depuis la table series (pour compatibilité)
-  const serie = db.prepare('SELECT volumes_lus, chapitres_lus, nb_volumes, nb_volumes_vf, nb_chapitres, nb_chapitres_vf, type_contenu FROM series WHERE id = ?').get(serieId);
+  // Récupérer aussi depuis la table manga_series (pour compatibilité)
+  const serie = db.prepare('SELECT volumes_lus, chapitres_lus, nb_volumes, nb_volumes_vf, nb_chapitres, nb_chapitres_vf, type_contenu FROM manga_series WHERE id = ?').get(serieId);
   
-  // Compter les tomes lus
-  const tomesLusCount = db.prepare(`
-    SELECT COUNT(*) as count 
-    FROM lecture_tomes lt
-    JOIN tomes t ON lt.tome_id = t.id
-    WHERE t.serie_id = ? AND lt.user_id = ? AND lt.lu = 1
-  `).get(serieId, userId);
-  const nbTomesLus = tomesLusCount ? tomesLusCount.count : 0;
+  // Compter les manga_tomes lus depuis tome_progress (JSON)
+  let nbTomesLus = 0;
+  if (userData && userData.tome_progress) {
+    const tomeProgress = safeJsonParse(userData.tome_progress, []);
+    if (Array.isArray(tomeProgress)) {
+      nbTomesLus = tomeProgress.filter(tp => tp.lu === true || tp.lu === 1).length;
+    }
+  }
   
-  // Compter le total de tomes
-  const tomesTotalCount = db.prepare('SELECT COUNT(*) as count FROM tomes WHERE serie_id = ?').get(serieId);
-  const nbTomesTotal = tomesTotalCount ? tomesTotalCount.count : 0;
+  // Compter le total de manga_tomes
+  const manga_tomesTotalCount = db.prepare('SELECT COUNT(*) as count FROM manga_tomes WHERE serie_id = ?').get(serieId);
+  const nbTomesTotal = manga_tomesTotalCount ? manga_tomesTotalCount.count : 0;
 
-  // Utiliser les valeurs de serie_statut_utilisateur en priorité, sinon celles de series
-  const volumesLus = statutUtilisateur && statutUtilisateur.volumes_lus !== null && statutUtilisateur.volumes_lus !== undefined
-    ? statutUtilisateur.volumes_lus
+  // Utiliser les valeurs de manga_user_data en priorité, sinon celles de manga_series
+  const volumesLus = userData && userData.volumes_lus !== null && userData.volumes_lus !== undefined
+    ? userData.volumes_lus
     : (serie ? (serie.volumes_lus || 0) : 0);
   
-  const chapitresLus = statutUtilisateur && statutUtilisateur.chapitres_lus !== null && statutUtilisateur.chapitres_lus !== undefined
-    ? statutUtilisateur.chapitres_lus
+  const chapitresLus = userData && userData.chapitres_lus !== null && userData.chapitres_lus !== undefined
+    ? userData.chapitres_lus
     : (serie ? (serie.chapitres_lus || 0) : 0);
 
   // Calculer les totaux
@@ -146,6 +170,15 @@ function calculateAutoCompletionTag(db, serieId, userId) {
   return 'a_lire';
 }
 
+function clearManualTagOverride(db, serieId, userId) {
+  if (!userId) return;
+  db.prepare(`
+    UPDATE manga_user_data
+    SET tag_manual_override = 0
+    WHERE serie_id = ? AND user_id = ?
+  `).run(serieId, userId);
+}
+
 /**
  * Met à jour automatiquement le tag de completion pour une série
  * @param {Database} db - Instance de la base de données
@@ -155,20 +188,28 @@ function calculateAutoCompletionTag(db, serieId, userId) {
 function updateAutoCompletionTag(db, serieId, userId) {
   if (!userId) return;
 
-  const autoTag = calculateAutoCompletionTag(db, serieId, userId);
-  if (autoTag === null) {
-    // Tag manuel, ne pas le modifier
+  ensureMangaUserDataRow(db, serieId, userId);
+
+  const overrideData = db.prepare(`
+    SELECT tag_manual_override FROM manga_user_data
+    WHERE serie_id = ? AND user_id = ?
+  `).get(serieId, userId);
+
+  if (overrideData?.tag_manual_override) {
     return;
   }
 
-  // Mettre à jour ou créer le tag
+  const autoTag = calculateAutoCompletionTag(db, serieId, userId);
+  if (autoTag === null) {
+    return;
+  }
+
   db.prepare(`
-    INSERT INTO serie_tags (serie_id, user_id, tag, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-    ON CONFLICT(serie_id, user_id) DO UPDATE SET
-      tag = excluded.tag,
+    UPDATE manga_user_data SET
+      tag = ?,
       updated_at = datetime('now')
-  `).run(serieId, userId, autoTag);
+    WHERE serie_id = ? AND user_id = ?
+  `).run(autoTag, serieId, userId);
 }
 
 module.exports = {
@@ -179,5 +220,7 @@ module.exports = {
   setExclusiveSerieOwnership,
   setExclusiveSerieUserStatus,
   calculateAutoCompletionTag,
-  updateAutoCompletionTag
+  updateAutoCompletionTag,
+  clearManualTagOverride,
+  ensureMangaUserDataRow
 };

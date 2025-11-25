@@ -88,7 +88,7 @@ function findSerieCandidates(db, titles) {
 
   const rows = db.prepare(`
     SELECT id, titre, titres_alternatifs, media_type, type_volume, mal_id, statut, source_donnees
-    FROM series
+    FROM manga_series
   `).all();
 
   const matches = [];
@@ -99,18 +99,15 @@ function findSerieCandidates(db, titles) {
     let isMatch = normalizedCandidates.has(baseNormalized);
 
     if (!isMatch && row.titres_alternatifs) {
-      try {
-        const alts = JSON.parse(row.titres_alternatifs);
-        if (Array.isArray(alts)) {
-          for (const alt of alts) {
-            if (normalizedCandidates.has(normalizeTitle(alt))) {
-              isMatch = true;
-              break;
-            }
+      const { safeJsonParse } = require('../common-helpers');
+      const alts = safeJsonParse(row.titres_alternatifs, []);
+      if (Array.isArray(alts)) {
+        for (const alt of alts) {
+          if (normalizedCandidates.has(normalizeTitle(alt))) {
+            isMatch = true;
+            break;
           }
         }
-      } catch {
-        // ignore invalid JSON
       }
     }
 
@@ -151,7 +148,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
 
       if (isNaN(malId)) throw new Error('MAL ID invalide');
 
-      let existingSerie = db.prepare('SELECT * FROM series WHERE mal_id = ?').get(malId);
+      let existingSerie = db.prepare('SELECT * FROM manga_series WHERE mal_id = ?').get(malId);
       if (existingSerie) {
         return {
           success: false,
@@ -163,43 +160,55 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       const jikanData = await fetchJikanMangaData(malId);
       const jikanMediaType = determineMediaTypeFromJikan(jikanData.type);
 
-      const candidateTitles = new Set([
-        jikanData.title,
-        jikanData.title_english,
-        ...(Array.isArray(jikanData.title_synonyms) ? jikanData.title_synonyms : [])
-      ]);
+      // Préparer les données pour le matching unifié
+      const sourceData = {
+        titre: jikanData.title || jikanData.title_english || `Manga #${malId}`,
+        mal_id: malId,
+        titre_romaji: jikanData.title || null,
+        titre_natif: jikanData.title_japanese || null,
+        titre_anglais: jikanData.title_english || null,
+        titres_alternatifs: jikanData.title_synonyms ? JSON.stringify(jikanData.title_synonyms) : null
+      };
 
-      const potentialMatches = findSerieCandidates(db, Array.from(candidateTitles)).filter(row => {
-        if (row.mal_id && row.mal_id !== malId) {
-          return false;
+      // Utiliser le service de matching unifié
+      const { findExistingSerieUnified } = require('../../services/unified-matching-service');
+      const matchResult = findExistingSerieUnified(
+        db,
+        sourceData,
+        'mal',
+        jikanMediaType
+      );
+
+      // Si un match a été trouvé (exact ou avec similarité >= 75%)
+      if (matchResult && !forceCreate && !targetSerieId) {
+        // Si c'est un match exact, proposer directement la fusion
+        // Si c'est un match avec similarité, proposer un overlay de sélection
+        if (matchResult.isExactMatch || matchResult.similarity >= 75) {
+          return {
+            success: false,
+            requiresSelection: true,
+            malId,
+            candidates: [{
+              id: matchResult.serie.id,
+              titre: matchResult.serie.titre,
+              media_type: matchResult.serie.media_type,
+              type_volume: matchResult.serie.type_volume,
+              source_donnees: matchResult.serie.source_donnees,
+              statut: matchResult.serie.statut,
+              mal_id: matchResult.serie.mal_id,
+              similarity: matchResult.similarity,
+              isExactMatch: matchResult.isExactMatch,
+              matchMethod: matchResult.matchMethod
+            }]
+          };
         }
-        const existingMediaType = normalizeMediaTypeValue(row.media_type) ||
-          normalizeMediaTypeValue(row.type_volume);
-        if (!existingMediaType) return true;
-        if (existingMediaType === 'light novel' && jikanMediaType !== 'light novel') return false;
-        return existingMediaType === jikanMediaType;
-      });
-
-      if (!forceCreate && !targetSerieId && potentialMatches.length > 0) {
-        return {
-          success: false,
-          requiresSelection: true,
-          malId,
-          candidates: potentialMatches.map(match => ({
-            id: match.id,
-            titre: match.titre,
-            media_type: match.media_type,
-            type_volume: match.type_volume,
-            source_donnees: match.source_donnees,
-            statut: match.statut,
-            mal_id: match.mal_id
-          }))
-        };
       }
 
       let serieToUpdate = null;
+      let matchResultFinal = null;
+      
       if (targetSerieId) {
-        serieToUpdate = db.prepare('SELECT * FROM series WHERE id = ?').get(targetSerieId);
+        serieToUpdate = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(targetSerieId);
         if (!serieToUpdate) {
           return {
             success: false,
@@ -223,10 +232,23 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
             error: 'Le type de média détecté ne correspond pas à la série sélectionnée.'
           };
         }
+        
+        // Utiliser la série sélectionnée pour la fusion
+        matchResultFinal = {
+          serie: serieToUpdate,
+          isExactMatch: true,
+          similarity: 100,
+          matchMethod: 'user_selection'
+        };
+      } else if (matchResult) {
+        // Utiliser le résultat du matching unifié
+        matchResultFinal = matchResult;
       }
 
-      if (serieToUpdate) {
-        existingSerie = db.prepare('SELECT * FROM series WHERE id = ?').get(serieToUpdate.id);
+      if (serieToUpdate || matchResultFinal) {
+        existingSerie = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(
+          (serieToUpdate || matchResultFinal.serie).id
+        );
       }
 
       // Extraire les données
@@ -263,6 +285,12 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       let rating = jikanData.rating ? convertMALRating(jikanData.rating) : null;
       if (!rating) {
         rating = inferRatingFromGenresAndType(genres, themes, type);
+      }
+      
+      // Si "Erotica" est présent dans les genres ou thèmes, forcer le rating à "R+"
+      const allGenresAndThemes = `${genres || ''}, ${themes || ''}`.toLowerCase();
+      if (allGenresAndThemes.includes('erotica') || allGenresAndThemes.includes('hentai')) {
+        rating = 'R+';
       }
       
       // Normaliser le type de média (Jikan renvoie parfois 'manga', 'manhwa', 'manhua', etc. en minuscules)
@@ -441,26 +469,22 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
         console.log(`🔄 Mise à jour de la série existante ID ${existingSerie.id} avec données MAL`);
         
         // Récupérer les données existantes pour la fusion
-        const currentData = db.prepare('SELECT * FROM series WHERE id = ?').get(existingSerie.id);
+        const currentData = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(existingSerie.id);
         
         // Fusionner les titres alternatifs
         let mergedAltTitles = titresAlternatifs;
         if (currentData.titres_alternatifs) {
-          try {
-            const existingTitles = JSON.parse(currentData.titres_alternatifs);
-            const newTitles = titresAlternatifs ? JSON.parse(titresAlternatifs) : [];
-            const allTitles = [...(Array.isArray(existingTitles) ? existingTitles : []), ...(Array.isArray(newTitles) ? newTitles : [])];
-            // Dédupliquer et nettoyer (supprimer les chaînes vides et les guillemets doubles)
-            const uniqueTitles = Array.from(new Set(allTitles.map(t => {
-              const cleaned = String(t).trim();
-              // Supprimer les guillemets doubles au début et à la fin
-              return cleaned.replace(/^["']+|["']+$/g, '');
-            }).filter(Boolean)));
-            mergedAltTitles = uniqueTitles.length > 0 ? JSON.stringify(uniqueTitles) : null;
-          } catch {
-            // En cas d'erreur, utiliser les nouveaux titres
-            mergedAltTitles = titresAlternatifs;
-          }
+          const { safeJsonParse } = require('../common-helpers');
+          const existingTitles = safeJsonParse(currentData.titres_alternatifs, []);
+          const newTitles = titresAlternatifs ? safeJsonParse(titresAlternatifs, []) : [];
+          const allTitles = [...(Array.isArray(existingTitles) ? existingTitles : []), ...(Array.isArray(newTitles) ? newTitles : [])];
+          // Dédupliquer et nettoyer (supprimer les chaînes vides et les guillemets doubles)
+          const uniqueTitles = Array.from(new Set(allTitles.map(t => {
+            const cleaned = String(t).trim();
+            // Supprimer les guillemets doubles au début et à la fin
+            return cleaned.replace(/^["']+|["']+$/g, '');
+          }).filter(Boolean)));
+          mergedAltTitles = uniqueTitles.length > 0 ? JSON.stringify(uniqueTitles) : null;
         }
         
         // Déterminer la source de données
@@ -618,11 +642,11 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
         
         if (updateFields.length > 0) {
           updateValues.push(existingSerie.id);
-          const updateQuery = `UPDATE series SET ${updateFields.join(', ')} WHERE id = ?`;
+          const updateQuery = `UPDATE manga_series SET ${updateFields.join(', ')} WHERE id = ?`;
           db.prepare(updateQuery).run(...updateValues);
           
           // Récupérer les données mises à jour pour les logs
-          const updatedData = db.prepare('SELECT * FROM series WHERE id = ?').get(existingSerie.id);
+          const updatedData = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(existingSerie.id);
           const dataToLog = {
             titre: updatedData.titre,
             statut: updatedData.statut,
@@ -789,7 +813,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       // created_at et updated_at utilisent les valeurs par défaut (CURRENT_TIMESTAMP)
       // Total placeholders: 35 (toutes les colonnes sauf created_at et updated_at)
       const stmt = db.prepare(`
-        INSERT INTO series (
+        INSERT INTO manga_series (
           titre, statut, type_volume, mal_id, couverture_url, description,
           statut_publication, annee_publication, genres, nb_volumes, nb_chapitres,
           langue_originale, demographie, rating, media_type, source_donnees,
@@ -841,7 +865,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       }
 
       // Récupérer la série
-      const serie = db.prepare('SELECT id, titre, description FROM series WHERE id = ?').get(serieId);
+      const serie = db.prepare('SELECT id, titre, description FROM manga_series WHERE id = ?').get(serieId);
       if (!serie) {
         throw new Error('Série non trouvée');
       }
@@ -897,7 +921,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       const finalDescription = `${translatedText}\n\n(Synopsis traduit automatiquement par IA)`;
 
       // Mettre à jour la série
-      db.prepare('UPDATE series SET description = ? WHERE id = ?').run(finalDescription, serieId);
+      db.prepare('UPDATE manga_series SET description = ? WHERE id = ?').run(finalDescription, serieId);
 
       console.log(`✅ Description traduite pour: ${serie.titre}`);
 
@@ -930,7 +954,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       }
 
       // Récupérer la série
-      const serie = db.prepare('SELECT id, titre, background FROM series WHERE id = ?').get(serieId);
+      const serie = db.prepare('SELECT id, titre, background FROM manga_series WHERE id = ?').get(serieId);
       if (!serie) {
         throw new Error('Série non trouvée');
       }
@@ -986,7 +1010,7 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       const finalBackground = `${translatedText}\n\n(Background traduit automatiquement par IA)`;
 
       // Mettre à jour la série
-      db.prepare('UPDATE series SET background = ? WHERE id = ?').run(finalBackground, serieId);
+      db.prepare('UPDATE manga_series SET background = ? WHERE id = ?').run(finalBackground, serieId);
 
       console.log(`✅ Background traduit pour: ${serie.titre}`);
 

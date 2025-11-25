@@ -72,7 +72,7 @@ const ProgressionHeader: React.FC<ProgressionHeaderProps> = ({ type, stats }) =>
 
       return (
         <>
-          <span style={{ fontWeight: '600' }}>📚 Mangas :</span>
+          <span style={{ fontWeight: '600' }}>📚 Lectures :</span>
           <span style={{ color: '#3b82f6' }}>{stats.seriesEnCours || 0} séries en cours</span>
           <span style={{ color: 'var(--text-secondary)' }}> | </span>
           <span style={{ color: '#10b981' }}>{stats.seriesTerminees || 0} séries terminées</span>
@@ -196,7 +196,7 @@ const ProgressionHeader: React.FC<ProgressionHeaderProps> = ({ type, stats }) =>
   return (
     <div className="card" style={{ 
       padding: '20px 24px', 
-      marginBottom: '24px',
+      marginBottom: 0,
       textAlign: 'center'
     }}>
       <div style={{ 

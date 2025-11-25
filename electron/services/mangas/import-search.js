@@ -10,7 +10,7 @@ const { normalizeTitle, areSimilar, levenshteinDistance, checkStrictMatch } = re
  */
 function findSerieByTitle(db, titre) {
   // Recherche exacte
-  let serie = db.prepare('SELECT * FROM series WHERE titre = ?').get(titre);
+  let serie = db.prepare('SELECT * FROM manga_series WHERE titre = ?').get(titre);
   
   if (serie) {
     return serie;
@@ -18,7 +18,7 @@ function findSerieByTitle(db, titre) {
   
   // Recherche dans titre_romaji, titre_anglais, et titres_alternatifs (JSON)
   const altSearch = db.prepare(`
-    SELECT * FROM series 
+    SELECT * FROM manga_series 
     WHERE titre LIKE ? 
       OR titre_romaji LIKE ?
       OR titre_anglais LIKE ?
@@ -47,7 +47,7 @@ function findSerieByTitle(db, titre) {
 
   // Chercher dans l'autre sens (le titre de la DB contient le titre recherché)
   const reverseSimilar = db.prepare(
-    'SELECT * FROM series WHERE ? LIKE \'%\' || titre || \'%\' ORDER BY titre'
+    'SELECT * FROM manga_series WHERE ? LIKE \'%\' || titre || \'%\' ORDER BY titre'
   ).all(titre);
   
   if (reverseSimilar.length > 0) {
@@ -116,18 +116,38 @@ function extractAllSerieTitles(serie) {
       if (Array.isArray(parsed)) {
         parsed.forEach(alt => {
           if (alt && alt.trim()) {
-            titles.push({ original: alt.trim(), normalized: normalizeTitle(alt.trim()) });
+            // Si le titre alternatif contient "//" ou "/", le diviser
+            const parts = alt.trim().split(/[\/|]+/).map(p => p.trim()).filter(Boolean);
+            parts.forEach(part => {
+              titles.push({ original: part, normalized: normalizeTitle(part) });
+            });
+          }
+        });
+      } else if (typeof parsed === 'string') {
+        // Si c'est une string, la traiter comme titre_alternatif
+        parsed.split(/[\/|]+/).forEach(alt => {
+          const trimmed = alt.trim();
+          if (trimmed) {
+            titles.push({ original: trimmed, normalized: normalizeTitle(trimmed) });
           }
         });
       }
     } catch {
-      // Ignorer si ce n'est pas du JSON valide
+      // Si ce n'est pas du JSON valide, traiter comme une string
+      if (typeof serie.titres_alternatifs === 'string') {
+        serie.titres_alternatifs.split(/[\/|]+/).forEach(alt => {
+          const trimmed = alt.trim();
+          if (trimmed) {
+            titles.push({ original: trimmed, normalized: normalizeTitle(trimmed) });
+          }
+        });
+      }
     }
   }
   
   // Fallback sur titre_alternatif pour compatibilité
   if (serie.titre_alternatif) {
-    serie.titre_alternatif.split('/').forEach(alt => {
+    serie.titre_alternatif.split(/[\/|]+/).forEach(alt => {
       const trimmed = alt.trim();
       if (trimmed) {
         titles.push({ original: trimmed, normalized: normalizeTitle(trimmed) });
@@ -211,7 +231,7 @@ function findSerieByTitleNormalized(db, titre, titresAlternatifs, expectedMediaT
     )));
   
   // Récupérer toutes les séries
-  const allSeries = db.prepare('SELECT id, source_donnees, titre, titre_alternatif, titres_alternatifs, titre_romaji, titre_natif, titre_anglais, media_type, type_volume FROM series').all();
+  const allSeries = db.prepare('SELECT id, source_donnees, titre, titre_alternatif, titres_alternatifs, titre_romaji, titre_natif, titre_anglais, media_type, type_volume FROM manga_series').all();
   
   let exactMatch = null;
   let strictMatch = null;

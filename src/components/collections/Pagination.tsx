@@ -62,7 +62,7 @@ export default function Pagination({
       borderRadius: '12px',
       border: '1px solid var(--border)',
       flexWrap: 'wrap',
-      marginBottom: '24px'
+      marginBottom: 0
     }}>
       {/* Informations */}
       <div style={{

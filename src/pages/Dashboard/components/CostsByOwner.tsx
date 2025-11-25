@@ -9,7 +9,7 @@ export default function CostsByOwner({ stats, coutTotal }: CostsByOwnerProps) {
   const users = stats.users || [];
 
   return (
-    <div style={{ marginBottom: '40px' }}>
+    <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '20px' }}>
         {users.map(user => {
           const nbTomes = stats.nbTomesParProprietaire[user.id] || 0;
@@ -44,4 +44,3 @@ export default function CostsByOwner({ stats, coutTotal }: CostsByOwnerProps) {
     </div>
   );
 }
-

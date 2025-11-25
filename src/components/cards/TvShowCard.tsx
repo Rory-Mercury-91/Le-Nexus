@@ -1,8 +1,8 @@
-import { Calendar, Layers, Play } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { useState } from 'react';
 import { TvShowListItem } from '../../types';
-import { formatAirDate, formatVoteAverage, getTmdbImageUrl } from '../../utils/tmdb';
-import { CardActionsMenu, CardContent, CardCover, FavoriteBadge, ImageOnlyCard, StatusBadge, COMMON_STATUSES } from './common';
+import { getTmdbImageUrl } from '../../utils/tmdb';
+import { CardActionsMenu, CardCover, CardTitle, FavoriteBadge, ImageOnlyCard, StatusBadge, COMMON_STATUSES } from './common';
 
 interface TvShowCardProps {
   show: TvShowListItem;
@@ -25,11 +25,10 @@ export default function TvShowCard({
 }: TvShowCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const posterUrl = getTmdbImageUrl(show.poster_path, 'w342');
-  const firstAirDate = formatAirDate(show.date_premiere);
-  const score = formatVoteAverage(show.note_moyenne);
   const currentStatus = show.statut_visionnage || 'À regarder';
   const episodesVus = show.episodes_vus || 0;
   const episodesTotal = show.nb_episodes || 0;
+  const progressPercent = episodesTotal > 0 ? Math.round((episodesVus / episodesTotal) * 100) : 0;
 
   if (imageOnly) {
     return (
@@ -102,98 +101,53 @@ export default function TvShowCard({
         />
       </div>
 
-      <CardContent
-        progress={{
-          current: episodesVus,
-          total: episodesTotal,
-          label: episodesTotal > 0
-            ? `${episodesVus}/${episodesTotal} épisodes vus`
-            : `${episodesVus} épisode${episodesVus > 1 ? 's' : ''} vus`
-        }}
-        title={show.titre}
-      >
-        {score && (
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#fde68a',
-            background: 'rgba(234, 179, 8, 0.18)',
-            padding: '4px 8px',
-            borderRadius: '999px',
-            marginTop: '2px'
-          }}>
-            <Play size={12} />
-            {score}
-          </span>
-        )}
-      </CardContent>
-
-      <div style={{
-        padding: '0 16px 16px 16px',
+      {/* Contenu : Barre de progression et titre */}
+      <div style={{ 
+        padding: '10px 12px 6px 12px', 
+        borderTop: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px'
+        gap: '8px'
       }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {firstAirDate && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={14} />
-              {firstAirDate}
-            </span>
-          )}
-          {show.nb_saisons !== undefined && show.nb_saisons !== null && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Layers size={14} />
-              {show.nb_saisons} saison{show.nb_saisons > 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-
-        {show.genres && show.genres.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {show.genres.slice(0, 3).map((genre) => (
-              <span
-                key={genre.id}
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--text-secondary)',
-                  background: 'rgba(var(--primary-rgb), 0.12)',
-                  borderRadius: '999px',
-                  padding: '4px 10px'
-                }}
-              >
-                {genre.name}
-              </span>
-            ))}
-            {show.genres.length > 3 && (
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', opacity: 0.8 }}>
-                +{show.genres.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-
-        {show.prochain_episode && (
-          <div style={{
-            background: 'rgba(var(--primary-rgb), 0.08)',
-            borderRadius: '12px',
-            padding: '10px 12px',
-            border: '1px dashed rgba(var(--primary-rgb), 0.2)',
+        {/* Barre de progression */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {/* Texte : X/Y épisodes vus     X% */}
+          <div style={{ 
             fontSize: '12px',
             color: 'var(--text-secondary)',
-            lineHeight: 1.5
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            <strong style={{ color: 'var(--text)' }}>Prochain épisode</strong>
-            <br />
-            {show.prochain_episode.air_date
-              ? formatAirDate(show.prochain_episode.air_date)
-              : 'Date inconnue'}
-            {show.prochain_episode.name ? ` • ${show.prochain_episode.name}` : ''}
+            <span>{episodesVus}/{episodesTotal || '?'} épisodes vus</span>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{progressPercent}%</span>
           </div>
-        )}
+          
+          {/* Barre de progression */}
+          <div style={{
+            width: '100%',
+            height: '8px',
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: '999px',
+            overflow: 'hidden',
+            position: 'relative'
+          }}>
+            <div style={{
+              width: `${Math.max(0, Math.min(100, progressPercent))}%`,
+              height: '100%',
+              background: progressPercent === 100 
+                ? 'linear-gradient(90deg, var(--success), var(--success-light))'
+                : progressPercent >= 50
+                ? 'linear-gradient(90deg, var(--primary-light), var(--success))'
+                : 'linear-gradient(90deg, var(--primary), var(--primary-light))',
+              borderRadius: '999px',
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+        </div>
+        
+        {/* Titre */}
+        <CardTitle title={show.titre}>{show.titre}</CardTitle>
       </div>
     </div>
   );

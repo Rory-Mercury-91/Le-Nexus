@@ -91,7 +91,7 @@ export default function MalSyncOverlay({
           </h2>
         </div>
 
-        {/* Progression Mangas */}
+        {/* Progression Lectures */}
         {mangaProgress && (
           <div style={{
             marginBottom: '20px',
@@ -112,7 +112,7 @@ export default function MalSyncOverlay({
               alignItems: 'center',
               gap: '8px'
             }}>
-              📚 Mangas
+              📚 Lectures
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>

@@ -1,9 +1,12 @@
 /**
  * Génère un slug URL-friendly à partir d'un titre
- * @param {string} titre - Le titre à convertir
+ * @param {string|null|undefined} titre - Le titre à convertir
  * @returns {string} Le slug généré
  */
 function createSlug(titre) {
+  if (!titre || typeof titre !== 'string') {
+    return '';
+  }
   return titre
     .toLowerCase()
     .normalize('NFD')

@@ -29,11 +29,11 @@ async function checkGameSessions(getDb, store) {
       SELECT 
         g.id,
         g.titre,
-        ug.chemin_executable,
-        g.derniere_session as derniere_session_db
+        ud.chemin_executable,
+        ud.derniere_session as derniere_session_db
       FROM adulte_game_games g
-      LEFT JOIN adulte_game_user_games ug ON g.id = ug.game_id AND ug.user_id = ?
-      WHERE ug.chemin_executable IS NOT NULL
+      INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id AND ud.user_id = ?
+      WHERE ud.chemin_executable IS NOT NULL AND ud.chemin_executable != ''
     `).all(userId);
     
     if (games.length === 0) {
@@ -88,33 +88,27 @@ async function checkGameSessions(getDb, store) {
             // Détecter la version depuis le chemin
             const detectedVersion = detectVersionFromPath(mostRecentPath);
             
-            // Mettre à jour dans adulte_game_games (pour affichage)
+            // Mettre à jour dans adulte_game_user_data
             if (detectedVersion) {
               db.prepare(`
-                UPDATE adulte_game_games 
+                UPDATE adulte_game_user_data 
                 SET derniere_session = ?,
-                    version_jouee = ?
-                WHERE id = ?
-              `).run(mostRecentSession.toISOString(), detectedVersion, game.id);
+                    version_jouee = ?,
+                    updated_at = datetime('now')
+                WHERE game_id = ? AND user_id = ?
+              `).run(mostRecentSession.toISOString(), detectedVersion, game.id, userId);
               
               console.log(`[Session Tracker] ✅ "${game.titre}": session mise à jour (${mostRecentSession.toISOString()}) - Version jouée: ${detectedVersion}`);
             } else {
               db.prepare(`
-                UPDATE adulte_game_games 
-                SET derniere_session = ? 
-                WHERE id = ?
-              `).run(mostRecentSession.toISOString(), game.id);
+                UPDATE adulte_game_user_data 
+                SET derniere_session = ?,
+                    updated_at = datetime('now')
+                WHERE game_id = ? AND user_id = ?
+              `).run(mostRecentSession.toISOString(), game.id, userId);
               
               console.log(`[Session Tracker] ✅ "${game.titre}": session mise à jour (${mostRecentSession.toISOString()})`);
             }
-            
-            // Mettre à jour dans adulte_game_user_games
-            db.prepare(`
-              INSERT INTO adulte_game_user_games (game_id, user_id, derniere_session)
-              VALUES (?, ?, ?)
-              ON CONFLICT(game_id, user_id) DO UPDATE SET
-                derniere_session = ?
-            `).run(game.id, userId, mostRecentSession.toISOString(), mostRecentSession.toISOString());
             
             updated++;
           }

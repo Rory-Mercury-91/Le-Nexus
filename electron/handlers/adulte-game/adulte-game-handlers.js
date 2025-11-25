@@ -27,7 +27,7 @@ function registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager) {
   registerTagsHandlers(ipcMain, getDb);
   registerVisibilityHandlers(ipcMain, getDb, store);
   registerLaunchHandlers(ipcMain, getDb, store);
-  registerAdulteGameUpdatesCheckHandlers(ipcMain, getDb, store);
+  registerAdulteGameUpdatesCheckHandlers(ipcMain, getDb, store, getPathManager);
   registerAdulteGameSearchHandlers(ipcMain, getDb, store, getPathManager);
   registerF95ConnectionHandlers(ipcMain);
   

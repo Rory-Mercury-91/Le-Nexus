@@ -1,4 +1,4 @@
-import { BookOpenCheck, CheckCircle, Eye, EyeOff, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { BookOpenCheck, CheckCircle, Eye, EyeOff, Info, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 import AnimeEnrichmentConfigModal, { EnrichmentConfig as AnimeEnrichmentConfig } from '../../../components/modals/anime/AnimeEnrichmentConfigModal';
@@ -8,6 +8,42 @@ import AdulteGameSettings from './AdulteGameSettings';
 import type { ApiKeyProvider } from './apiKeyGuideTypes';
 
 const DEFAULT_MAL_REDIRECT_URI = 'http://localhost:8888/callback';
+
+const tooltipTexts = {
+  tmdbKey: "Requise pour toutes les requêtes REST TMDb (détails, images, recherches).",
+  tmdbToken: "Optionnel, nécessaire uniquement pour les appels authentifiés comme les listes privées ou découvertes avancées.",
+  imageSource: "Choisit la source prioritaire utilisée pour compléter les visuels quand MyAnimeList manque d'images.",
+  groqKey: "Collez ici votre clé API Groq (affichée une seule fois). Elle reste stockée localement et chiffrée.",
+  groqAutoTranslate: "Traduire automatiquement les synopsis indisponibles en français via Groq lors de l'enrichissement.",
+  malClientId: "Identifiant client généré sur le portail développeur MAL (OAuth).",
+  malAutoSync: "Met à jour vos progressions MAL automatiquement à l'intervalle défini.",
+  nautiljonAutoSync: "Actualise en arrière-plan les fiches Nautiljon liées aux séries suivies.",
+  nautiljonTomes: "Inclut les tomes/volumes Nautiljon dans la synchronisation automatique.",
+  animeEnrichment: "Configurez les champs enrichis (Jikan/AniList, images HQ, traductions) pour les animes.",
+  mangaEnrichment: "Activez les remplissages automatiques et traductions IA côté mangas.",
+  malManualSync: "Permet de lancer immédiatement une synchronisation complète MyAnimeList.",
+  mihonImport: "L'import du backup doit contenir les données suivantes uniquement :\n\n• Séries de la bibliothèque\n• Chapitres\n• Suivi\n• Historique\n\nLes autres options ne sont pas utiles pour cette application."
+} as const;
+
+type TooltipId = keyof typeof tooltipTexts;
+
+const headerActionPlaceholderStyle: React.CSSProperties = {
+  minWidth: '190px',
+  height: '36px',
+  borderRadius: '8px',
+  flexShrink: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  padding: '0 4px',
+};
+
+const nestedSectionIds = {
+  mal: 'integrations-mal',
+  tmdb: 'integrations-tmdb',
+  groq: 'integrations-groq',
+  adulteGame: 'integrations-adulteGame',
+} as const;
 
 interface IntegrationsSettingsProps {
   onOpenGuide: (provider: ApiKeyProvider) => void;
@@ -36,18 +72,19 @@ interface IntegrationsSettingsProps {
   onGroqApiKeyChange: (apiKey: string) => void | Promise<void>;
   autoTranslate: boolean;
   onAutoTranslateChange: (enabled: boolean) => void | Promise<void>;
-  notifyEnrichment: boolean;
-  onNotifyEnrichmentChange: (enabled: boolean) => void | Promise<void>;
   showToast?: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
   animeImportResult: AnimeImportResult | null;
+  sectionStates: Record<string, boolean>;
+  onSectionStateChange: (sectionId: string, isOpen: boolean) => void;
 }
 
 interface NestedSectionProps {
   id: string;
-  title: string;
+  title: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  action?: React.ReactNode;
 }
 
 const nestedHeaderStyle: React.CSSProperties = {
@@ -73,7 +110,7 @@ const nestedBodyStyle: React.CSSProperties = {
   background: 'var(--surface)',
 };
 
-function NestedSection({ id, title, isOpen, onToggle, children }: NestedSectionProps) {
+function NestedSection({ id, title, isOpen, onToggle, children, action }: NestedSectionProps) {
   return (
     <div id={id} style={nestedContainerStyle}>
       <div
@@ -96,6 +133,14 @@ function NestedSection({ id, title, isOpen, onToggle, children }: NestedSectionP
         >
           {title}
         </h3>
+        {action && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'flex', alignItems: 'center' }}
+          >
+            {action}
+          </div>
+        )}
         <span style={{ fontSize: '13px', opacity: 0.65 }}>{isOpen ? '▲' : '▼'}</span>
       </div>
       {isOpen && <div style={nestedBodyStyle}>{children}</div>}
@@ -127,56 +172,21 @@ export default function IntegrationsSettings({
   onGroqApiKeyChange,
   autoTranslate,
   onAutoTranslateChange,
-  notifyEnrichment,
-  onNotifyEnrichmentChange,
   showToast,
   animeImportResult,
+  sectionStates,
+  onSectionStateChange,
 }: IntegrationsSettingsProps) {
   const [malClientId, setMalClientId] = useState('');
   const [credentialsLoaded, setCredentialsLoaded] = useState(false);
   const [isSavingCredentials, setIsSavingCredentials] = useState(false);
-  const [lastCredentialSaveAt, setLastCredentialSaveAt] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectUriRef = useRef<string>(DEFAULT_MAL_REDIRECT_URI);
-
-  // Charger les états des sections imbriquées depuis localStorage
-  const loadNestedSectionStates = (): Record<string, boolean> => {
-    try {
-      const stored = localStorage.getItem('settings-section-states');
-      const defaults = {
-        mal: true,
-        tmdb: true,
-        groq: true,
-        adulteGame: true,
-      };
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          mal: parsed['integrations-mal'] ?? defaults.mal,
-          tmdb: parsed['integrations-tmdb'] ?? defaults.tmdb,
-          groq: parsed['integrations-groq'] ?? defaults.groq,
-          adulteGame: parsed['integrations-adulteGame'] ?? defaults.adulteGame,
-        };
-      }
-      return defaults;
-    } catch (error) {
-      console.error('Erreur chargement états sections imbriquées:', error);
-      return {
-        mal: true,
-        tmdb: true,
-        groq: true,
-        adulteGame: true,
-      };
-    }
-  };
-
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(loadNestedSectionStates);
 
   const [tmdbApiKey, setTmdbApiKey] = useState('');
   const [tmdbApiToken, setTmdbApiToken] = useState('');
   const [tmdbInitialLoad, setTmdbInitialLoad] = useState(false);
   const [tmdbSaving, setTmdbSaving] = useState(false);
-  const [tmdbLastSavedAt, setTmdbLastSavedAt] = useState<Date | null>(null);
   const tmdbSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [tmdbTesting, setTmdbTesting] = useState(false);
   const [tmdbTestResult, setTmdbTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -189,27 +199,72 @@ export default function IntegrationsSettings({
   const groqSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [groqTesting, setGroqTesting] = useState(false);
   const [groqTestResult, setGroqTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [groqLastSavedAt, setGroqLastSavedAt] = useState<Date | null>(null);
   const [groqKeyVisible, setGroqKeyVisible] = useState(false);
   const [malClientVisible, setMalClientVisible] = useState(false);
   const [showAnimeEnrichmentModal, setShowAnimeEnrichmentModal] = useState(false);
   const [showMangaEnrichmentModal, setShowMangaEnrichmentModal] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<TooltipId | null>(null);
+  const [importingMihon, setImportingMihon] = useState(false);
+  const [mihonImportProgress, setMihonImportProgress] = useState<{ step?: string; message?: string; progress?: number; total?: number; current?: number } | null>(null);
+  const [animeEnrichmentEnabled, setAnimeEnrichmentEnabled] = useState(false);
+  const [mangaEnrichmentEnabled, setMangaEnrichmentEnabled] = useState(false);
 
-  const toggleNestedSection = (key: string) => {
-    setOpenSections((prev) => {
-      const newState = { ...prev, [key]: !prev[key] };
-      // Sauvegarder dans localStorage avec la clé préfixée
-      const storageKey = `integrations-${key}`;
-      try {
-        const stored = localStorage.getItem('settings-section-states');
-        const states = stored ? JSON.parse(stored) : {};
-        states[storageKey] = newState[key];
-        localStorage.setItem('settings-section-states', JSON.stringify(states));
-      } catch (error) {
-        console.error('Erreur sauvegarde état section imbriquée:', error);
-      }
-      return newState;
-    });
+  const TooltipIcon = ({ id, placement = 'center' }: { id: TooltipId; placement?: 'center' | 'end' }) => (
+    <span
+      onMouseEnter={() => setActiveTooltip(id)}
+      onMouseLeave={() => setActiveTooltip(null)}
+      onFocus={() => setActiveTooltip(id)}
+      onBlur={() => setActiveTooltip(null)}
+      tabIndex={0}
+      aria-label={tooltipTexts[id]}
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '4px',
+        cursor: 'pointer',
+        color: 'var(--text-secondary)',
+        outline: 'none',
+        borderRadius: '50%',
+      }}
+    >
+      <Info size={16} aria-hidden="true" />
+      {activeTooltip === id && (
+        <div
+          role="tooltip"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: placement === 'end' ? 'auto' : '50%',
+            right: placement === 'end' ? 0 : 'auto',
+            transform: placement === 'end' ? 'none' : 'translateX(-50%)',
+            background: 'var(--surface-light)',
+            color: 'var(--text)',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            boxShadow: '0 16px 32px rgba(0, 0, 0, 0.22)',
+            border: '1px solid var(--border)',
+            fontSize: '12px',
+            lineHeight: 1.45,
+            zIndex: 30,
+            minWidth: '220px',
+            maxWidth: '260px',
+            textAlign: 'center',
+          }}
+        >
+          {tooltipTexts[id]}
+        </div>
+      )}
+    </span>
+  );
+
+  const getNestedSectionState = (key: keyof typeof nestedSectionIds) =>
+    sectionStates[nestedSectionIds[key]] ?? true;
+
+  const toggleNestedSection = (key: keyof typeof nestedSectionIds) => {
+    const storageKey = nestedSectionIds[key];
+    onSectionStateChange(storageKey, !getNestedSectionState(key));
   };
 
   const lastSyncDate = malLastSync?.timestamp
@@ -217,6 +272,7 @@ export default function IntegrationsSettings({
     : null;
   const handleAnimeEnrichmentSaved = (config: AnimeEnrichmentConfig) => {
     if (config) {
+      setAnimeEnrichmentEnabled(config.enabled || false);
       showToast?.({
         title: 'Configuration enrichissement anime enregistrée',
         type: 'success',
@@ -227,6 +283,7 @@ export default function IntegrationsSettings({
 
   const handleMangaEnrichmentSaved = (config: MangaEnrichmentConfig) => {
     if (config) {
+      setMangaEnrichmentEnabled(config.enabled || false);
       showToast?.({
         title: 'Configuration enrichissement manga enregistrée',
         type: 'success',
@@ -234,6 +291,140 @@ export default function IntegrationsSettings({
       });
     }
   };
+
+  // Charger les configs d'enrichissement au montage
+  useEffect(() => {
+    const loadEnrichmentConfigs = async () => {
+      try {
+        const animeConfig = await window.electronAPI.getAnimeEnrichmentConfig?.();
+        if (animeConfig) {
+          setAnimeEnrichmentEnabled(animeConfig.enabled || false);
+        }
+        const mangaConfig = await window.electronAPI.getMangaEnrichmentConfig?.();
+        if (mangaConfig) {
+          setMangaEnrichmentEnabled(mangaConfig.enabled || false);
+        }
+      } catch (error) {
+        console.error('Erreur chargement configs enrichissement:', error);
+      }
+    };
+    loadEnrichmentConfigs();
+  }, []);
+
+  // Handler pour activer/désactiver l'enrichissement anime
+  const handleAnimeEnrichmentToggle = async (enabled: boolean) => {
+    try {
+      const currentConfig = await window.electronAPI.getAnimeEnrichmentConfig?.();
+      if (currentConfig) {
+        await window.electronAPI.saveAnimeEnrichmentConfig?.({
+          ...currentConfig,
+          enabled
+        });
+        setAnimeEnrichmentEnabled(enabled);
+        showToast?.({
+          title: enabled ? 'Enrichissement anime activé' : 'Enrichissement anime désactivé',
+          type: 'success',
+          duration: 2000
+        });
+      }
+    } catch (error) {
+      console.error('Erreur changement enrichissement anime:', error);
+      showToast?.({
+        title: 'Erreur',
+        message: 'Impossible de modifier l\'enrichissement anime',
+        type: 'error'
+      });
+    }
+  };
+
+  // Handler pour activer/désactiver l'enrichissement manga
+  const handleMangaEnrichmentToggle = async (enabled: boolean) => {
+    try {
+      const currentConfig = await window.electronAPI.getMangaEnrichmentConfig?.();
+      if (currentConfig) {
+        await window.electronAPI.saveMangaEnrichmentConfig?.({
+          ...currentConfig,
+          enabled
+        });
+        setMangaEnrichmentEnabled(enabled);
+        showToast?.({
+          title: enabled ? 'Enrichissement manga activé' : 'Enrichissement manga désactivé',
+          type: 'success',
+          duration: 2000
+        });
+      }
+    } catch (error) {
+      console.error('Erreur changement enrichissement manga:', error);
+      showToast?.({
+        title: 'Erreur',
+        message: 'Impossible de modifier l\'enrichissement manga',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleImportMihonBackup = useCallback(async () => {
+    try {
+      // Ouvrir le dialogue de sélection de fichier
+      if (!window.electronAPI.selectMihonBackupFile) {
+        showToast?.({ title: 'Erreur', message: 'Fonction non disponible', type: 'error' });
+        return;
+      }
+      const result = await window.electronAPI.selectMihonBackupFile();
+
+      if (!result?.success || result.canceled || !result.filePath) {
+        return;
+      }
+
+      const filePath = result.filePath;
+      setImportingMihon(true);
+      setMihonImportProgress({ step: 'starting', message: 'Démarrage de l\'import...', progress: 0 });
+
+      // Écouter les événements de progression
+      const progressUnsubscribe = window.electronAPI.onMihonImportProgress?.((progress: any) => {
+        setMihonImportProgress(progress);
+      });
+
+      try {
+        if (!window.electronAPI.importMihonBackup) {
+          throw new Error('Fonction d\'import non disponible');
+        }
+        const importResult = await window.electronAPI.importMihonBackup(filePath);
+
+        if (importResult?.success) {
+          const stats = importResult.stats;
+          showToast?.({
+            title: 'Import réussi !',
+            message: stats ? `${stats.created} créés, ${stats.updated} mis à jour, ${stats.withMalId} avec mal_id` : 'Import terminé',
+            type: 'success',
+            duration: 5000
+          });
+
+          // Nettoyer la progression après un délai
+          setTimeout(() => {
+            setMihonImportProgress(null);
+          }, 3000);
+        } else {
+          throw new Error('Import échoué');
+        }
+      } finally {
+        if (progressUnsubscribe) {
+          progressUnsubscribe();
+        }
+        setImportingMihon(false);
+      }
+    } catch (error: any) {
+      console.error('Erreur import backup Mihon:', error);
+      showToast?.({
+        title: 'Erreur lors de l\'import',
+        message: error.message || 'Une erreur est survenue',
+        type: 'error',
+        duration: 5000
+      });
+      setImportingMihon(false);
+      setMihonImportProgress(null);
+    }
+  }, [showToast]);
 
   useEffect(() => {
     const loadCredentials = async () => {
@@ -314,7 +505,6 @@ export default function IntegrationsSettings({
           clientId: trimmedClientId,
           redirectUri: redirectUriRef.current || DEFAULT_MAL_REDIRECT_URI,
         });
-        setLastCredentialSaveAt(new Date());
       } catch (error) {
         console.error('Erreur sauvegarde identifiants MAL:', error);
       } finally {
@@ -344,7 +534,6 @@ export default function IntegrationsSettings({
             apiKey: keyValue,
             apiToken: tokenValue,
           });
-          setTmdbLastSavedAt(new Date());
         } catch (error: any) {
           console.error('Erreur sauvegarde identifiants TMDb:', error);
           showToast?.({
@@ -377,7 +566,6 @@ export default function IntegrationsSettings({
         apiKey: tmdbApiKey.trim(),
         apiToken: tmdbApiToken.trim(),
       });
-      setTmdbLastSavedAt(new Date());
     } catch (error: any) {
       console.error('Erreur sauvegarde identifiants TMDb:', error);
       showToast?.({
@@ -417,7 +605,6 @@ export default function IntegrationsSettings({
         setGroqSaving(true);
         try {
           await Promise.resolve(onGroqApiKeyChange(value));
-          setGroqLastSavedAt(new Date());
         } catch (error: any) {
           console.error('Erreur sauvegarde clé Groq:', error);
           showToast?.({
@@ -447,7 +634,6 @@ export default function IntegrationsSettings({
     setGroqSaving(true);
     try {
       await Promise.resolve(onGroqApiKeyChange(groqApiKeyInput.trim()));
-      setGroqLastSavedAt(new Date());
     } catch (error: any) {
       console.error('Erreur sauvegarde clé Groq:', error);
       showToast?.({
@@ -680,187 +866,293 @@ export default function IntegrationsSettings({
     );
   };
 
-  const renderSyncToggles = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-      <div
-        style={{
-          display: 'grid',
-          gap: '12px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        }}
-      >
-        {[{
+  const renderSyncToggles = () => {
+    const syncItems: Array<{
+      key: string;
+      label: string;
+      tooltipId: TooltipId;
+      checked: boolean;
+      onChange: (value: boolean) => void;
+    }> = [
+        {
           key: 'mal-auto-sync',
           label: '🔄 Synchronisation automatique MyAnimeList',
-          description: 'Met à jour vos progressions toutes les quelques heures.',
+          tooltipId: 'malAutoSync',
           checked: malAutoSyncEnabled,
           onChange: onMalAutoSyncChange,
-        }, {
+        },
+        {
           key: 'nautiljon-auto-sync',
           label: '📚 Synchronisation automatique de Nautiljon',
-          description: 'Actualise les fiches Nautiljon liées aux séries suivies.',
+          tooltipId: 'nautiljonAutoSync',
           checked: nautiljonAutoSyncEnabled,
           onChange: onNautiljonAutoSyncChange,
-        }, {
+        },
+        {
           key: 'nautiljon-tomes-sync',
           label: '📚 Gestion des tomes/volumes (Nautiljon)',
-          description: 'Synchronise la progression des tomes et leurs métadonnées.',
+          tooltipId: 'nautiljonTomes',
           checked: nautiljonAutoSyncIncludeTomes,
           onChange: onNautiljonIncludeTomesChange,
-        }].map(({ key, label, description, checked, onChange }) => (
-          <div
-            key={key}
-            style={{
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+        },
+      ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div
+          style={{
+            display: 'grid',
+            gap: '12px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          }}
+        >
+          {syncItems.map(({ key, label, tooltipId, checked, onChange }) => (
+            <div
+              key={key}
+              style={{
+                padding: '16px 18px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                textAlign: 'left',
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+                minHeight: 'auto'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{label}</div>
+                {tooltipId && <TooltipIcon id={tooltipId} />}
+              </div>
               <Toggle checked={checked} onChange={onChange} />
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{description}</p>
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '18px'
-        }}
-      >
-        <div
-          style={{
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>⚙️ Enrichissement des animes</h4>
-            <button
-              type="button"
-              onClick={() => setShowAnimeEnrichmentModal(true)}
-              className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              🔧 Paramètres d'enrichissement
-            </button>
-          </div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Sélectionnez les champs à compléter via Jikan / AniList et ajustez vos préférences d'images HQ.
-          </p>
+          ))}
         </div>
 
         <div
           style={{
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '18px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>📚 Enrichissement des mangas</h4>
-            <button
-              type="button"
-              onClick={() => setShowMangaEnrichmentModal(true)}
-              className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              🔧 Paramètres d'enrichissement
-            </button>
-          </div>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Activez la récupération des métadonnées détaillées et des traductions automatiques pour vos mangas.
-          </p>
-        </div>
-
-        {malConnected && (
           <div
             style={{
-              padding: '20px',
+              padding: '16px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
               background: 'var(--surface-light)',
               boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '14px'
+              gap: '12px'
             }}
           >
-            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-              🔄 Synchronisation Manuelle MyAnimeList
-            </h4>
-            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              Déclenchez une synchronisation immédiate de vos progressions anime et manga.
-            </p>
-            <button
-              onClick={() => Promise.resolve(onMalSyncNow())}
-              className="btn btn-primary"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '10px 18px',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: 600,
-                width: '100%',
-              }}
-            >
-              <RefreshCw size={16} />
-              Synchroniser maintenant
-            </button>
-            {malLastSync?.timestamp && (
-              <div style={{ 
-                marginTop: '8px', 
-                padding: '12px', 
-                borderRadius: '8px', 
-                background: 'var(--surface)', 
-                border: '1px solid var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
-                  📊 Dernière synchronisation
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                  {new Date(malLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
-                </div>
-                {(malLastSync.animes !== undefined || malLastSync.mangas !== undefined) && (
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
-                    {malLastSync.animes !== undefined && (
-                      <div style={{ fontSize: '12px', color: 'var(--text)' }}>
-                        <span style={{ fontWeight: 600 }}>Animes :</span>{' '}
-                        <span style={{ color: 'var(--success)' }}>{malLastSync.animes}</span>
-                      </div>
-                    )}
-                    {malLastSync.mangas !== undefined && (
-                      <div style={{ fontSize: '12px', color: 'var(--text)' }}>
-                        <span style={{ fontWeight: 600 }}>Mangas :</span>{' '}
-                        <span style={{ color: 'var(--success)' }}>{malLastSync.mangas}</span>
-                      </div>
-                    )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>⚙️ Enrichissement automatique des animes</h4>
+                <TooltipIcon id="animeEnrichment" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Toggle checked={animeEnrichmentEnabled} onChange={handleAnimeEnrichmentToggle} />
+                <button
+                  type="button"
+                  onClick={() => setShowAnimeEnrichmentModal(true)}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 16px', fontSize: '13px' }}
+                >
+                  🔧 Paramètres
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>📚 Enrichissement automatique des mangas</h4>
+                <TooltipIcon id="mangaEnrichment" />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Toggle checked={mangaEnrichmentEnabled} onChange={handleMangaEnrichmentToggle} />
+                <button
+                  type="button"
+                  onClick={() => setShowMangaEnrichmentModal(true)}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 16px', fontSize: '13px' }}
+                >
+                  🔧 Paramètres
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Ligne avec Import Mihon et Synchronisation MAL */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '18px'
+          }}
+        >
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>📥 Import backup Mihon</h4>
+                <TooltipIcon id="mihonImport" />
+              </div>
+              <button
+                type="button"
+                onClick={handleImportMihonBackup}
+                className="btn btn-primary"
+                disabled={importingMihon}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: importingMihon ? 0.6 : 1
+                }}
+              >
+                {importingMihon ? '⏳ Import en cours...' : '📥 Importer'}
+              </button>
+            </div>
+            {mihonImportProgress && (
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', width: '100%' }}>
+                {mihonImportProgress.message && (
+                  <div style={{ marginBottom: '8px' }}>{mihonImportProgress.message}</div>
+                )}
+                {mihonImportProgress.progress !== undefined && (
+                  <div style={{
+                    width: '100%',
+                    height: '6px',
+                    background: 'var(--border)',
+                    borderRadius: '3px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${mihonImportProgress.progress}%`,
+                      height: '100%',
+                      background: 'var(--primary)',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                )}
+                {mihonImportProgress.current !== undefined && mihonImportProgress.total !== undefined && (
+                  <div style={{ marginTop: '4px', fontSize: '11px' }}>
+                    {mihonImportProgress.current} / {mihonImportProgress.total}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                  🔄 Synchronisation manuelle MyAnimeList
+                </h4>
+                <TooltipIcon id="malManualSync" />
+              </div>
+              <button
+                onClick={() => Promise.resolve(onMalSyncNow())}
+                className="btn btn-primary"
+                disabled={!malConnected}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  opacity: !malConnected ? 0.5 : 1,
+                  cursor: !malConnected ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <RefreshCw size={16} />
+                Synchroniser
+              </button>
+            </div>
+            {!malConnected && (
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                Connectez votre compte MyAnimeList pour activer cette fonctionnalité
+              </p>
+            )}
+          </div>
+        </div>
+        {malConnected && malLastSync?.timestamp && (
+          <div
+            style={{
+              marginTop: '12px',
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 8px 18px rgba(15, 23, 42, 0.18)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
+              📊 Dernière synchronisation
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              {new Date(malLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+            </div>
+            {(malLastSync.animes !== undefined || malLastSync.mangas !== undefined) && (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {malLastSync.animes !== undefined && (
+                  <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                    <span style={{ fontWeight: 600 }}>Animes :</span>{' '}
+                    <span style={{ color: 'var(--success)' }}>{malLastSync.animes}</span>
+                  </div>
+                )}
+                {malLastSync.mangas !== undefined && (
+                  <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                    <span style={{ fontWeight: 600 }}>Lectures :</span>{' '}
+                    <span style={{ color: 'var(--success)' }}>{malLastSync.mangas}</span>
                   </div>
                 )}
               </div>
@@ -868,8 +1160,8 @@ export default function IntegrationsSettings({
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderTmdbSection = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -878,6 +1170,7 @@ export default function IntegrationsSettings({
           display: 'grid',
           gap: '18px',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          alignItems: 'stretch',
         }}
       >
         <div
@@ -892,10 +1185,33 @@ export default function IntegrationsSettings({
             gap: '12px',
           }}
         >
-          <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <KeyRound size={16} />
-            TMDb API Key (v3) <span style={{ color: '#f97316' }}>*</span>
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <KeyRound size={16} />
+                TMDb API Key (v3) <span style={{ color: '#f97316' }}>*</span>
+              </label>
+              <TooltipIcon id="tmdbKey" />
+            </div>
+            <button
+              onClick={handleTestTmdbConnection}
+              className="btn btn-outline"
+              disabled={tmdbTesting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                minWidth: '190px',
+              }}
+            >
+              <RefreshCw size={15} style={{ animation: tmdbTesting ? 'spin 1s linear infinite' : 'none' }} />
+              {tmdbTesting ? 'Test en cours…' : 'Tester la connexion'}
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
               type={tmdbKeyVisible ? 'text' : 'password'}
@@ -909,14 +1225,9 @@ export default function IntegrationsSettings({
                 flushTmdbCredentialSave().catch(() => undefined);
               }}
               placeholder="Clé API publique v3"
+              className="input"
               style={{
                 flex: 1,
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                color: 'var(--text)',
-                fontSize: '14px',
                 letterSpacing: tmdbKeyVisible ? '0.4px' : '0.6px',
               }}
             />
@@ -940,21 +1251,35 @@ export default function IntegrationsSettings({
               {tmdbKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            Requise pour les requêtes REST (détails, images, recherches).
-          </p>
-          <div
-            style={{
-              fontSize: '12px',
-              color: tmdbSaving ? 'var(--primary-light)' : 'var(--text-secondary)',
-            }}
-          >
-            {tmdbSaving
-              ? 'Sauvegarde automatique…'
-              : tmdbLastSavedAt
-                ? `Dernière sauvegarde : ${tmdbLastSavedAt.toLocaleTimeString('fr-FR')}`
-                : 'Enregistrement automatique activé.'}
-          </div>
+          {tmdbSaving && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: 'var(--primary-light)',
+              }}
+            >
+              Sauvegarde en cours…
+            </div>
+          )}
+          {tmdbTestResult && (
+            <div
+              style={{
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: `1px solid ${tmdbTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                background: tmdbTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                color: tmdbTestResult.success ? 'var(--success)' : 'var(--error)',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                width: '100%'
+              }}
+            >
+              <CheckCircle size={14} />
+              {tmdbTestResult.message}
+            </div>
+          )}
         </div>
 
         <div
@@ -969,10 +1294,15 @@ export default function IntegrationsSettings({
             gap: '12px',
           }}
         >
-          <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={16} />
-            Jeton d’accès lecture (v4)
-          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={16} />
+              Jeton d’accès lecture (v4)
+            </label>
+            <div style={headerActionPlaceholderStyle}>
+              <TooltipIcon id="tmdbToken" />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
               type={tmdbTokenVisible ? 'text' : 'password'}
@@ -986,14 +1316,9 @@ export default function IntegrationsSettings({
                 flushTmdbCredentialSave().catch(() => undefined);
               }}
               placeholder="Token Bearer (optionnel)"
+              className="input"
               style={{
                 flex: 1,
-                padding: '12px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                color: 'var(--text)',
-                fontSize: '14px',
                 letterSpacing: tmdbTokenVisible ? '0.4px' : '0.6px',
               }}
             />
@@ -1017,19 +1342,8 @@ export default function IntegrationsSettings({
               {tmdbTokenVisible ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            Optionnel, utile pour les requêtes nécessitant l’authentification Bearer (listes privées, découvertes avancées).
-          </p>
         </div>
-      </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gap: '18px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        }}
-      >
         <div
           style={{
             padding: '20px',
@@ -1042,108 +1356,23 @@ export default function IntegrationsSettings({
             gap: '12px',
           }}
         >
-          <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Source des images</div>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            Choisissez la priorité d’extraction pour les affiches et banners.
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Source des images MyAnimeList</div>
+            <div style={headerActionPlaceholderStyle}>
+              <TooltipIcon id="imageSource" />
+            </div>
+          </div>
           <select
-            value={imageSource}
-            onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist' | 'tmdb')}
-            style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--background)',
-              color: 'var(--text)',
-              fontSize: '13px',
-              width: '100%',
-              cursor: 'pointer',
-            }}
+            value={imageSource === 'tmdb' ? 'mal' : imageSource}
+            onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist')}
+            className="select"
+            style={{ width: '100%' }}
           >
+            <option value="mal">MyAnimeList (par défaut)</option>
             <option value="anilist">AniList (haute définition)</option>
-            <option value="mal">MyAnimeList</option>
-            <option value="tmdb">TMDb</option>
           </select>
         </div>
-
-        <div
-          style={{
-            padding: '18px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            alignItems: 'center'
-          }}
-        >
-          <button
-            onClick={handleTestTmdbConnection}
-            className="btn btn-outline"
-            disabled={tmdbTesting}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              boxShadow: '0 8px 16px rgba(15, 23, 42, 0.12)',
-              width: '220px',
-              textAlign: 'center'
-            }}
-          >
-            <RefreshCw size={15} style={{ animation: tmdbTesting ? 'spin 1s linear infinite' : 'none' }} />
-            {tmdbTesting ? 'Test en cours…' : 'Tester la connexion TMDb'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onOpenGuide('tmdb')}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              width: '220px',
-              boxShadow: '0 8px 16px rgba(15, 23, 42, 0.12)',
-              textAlign: 'center'
-            }}
-          >
-            <BookOpenCheck size={16} />
-            Ouvrir le Guide TMDb
-          </button>
-
-          {tmdbTestResult && (
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${tmdbTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-                background: tmdbTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                color: tmdbTestResult.success ? 'var(--success)' : 'var(--error)',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                width: '100%'
-              }}
-            >
-              <CheckCircle size={14} />
-              {tmdbTestResult.message}
-            </div>
-          )}
-        </div>
       </div>
-
-      {/* message test déjà géré dans la carte ci-dessus */}
     </div>
   );
 
@@ -1153,7 +1382,8 @@ export default function IntegrationsSettings({
         style={{
           display: 'grid',
           gap: '18px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          alignItems: 'stretch',
         }}
       >
         <div
@@ -1165,123 +1395,81 @@ export default function IntegrationsSettings({
             boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
+            gap: '16px',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              Clé API Groq
-              <span style={{ color: '#f97316' }}>*</span>
-            </label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <input
-                type={groqKeyVisible ? 'text' : 'password'}
-                value={groqApiKeyInput}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setGroqApiKeyInput(value);
-                  scheduleGroqApiKeySave(value);
-                }}
-                onBlur={() => {
-                  flushGroqApiKeySave().catch(() => undefined);
-                }}
-                placeholder="gsk_xxxxxxxxxxxxxxxxx"
-                autoComplete="off"
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--background)',
-                  color: 'var(--text)',
-                  fontSize: '14px',
-                  letterSpacing: '0.4px',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setGroqKeyVisible((prev) => !prev)}
-                style={{
-                  border: '1px solid var(--border)',
-                  background: 'var(--background)',
-                  borderRadius: '8px',
-                  width: '42px',
-                  height: '42px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  transition: 'all 0.2s ease',
-                }}
-                aria-label={groqKeyVisible ? 'Masquer la clé Groq' : 'Afficher la clé Groq'}
-              >
-                {groqKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Clé API Groq <span style={{ color: '#f97316' }}>*</span>
+              </label>
+              <TooltipIcon id="groqKey" />
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-              Coller ici la clé fournie par Groq (affichée une seule fois). Elle est stockée chiffrée sur votre machine.
-            </p>
-            <div style={{ fontSize: '12px', color: groqSaving ? 'var(--primary-light)' : 'var(--text-secondary)' }}>
-              {groqSaving
-                ? 'Sauvegarde en cours…'
-                : groqLastSavedAt
-                  ? `Dernière sauvegarde : ${groqLastSavedAt.toLocaleTimeString('fr-FR')}`
-                  : 'Sauvegarde automatique activée.'}
-            </div>
+            <button
+              onClick={handleTestGroqConnection}
+              className="btn btn-outline"
+              disabled={groqTesting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                minWidth: '190px',
+              }}
+            >
+              <RefreshCw size={14} style={{ animation: groqTesting ? 'spin 1s linear infinite' : 'none' }} />
+              {groqTesting ? 'Test en cours…' : 'Tester la connexion'}
+            </button>
           </div>
-        </div>
-
-        <div
-          style={{
-            padding: '18px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            alignItems: 'center'
-          }}
-        >
-          <button
-            onClick={handleTestGroqConnection}
-            className="btn btn-outline"
-            disabled={groqTesting}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              width: '220px',
-              boxShadow: '0 8px 16px rgba(15, 23, 42, 0.12)'
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: groqTesting ? 'spin 1s linear infinite' : 'none' }} />
-            {groqTesting ? 'Test en cours…' : 'Tester la connexion Groq'}
-          </button>
-          <button
-            onClick={() => onOpenGuide('groq')}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              width: '220px',
-              boxShadow: '0 8px 16px rgba(15, 23, 42, 0.12)'
-            }}
-          >
-            <BookOpenCheck size={14} />
-            Ouvrir le Guide Groq
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type={groqKeyVisible ? 'text' : 'password'}
+              value={groqApiKeyInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setGroqApiKeyInput(value);
+                scheduleGroqApiKeySave(value);
+              }}
+              onBlur={() => {
+                flushGroqApiKeySave().catch(() => undefined);
+              }}
+              placeholder="gsk_xxxxxxxxxxxxxxxxx"
+              autoComplete="off"
+              className="input"
+              style={{
+                flex: 1,
+                letterSpacing: '0.4px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setGroqKeyVisible((prev) => !prev)}
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                borderRadius: '8px',
+                width: '42px',
+                height: '42px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                transition: 'all 0.2s ease',
+              }}
+              aria-label={groqKeyVisible ? 'Masquer la clé Groq' : 'Afficher la clé Groq'}
+            >
+              {groqKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {groqSaving && (
+            <div style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+              Sauvegarde en cours…
+            </div>
+          )}
           {groqTestResult && (
             <div
               style={{
@@ -1294,7 +1482,7 @@ export default function IntegrationsSettings({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                width: '100%'
+                width: '100%',
               }}
             >
               <CheckCircle size={14} />
@@ -1302,68 +1490,29 @@ export default function IntegrationsSettings({
             </div>
           )}
         </div>
-      </div>
 
-      <div
-        style={{
-          padding: '20px',
-          borderRadius: '12px',
-          border: '1px solid var(--border)',
-          background: 'var(--surface)',
-          boxShadow: 'var(--card-shadow)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '18px',
-        }}
-      >
-        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Fonctionnalités IA</div>
-        <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-          <label
-            style={{
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <label
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
                 Traduction automatique (Groq)
               </span>
-              <Toggle checked={autoTranslate} onChange={(checked) => onAutoTranslateChange(checked)} />
+              <TooltipIcon id="groqAutoTranslate" />
             </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-              Traduire automatiquement les synopsis indisponibles en français via Groq lors de l’enrichissement.
-            </p>
-          </label>
-
-          <label
-            style={{
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
-                ✨ Fin d’enrichissement des données
-              </span>
-              <Toggle checked={notifyEnrichment} onChange={(checked) => onNotifyEnrichmentChange(checked)} />
-            </div>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-              Envoyer une notification lorsque le traitement d’enrichissement (Jikan/AniList + Groq) a terminé.
-            </p>
-          </label>
-        </div>
+            <Toggle checked={autoTranslate} onChange={(checked) => onAutoTranslateChange(checked)} />
+          </div>
+        </label>
       </div>
     </div>
   );
@@ -1406,17 +1555,13 @@ export default function IntegrationsSettings({
             disabled={globalSyncUpdating}
             aria-busy={globalSyncUpdating}
             style={{
-              padding: '12px 16px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: globalSyncUpdating ? 'var(--surface)' : 'var(--surface-light)',
-              color: 'var(--text)',
               fontWeight: 600,
-              fontSize: '13px',
-              minWidth: '220px',
+              width: '240px',
+              flex: '0 0 240px',
               cursor: globalSyncUpdating ? 'wait' : 'pointer',
-              opacity: globalSyncUpdating ? 0.65 : 1
+              opacity: globalSyncUpdating ? 0.65 : 1,
             }}
+            className="select"
           >
             <option value={1}>Toutes les heures</option>
             <option value={3}>Toutes les 3 heures</option>
@@ -1424,19 +1569,34 @@ export default function IntegrationsSettings({
             <option value={12}>Toutes les 12 heures</option>
             <option value={24}>Tous les jours</option>
           </select>
-          {globalSyncUpdating && (
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Mise à jour…
-            </span>
-          )}
         </div>
       </div>
 
       <NestedSection
         id="integrations-mal"
         title="🤝 MyAnimeList (Progression Anime/Manga)"
-        isOpen={openSections.mal}
+        isOpen={getNestedSectionState('mal')}
         onToggle={() => toggleNestedSection('mal')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('mal');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <BookOpenCheck size={14} />
+            Guide MAL
+          </button>
+        }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div
@@ -1458,7 +1618,13 @@ export default function IntegrationsSettings({
                 gap: '12px',
               }}
             >
-              <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID MyAnimeList</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID MyAnimeList</label>
+                  <TooltipIcon id="malClientId" />
+                </div>
+                <div style={headerActionPlaceholderStyle} />
+              </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <input
                   type={malClientVisible ? 'text' : 'password'}
@@ -1469,14 +1635,9 @@ export default function IntegrationsSettings({
                     scheduleCredentialSave(value);
                   }}
                   placeholder="Clé client générée dans le portail MAL"
+                  className="input"
                   style={{
                     flex: 1,
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                    color: 'var(--text)',
-                    fontSize: '14px',
                     letterSpacing: malClientVisible ? '0.4px' : '0.6px'
                   }}
                 />
@@ -1500,49 +1661,15 @@ export default function IntegrationsSettings({
                   {malClientVisible ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {isSavingCredentials
-                  ? 'Sauvegarde…'
-                  : lastCredentialSaveAt
-                    ? `Dernière sauvegarde : ${lastCredentialSaveAt.toLocaleTimeString('fr-FR')}`
-                    : 'Enregistrement automatique activé.'}
-              </span>
+              {isSavingCredentials && (
+                <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+                  Sauvegarde en cours…
+                </span>
+              )}
             </div>
 
             {renderMalStatus()}
 
-            <div
-              style={{
-                padding: '18px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => onOpenGuide('mal')}
-                className="btn btn-outline"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  width: '220px',
-                  boxShadow: '0 8px 16px rgba(15, 23, 42, 0.12)'
-                }}
-              >
-                <BookOpenCheck size={14} />
-                Ouvrir le Guide MAL
-              </button>
-            </div>
           </div>
 
           <div>
@@ -1603,8 +1730,28 @@ export default function IntegrationsSettings({
       <NestedSection
         id="integrations-tmdb"
         title="🎬 Sources Médias et Images (TMDb)"
-        isOpen={openSections.tmdb}
+        isOpen={getNestedSectionState('tmdb')}
         onToggle={() => toggleNestedSection('tmdb')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('tmdb');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <BookOpenCheck size={14} />
+            Guide TMDb
+          </button>
+        }
       >
         {renderTmdbSection()}
       </NestedSection>
@@ -1612,8 +1759,28 @@ export default function IntegrationsSettings({
       <NestedSection
         id="integrations-groq"
         title="🧠 Traductions et Enrichissement IA (Groq)"
-        isOpen={openSections.groq}
+        isOpen={getNestedSectionState('groq')}
         onToggle={() => toggleNestedSection('groq')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('groq');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <BookOpenCheck size={14} />
+            Guide Groq
+          </button>
+        }
       >
         {renderGroqSection()}
       </NestedSection>
@@ -1621,8 +1788,28 @@ export default function IntegrationsSettings({
       <NestedSection
         id="integrations-adulte-game"
         title="🕹️ Synchronisation & Outils (Jeux Adultes)"
-        isOpen={openSections.adulteGame}
+        isOpen={getNestedSectionState('adulteGame')}
         onToggle={() => toggleNestedSection('adulteGame')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('adulteGame');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <BookOpenCheck size={14} />
+            Guide Jeux Adultes
+          </button>
+        }
       >
         <AdulteGameSettings showToast={showToast ?? (() => undefined)} />
       </NestedSection>

@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
+import { UserPlus } from 'lucide-react';
 import FullScreenOverlay from './FullScreenOverlay';
 import GradientTitle from './GradientTitle';
 import LoadingSpinner from './LoadingSpinner';
 
 interface UserSelectorProps {
   onUserSelected: (user: string) => void;
+  onCreateNewProfile?: () => void;
+  showCreateButton?: boolean;
+  title?: string;
+  subtitle?: string;
+  isInOnboarding?: boolean;
 }
 
 interface User {
@@ -15,7 +21,14 @@ interface User {
   color: string;
 }
 
-export default function UserSelector({ onUserSelected }: UserSelectorProps) {
+export default function UserSelector({ 
+  onUserSelected, 
+  onCreateNewProfile,
+  showCreateButton = true,
+  title = 'Qui êtes-vous ?',
+  subtitle,
+  isInOnboarding = false
+}: UserSelectorProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,15 +68,27 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
   };
 
   return (
-    <FullScreenOverlay>
-      {/* Logo */}
-      <div style={{ marginBottom: '48px', textAlign: 'center' }}>
-        <GradientTitle fontSize="42px" style={{ marginBottom: '12px' }}>
-          Nexus
-        </GradientTitle>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>
-          Qui êtes-vous ?
-        </p>
+    <FullScreenOverlay padding={isInOnboarding ? "40px" : undefined}>
+      {/* Logo/Titre */}
+      <div style={{ marginBottom: isInOnboarding ? '32px' : '48px', textAlign: 'center' }}>
+        {!isInOnboarding && (
+          <GradientTitle fontSize="42px" style={{ marginBottom: '12px' }}>
+            Nexus
+          </GradientTitle>
+        )}
+        <h1 style={{
+          fontSize: isInOnboarding ? '28px' : '24px',
+          fontWeight: '700',
+          marginBottom: subtitle ? '8px' : '0',
+          color: 'var(--text)'
+        }}>
+          {title}
+        </h1>
+        {subtitle && (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '16px', maxWidth: '600px', margin: '0 auto' }}>
+            {subtitle}
+          </p>
+        )}
       </div>
 
       {/* Sélection utilisateur */}
@@ -73,91 +98,185 @@ export default function UserSelector({ onUserSelected }: UserSelectorProps) {
           style={{ padding: '40px' }}
         />
       ) : (
-        <div style={{
-          display: 'flex',
-          gap: '24px',
-          flexWrap: 'wrap',
-          justifyContent: 'center'
-        }}>
-          {users.map((user) => (
-          <button
-            key={user.name}
-            onClick={() => handleSelect(user.name)}
-            className="card"
-            style={{
-              width: '200px',
-              padding: '32px 24px',
-              cursor: 'pointer',
-              border: selectedUser === user.name ? `3px solid ${user.color}` : '1px solid var(--border)',
-              background: selectedUser === user.name ? `${user.color}11` : 'var(--surface)',
-              transition: 'all 0.3s ease',
-              transform: selectedUser === user.name ? 'scale(1.05)' : 'scale(1)'
-            }}
-            onMouseEnter={(e) => {
-              if (selectedUser !== user.name) {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.borderColor = user.color;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedUser !== user.name) {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.borderColor = 'var(--border)';
-              }
-            }}
-          >
-            <div style={{
-              marginBottom: '16px',
-              textAlign: 'center',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
-              {profileImages[user.name] ? (
-                <img
-                  src={profileImages[user.name]!}
-                  alt={user.name}
-                  style={{
-                    width: '100px',
-                    height: '100px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: `3px solid ${user.color}`
-                  }}
-                />
-              ) : (
-                <div style={{ fontSize: '64px' }}>
-                  {user.emoji}
+        <>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '20px',
+            justifyContent: 'center',
+            marginBottom: showCreateButton ? '40px' : '0',
+            maxHeight: isInOnboarding ? '400px' : 'none',
+            overflowY: isInOnboarding ? 'auto' : 'visible',
+            padding: isInOnboarding ? '8px' : '0',
+            paddingRight: isInOnboarding ? '16px' : '0',
+            maxWidth: isInOnboarding ? '900px' : '1200px',
+            margin: isInOnboarding ? '0 auto 40px' : '0 auto 48px'
+          }}>
+            {users.map((user) => (
+              <button
+                key={user.name}
+                onClick={() => handleSelect(user.name)}
+                className="card"
+                style={{
+                  width: isInOnboarding ? '160px' : '200px',
+                  padding: isInOnboarding ? '24px 20px' : '32px 24px',
+                  cursor: 'pointer',
+                  border: selectedUser === user.name ? `3px solid ${user.color}` : '2px solid var(--border)',
+                  background: selectedUser === user.name ? `${user.color}15` : 'var(--surface)',
+                  transition: 'all 0.3s ease',
+                  transform: selectedUser === user.name ? 'scale(1.05)' : 'scale(1)',
+                  textAlign: 'center',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  minHeight: isInOnboarding ? '180px' : '200px',
+                  justifyContent: 'center',
+                  boxShadow: selectedUser === user.name ? `0 4px 12px ${user.color}40` : 'none',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedUser !== user.name) {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.borderColor = user.color;
+                    e.currentTarget.style.background = `${user.color}15`;
+                    e.currentTarget.style.boxShadow = `0 4px 12px ${user.color}40`;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedUser !== user.name) {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.background = 'var(--surface)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }
+                }}
+              >
+                <div style={{
+                  marginBottom: isInOnboarding ? '16px' : '20px',
+                  textAlign: 'center',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  {profileImages[user.name] ? (
+                    <img
+                      src={profileImages[user.name]!}
+                      alt={user.name}
+                      style={{
+                        width: isInOnboarding ? '72px' : '100px',
+                        height: isInOnboarding ? '72px' : '100px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: `3px solid ${user.color}`
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: isInOnboarding ? '72px' : '100px',
+                      height: isInOnboarding ? '72px' : '100px',
+                      borderRadius: '50%',
+                      background: `${user.color}22`,
+                      border: `3px solid ${user.color}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: isInOnboarding ? '36px' : '48px'
+                    }}>
+                      {user.emoji}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <h3 style={{
-              fontSize: '24px',
-              fontWeight: '700',
-              textAlign: 'center',
-              color: user.color
-            }}>
-              {user.name}
-            </h3>
-          </button>
-          ))}
-        </div>
-      )}
+                <h3 style={{
+                  fontSize: isInOnboarding ? '15px' : '20px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  color: 'var(--text)',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.4'
+                }}>
+                  {user.name}
+                </h3>
+              </button>
+            ))}
+          </div>
 
-      {/* Info */}
-      <div style={{
-        marginTop: '48px',
-        padding: '16px 24px',
-        background: 'rgba(99, 102, 241, 0.1)',
-        borderRadius: '12px',
-        borderLeft: '4px solid var(--primary)',
-        maxWidth: '500px',
-        textAlign: 'center'
-      }}>
-        <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
-          💡 Vos modifications seront automatiquement sauvegardées dans votre base personnelle à la fermeture de l'application
-        </p>
-      </div>
+          {/* Bouton Créer un nouveau profil (toujours visible si activé) */}
+          {showCreateButton && onCreateNewProfile && (
+            <>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                padding: '24px 0',
+                marginTop: '24px',
+                borderTop: '1px solid var(--border)'
+              }}>
+                <div style={{
+                  flex: 1,
+                  height: '1px',
+                  background: 'var(--border)',
+                  maxWidth: '200px'
+                }} />
+                <span style={{
+                  fontSize: '14px',
+                  color: 'var(--text-secondary)',
+                  padding: '0 20px',
+                  fontWeight: '500'
+                }}>
+                  ou
+                </span>
+                <div style={{
+                  flex: 1,
+                  height: '1px',
+                  background: 'var(--border)',
+                  maxWidth: '200px'
+                }} />
+              </div>
+
+              <button
+                onClick={onCreateNewProfile}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  maxWidth: isInOnboarding ? '400px' : '500px',
+                  margin: '0 auto',
+                  padding: '16px 24px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  borderRadius: '10px'
+                }}
+              >
+                <UserPlus size={20} />
+                Créer un nouveau profil
+              </button>
+            </>
+          )}
+
+          {/* Info (seulement si pas dans l'onboarding) */}
+          {!isInOnboarding && (
+            <div style={{
+              marginTop: '48px',
+              padding: '16px 24px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              borderRadius: '12px',
+              borderLeft: '4px solid var(--primary)',
+              maxWidth: '500px',
+              margin: '0 auto',
+              textAlign: 'center'
+            }}>
+              <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                💡 Vos modifications seront automatiquement sauvegardées dans votre base personnelle à la fermeture de l'application
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </FullScreenOverlay>
   );
 }

@@ -1,1 +1,1 @@
-export type ApiKeyProvider = 'mal' | 'tmdb' | 'groq';
+export type ApiKeyProvider = 'mal' | 'tmdb' | 'groq' | 'adulteGame';

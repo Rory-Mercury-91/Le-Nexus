@@ -33,12 +33,12 @@ export default function ProgressionSection({
   }
 
   return (
-    <div className="card" style={{ padding: '20px', marginBottom: '24px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
+    <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
       <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         📊 Progression
       </h2>
       
-      {/* Progression Mangas */}
+      {/* Progression Lectures */}
       {contentPrefs.showMangas && lectureStats && (lectureStats.tomesTotal > 0 || lectureStats.chapitresTotal > 0) && (
         <div style={{ marginBottom: '16px' }}>
           {(() => {
@@ -63,7 +63,7 @@ export default function ProgressionSection({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '18px' }}>📚</span>
-                  <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Mangas :</span>
+                  <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Lectures :</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   {hasTomes && (

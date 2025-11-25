@@ -580,6 +580,23 @@ function insertAnimeIntoDatabase(db, animeData) {
 // Import des fonctions communes
 const { getUserIdByName } = require('../common-helpers');
 
+/**
+ * S'assure qu'une ligne anime_user_data existe pour un anime et un utilisateur
+ */
+function ensureAnimeUserDataRow(db, animeId, userId) {
+  const existing = db.prepare('SELECT id FROM anime_user_data WHERE anime_id = ? AND user_id = ?').get(animeId, userId);
+  if (!existing) {
+    db.prepare(`
+      INSERT INTO anime_user_data (
+        anime_id, user_id, statut_visionnage, score, episodes_vus,
+        date_debut, date_fin, is_favorite, is_hidden, tag, labels,
+        notes_privees, episode_progress, display_preferences, created_at, updated_at
+      )
+      VALUES (?, ?, 'À regarder', NULL, 0, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, datetime('now'), datetime('now'))
+    `).run(animeId, userId);
+  }
+}
+
 module.exports = {
   translateSeason,
   fetchJikanData,
@@ -590,5 +607,6 @@ module.exports = {
   checkWikipediaUrlExists,
   prepareAnimeDataFromJikan,
   insertAnimeIntoDatabase,
-  getUserIdByName
+  getUserIdByName,
+  ensureAnimeUserDataRow
 };

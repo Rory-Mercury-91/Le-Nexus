@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { CardActionsMenu, CardCover } from './index';
+import { CardActionsMenu, CardCover, MihonBadge } from './index';
 import { StatusCategory } from '../../../utils/status';
 
 interface ImageOnlyCardProps {
@@ -20,6 +20,7 @@ interface ImageOnlyCardProps {
   shouldBlur?: boolean;
   hasMasterPassword?: boolean; // Indique si le code maître est défini et actif
   statusCategory?: StatusCategory;
+  showMihonBadge?: boolean;
 }
 
 /**
@@ -42,7 +43,8 @@ export default function ImageOnlyCard({
   isHidden = false,
   shouldBlur = false,
   hasMasterPassword = false,
-  statusCategory
+  statusCategory,
+  showMihonBadge = false
 }: ImageOnlyCardProps) {
   return (
     <div
@@ -54,16 +56,16 @@ export default function ImageOnlyCard({
         aspectRatio: '2/3',
         borderRadius: '12px',
         overflow: 'visible',
-        border: '1px solid rgba(139, 92, 246, 0.15)',
+        border: '1px solid var(--border)',
         transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
         zIndex: isMenuOpen ? 1000 : 1
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.2)';
+        e.currentTarget.style.borderColor = 'var(--primary)';
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.2)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.15)';
+        e.currentTarget.style.borderColor = 'var(--border)';
         e.currentTarget.style.boxShadow = 'none';
       }}
     >
@@ -85,6 +87,9 @@ export default function ImageOnlyCard({
           hasMasterPassword={hasMasterPassword}
         />
       </div>
+
+      {/* Badge Mihon (coin inférieur gauche) */}
+      <MihonBadge show={showMihonBadge} />
 
       {/* Menu actions uniquement */}
       <CardActionsMenu

@@ -4,6 +4,7 @@
 
 const { startOAuthFlow, getUserInfo } = require('../../apis/myanimelist-oauth');
 const { performFullSync, performStatusSync, translateSynopsisInBackground } = require('../../services/mal/mal-sync');
+const notificationScheduler = require('../../services/schedulers/notification-scheduler');
 
 function resetMalConnection(store) {
   store.delete('mal_access_token');
@@ -23,20 +24,22 @@ function resetMalConnection(store) {
  * @param {Function} getMainWindow - Fonction pour récupérer la fenêtre principale
  * @param {Function} getPathManager - Fonction pour obtenir le PathManager (optionnel)
  */
+const { MAL_CONFIG } = require('../../config/constants');
+
 function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null, getPathManager = null) {
   ipcMain.handle('mal-get-credentials', () => {
     return {
       clientId: store.get('mal.clientId', ''),
-      redirectUri: store.get('mal.redirectUri', 'http://localhost:8888/callback')
+      redirectUri: store.get('mal.redirectUri', MAL_CONFIG.DEFAULT_REDIRECT_URI)
     };
   });
 
   ipcMain.handle('mal-set-credentials', (event, { clientId, redirectUri }) => {
     const previousClientId = store.get('mal.clientId', '');
-    const previousRedirectUri = store.get('mal.redirectUri', 'http://localhost:8888/callback');
+    const previousRedirectUri = store.get('mal.redirectUri', MAL_CONFIG.DEFAULT_REDIRECT_URI);
 
     const normalizedClientId = clientId !== undefined ? (clientId || '') : previousClientId;
-    const normalizedRedirectUri = redirectUri !== undefined ? (redirectUri || 'http://localhost:8888/callback') : previousRedirectUri;
+    const normalizedRedirectUri = redirectUri !== undefined ? (redirectUri || MAL_CONFIG.DEFAULT_REDIRECT_URI) : previousRedirectUri;
 
     const clientIdChanged = normalizedClientId !== previousClientId;
     const redirectChanged = normalizedRedirectUri !== previousRedirectUri;
@@ -199,7 +202,7 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null, ge
       }
 
       console.log(`🔁 Synchronisation des statuts MAL pour l'utilisateur: ${currentUser}`);
-      const result = await performStatusSync(db, store, currentUser);
+      const result = await performStatusSync(db, store, currentUser, getPathManager);
       return result;
     } catch (error) {
       console.error('❌ Erreur synchronisation statuts MAL:', error);
@@ -267,6 +270,15 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null, ge
       // Redémarrer le scheduler avec les nouveaux paramètres
       if (getMainWindow) {
         restartScheduler(getDb(), store, getMainWindow(), getDb, getPathManager);
+      }
+      
+      const notificationConfig = store.get('notificationConfig', {});
+      if (notificationConfig && notificationConfig.enabled) {
+        notificationScheduler.init(notificationConfig, getDb(), store, {
+          getDb,
+          getMainWindow,
+          getPathManager
+        });
       }
       
       console.log(`✅ Sync auto MAL ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h)`);

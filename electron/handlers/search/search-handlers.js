@@ -22,7 +22,7 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
       }
 
       // Convertir le nom d'utilisateur en ID
-      const { getUserIdByName } = require('./common-helpers');
+      const { getUserIdByName } = require('../common-helpers');
       const userId = getUserIdByName(db, currentUser);
       if (!userId) {
         console.log('⚠️ Utilisateur non trouvé:', currentUser);
@@ -44,10 +44,9 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         // Recherche par MAL ID pour les mangas
         mangas = db.prepare(`
           SELECT s.id, s.titre, s.auteurs, s.type_volume, s.couverture_url
-          FROM series s
-          WHERE s.id NOT IN (
-            SELECT serie_id FROM series_masquees WHERE user_id = ?
-          )
+          FROM manga_series s
+          LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+          WHERE (mud.is_hidden IS NULL OR mud.is_hidden = 0)
           AND s.mal_id = ?
           LIMIT 10
         `).all(userId, numericId);
@@ -57,13 +56,21 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
       if (mangas.length === 0) {
         mangas = db.prepare(`
           SELECT s.id, s.titre, s.auteurs, s.type_volume, s.couverture_url
-          FROM series s
-          WHERE s.id NOT IN (
-            SELECT serie_id FROM series_masquees WHERE user_id = ?
+          FROM manga_series s
+          LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+          WHERE (mud.is_hidden IS NULL OR mud.is_hidden = 0)
+          AND (
+            s.titre LIKE ? 
+            OR s.titre_romaji LIKE ?
+            OR s.titre_natif LIKE ?
+            OR s.titre_anglais LIKE ?
+            OR s.titres_alternatifs LIKE ?
+            OR s.titre_alternatif LIKE ?
+            OR s.description LIKE ? 
+            OR s.auteurs LIKE ?
           )
-          AND (s.titre LIKE ? OR s.description LIKE ? OR s.auteurs LIKE ?)
           LIMIT 10
-        `).all(userId, searchQuery, searchQuery, searchQuery);
+        `).all(userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
       }
 
       mangas.forEach(manga => {
@@ -89,13 +96,9 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
             a.type, 
             a.nb_episodes, 
             a.couverture_url,
-            COALESCE(
-              (SELECT COUNT(DISTINCT episode_numero) 
-               FROM anime_episodes_vus 
-               WHERE anime_id = a.id AND user_id = ? AND vu = 1),
-              0
-            ) as episodes_vus
+              COALESCE(aud.episodes_vus, 0) as episodes_vus
           FROM anime_series a
+          LEFT JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
           WHERE a.user_id_ajout = ?
           AND a.mal_id = ?
           LIMIT 10
@@ -111,17 +114,20 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
             a.type, 
             a.nb_episodes, 
             a.couverture_url,
-            COALESCE(
-              (SELECT COUNT(DISTINCT episode_numero) 
-               FROM anime_episodes_vus 
-               WHERE anime_id = a.id AND user_id = ? AND vu = 1),
-              0
-            ) as episodes_vus
+              COALESCE(aud.episodes_vus, 0) as episodes_vus
           FROM anime_series a
+          LEFT JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
           WHERE a.user_id_ajout = ?
-          AND (a.titre LIKE ? OR a.description LIKE ?)
+          AND (
+            a.titre LIKE ? 
+            OR a.titre_romaji LIKE ?
+            OR a.titre_natif LIKE ?
+            OR a.titre_anglais LIKE ?
+            OR a.titres_alternatifs LIKE ?
+            OR a.description LIKE ?
+          )
           LIMIT 10
-        `).all(userId, userId, searchQuery, searchQuery);
+        `).all(userId, userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
       }
 
       animes.forEach(anime => {
@@ -143,11 +149,11 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
       if (numericId) {
         // Recherche par F95 thread ID ou LewdCorner ID pour les JEUX ADULTES
         adulteGames = db.prepare(`
-          SELECT DISTINCT g.id, g.titre, g.moteur, g.version, g.couverture_url, g.tags
+          SELECT DISTINCT g.id, g.titre, g.game_engine as moteur, g.game_version as version, g.couverture_url, g.tags
           FROM adulte_game_games g
-          INNER JOIN adulte_game_proprietaires p ON g.id = p.game_id
-          WHERE p.user_id = ?
-          AND (g.f95_thread_id = ? OR g.lewdcorner_id = ?)
+          INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id
+          WHERE ud.user_id = ?
+          AND (g.f95_thread_id = ? OR g.Lewdcorner_thread_id = ?)
           LIMIT 10
         `).all(userId, numericId, numericId);
       }
@@ -155,10 +161,10 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
       // Si pas de résultat par ID ou recherche textuelle, chercher par titre/tags
       if (adulteGames.length === 0) {
         adulteGames = db.prepare(`
-          SELECT DISTINCT g.id, g.titre, g.moteur, g.version, g.couverture_url, g.tags
+          SELECT DISTINCT g.id, g.titre, g.game_engine as moteur, g.game_version as version, g.couverture_url, g.tags
           FROM adulte_game_games g
-          INNER JOIN adulte_game_proprietaires p ON g.id = p.game_id
-          WHERE p.user_id = ?
+          INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id
+          WHERE ud.user_id = ?
           AND (g.titre LIKE ? OR g.tags LIKE ?)
           LIMIT 10
         `).all(userId, searchQuery, searchQuery);
@@ -195,39 +201,36 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
   }
 
   // Recherche de mangas (multi-sources avec déduplication)
-  // Ordre de priorité : MAL → MangaDex → AniList → MangaUpdates → Kitsu
+  // Ordre de priorité : MAL → AniList
   ipcMain.handle('search-manga', async (event, titre) => {
     try {
       const allResults = [];
       const seenTitles = new Set(); // Pour éviter les doublons
 
       // 1. MyAnimeList (via Jikan) - PRIORITÉ 1
-      let malHasResults = false;
+      // Utiliser la fonction MyAnimeList.searchManga qui supporte maintenant la recherche par mal_id
+      const MyAnimeList = require('../../apis/myanimelist');
       try {
-        const malResponse = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(titre)}&limit=5`);
-        if (malResponse.ok) {
-          const malData = await malResponse.json();
-          if (malData.data && malData.data.length > 0) {
-            malHasResults = true;
-            for (const manga of malData.data) {
-              const malTitle = manga.title || manga.title_english;
-              const normalizedTitle = normalizeTitleForDedup(malTitle);
+        const malResults = await MyAnimeList.searchManga(titre);
+        if (malResults && malResults.length > 0) {
+          for (const manga of malResults) {
+            const malTitle = manga.title || manga.titleEnglish;
+            const normalizedTitle = normalizeTitleForDedup(malTitle);
 
-              if (!seenTitles.has(normalizedTitle)) {
-                seenTitles.add(normalizedTitle);
-                allResults.push({
-                  source: 'MyAnimeList',
-                  id: manga.mal_id.toString(),
-                  titre: malTitle,
-                  description: manga.synopsis || '',
-                  couverture: manga.images?.jpg?.large_image_url,
-                  statut_publication: manga.status,
-                  annee_publication: manga.published?.from ? new Date(manga.published.from).getFullYear() : null,
-                  genres: manga.genres?.map(g => g.name).join(', '),
-                  nb_chapitres: manga.chapters,
-                  mal_id: manga.mal_id
-                });
-              }
+            if (!seenTitles.has(normalizedTitle)) {
+              seenTitles.add(normalizedTitle);
+              allResults.push({
+                source: 'MyAnimeList',
+                id: manga.id,
+                titre: malTitle,
+                description: manga.description || '',
+                couverture: manga.coverUrl,
+                statut_publication: manga.status,
+                annee_publication: manga.year,
+                genres: manga.genres || '',
+                nb_chapitres: manga.chapters,
+                mal_id: parseInt(manga.id, 10)
+              });
             }
           }
         }
@@ -235,52 +238,7 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         console.error('Erreur MyAnimeList (Jikan):', error);
       }
 
-      // 2. MangaDex - si MAL n'a pas de résultats
-      if (!malHasResults) {
-        try {
-          const mdResponse = await fetch(`https://api.mangadex.org/manga?title=${encodeURIComponent(titre)}&limit=5&includes[]=cover_art&includes[]=author&includes[]=artist&order[relevance]=desc`);
-          if (mdResponse.ok) {
-            const mdData = await mdResponse.json();
-            if (mdData.data && mdData.data.length > 0) {
-              for (const manga of mdData.data) {
-                const coverRelationship = manga.relationships.find(r => r.type === 'cover_art');
-                let coverUrl = null;
-                if (coverRelationship) {
-                  const fileName = coverRelationship.attributes?.fileName;
-                  if (fileName) {
-                    coverUrl = `https://uploads.mangadex.org/covers/${manga.id}/${fileName}`;
-                  }
-                }
-
-                const frTitle = manga.attributes.title?.fr || manga.attributes.title?.['ja-ro'] || manga.attributes.title?.en || Object.values(manga.attributes.title)[0];
-                const normalizedTitle = normalizeTitleForDedup(frTitle);
-
-                if (!seenTitles.has(normalizedTitle)) {
-                  seenTitles.add(normalizedTitle);
-                  allResults.push({
-                    source: 'MangaDex',
-                    id: manga.id,
-                    titre: frTitle,
-                    description: manga.attributes.description?.fr || manga.attributes.description?.en || '',
-                    couverture: coverUrl,
-                    statut_publication: manga.attributes.status,
-                    annee_publication: manga.attributes.year,
-                    genres: manga.attributes.tags?.map(t => t.attributes.name?.en || t.attributes.name?.fr).filter(Boolean).join(', '),
-                    nb_chapitres: manga.attributes.lastChapter ? parseInt(manga.attributes.lastChapter) : null,
-                    langue_originale: manga.attributes.originalLanguage,
-                    demographie: manga.attributes.publicationDemographic,
-                    rating: manga.attributes.contentRating
-                  });
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erreur MangaDex:', error);
-        }
-      }
-
-      // 3. AniList - si les sources précédentes n'ont pas de résultats
+      // 2. AniList - si MAL n'a pas de résultats
       if (allResults.length === 0) {
         try {
           const anilistQuery = `
@@ -328,74 +286,6 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         }
       }
 
-      // 4. MangaUpdates - si les sources précédentes n'ont pas de résultats
-      if (allResults.length === 0) {
-        try {
-          const muResponse = await fetch(`https://api.mangaupdates.com/v1/series/search`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ search: titre, perpage: 5 })
-          });
-          if (muResponse.ok) {
-            const muData = await muResponse.json();
-            if (muData.results && muData.results.length > 0) {
-              for (const manga of muData.results) {
-                const muTitle = manga.record.title;
-                const normalizedTitle = normalizeTitleForDedup(muTitle);
-
-                if (!seenTitles.has(normalizedTitle)) {
-                  seenTitles.add(normalizedTitle);
-                  allResults.push({
-                    source: 'MangaUpdates',
-                    id: manga.record.series_id.toString(),
-                    titre: muTitle,
-                    description: manga.record.description || '',
-                    couverture: manga.record.image?.url?.original,
-                    statut_publication: manga.record.status,
-                    annee_publication: manga.record.year ? parseInt(manga.record.year) : null,
-                    genres: manga.record.genres?.map(g => g.genre).join(', ')
-                  });
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erreur MangaUpdates:', error);
-        }
-      }
-
-      // 5. Kitsu - dernier recours si aucune source précédente n'a de résultats
-      if (allResults.length === 0) {
-        try {
-          const kitsuResponse = await fetch(`https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(titre)}&page[limit]=5`);
-          if (kitsuResponse.ok) {
-            const kitsuData = await kitsuResponse.json();
-            if (kitsuData.data && kitsuData.data.length > 0) {
-              for (const manga of kitsuData.data) {
-                const kitsuTitle = manga.attributes.titles?.en || manga.attributes.titles?.en_jp || manga.attributes.canonicalTitle;
-                const normalizedTitle = normalizeTitleForDedup(kitsuTitle);
-
-                if (!seenTitles.has(normalizedTitle)) {
-                  seenTitles.add(normalizedTitle);
-                  allResults.push({
-                    source: 'Kitsu',
-                    id: manga.id,
-                    titre: kitsuTitle,
-                    description: manga.attributes.synopsis || '',
-                    couverture: manga.attributes.posterImage?.large,
-                    statut_publication: manga.attributes.status,
-                    annee_publication: manga.attributes.startDate ? new Date(manga.attributes.startDate).getFullYear() : null,
-                    nb_chapitres: manga.attributes.chapterCount,
-                    rating: manga.attributes.averageRating
-                  });
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erreur Kitsu:', error);
-        }
-      }
 
 
       return allResults;
@@ -405,7 +295,7 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
     }
   });
 
-  // Recherche d'animes (AniList, MAL, Kitsu)
+  // Recherche d'animes (MAL, AniList)
   ipcMain.handle('search-anime', async (event, titre) => {
     try {
 
@@ -415,35 +305,34 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
       const seenTitles = new Set(); // Pour éviter les doublons
 
       // 1. MyAnimeList (via Jikan)
+      // Utiliser la fonction MyAnimeList.searchAnime qui supporte maintenant la recherche par mal_id
+      const MyAnimeList = require('../../apis/myanimelist');
       try {
-        const malResponse = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(titre)}&limit=10`);
-        if (malResponse.ok) {
-          const malData = await malResponse.json();
-          if (malData.data && malData.data.length > 0) {
-            for (const anime of malData.data) {
-              const malTitle = anime.title || anime.title_english;
-              const normalizedTitle = normalizeTitleForDedup(malTitle);
+        const malResults = await MyAnimeList.searchAnime(titre);
+        if (malResults && malResults.length > 0) {
+          for (const anime of malResults) {
+            const malTitle = anime.title || anime.titleEnglish;
+            const normalizedTitle = normalizeTitleForDedup(malTitle);
 
-              if (!seenTitles.has(normalizedTitle)) {
-                seenTitles.add(normalizedTitle);
-                allResults.push({
-                  source: 'MyAnimeList',
-                  id: anime.mal_id.toString(),
-                  titre: malTitle,
-                  titre_romaji: anime.title_japanese,
-                  titre_natif: anime.title_japanese,
-                  description: anime.synopsis || '',
-                  couverture: anime.images?.jpg?.large_image_url,
-                  statut: anime.status,
-                  annee_debut: anime.aired?.from ? new Date(anime.aired.from).getFullYear() : null,
-                  annee_fin: anime.aired?.to ? new Date(anime.aired.to).getFullYear() : null,
-                  genres: anime.genres?.map(g => g.name).join(', '),
-                  episodes: anime.episodes,
-                  duree_episode: anime.duration ? parseInt(anime.duration) : null,
-                  format: anime.type,
-                  rating: anime.score ? `${anime.score}/10` : null
-                });
-              }
+            if (!seenTitles.has(normalizedTitle)) {
+              seenTitles.add(normalizedTitle);
+              allResults.push({
+                source: 'MyAnimeList',
+                id: anime.id,
+                titre: malTitle,
+                titre_romaji: anime.titleJapanese,
+                titre_natif: anime.titleJapanese,
+                description: anime.description || '',
+                couverture: anime.coverUrl,
+                statut: anime.status,
+                annee_debut: anime.startYear,
+                annee_fin: anime.endYear,
+                genres: anime.genres || '',
+                episodes: anime.episodes,
+                duree_episode: anime.duration,
+                format: anime.format,
+                rating: anime.score ? `${anime.score}/10` : null
+              });
             }
           }
         }
@@ -507,43 +396,6 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         }
       }
 
-      // 3. Kitsu - dernier recours si MAL et AniList n'ont pas de résultats
-      if (allResults.length === 0) {
-        try {
-          const kitsuResponse = await fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(titre)}&page[limit]=10`);
-          if (kitsuResponse.ok) {
-            const kitsuData = await kitsuResponse.json();
-            if (kitsuData.data && kitsuData.data.length > 0) {
-              for (const anime of kitsuData.data) {
-                const kitsuTitle = anime.attributes.titles?.en || anime.attributes.titles?.en_jp || anime.attributes.canonicalTitle;
-                const normalizedTitle = normalizeTitleForDedup(kitsuTitle);
-
-                if (!seenTitles.has(normalizedTitle)) {
-                  seenTitles.add(normalizedTitle);
-                  allResults.push({
-                    source: 'Kitsu',
-                    id: anime.id,
-                    titre: kitsuTitle,
-                    titre_romaji: anime.attributes.titles?.en_jp,
-                    titre_natif: anime.attributes.titles?.ja_jp,
-                    description: anime.attributes.synopsis || '',
-                    couverture: anime.attributes.posterImage?.large,
-                    statut: anime.attributes.status,
-                    annee_debut: anime.attributes.startDate ? new Date(anime.attributes.startDate).getFullYear() : null,
-                    annee_fin: anime.attributes.endDate ? new Date(anime.attributes.endDate).getFullYear() : null,
-                    episodes: anime.attributes.episodeCount,
-                    duree_episode: anime.attributes.episodeLength,
-                    format: anime.attributes.showType,
-                    rating: anime.attributes.averageRating
-                  });
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erreur Kitsu:', error);
-        }
-      }
 
 
       return allResults;

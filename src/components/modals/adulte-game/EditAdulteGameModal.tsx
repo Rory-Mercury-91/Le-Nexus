@@ -1,9 +1,9 @@
-import { FolderOpen, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useToast } from '../../../hooks/common/useToast';
 import '../../../index.css';
 import type { AdulteGame } from '../../../types';
-import CoverImage from '../../common/CoverImage';
+import CoverImageUpload from '../common/CoverImageUpload';
 import Modal from '../common/Modal';
 
 interface EditAdulteGameModalProps {
@@ -33,30 +33,39 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
   const [typeTradFr, setTypeTradFr] = useState(game.type_trad_fr || '');
   const [traducteur, setTraducteur] = useState(game.traducteur || '');
   const [saving, setSaving] = useState(false);
-  const [dragging, setDragging] = useState(false);
 
   // Fonction helper pour déterminer le nom du site dynamiquement
   const getSiteName = (): string => {
-    if (game.lien_f95) {
-      if (game.lien_f95.includes('lewdcorner.com')) {
-        return 'LewdCorner';
-      } else if (game.lien_f95.includes('f95zone.to')) {
-        return 'F95Zone';
-      }
+    // Utiliser game_site en priorité (nouveau champ)
+    if (game.game_site) {
+      return game.game_site;
     }
+    // Fallback sur plateforme (alias)
     if (game.plateforme) {
       return game.plateforme;
+    }
+    // Détecter depuis les liens
+    if (game.lien_lewdcorner || game.Lewdcorner_thread_id) {
+      return 'LewdCorner';
+    }
+    if (game.lien_f95 || game.f95_thread_id) {
+      if (game.lien_f95?.includes('lewdcorner.com')) {
+        return 'LewdCorner';
+      }
+      return 'F95Zone';
     }
     return 'Autre';
   };
 
   // Lien généré depuis l'ID (affiché mais non éditable directement car basé sur l'ID)
   const siteName = getSiteName();
-  const lienF95 = game.lien_f95 || (game.f95_thread_id 
-    ? siteName === 'LewdCorner'
-      ? `https://lewdcorner.com/threads/${game.f95_thread_id}/`
-      : `https://f95zone.to/threads/${game.f95_thread_id}/`
-    : '');
+  const lienF95 = game.lien_f95 || game.lien_lewdcorner || (
+    siteName === 'LewdCorner' && game.Lewdcorner_thread_id
+      ? `https://lewdcorner.com/threads/${game.Lewdcorner_thread_id}/`
+      : game.f95_thread_id
+        ? `https://f95zone.to/threads/${game.f95_thread_id}/`
+        : ''
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -121,55 +130,6 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
     }
   };
 
-  const handleChooseCoverImage = async () => {
-    try {
-      const result = await window.electronAPI.selectAdulteGameCoverImage();
-      if (result.success && result.path) {
-        setCouvertureUrl(result.path);
-        showToast({
-          title: 'Image sélectionnée',
-          type: 'success'
-        });
-      }
-    } catch (error) {
-      console.error('Erreur sélection image:', error);
-      showToast({
-        title: 'Erreur',
-        message: 'Erreur lors de la sélection de l\'image',
-        type: 'error'
-      });
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const imageFile = files.find(file => file.type.startsWith('image/'));
-
-    if (imageFile) {
-      const filePath = (imageFile as any).path;
-      setCouvertureUrl(filePath);
-      showToast({
-        title: 'Image ajoutée',
-        type: 'success'
-      });
-    }
-  };
 
   return (
     <>
@@ -292,67 +252,17 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
                   <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     🖼️ Couverture
                   </h3>
-
-                  {/* Aperçu */}
-                  {couvertureUrl && (
-                    <div style={{
-                      marginBottom: '12px',
-                      borderRadius: '8px',
-                      overflow: 'hidden',
-                      border: '2px solid var(--border)'
-                    }}>
-                      <CoverImage
-                        src={couvertureUrl}
-                        alt="Aperçu couverture"
-                        style={{
-                          width: '100%',
-                          maxHeight: '300px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* URL Couverture */}
-                  <div>
-                    <label htmlFor="couverture_url" className="label">
-                      URL de la couverture
-                    </label>
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        gap: '8px',
-                        border: dragging ? '2px dashed var(--primary)' : 'none',
-                        borderRadius: dragging ? '8px' : '0',
-                        padding: dragging ? '8px' : '0',
-                        background: dragging ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
-                        transition: 'all 0.2s',
-                        position: 'relative'
-                      }}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                    >
-                      <input
-                        type="text"
-                        id="couverture_url"
-                        value={couvertureUrl}
-                        onChange={(e) => setCouvertureUrl(e.target.value)}
-                        className="input"
-                        placeholder={dragging ? "Déposez l'image ici..." : "https://... ou chemin local"}
-                        style={{ flex: 1 }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleChooseCoverImage}
-                        className="btn btn-primary"
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                        <FolderOpen size={16} />
-                        Parcourir
-                      </button>
-                    </div>
-                  </div>
+                  <CoverImageUpload
+                    imageUrl={couvertureUrl}
+                    onImageChange={setCouvertureUrl}
+                    mediaType="adulte-game"
+                    itemTitle={titre}
+                    useDirectPath={true}
+                    onSelectImage={async () => {
+                      const result = await window.electronAPI.selectAdulteGameCoverImage();
+                      return result;
+                    }}
+                  />
                 </div>
               </div>
 

@@ -3,7 +3,7 @@ import CardActionsMenu from '../cards/common/CardActionsMenu';
 
 interface ListItemProps {
   title: string;
-  subtitle?: string;
+  subtitle?: string | React.ReactNode; // Peut être une string ou un ReactNode (pour inclure des badges)
   progression?: number | null;
   currentStatus: string;
   availableStatuses: string[];
@@ -80,7 +80,7 @@ export default function ListItem({
     >
       {/* Titre et sous-titre */}
       <div style={{
-        flex: '0 0 320px',
+        flex: '0 1 60%',
         minWidth: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: subtitle ? '4px' : '0' }}>
@@ -122,7 +122,7 @@ export default function ListItem({
       {/* Barre de progression */}
       {typeof progression === 'number' && (
         <div style={{
-          flex: 1,
+          flex: '0 1 40%',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -192,6 +192,7 @@ export default function ListItem({
             onToggleHidden={handleToggleHiddenWrapper}
             onChangeStatus={handleChangeStatusWrapper}
             onMenuOpen={handleMenuOpen}
+            statusCategory="manga"
           />
         </div>
       </div>

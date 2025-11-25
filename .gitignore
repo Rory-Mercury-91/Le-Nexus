@@ -11,7 +11,6 @@ out/
 # Documentation personnelle
 docs_perso/
 01_données/
-tests/
 
 # Database
 *.db
@@ -40,8 +39,3 @@ Thumbs.db
 # Electron builder
 dist_electron/
 release/
-
-# Test coverage
-coverage/
-.nyc_output/
-*.lcov

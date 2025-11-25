@@ -14,24 +14,49 @@ const {
   markEntityAsEnriched,
   updateFieldIfNotUserModified
 } = require('../../utils/enrichment-helpers');
+const {
+  propagateMangaRelations,
+  propagateAllMangaRelations
+} = require('../relations/relation-propagator');
 
 // Constantes de rate limiting
 const JIKAN_DELAY = 1000; // 1 seconde entre les appels Jikan
-const GROQ_DELAY = 800; // 800ms entre les traductions
+const GROQ_DELAY = 1500; // 1.5 secondes entre les traductions (augmenté pour éviter les rate limits)
 const BATCH_DELAY = 2000; // 2 secondes entre chaque manga complet
 
 let currentRunToken = null;
 let cancelRequested = false;
+let paused = false;
 
 const createRunToken = () => Symbol('manga-enrichment-run');
 
 const isCancellationRequested = (runToken) => cancelRequested && currentRunToken === runToken;
+const isPaused = () => paused;
 
 function resetRunState(runToken) {
   if (currentRunToken === runToken) {
     currentRunToken = null;
     cancelRequested = false;
+    paused = false;
   }
+}
+
+function pauseEnrichment() {
+  if (!currentRunToken) {
+    return { success: false, reason: 'no-run' };
+  }
+  paused = true;
+  console.log('⏸️ [File d\'attente] Enrichissement manga mis en pause.');
+  return { success: true };
+}
+
+function resumeEnrichment() {
+  if (!currentRunToken) {
+    return { success: false, reason: 'no-run' };
+  }
+  paused = false;
+  console.log('▶️ [File d\'attente] Reprise de l\'enrichissement manga.');
+  return { success: true };
 }
 
 function resolveDatabase(getDb) {
@@ -145,7 +170,7 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       return { success: false, cancelled: true };
     }
 
-    const manga = db.prepare('SELECT * FROM series WHERE id = ?').get(mangaId);
+    const manga = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(mangaId);
     if (!manga) {
       const error = new Error(`Manga ${mangaId} introuvable`);
       console.error(`❌ ${error.message}`);
@@ -154,7 +179,7 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
     }
 
     // Vérifier si déjà enrichi (sauf si forcé)
-    if (!force && isEntityEnriched(db, 'series', mangaId)) {
+    if (!force && isEntityEnriched(db, 'manga_series', mangaId)) {
       console.log(`⏭️ Manga ID ${mangaId} (MAL ${malId}) déjà enrichi, ignoré`);
       return { success: true, skipped: true, message: 'Déjà enrichi' };
     }
@@ -239,16 +264,30 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
 
         const allAltTitles = [];
         const seenNormalized = new Set();
+        const normalizedMainTitles = new Set(
+          [
+            manga.titre,
+            manga.titre_romaji,
+            manga.titre_natif,
+            manga.titre_anglais
+          ]
+            .concat([
+              enrichedData.titre_romaji,
+              enrichedData.titre_natif,
+              enrichedData.titre_anglais
+            ])
+            .filter(Boolean)
+            .map(title => normalizeForDedup(title))
+        );
 
         // Ajouter les titres alternatifs existants depuis Nautiljon (titre_alternatif)
         if (manga.titre_alternatif) {
           const nautiljonTitles = manga.titre_alternatif.split('/').map(t => t.trim()).filter(Boolean);
           for (const title of nautiljonTitles) {
             const normalized = normalizeForDedup(title);
-            if (!seenNormalized.has(normalized)) {
-              seenNormalized.add(normalized);
-              allAltTitles.push(title);
-            }
+            if (!normalized || normalizedMainTitles.has(normalized) || seenNormalized.has(normalized)) continue;
+            seenNormalized.add(normalized);
+            allAltTitles.push(title);
           }
         }
 
@@ -257,10 +296,9 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
           const existingMALTitles = parseMALAltTitles(manga.titres_alternatifs);
           for (const title of existingMALTitles) {
             const normalized = normalizeForDedup(title);
-            if (!seenNormalized.has(normalized)) {
-              seenNormalized.add(normalized);
-              allAltTitles.push(title);
-            }
+            if (!normalized || normalizedMainTitles.has(normalized) || seenNormalized.has(normalized)) continue;
+            seenNormalized.add(normalized);
+            allAltTitles.push(title);
           }
         }
 
@@ -268,13 +306,11 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
         const newMALTitles = jikanData.title_synonyms || [];
         for (const title of newMALTitles) {
           const titleStr = String(title).trim();
-          if (titleStr) {
-            const normalized = normalizeForDedup(titleStr);
-            if (!seenNormalized.has(normalized)) {
-              seenNormalized.add(normalized);
-              allAltTitles.push(titleStr);
-            }
-          }
+          if (!titleStr) continue;
+          const normalized = normalizeForDedup(titleStr);
+          if (!normalized || normalizedMainTitles.has(normalized) || seenNormalized.has(normalized)) continue;
+          seenNormalized.add(normalized);
+          allAltTitles.push(titleStr);
         }
 
         // Stocker dans titres_alternatifs au format JSON array
@@ -286,6 +322,25 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       // Métadonnées de publication
       if (fields.date_debut && jikanData.published?.from) enrichedData.date_debut = jikanData.published.from;
       if (fields.date_fin && jikanData.published?.to) enrichedData.date_fin = jikanData.published.to;
+
+      // Champs critiques pour détection de mises à jour
+      if (jikanData.volumes !== null && jikanData.volumes !== undefined) {
+        enrichedData.nb_volumes = jikanData.volumes;
+      }
+      if (jikanData.chapters !== null && jikanData.chapters !== undefined) {
+        enrichedData.nb_chapitres = jikanData.chapters;
+      }
+      if (jikanData.status) {
+        // Normaliser le statut Jikan vers le format de la base
+        const statusMap = {
+          'Not yet published': 'Non publié',
+          'Publishing': 'En cours',
+          'Finished': 'Terminé',
+          'On Hiatus': 'En pause',
+          'Discontinued': 'Abandonné'
+        };
+        enrichedData.statut_publication = statusMap[jikanData.status] || jikanData.status;
+      }
 
       // Classification
       if (fields.themes && jikanData.themes) enrichedData.themes = jikanData.themes.map(t => t.name).join(', ');
@@ -344,6 +399,24 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
         else if (!manga.genres.includes(newGenres)) {
           const set = new Set((manga.genres + ', ' + newGenres).split(',').map(s => s.trim()).filter(Boolean));
           enrichedData.genres = Array.from(set).join(', ');
+        }
+      }
+
+      // Rating - définir à "R+" si "Erotica" ou "Hentai" est présent dans les genres/thèmes
+      if (fields.rating !== false) {
+        const allGenres = enrichedData.genres || manga.genres || '';
+        const allThemes = enrichedData.themes || manga.themes || '';
+        const allGenresAndThemes = `${allGenres}, ${allThemes}`.toLowerCase();
+        if (allGenresAndThemes.includes('erotica') || allGenresAndThemes.includes('hentai')) {
+          enrichedData.rating = 'R+';
+        } else if (jikanData.rating) {
+          // Utiliser le rating MAL si disponible et pas erotica/hentai
+          const { convertMALRating } = require('../../handlers/mangas/enrichment-handlers');
+          const convertedRating = convertMALRating(jikanData.rating);
+          if (convertedRating) {
+            // Convertir 'erotica' en 'R+' pour la base de données
+            enrichedData.rating = convertedRating === 'erotica' ? 'R+' : convertedRating;
+          }
         }
       }
 
@@ -555,19 +628,58 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
     db = resolveDatabase(getDb);
 
     // Recharger le manga pour avoir les dernières valeurs de user_modified_fields
-    const currentManga = db.prepare('SELECT * FROM series WHERE id = ?').get(mangaId);
+    const currentManga = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(mangaId);
     const userModifiedFields = currentManga?.user_modified_fields || null;
+
+    // Détecter les changements critiques pour signaler une mise à jour
+    const currentNbVolumes = currentManga?.nb_volumes || 0;
+    const newNbVolumes = enrichedData.nb_volumes !== undefined ? enrichedData.nb_volumes : currentNbVolumes;
+    const nbVolumesChanged = newNbVolumes > currentNbVolumes; // Seulement si augmentation
+
+    const currentNbChapitres = currentManga?.nb_chapitres || 0;
+    const newNbChapitres = enrichedData.nb_chapitres !== undefined ? enrichedData.nb_chapitres : currentNbChapitres;
+    const nbChapitresChanged = newNbChapitres > currentNbChapitres; // Seulement si augmentation
+
+    const currentStatutPublication = currentManga?.statut_publication || '';
+    const newStatutPublication = enrichedData.statut_publication !== undefined ? enrichedData.statut_publication : currentStatutPublication;
+    const statutPublicationChanged = newStatutPublication && newStatutPublication !== currentStatutPublication;
+
+    const currentStatutPublicationVf = currentManga?.statut_publication_vf || '';
+    // Note: statut_publication_vf vient de Nautiljon, pas de Jikan, donc pas dans enrichedData ici
+    // Il sera géré lors des imports Nautiljon
+
+    const currentNbVolumesVf = currentManga?.nb_volumes_vf || 0;
+    // Note: nb_volumes_vf vient de Nautiljon, pas de Jikan
+    const currentNbChapitresVf = currentManga?.nb_chapitres_vf || 0;
+    // Note: nb_chapitres_vf vient de Nautiljon, pas de Jikan
+
+    // Seuls ces changements déclenchent une notification de mise à jour (pour l'instant, seulement depuis Jikan)
+    const shouldSignalUpdate = nbVolumesChanged || nbChapitresChanged || statutPublicationChanged;
+
+    // Déterminer la valeur de maj_disponible
+    const currentMajDisponible = currentManga?.maj_disponible || 0;
+    const majDisponibleValue = shouldSignalUpdate ? 1 : currentMajDisponible;
+
+    if (nbVolumesChanged) {
+      console.log(`  ✅ Nombre de volumes augmenté: ${currentNbVolumes} → ${newNbVolumes} (mise à jour signalée)`);
+    }
+    if (nbChapitresChanged) {
+      console.log(`  ✅ Nombre de chapitres augmenté: ${currentNbChapitres} → ${newNbChapitres} (mise à jour signalée)`);
+    }
+    if (statutPublicationChanged) {
+      console.log(`  ✅ Statut de publication changé: ${currentStatutPublication || 'Aucun'} → ${newStatutPublication} (mise à jour signalée)`);
+    }
 
     let updatedFieldsCount = 0;
 
-    // Mettre à jour la description si elle a changé et n'est pas protégée
+    // Mettre à jour la description si elle a changé et n'est pas protégée (ou si force)
     if (description !== undefined && description !== manga.description) {
-      if (updateFieldIfNotUserModified(db, 'series', mangaId, 'description', description, userModifiedFields)) {
+      if (updateFieldIfNotUserModified(db, 'manga_series', mangaId, 'description', description, userModifiedFields, force)) {
         updatedFieldsCount++;
       }
     }
 
-    // Mettre à jour chaque champ enrichi s'il n'est pas protégé
+    // Mettre à jour chaque champ enrichi s'il n'est pas protégé (ou si force)
     Object.entries(enrichedData).forEach(([key, value]) => {
       if (value === undefined) {
         return;
@@ -583,30 +695,46 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
         return;
       }
 
-      if (updateFieldIfNotUserModified(db, 'series', mangaId, key, value, userModifiedFields)) {
+      if (updateFieldIfNotUserModified(db, 'manga_series', mangaId, key, value, userModifiedFields, force)) {
         updatedFieldsCount++;
       }
     });
 
-    // Mettre à jour updated_at et marquer comme enrichi
-    if (updatedFieldsCount > 0 || !isEntityEnriched(db, 'series', mangaId)) {
+    // Mettre à jour updated_at, maj_disponible, derniere_verif et marquer comme enrichi
+    if (updatedFieldsCount > 0 || !isEntityEnriched(db, 'manga_series', mangaId) || shouldSignalUpdate) {
       db.prepare(`
-        UPDATE series
-        SET updated_at = datetime('now')
+        UPDATE manga_series
+        SET updated_at = datetime('now'),
+            maj_disponible = ?,
+            derniere_verif = datetime('now')
+        WHERE id = ?
+      `).run(majDisponibleValue, mangaId);
+
+      // Marquer comme enrichi
+      markEntityAsEnriched(db, 'manga_series', mangaId);
+
+      if (shouldSignalUpdate) {
+        console.log(`✅ [File d'attente] Manga "${manga.titre}" enrichi avec succès (${updatedFieldsCount} champ(s) mis à jour, mise à jour signalée)`);
+      } else {
+        console.log(`✅ [File d'attente] Manga "${manga.titre}" enrichi avec succès (${updatedFieldsCount} champ(s) mis à jour)`);
+      }
+    } else {
+      // Mettre à jour derniere_verif même si aucun changement
+      db.prepare(`
+        UPDATE manga_series
+        SET derniere_verif = datetime('now')
         WHERE id = ?
       `).run(mangaId);
 
-      // Marquer comme enrichi
-      markEntityAsEnriched(db, 'series', mangaId);
-
-      console.log(`✅ [File d'attente] Manga "${manga.titre}" enrichi avec succès (${updatedFieldsCount} champ(s) mis à jour)`);
-    } else {
       console.log(`ℹ️ [File d'attente] Aucune donnée à enrichir pour "${manga.titre}" (tous les champs sont protégés ou identiques)`);
       // Marquer quand même comme enrichi si ce n'est pas déjà fait
-      if (!isEntityEnriched(db, 'series', mangaId)) {
-        markEntityAsEnriched(db, 'series', mangaId);
+      if (!isEntityEnriched(db, 'manga_series', mangaId)) {
+        markEntityAsEnriched(db, 'manga_series', mangaId);
       }
     }
+
+    // Propager les relations vers les autres oeuvres connues
+    propagateMangaRelations(db, mangaId);
 
     const enrichedFieldCount = Object.keys(enrichedData).length;
 
@@ -701,7 +829,7 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
     // Exclure les mangas déjà enrichis (sauf si on force)
     const mangasToEnrich = db.prepare(`
       SELECT id, mal_id, titre
-      FROM series
+      FROM manga_series
       WHERE mal_id IS NOT NULL
         ${force ? '' : 'AND enriched_at IS NULL'}
         AND (
@@ -732,6 +860,10 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
       processed: 0,
       enriched: 0,
       errors: 0
+    };
+    const reportData = {
+      enriched: [],
+      failed: []
     };
 
     for (let i = 0; i < mangasToEnrich.length; i++) {
@@ -783,8 +915,19 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
 
       if (result?.success) {
         stats.enriched++;
+        reportData.enriched.push({
+          titre: manga.titre,
+          id: manga.id,
+          mal_id: manga.mal_id
+        });
       } else {
         stats.errors++;
+        reportData.failed.push({
+          titre: manga.titre,
+          error: result?.error || 'Erreur inconnue',
+          id: manga.id,
+          mal_id: manga.mal_id
+        });
       }
 
       if ((i + 1) % 5 === 0) {
@@ -795,6 +938,9 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
     const durationMs = Date.now() - queueStart;
     stats.durationMs = durationMs;
 
+    // S'assurer que les relations cohérentes sont propagées à toutes les oeuvres existantes
+    propagateAllMangaRelations(db);
+
     if (stats.cancelled) {
       sessionLogger.record('mangaEnrichment', 'cancelled', {
         processed: stats.processed,
@@ -803,6 +949,15 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
         durationMs
       });
       stats.message = 'Enrichissement manga interrompu';
+
+      // Envoyer l'événement complete immédiatement pour fermer la barre de progression
+      if (getMainWindow) {
+        const mainWindow = getMainWindow();
+        if (mainWindow) {
+          mainWindow.webContents.send('manga-enrichment-complete', stats);
+        }
+      }
+
       return stats;
     }
 
@@ -820,6 +975,35 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
       sessionLogger.record('mangaEnrichment', 'error', {
         errors: stats.errors
       });
+    }
+
+    // Générer le rapport d'état
+    if (getPathManager) {
+      const { generateReport } = require('../../utils/report-generator');
+      generateReport(getPathManager, {
+        type: 'enrichment-manga',
+        stats: {
+          total: mangasToEnrich.length,
+          enriched: stats.enriched,
+          errors: stats.errors,
+          skipped: mangasToEnrich.length - stats.processed
+        },
+        updated: reportData.enriched, // Utiliser "updated" car enrichi = mis à jour
+        failed: reportData.failed,
+        metadata: {
+          user: currentUser,
+          duration: durationMs,
+          force: force
+        }
+      });
+    }
+
+    // Informer le frontend que l'enrichissement est terminé
+    if (getMainWindow && !stats.cancelled) {
+      const mainWindow = getMainWindow();
+      if (mainWindow) {
+        mainWindow.webContents.send('manga-enrichment-complete', stats);
+      }
     }
 
     return stats;
@@ -852,5 +1036,7 @@ module.exports = {
   processEnrichmentQueue,
   getMangaEnrichmentConfig,
   cancelEnrichment,
+  pauseEnrichment,
+  resumeEnrichment,
   isEnrichmentRunning
 };

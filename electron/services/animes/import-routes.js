@@ -25,24 +25,24 @@ function findAnimeByTitleOrMalId(db, titre, malId, titreRomaji, titreNatif, titr
       };
     }
   }
-  
+
   // 2. Recherche normalisée avec matching strict (comme pour les mangas)
   const matchResult = findAnimeByTitleNormalized(
-    db, 
-    titre, 
-    titreRomaji, 
-    titreNatif, 
-    titreAnglais, 
+    db,
+    titre,
+    titreRomaji,
+    titreNatif,
+    titreAnglais,
     titreAlternatif,
     type
   );
-  
+
   if (matchResult) {
     const anime = matchResult.anime;
-    
+
     // Récupérer l'anime complet
     const existing = db.prepare('SELECT * FROM anime_series WHERE id = ?').get(anime.id);
-    
+
     const existingMalId = existing && existing.mal_id !== null && existing.mal_id !== undefined
       ? Number(existing.mal_id)
       : null;
@@ -54,7 +54,7 @@ function findAnimeByTitleOrMalId(db, titre, malId, titreRomaji, titreNatif, titr
       console.log(`⚠️ MAL ID différent détecté (existant: ${existingMalId}, nouveau: ${incomingMalId}). Création d'une nouvelle entrée requise.`);
       return null;
     }
-    
+
     // Retourner avec les informations de matching
     return {
       anime: existing,
@@ -63,7 +63,7 @@ function findAnimeByTitleOrMalId(db, titre, malId, titreRomaji, titreNatif, titr
       matchedTitle: matchResult.matchedTitle
     };
   }
-  
+
   return null;
 }
 
@@ -111,10 +111,10 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
     }
 
     let animeId;
-    
+
     if (matchResult && !forceCreate) {
       const existingAnime = matchResult.anime;
-      
+
       // Si c'est un match strict (>=75%) mais pas exact, et pas de confirmation, proposer à l'utilisateur
       if (matchResult.isExactMatch === false && matchResult.similarity >= 75 && !confirmMerge && !targetAnimeId) {
         // Retourner une réponse pour proposer un overlay de sélection
@@ -134,7 +134,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
           }
         });
       }
-      
+
       // Si targetAnimeId est fourni, utiliser cet anime
       if (targetAnimeId) {
         const targetAnime = db.prepare('SELECT * FROM anime_series WHERE id = ?').get(targetAnimeId);
@@ -145,156 +145,202 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
       } else {
         animeId = existingAnime.id;
       }
-      
+
       // Mettre à jour l'anime existant (ne mettre à jour que les champs fournis, comme pour les mangas)
       console.log(`♻️ Mise à jour de l'anime existant: ${existingAnime.titre}`);
-      
+
       // Récupérer l'anime complet pour avoir user_modified_fields
       const fullAnime = db.prepare('SELECT * FROM anime_series WHERE id = ?').get(animeId);
       const userModifiedFields = fullAnime?.user_modified_fields || null;
-      
+
       // Utiliser updateFieldIfNotUserModified pour respecter les champs protégés
       const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
-      
+
       // Détecter si les données viennent de Nautiljon
       const isFromNautiljon = animeData._source === 'Nautiljon' || animeData.source_import === 'nautiljon';
+
+      if (isFromNautiljon) {
+        console.log(`📥 Import Nautiljon détecté - nautiljon_url: ${animeData.nautiljon_url}, _url: ${animeData._url}`);
+      }
+
+      // Détecter les changements critiques pour signaler une mise à jour
+      const currentNbEpisodes = fullAnime.nb_episodes || 0;
+      const newNbEpisodes = animeData.nb_episodes !== undefined && animeData.nb_episodes !== null ? animeData.nb_episodes : currentNbEpisodes;
+      const nbEpisodesChanged = newNbEpisodes > currentNbEpisodes; // Seulement si augmentation
       
+      const currentStatutDiffusion = fullAnime.statut_diffusion || '';
+      const newStatutDiffusion = animeData.statut_diffusion !== undefined && animeData.statut_diffusion !== null ? animeData.statut_diffusion : currentStatutDiffusion;
+      const statutDiffusionChanged = newStatutDiffusion && newStatutDiffusion !== currentStatutDiffusion;
+      
+      const currentDateDebutStreaming = fullAnime.date_debut_streaming || null;
+      const newDateDebutStreaming = animeData.date_debut_streaming !== undefined && animeData.date_debut_streaming !== null ? animeData.date_debut_streaming : currentDateDebutStreaming;
+      const dateDebutStreamingChanged = newDateDebutStreaming && newDateDebutStreaming !== currentDateDebutStreaming;
+      
+      // Seuls ces changements déclenchent une notification de mise à jour
+      const shouldSignalUpdate = nbEpisodesChanged || statutDiffusionChanged || dateDebutStreamingChanged;
+      
+      // Récupérer la valeur actuelle de maj_disponible
+      const currentMajDisponible = fullAnime.maj_disponible || 0;
+      const majDisponibleValue = shouldSignalUpdate ? 1 : currentMajDisponible;
+      
+      if (nbEpisodesChanged) {
+        console.log(`  ✅ Nombre d'épisodes augmenté: ${currentNbEpisodes} → ${newNbEpisodes} (mise à jour signalée)`);
+      }
+      if (statutDiffusionChanged) {
+        console.log(`  ✅ Statut de diffusion changé: ${currentStatutDiffusion || 'Aucun'} → ${newStatutDiffusion} (mise à jour signalée)`);
+      }
+      if (dateDebutStreamingChanged) {
+        console.log(`  ✅ Date de début streaming changée: ${currentDateDebutStreaming || 'Aucune'} → ${newDateDebutStreaming} (mise à jour signalée)`);
+      }
+
       // Construire la requête UPDATE dynamiquement (seulement les champs fournis)
       // Mais utiliser updateFieldIfNotUserModified pour chaque champ
       const fieldsToUpdate = [];
-      
+      const updates = [];
+      const values = [];
+
+      // Si l'import vient de Nautiljon, stocker l'URL dans le champ dédié
+      const nautiljonUrl = animeData.nautiljon_url || animeData._url || null;
+      if (isFromNautiljon && nautiljonUrl) {
+        console.log(`🔗 Stockage URL Nautiljon pour anime ${animeId}: ${nautiljonUrl}`);
+        updates.push('nautiljon_url = ?');
+        values.push(nautiljonUrl);
+      } else if (isFromNautiljon) {
+        console.warn(`⚠️ Import Nautiljon détecté mais aucune URL trouvée (nautiljon_url: ${animeData.nautiljon_url}, _url: ${animeData._url})`);
+      }
+
       // Construire les SET clauses seulement pour les champs fournis
       if (animeData.titre !== undefined && animeData.titre !== null) {
         updates.push('titre = ?');
         values.push(animeData.titre);
       }
-      
+
       if (isFromNautiljon && animeData.titre_romaji !== undefined && animeData.titre_romaji !== null) {
         updates.push('titre_romaji = ?');
         values.push(animeData.titre_romaji);
       }
-      
+
       if (isFromNautiljon && animeData.titre_natif !== undefined && animeData.titre_natif !== null) {
         updates.push('titre_natif = ?');
         values.push(animeData.titre_natif);
       }
-      
+
       if (animeData.titre_anglais !== undefined && animeData.titre_anglais !== null) {
         updates.push('titre_anglais = ?');
         values.push(animeData.titre_anglais);
       }
-      
+
       if (isFromNautiljon && animeData.titre_alternatif !== undefined && animeData.titre_alternatif !== null) {
         updates.push('titres_alternatifs = ?');
         values.push(animeData.titre_alternatif);
       }
-      
+
       if (animeData.couverture_url !== undefined && animeData.couverture_url !== null) {
         updates.push('couverture_url = ?');
         values.push(animeData.couverture_url);
       }
-      
+
       if (isFromNautiljon && animeData.description !== undefined && animeData.description !== null) {
         updates.push('description = ?');
         values.push(animeData.description);
       }
-      
+
       if (animeData.statut_diffusion !== undefined && animeData.statut_diffusion !== null) {
         updates.push('statut_diffusion = ?');
         values.push(animeData.statut_diffusion);
       }
-      
+
       if (animeData.type !== undefined && animeData.type !== null) {
         updates.push('type = ?');
         values.push(animeData.type);
       }
-      
+
       if (isFromNautiljon && animeData.genres !== undefined && animeData.genres !== null) {
         updates.push('genres = ?');
         values.push(animeData.genres);
       }
-      
+
       if (isFromNautiljon && animeData.themes !== undefined && animeData.themes !== null) {
         updates.push('themes = ?');
         values.push(animeData.themes);
       }
-      
+
       if (isFromNautiljon && animeData.studios !== undefined && animeData.studios !== null) {
         updates.push('studios = ?');
         values.push(animeData.studios);
       }
-      
+
       if (isFromNautiljon && animeData.diffuseurs !== undefined && animeData.diffuseurs !== null) {
         updates.push('diffuseurs = ?');
         values.push(animeData.diffuseurs);
       }
-      
+
       if (isFromNautiljon && animeData.rating !== undefined && animeData.rating !== null) {
         updates.push('rating = ?');
         values.push(animeData.rating);
       }
-      
+
       if (isFromNautiljon && animeData.duree !== undefined && animeData.duree !== null) {
         updates.push('duree = ?');
         values.push(animeData.duree);
       }
-      
+
       if (isFromNautiljon && animeData.source !== undefined && animeData.source !== null) {
         updates.push('source = ?');
         values.push(animeData.source);
       }
-      
+
       if (isFromNautiljon && animeData.date_debut !== undefined && animeData.date_debut !== null) {
         updates.push('date_debut = ?');
         values.push(animeData.date_debut);
       }
-      
+
       if (isFromNautiljon && animeData.date_fin !== undefined && animeData.date_fin !== null) {
         updates.push('date_fin = ?');
         values.push(animeData.date_fin);
       }
-      
+
       if (isFromNautiljon && animeData.date_sortie_vf !== undefined && animeData.date_sortie_vf !== null) {
         updates.push('date_sortie_vf = ?');
         values.push(animeData.date_sortie_vf);
       }
-      
+
       if (isFromNautiljon && animeData.date_debut_streaming !== undefined && animeData.date_debut_streaming !== null) {
         updates.push('date_debut_streaming = ?');
         values.push(animeData.date_debut_streaming);
       }
-      
+
       if (isFromNautiljon && animeData.age_conseille !== undefined && animeData.age_conseille !== null) {
         updates.push('age_conseille = ?');
         values.push(animeData.age_conseille);
       }
-      
+
       if (isFromNautiljon && animeData.editeur !== undefined && animeData.editeur !== null) {
         updates.push('editeur = ?');
         values.push(animeData.editeur);
       }
-      
+
       if (isFromNautiljon && animeData.site_web !== undefined && animeData.site_web !== null) {
         updates.push('site_web = ?');
         values.push(animeData.site_web);
       }
-      
+
       // Fusionner liens_externes de Nautiljon avec ceux existants (si présents)
       if (isFromNautiljon && animeData.liens_externes !== undefined && animeData.liens_externes !== null) {
         try {
-          const newLinksRaw = typeof animeData.liens_externes === 'string' 
-            ? JSON.parse(animeData.liens_externes) 
+          const newLinksRaw = typeof animeData.liens_externes === 'string'
+            ? JSON.parse(animeData.liens_externes)
             : animeData.liens_externes;
-          
+
           if (Array.isArray(newLinksRaw) && newLinksRaw.length > 0) {
             // Filtrer les nouveaux liens selon les critères
             const { filterExternalLinks } = require('../../handlers/animes/anime-helpers');
             const newLinks = filterExternalLinks(newLinksRaw);
-            
+
             // Récupérer les liens existants
             const existingAnime = db.prepare('SELECT liens_externes FROM anime_series WHERE id = ?').get(animeId);
             let mergedLinks = [];
-            
+
             if (existingAnime && existingAnime.liens_externes) {
               try {
                 const existingLinks = JSON.parse(existingAnime.liens_externes);
@@ -306,7 +352,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 // Ignorer les erreurs de parsing
               }
             }
-            
+
             // Fonction pour extraire le code langue depuis une URL Wikipedia
             const getWikipediaLang = (url) => {
               try {
@@ -317,7 +363,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 return null;
               }
             };
-            
+
             // Fonction pour créer une URL Wikipedia française
             const createFrenchWikipediaUrl = (url) => {
               try {
@@ -328,7 +374,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 return url;
               }
             };
-            
+
             // Vérifier si un lien Wikipedia français existe déjà (dans les liens existants ou nouveaux)
             const hasFrenchWikipediaLink = mergedLinks.some(l => {
               const langCode = getWikipediaLang(l.url);
@@ -338,12 +384,12 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
               const langCode = getWikipediaLang(url);
               return langCode === 'fr';
             });
-            
+
             // Ajouter les nouveaux liens sans doublons
             newLinks.forEach(newLink => {
               const url = typeof newLink === 'string' ? newLink : newLink.url;
               if (!url) return;
-              
+
               // Ajouter le lien original
               if (!mergedLinks.find(l => l.url === url)) {
                 mergedLinks.push({
@@ -352,32 +398,32 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 });
               }
             });
-            
+
             // Si aucun lien Wikipedia français n'existe, en créer un à partir du premier lien EN
             if (!hasFrenchWikipediaLink) {
               const { checkWikipediaUrlExists } = require('../../handlers/animes/anime-helpers');
-              
+
               // Séparer les liens Wikipedia des autres
               const wikipediaLinks = newLinks.filter(l => {
                 const url = typeof l === 'string' ? l : l.url;
                 return url && url.includes('wikipedia.org');
               });
-              
+
               const firstEnglishLink = wikipediaLinks.find(link => {
                 const url = typeof link === 'string' ? link : link.url;
                 const langCode = getWikipediaLang(url);
                 return langCode === 'en';
               });
-              
+
               if (firstEnglishLink) {
-                const sourceUrl = typeof firstEnglishLink === 'string' 
-                  ? firstEnglishLink 
+                const sourceUrl = typeof firstEnglishLink === 'string'
+                  ? firstEnglishLink
                   : firstEnglishLink.url;
                 const frenchUrl = createFrenchWikipediaUrl(sourceUrl);
-                
+
                 // Vérifier que la page existe avant de l'ajouter
                 const exists = await checkWikipediaUrlExists(frenchUrl);
-                
+
                 if (exists && !mergedLinks.find(l => l.url === frenchUrl)) {
                   mergedLinks.push({
                     name: 'Wikipedia',
@@ -389,7 +435,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 }
               }
             }
-            
+
             updates.push('liens_externes = ?');
             values.push(JSON.stringify(mergedLinks));
           }
@@ -397,22 +443,22 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
           console.error('Erreur parsing liens_externes:', e);
         }
       }
-      
+
       if (animeData.en_cours_diffusion !== undefined) {
         updates.push('en_cours_diffusion = ?');
         values.push(animeData.en_cours_diffusion ? 1 : 0);
       }
-      
+
       if (isFromNautiljon && animeData.saison_diffusion !== undefined && animeData.saison_diffusion !== null) {
         updates.push('saison_diffusion = ?');
         values.push(animeData.saison_diffusion);
       }
-      
+
       if (animeData.nb_episodes !== undefined && animeData.nb_episodes !== null) {
         updates.push('nb_episodes = ?');
         values.push(animeData.nb_episodes);
       }
-      
+
       if (animeData.annee !== undefined && animeData.annee !== null) {
         updates.push('annee = ?');
         values.push(animeData.annee);
@@ -423,38 +469,50 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
           values.push(year);
         }
       }
-      
+
       // Toujours mettre à jour updated_at
-      updates.push('updated_at = CURRENT_TIMESTAMP');
-      
-      // Ajouter l'ID à la fin pour le WHERE
+      // Ajouter updated_at et l'ID à la fin
+      updates.push('updated_at = datetime(\'now\')');
       values.push(animeId);
-      
-      if (updates.length > 1) { // Plus que juste updated_at
+
+      if (updates.length > 0) {
+        // Ajouter maj_disponible et derniere_verif à la requête UPDATE
+        updates.push('maj_disponible = ?');
+        values.push(majDisponibleValue);
+        updates.push('derniere_verif = datetime(\'now\')');
+        
         const updateQuery = `UPDATE anime_series SET ${updates.join(', ')} WHERE id = ?`;
-        db.prepare(updateQuery).run(...values);
-        console.log(`✅ ${updates.length - 1} champ(s) mis à jour pour l'anime ID ${animeId}`);
+        console.log(`🔧 Exécution UPDATE pour anime ${animeId}:`, updateQuery);
+        console.log(`🔧 Valeurs (${values.length}):`, values.map((v, i) => `${i}: ${typeof v === 'string' && v.length > 100 ? v.substring(0, 100) + '...' : v}`));
+        const result = db.prepare(updateQuery).run(...values, animeId);
+        console.log(`✅ ${updates.length - 3} champ(s) mis à jour pour l'anime ID ${animeId} (${result.changes} ligne(s) modifiée(s))${shouldSignalUpdate ? ' - Mise à jour signalée' : ''}`);
+
+        // Vérifier que l'URL a bien été stockée
+        if (isFromNautiljon) {
+          const verifyAnime = db.prepare('SELECT mal_url, relations FROM anime_series WHERE id = ?').get(animeId);
+          console.log(`🔍 Vérification stockage - mal_url: ${verifyAnime?.mal_url}, relations: ${verifyAnime?.relations ? JSON.stringify(JSON.parse(verifyAnime.relations)) : 'null'}`);
+        }
+      } else {
+        console.warn(`⚠️ Aucune mise à jour à effectuer pour l'anime ${animeId}`);
       }
-      
+
     } else {
       // Créer un nouvel anime
       console.log(`✨ Création d'un nouvel anime: ${animeData.titre}`);
-      
+
       // Détection automatique de la source
       let sourceImport = animeData.source_import;
       if (!sourceImport) {
         // Si les données viennent de Nautiljon, utiliser 'nautiljon'
         if (animeData._source === 'Nautiljon') {
           sourceImport = 'nautiljon';
-        } else if (animeData.couverture_url) {
-          if (animeData.couverture_url.includes('crunchyroll')) sourceImport = 'crunchyroll';
-          else if (animeData.couverture_url.includes('animationdigitalnetwork') || animeData.couverture_url.includes('adn')) sourceImport = 'adn';
-          else if (animeData.couverture_url.includes('adkami')) sourceImport = 'adkami';
-          else if (animeData.mal_id) sourceImport = 'myanimelist';
+        } else if (animeData.mal_id) {
+          sourceImport = 'myanimelist';
+        } else {
+          sourceImport = 'manual';
         }
-        if (!sourceImport) sourceImport = 'manual';
       }
-      
+
       // Convertir currentUser (nom) en user_id (ID)
       let userId = null;
       if (currentUser) {
@@ -465,22 +523,22 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
           console.warn(`⚠️ Utilisateur "${currentUser}" non trouvé dans la base de données, user_id_ajout sera null`);
         }
       }
-      
+
       // Préparer liens_externes pour l'insertion et ajouter automatiquement la version française
       let liensExternesJson = null;
       if (animeData.liens_externes) {
         try {
-          const linksRaw = typeof animeData.liens_externes === 'string' 
-            ? JSON.parse(animeData.liens_externes) 
+          const linksRaw = typeof animeData.liens_externes === 'string'
+            ? JSON.parse(animeData.liens_externes)
             : animeData.liens_externes;
-          
+
           if (Array.isArray(linksRaw) && linksRaw.length > 0) {
             // Filtrer les liens selon les critères
             const { filterExternalLinks, checkWikipediaUrlExists } = require('../../handlers/animes/anime-helpers');
             const links = filterExternalLinks(linksRaw);
-            
+
             const processedLinks = [];
-            
+
             // Fonction pour extraire le code langue depuis une URL Wikipedia
             const getWikipediaLang = (url) => {
               try {
@@ -491,7 +549,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 return null;
               }
             };
-            
+
             // Fonction pour créer une URL Wikipedia française
             const createFrenchWikipediaUrl = (url) => {
               try {
@@ -502,17 +560,17 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 return url;
               }
             };
-            
+
             // Séparer les liens Wikipedia des autres
             const wikipediaLinks = links.filter(l => l.name === 'Wikipedia');
             const otherLinks = links.filter(l => l.name !== 'Wikipedia');
-            
+
             // Vérifier si un lien Wikipedia français existe déjà
             const hasFrenchWikipediaLink = wikipediaLinks.some(link => {
               const langCode = getWikipediaLang(link.url);
               return langCode === 'fr';
             });
-            
+
             // Ajouter les liens Wikipedia
             wikipediaLinks.forEach(link => {
               processedLinks.push({
@@ -520,20 +578,20 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 url: link.url
               });
             });
-            
+
             // Si aucun lien Wikipedia français n'existe, en créer un à partir du premier lien EN
             if (!hasFrenchWikipediaLink && wikipediaLinks.length > 0) {
               const firstEnglishLink = wikipediaLinks.find(link => {
                 const langCode = getWikipediaLang(link.url);
                 return langCode === 'en';
               });
-              
+
               if (firstEnglishLink) {
                 const frenchUrl = createFrenchWikipediaUrl(firstEnglishLink.url);
-                
+
                 // Vérifier que la page existe avant de l'ajouter
                 const exists = await checkWikipediaUrlExists(frenchUrl);
-                
+
                 if (exists && !processedLinks.find(l => l.url === frenchUrl)) {
                   processedLinks.push({
                     name: 'Wikipedia',
@@ -545,7 +603,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 }
               }
             }
-            
+
             // Ajouter les autres liens (déjà filtrés)
             otherLinks.forEach(link => {
               processedLinks.push({
@@ -553,23 +611,34 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
                 url: link.url
               });
             });
-            
+
             liensExternesJson = JSON.stringify(processedLinks);
           }
         } catch (e) {
           console.error('Erreur parsing liens_externes lors de l\'insertion:', e);
         }
       }
-      
+
+      // Si l'import vient de Nautiljon, stocker l'URL dans le champ dédié
+      const nautiljonUrlForInsert = (isFromNautiljon && (animeData.nautiljon_url || animeData._url))
+        ? (animeData.nautiljon_url || animeData._url)
+        : null;
+
+      if (isFromNautiljon && nautiljonUrlForInsert) {
+        console.log(`🔗 Création anime avec URL Nautiljon: ${nautiljonUrlForInsert}`);
+      } else if (isFromNautiljon) {
+        console.warn(`⚠️ Import Nautiljon détecté mais aucune URL trouvée lors de la création (nautiljon_url: ${animeData.nautiljon_url}, _url: ${animeData._url})`);
+      }
+
       const insertResult = db.prepare(`
         INSERT INTO anime_series (
           titre, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
           couverture_url, description, statut_diffusion, type, 
           nb_episodes, genres, themes, studios, diffuseurs, rating,
           duree, source, date_debut, date_fin, date_sortie_vf, date_debut_streaming,
-          en_cours_diffusion, saison_diffusion, annee, mal_id, source_import, user_id_ajout,
-          age_conseille, editeur, site_web, liens_externes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          en_cours_diffusion, saison_diffusion, annee, mal_id, mal_url, source_import, user_id_ajout,
+          age_conseille, editeur, site_web, liens_externes, relations, nautiljon_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         animeData.titre,
         animeData.titre_romaji || null,
@@ -596,14 +665,17 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
         animeData.saison_diffusion || null,
         animeData.annee || (animeData.date_debut ? parseInt(animeData.date_debut.substring(0, 4)) : null),
         animeData.mal_id || null,
+        null, // mal_url reste null si c'est un import Nautiljon
         sourceImport,
         userId,
         animeData.age_conseille || null,
         animeData.editeur || null,
         animeData.site_web || null,
-        liensExternesJson
+        liensExternesJson,
+        null, // relations reste null, on n'y stocke plus l'URL Nautiljon
+        nautiljonUrlForInsert // URL Nautiljon dans le champ dédié
       );
-      
+
       animeId = insertResult.lastInsertRowid;
     }
 
@@ -647,10 +719,10 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
     let saisonsCreated = 0;
     if (animeData.saisons && Array.isArray(animeData.saisons) && animeData.saisons.length > 0) {
       console.log(`📊 Données saisons reçues:`, JSON.stringify(animeData.saisons));
-      
+
       const maxSeasonNumber = Math.max(...animeData.saisons.map(s => s.numero_saison));
       console.log(`🔢 Numéro de saison max détecté: ${maxSeasonNumber}`);
-      
+
       let totalEpisodes = 0;
       for (let seasonNum = 1; seasonNum <= maxSeasonNumber; seasonNum++) {
         const saisonData = animeData.saisons.find(s => s.numero_saison === seasonNum);
@@ -658,23 +730,34 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
         totalEpisodes += nbEpisodes;
         console.log(`📊 Saison ${seasonNum}: ${nbEpisodes} épisodes`);
       }
+
+      // Détecter si le nombre d'épisodes a augmenté
+      const currentAnime = db.prepare('SELECT nb_episodes, maj_disponible FROM anime_series WHERE id = ?').get(animeId);
+      const currentNbEpisodes = currentAnime?.nb_episodes || 0;
+      const nbEpisodesChanged = totalEpisodes > currentNbEpisodes;
+      const currentMajDisponible = currentAnime?.maj_disponible || 0;
+      const majDisponibleValue = nbEpisodesChanged ? 1 : currentMajDisponible;
       
-      db.prepare('UPDATE anime_series SET nb_episodes = ? WHERE id = ?')
-        .run(totalEpisodes, animeId);
+      if (nbEpisodesChanged) {
+        console.log(`✅ Nombre total d'épisodes: ${totalEpisodes} (augmenté de ${currentNbEpisodes}, mise à jour signalée)`);
+      } else {
+        console.log(`✅ Nombre total d'épisodes: ${totalEpisodes}`);
+      }
       
-      console.log(`✅ Nombre total d'épisodes: ${totalEpisodes}`);
+      db.prepare('UPDATE anime_series SET nb_episodes = ?, maj_disponible = ?, derniere_verif = datetime(\'now\') WHERE id = ?')
+        .run(totalEpisodes, majDisponibleValue, animeId);
     }
 
     notifyImportComplete(mainWindow);
-    
+
     // Notifier la page de collection pour rafraîchir la liste
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('refresh-anime-list');
     }
-    
+
     const wasUpdate = matchResult && !forceCreate;
-    const message = wasUpdate 
-      ? `Anime "${animeData.titre}" mis à jour avec ${saisonsCreated} saison(s)` 
+    const message = wasUpdate
+      ? `Anime "${animeData.titre}" mis à jour avec ${saisonsCreated} saison(s)`
       : `Anime "${animeData.titre}" ajouté avec ${saisonsCreated} saison(s)`;
 
     sendSuccessResponse(res, {
@@ -686,7 +769,7 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
   } catch (error) {
     console.error('❌ Erreur import-anime:', error);
     notifyImportComplete(mainWindow);
-    
+
     // Notifier la page de collection pour rafraîchir la liste
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('refresh-anime-list');
@@ -720,8 +803,8 @@ async function handleMarkEpisodeWatched(req, res, getDb, store) {
 
     // Chercher l'anime (avec recherche normalisée si les titres sont disponibles)
     const anime = findAnimeByTitleOrMalId(
-      db, 
-      episodeInfo.titre, 
+      db,
+      episodeInfo.titre,
       episodeInfo.mal_id,
       episodeInfo.titre_romaji || null,
       episodeInfo.titre_natif || null,
@@ -735,24 +818,27 @@ async function handleMarkEpisodeWatched(req, res, getDb, store) {
       return sendErrorResponse(res, 404, `Anime "${episodeInfo.titre}" non trouvé dans votre collection`);
     }
 
-    // Étendre automatiquement le nombre d'épisodes si nécessaire
-    if (episodeInfo.episode_numero > anime.nb_episodes) {
-      console.log(`📈 Extension du nombre d'épisodes: ${anime.nb_episodes} → ${episodeInfo.episode_numero} épisodes`);
-      db.prepare(`
-        UPDATE anime_series 
-        SET nb_episodes = ? 
-        WHERE id = ?
-      `).run(episodeInfo.episode_numero, anime.id);
-      
-      anime.nb_episodes = episodeInfo.episode_numero;
-    }
+      // Étendre automatiquement le nombre d'épisodes si nécessaire
+      if (episodeInfo.episode_numero > anime.nb_episodes) {
+        console.log(`📈 Extension du nombre d'épisodes: ${anime.nb_episodes} → ${episodeInfo.episode_numero} épisodes (mise à jour signalée)`);
+        const currentMajDisponible = anime.maj_disponible || 0;
+        db.prepare(`
+          UPDATE anime_series 
+          SET nb_episodes = ?,
+              maj_disponible = 1,
+              derniere_verif = datetime('now')
+          WHERE id = ?
+        `).run(episodeInfo.episode_numero, anime.id);
+
+        anime.nb_episodes = episodeInfo.episode_numero;
+      }
 
     // Auto-incrémentation : marquer tous les épisodes précédents comme vus
     const baseDate = new Date();
-    
+
     if (episodeInfo.episode_numero > 1) {
       console.log(`🔄 Auto-incrémentation: marquage des épisodes 1 à ${episodeInfo.episode_numero - 1} comme vus`);
-      
+
       for (let ep = 1; ep < episodeInfo.episode_numero; ep++) {
         const dateVisionnage = new Date(baseDate.getTime() + ((ep - 1) * 1000));
         const dateVisionnageStr = dateVisionnage.toISOString().replace('T', ' ').replace('Z', '');
@@ -761,10 +847,10 @@ async function handleMarkEpisodeWatched(req, res, getDb, store) {
           VALUES (?, ?, ?, 1, ?)
         `).run(anime.id, userId, ep, dateVisionnageStr);
       }
-      
+
       console.log(`✅ Épisodes 1-${episodeInfo.episode_numero - 1} auto-marqués comme vus`);
     }
-    
+
     // Marquer l'épisode actuel comme vu
     const dateVisionnageActuel = new Date(baseDate.getTime() + ((episodeInfo.episode_numero - 1) * 1000));
     const dateVisionnageActuelStr = dateVisionnageActuel.toISOString().replace('T', ' ').replace('Z', '');
@@ -799,10 +885,10 @@ async function handleMarkEpisodeWatched(req, res, getDb, store) {
     }
 
     const totalMarked = episodeInfo.episode_numero > 1 ? episodeInfo.episode_numero : 1;
-    const message = episodeInfo.episode_numero > 1 ? 
+    const message = episodeInfo.episode_numero > 1 ?
       `${totalMarked} épisodes marqués comme vus (auto-incrémentation 1-${episodeInfo.episode_numero})` :
       `Épisode ${episodeInfo.episode_numero} marqué comme vu`;
-      
+
     sendSuccessResponse(res, {
       message: message,
       totalMarked: totalMarked,
@@ -863,9 +949,21 @@ async function handleUpdateAnime(req, res, getDb) {
         totalEpisodes += saison.nb_episodes || 0;
       }
       if (totalEpisodes > 0) {
-        db.prepare('UPDATE anime_series SET nb_episodes = ? WHERE id = ?')
-          .run(totalEpisodes, animeData.id);
-        console.log(`✅ Nombre total d'épisodes mis à jour: ${totalEpisodes}`);
+        // Détecter si le nombre d'épisodes a augmenté
+        const currentAnime = db.prepare('SELECT nb_episodes, maj_disponible FROM anime_series WHERE id = ?').get(animeData.id);
+        const currentNbEpisodes = currentAnime?.nb_episodes || 0;
+        const nbEpisodesChanged = totalEpisodes > currentNbEpisodes;
+        const currentMajDisponible = currentAnime?.maj_disponible || 0;
+        const majDisponibleValue = nbEpisodesChanged ? 1 : currentMajDisponible;
+        
+        if (nbEpisodesChanged) {
+          console.log(`✅ Nombre total d'épisodes mis à jour: ${totalEpisodes} (augmenté de ${currentNbEpisodes}, mise à jour signalée)`);
+        } else {
+          console.log(`✅ Nombre total d'épisodes mis à jour: ${totalEpisodes}`);
+        }
+        
+        db.prepare('UPDATE anime_series SET nb_episodes = ?, maj_disponible = ?, derniere_verif = datetime(\'now\') WHERE id = ?')
+          .run(totalEpisodes, majDisponibleValue, animeData.id);
       }
     }
 
@@ -887,7 +985,7 @@ async function handleAddAnime(req, res, mainWindow) {
     const body = await parseRequestBody(req);
     const data = JSON.parse(body);
     const malId = data.mal_id;
-    
+
     if (!malId || isNaN(parseInt(malId))) {
       return sendErrorResponse(res, 400, 'MAL ID invalide');
     }
@@ -897,21 +995,46 @@ async function handleAddAnime(req, res, mainWindow) {
     notifyImportStart(mainWindow, `Import anime MAL ID: ${malId}...`);
 
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // Préparer les options depuis le payload
+      // Note: le handler IPC utilise targetSerieId pour les animes (historique)
+      const options = {};
+      if (data.targetAnimeId || data._targetAnimeId || data.targetSerieId || data._targetSerieId) {
+        options.targetSerieId = data.targetAnimeId || data._targetAnimeId || data.targetSerieId || data._targetSerieId;
+      }
+      if (data.forceCreate === true || data._forceCreate === true) {
+        options.forceCreate = true;
+      }
+      if (data.confirmMerge === true || data._confirmMerge === true) {
+        options.confirmMerge = true;
+      }
+      
+      // Ne pas forcer forceCreate: true par défaut, laisser le matching unifié fonctionner
       const result = await mainWindow.webContents.executeJavaScript(`
-        window.electronAPI.addAnimeByMalId(${malId}, { forceCreate: true })
+        window.electronAPI.addAnimeByMalId(${malId}, ${JSON.stringify(options)})
       `);
 
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('manga-import-complete');
-          mainWindow.webContents.send('refresh-anime-list');
-        }
-      }, 1500); // Délai pour s'assurer que la DB est bien mise à jour
+      // Ne pas envoyer manga-import-complete immédiatement si requiresSelection
+      if (!result.requiresSelection) {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('manga-import-complete');
+            mainWindow.webContents.send('refresh-anime-list');
+          }
+        }, 1500); // Délai pour s'assurer que la DB est bien mise à jour
+      }
 
       if (result.success) {
         sendSuccessResponse(res, {
           anime: result.anime,
           message: `${result.anime.titre} ajouté avec succès !`
+        });
+      } else if (result.requiresSelection && Array.isArray(result.candidates)) {
+        // Proposer un overlay de sélection côté navigateur (Tampermonkey)
+        sendSuccessResponse(res, {
+          requiresSelection: true,
+          candidates: result.candidates,
+          malId: malId,
+          message: result.error || 'Anime similaire trouvé'
         });
       } else {
         sendErrorResponse(res, 400, result.error || 'Erreur lors de l\'import');
@@ -923,7 +1046,7 @@ async function handleAddAnime(req, res, mainWindow) {
   } catch (error) {
     console.error('❌ Erreur add-anime:', error);
     notifyImportComplete(mainWindow);
-    
+
     // Notifier la page de collection pour rafraîchir la liste
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('refresh-anime-list');
@@ -940,22 +1063,22 @@ function registerAnimeRoutes(req, res, getDb, store, mainWindow, getPathManager)
     handleImportAnime(req, res, getDb, store, mainWindow, getPathManager);
     return true;
   }
-  
+
   if (req.method === 'POST' && req.url === '/api/mark-episode-watched') {
     handleMarkEpisodeWatched(req, res, getDb, store);
     return true;
   }
-  
+
   if (req.method === 'POST' && req.url === '/api/update-anime') {
     handleUpdateAnime(req, res, getDb);
     return true;
   }
-  
+
   if (req.method === 'POST' && req.url === '/add-anime') {
     handleAddAnime(req, res, mainWindow);
     return true;
   }
-  
+
   return false;
 }
 

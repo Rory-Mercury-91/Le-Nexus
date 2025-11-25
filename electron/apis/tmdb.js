@@ -122,7 +122,9 @@ async function getMovieDetails(tmdbId, options = {}) {
         'translations',
         'recommendations',
         'similar'
-      ].join(',')
+      ].join(','),
+      include_image_language: 'fr,en,null',
+      include_video_language: 'fr,en,null'
     }
   });
 }
@@ -142,7 +144,9 @@ async function getTvDetails(tmdbId, options = {}) {
         'translations',
         'recommendations',
         'similar'
-      ].join(',')
+      ].join(','),
+      include_image_language: 'fr,en,null',
+      include_video_language: 'fr,en,null'
     }
   });
 }

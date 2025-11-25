@@ -5,13 +5,15 @@ interface CoverImageProps {
   alt: string;
   style?: React.CSSProperties;
   onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+  onMouseEnter?: (e: React.MouseEvent<HTMLImageElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLImageElement>) => void;
 }
 
 /**
  * Composant CoverImage avec lazy loading
  * Utilise LazyImage pour charger les images seulement quand elles sont visibles
  */
-export default function CoverImage({ src, alt, style, onError }: CoverImageProps) {
+export default function CoverImage({ src, alt, style, onError, onMouseEnter, onMouseLeave }: CoverImageProps) {
   const placeholder = (
     <div style={{
       ...style,
@@ -30,6 +32,8 @@ export default function CoverImage({ src, alt, style, onError }: CoverImageProps
       alt={alt}
       style={style}
       onError={onError}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       placeholder={placeholder}
     />
   );

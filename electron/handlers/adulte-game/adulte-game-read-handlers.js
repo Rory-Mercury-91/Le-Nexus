@@ -1,4 +1,5 @@
 const { getUserIdByName, parseTags } = require('./adulte-game-helpers');
+const { safeJsonParse } = require('../common-helpers');
 
 /**
  * Enregistre les handlers IPC pour les opérations de lecture des jeux adultes
@@ -26,41 +27,47 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
       let query = `
         SELECT 
           g.*,
-          ug.chemin_executable,
-          ug.notes_privees as notes_privees_user,
-          ug.statut_perso as statut_perso_user,
-          ug.derniere_session as derniere_session_user,
-          ug.version_jouee as version_jouee_user,
-          ug.is_favorite,
-          CASE WHEN am.adulte_game_id IS NOT NULL THEN 1 ELSE 0 END as is_hidden,
-          GROUP_CONCAT(u.name) as proprietaires
+          ud.chemin_executable,
+          ud.notes_privees,
+          ud.derniere_session,
+          ud.version_jouee,
+          ud.is_favorite,
+          ud.completion_perso as statut_perso,
+          ud.is_hidden,
+          ud.labels,
+          ud.display_preferences,
+          -- Propriétaires : utilisateurs ayant des données dans adulte_game_user_data
+          (SELECT GROUP_CONCAT(u.name) 
+           FROM adulte_game_user_data ud2
+           JOIN users u ON ud2.user_id = u.id
+           WHERE ud2.game_id = g.id) as proprietaires
         FROM adulte_game_games g
-        LEFT JOIN adulte_game_proprietaires p ON g.id = p.game_id
-        LEFT JOIN users u ON p.user_id = u.id
-        LEFT JOIN adulte_game_user_games ug ON g.id = ug.game_id AND ug.user_id = ?
-        LEFT JOIN adulte_game_masquees am ON g.id = am.adulte_game_id AND am.user_id = ?
+        LEFT JOIN adulte_game_user_data ud ON g.id = ud.game_id AND ud.user_id = ?
       `;
       
       const conditions = [];
-      const params = [userId, userId];
+      const params = [userId];
       
       if (filters.utilisateur) {
         const filterUserId = getUserIdByName(db, filters.utilisateur);
         if (filterUserId) {
-          conditions.push(`p.user_id = ?`);
+          conditions.push(`EXISTS (
+            SELECT 1 FROM adulte_game_user_data ud2 
+            WHERE ud2.game_id = g.id AND ud2.user_id = ?
+          )`);
           params.push(filterUserId);
         }
       }
       if (filters.statut_perso) {
-        conditions.push(`COALESCE(ug.statut_perso, g.statut_perso) = ?`);
+        conditions.push(`COALESCE(ud.completion_perso, '') = ?`);
         params.push(filters.statut_perso);
       }
       if (filters.statut_jeu) {
-        conditions.push(`g.statut_jeu = ?`);
+        conditions.push(`g.game_statut = ?`);
         params.push(filters.statut_jeu);
       }
       if (filters.moteur) {
-        conditions.push(`g.moteur = ?`);
+        conditions.push(`g.game_engine = ?`);
         params.push(filters.moteur);
       }
       if (filters.maj_disponible) {
@@ -69,6 +76,10 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
       if (typeof filters.traduction_fr_disponible === 'boolean') {
         conditions.push(`g.traduction_fr_disponible = ?`);
         params.push(filters.traduction_fr_disponible ? 1 : 0);
+      }
+      if (filters.statut_traduction) {
+        conditions.push(`g.statut_traduction = ?`);
+        params.push(filters.statut_traduction);
       }
       if (filters.search) {
         conditions.push(`g.titre LIKE ?`);
@@ -79,20 +90,37 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
         query += ` WHERE ${conditions.join(' AND ')}`;
       }
       
-      query += ` GROUP BY g.id ORDER BY g.updated_at DESC`;
+      query += ` ORDER BY g.updated_at DESC`;
       
       const games = db.prepare(query).all(...params);
       
-      return games.map(game => ({
-        ...game,
-        chemin_executable: game.chemin_executable,
-        notes_privees: game.notes_privees_user || game.notes_privees,
-        statut_perso: game.statut_perso_user || game.statut_perso,
-        derniere_session: game.derniere_session_user || game.derniere_session,
-        version_jouee: game.version_jouee_user || game.version_jouee,
-        tags: parseTags(game.tags),
-        proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
-      }));
+      return games.map(game => {
+        // Parser les champs JSON
+        let labels = [];
+        let displayPreferences = {};
+        
+        if (game.labels) {
+          labels = safeJsonParse(game.labels, []);
+        }
+        
+      displayPreferences = safeJsonParse(game.display_preferences, {});
+        
+        return {
+          ...game,
+          // Mapper les anciens noms vers les nouveaux pour compatibilité
+          version: game.game_version,
+          statut_jeu: game.game_statut,
+          moteur: game.game_engine,
+          developpeur: game.game_developer,
+          plateforme: game.game_site,
+          tags: parseTags(game.tags),
+          labels: labels,
+          display_preferences: displayPreferences,
+          // Mapper type_traduction vers type_trad_fr pour compatibilité frontend
+          type_trad_fr: game.type_traduction,
+          proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
+        };
+      });
       
     } catch (error) {
       console.error('Erreur get-adulte-game-games:', error);
@@ -110,33 +138,56 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
       const game = db.prepare(`
         SELECT 
           g.*,
-          ug.chemin_executable,
-          ug.notes_privees as notes_privees_user,
-          ug.statut_perso as statut_perso_user,
-          ug.derniere_session as derniere_session_user,
-          ug.version_jouee as version_jouee_user,
-          ug.is_favorite,
-          GROUP_CONCAT(u.name) as proprietaires
+          ud.chemin_executable,
+          ud.notes_privees,
+          ud.derniere_session,
+          ud.version_jouee,
+          ud.is_favorite,
+          ud.completion_perso as statut_perso,
+          ud.is_hidden,
+          ud.labels,
+          ud.display_preferences,
+          -- Propriétaires : utilisateurs ayant des données dans adulte_game_user_data
+          (SELECT GROUP_CONCAT(u.name) 
+           FROM adulte_game_user_data ud2
+           JOIN users u ON ud2.user_id = u.id
+           WHERE ud2.game_id = g.id) as proprietaires
         FROM adulte_game_games g
-        LEFT JOIN adulte_game_proprietaires p ON g.id = p.game_id
-        LEFT JOIN users u ON p.user_id = u.id
-        LEFT JOIN adulte_game_user_games ug ON g.id = ug.game_id AND ug.user_id = ?
+        LEFT JOIN adulte_game_user_data ud ON g.id = ud.game_id AND ud.user_id = ?
         WHERE g.id = ?
-        GROUP BY g.id
       `).get(userId, id);
       
       if (!game) {
         throw new Error(`Jeu adulte non trouvé (ID: ${id})`);
       }
       
+      // Parser les champs JSON
+      let labels = [];
+      let displayPreferences = {};
+      
+      try {
+        if (game.labels) {
+          labels = safeJsonParse(game.labels, []);
+        }
+      } catch (e) {
+        console.warn('Erreur parsing labels:', e);
+      }
+      
+      displayPreferences = safeJsonParse(game.display_preferences, {});
+      
       return {
         ...game,
-        chemin_executable: game.chemin_executable,
-        notes_privees: game.notes_privees_user || game.notes_privees,
-        statut_perso: game.statut_perso_user || game.statut_perso,
-        derniere_session: game.derniere_session_user || game.derniere_session,
-        version_jouee: game.version_jouee_user || game.version_jouee,
+        // Mapper les anciens noms vers les nouveaux pour compatibilité
+        version: game.game_version,
+        statut_jeu: game.game_statut,
+        moteur: game.game_engine,
+        developpeur: game.game_developer,
+        plateforme: game.game_site,
         tags: parseTags(game.tags),
+        labels: labels,
+        display_preferences: displayPreferences,
+        // Mapper type_traduction vers type_trad_fr pour compatibilité frontend
+        type_trad_fr: game.type_traduction,
         proprietaires: game.proprietaires ? game.proprietaires.split(',') : []
       };
       

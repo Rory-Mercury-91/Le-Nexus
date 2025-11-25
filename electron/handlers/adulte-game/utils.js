@@ -7,63 +7,69 @@ const { net, session } = require('electron');
  * @returns {Promise<{statusCode: number, headers: object, body: string}>}
  */
 async function fetchWithSession(url, options = {}) {
-  return new Promise(async (resolve, reject) => {
-    const persistentSession = session.fromPartition('persist:lenexus');
+  return new Promise((resolve, reject) => {
+    (async () => {
+      try {
+        const persistentSession = session.fromPartition('persist:lenexus');
 
-    // Vérifier les cookies disponibles pour debug
-    try {
-      const cookies = await persistentSession.cookies.get({ domain: 'f95zone.to' });
-      const cookiesWww = await persistentSession.cookies.get({ domain: '.f95zone.to' });
-      const allCookies = [...cookies, ...cookiesWww];
+        // Vérifier les cookies disponibles pour debug
+        try {
+          const cookies = await persistentSession.cookies.get({ domain: 'f95zone.to' });
+          const cookiesWww = await persistentSession.cookies.get({ domain: '.f95zone.to' });
+          const allCookies = [...cookies, ...cookiesWww];
 
-      if (allCookies.length > 0 && url.includes('f95zone.to')) {
-        const sessionCookies = allCookies.filter(c =>
-          c.name === 'xf_session' || c.name === 'xf_user'
-        );
-        if (sessionCookies.length > 0) {
-          console.log(`  🍪 ${allCookies.length} cookie(s) disponibles pour fetchWithSession (${sessionCookies.length} de session)`);
+          if (allCookies.length > 0 && url.includes('f95zone.to')) {
+            const sessionCookies = allCookies.filter(c =>
+              c.name === 'xf_session' || c.name === 'xf_user'
+            );
+            if (sessionCookies.length > 0) {
+              console.log(`  🍪 ${allCookies.length} cookie(s) disponibles pour fetchWithSession (${sessionCookies.length} de session)`);
+            }
+          }
+        } catch (error) {
+          // Ignorer les erreurs de récupération de cookies
         }
-      }
-    } catch (error) {
-      // Ignorer les erreurs de récupération de cookies
-    }
-    
-    const request = net.request({
-      url: url,
-      method: options.method || 'GET',
-      session: persistentSession
-    });
-
-    if (options.headers) {
-      Object.entries(options.headers).forEach(([key, value]) => {
-        request.setHeader(key, value);
-      });
-    }
-
-    let responseData = '';
-
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        responseData += chunk.toString();
-      });
-
-      response.on('end', () => {
-        resolve({
-          statusCode: response.statusCode,
-          headers: response.headers,
-          body: responseData,
-          ok: response.statusCode >= 200 && response.statusCode < 300,
-          status: response.statusCode,
-          text: async () => responseData
+        
+        const request = net.request({
+          url: url,
+          method: options.method || 'GET',
+          session: persistentSession
         });
-      });
-    });
 
-    request.on('error', (error) => {
-      reject(error);
-    });
+        if (options.headers) {
+          Object.entries(options.headers).forEach(([key, value]) => {
+            request.setHeader(key, value);
+          });
+        }
 
-    request.end();
+        let responseData = '';
+
+        request.on('response', (response) => {
+          response.on('data', (chunk) => {
+            responseData += chunk.toString();
+          });
+
+          response.on('end', () => {
+            resolve({
+              statusCode: response.statusCode,
+              headers: response.headers,
+              body: responseData,
+              ok: response.statusCode >= 200 && response.statusCode < 300,
+              status: response.statusCode,
+              text: async () => responseData
+            });
+          });
+        });
+
+        request.on('error', (error) => {
+          reject(error);
+        });
+
+        request.end();
+      } catch (error) {
+        reject(error);
+      }
+    })();
   });
 }
 
@@ -77,12 +83,29 @@ async function fetchWithPuppeteer(url) {
   const { BrowserWindow, session } = require('electron');
   const persistentSession = session.fromPartition('persist:lenexus');
   
+  // Créer une session temporaire pour la fenêtre cachée pour éviter d'affecter la session principale
+  // Mais copier les cookies de la session persistante pour l'authentification
+  const tempSession = session.fromPartition('temp:puppeteer-' + Date.now());
+  
+  // Copier les cookies de la session persistante vers la session temporaire
+  try {
+    const cookies = await persistentSession.cookies.get({});
+    for (const cookie of cookies) {
+      await tempSession.cookies.set({
+        ...cookie,
+        url: cookie.domain.startsWith('.') ? `https://${cookie.domain.substring(1)}` : `https://${cookie.domain}`
+      });
+    }
+  } catch (cookieError) {
+    console.warn('  ⚠️ Erreur lors de la copie des cookies:', cookieError.message);
+  }
+  
   let hiddenWindow = null;
   
   try {
     console.warn('  🔍 Utilisation du Chromium d\'Electron (fenêtre cachée)');
     
-    // Créer une fenêtre cachée avec la session persistante (pour les cookies)
+    // Créer une fenêtre cachée avec une session temporaire (pour éviter d'affecter la session principale)
     hiddenWindow = new BrowserWindow({
       show: false,
       width: 1280,
@@ -90,13 +113,14 @@ async function fetchWithPuppeteer(url) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        session: persistentSession // Utiliser la même session que la fenêtre de connexion
+        session: tempSession // Utiliser une session temporaire pour éviter d'affecter la session principale
       }
     });
 
     // Bloquer les ressources inutiles pour accélérer (mais permettre les images de couverture)
     // On bloque seulement les images qui ne sont pas des couvertures
-    hiddenWindow.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+    // IMPORTANT: Utiliser une fonction nommée pour pouvoir la supprimer après
+    const requestHandler = (details, callback) => {
       const resourceType = details.resourceType;
       const url = details.url;
       
@@ -124,7 +148,9 @@ async function fetchWithPuppeteer(url) {
       
       // Autoriser tout le reste
       callback({});
-    });
+    };
+    
+    hiddenWindow.webContents.session.webRequest.onBeforeRequest(requestHandler);
 
     // Récupérer les cookies pour vérification
     try {
@@ -248,9 +274,16 @@ async function fetchWithPuppeteer(url) {
     console.warn('  ⚠️ Erreur avec Chromium d\'Electron, utilisation du fetch classique:', error.message);
     return null;
   } finally {
-    // Toujours fermer la fenêtre cachée
+    // Fermer la fenêtre et nettoyer la session temporaire
     if (hiddenWindow && !hiddenWindow.isDestroyed()) {
       hiddenWindow.close();
+    }
+    
+    // Nettoyer la session temporaire
+    try {
+      await tempSession.clearStorageData();
+    } catch (cleanupError) {
+      // Ignorer les erreurs de nettoyage
     }
   }
 }
@@ -515,10 +548,11 @@ function parseF95ZoneGameData(html) {
 
     // Pattern 2: Chercher dans les scripts avec type="application/json" ou "application/ld+json"
     const jsonScriptPattern = /<script[^>]*type=["']application\/(json|ld\+json)["'][^>]*>([\s\S]*?)<\/script>/gi;
+    const { safeJsonParse } = require('../common-helpers');
     let scriptMatch;
     while ((scriptMatch = jsonScriptPattern.exec(html)) !== null) {
-      try {
-        const jsonData = JSON.parse(scriptMatch[2]);
+      const jsonData = safeJsonParse(scriptMatch[2], null);
+      if (jsonData) {
         // Chercher récursivement dans le JSON pour trouver des tags
         const findTagsInObject = (obj, path = '') => {
           if (Array.isArray(obj)) {
@@ -555,8 +589,6 @@ function parseF95ZoneGameData(html) {
           }
         };
         findTagsInObject(jsonData);
-      } catch (e) {
-        // Ignorer les erreurs de parsing JSON
       }
     }
 

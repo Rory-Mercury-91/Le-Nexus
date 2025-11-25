@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface ImportAdulteGameJsonModalProps {
   onClose: () => void;
@@ -9,6 +10,9 @@ interface ImportAdulteGameJsonModalProps {
 export default function ImportAdulteGameJsonModal({ onClose, onImport }: ImportAdulteGameJsonModalProps) {
   const [jsonData, setJsonData] = useState('');
   const [error, setError] = useState('');
+
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
 
   const handleImport = () => {
     try {

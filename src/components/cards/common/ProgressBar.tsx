@@ -9,13 +9,13 @@ export default function ProgressBar({ current, total, label }: ProgressBarProps)
 
   // Dégradé de couleur progressif : du violet au vert
   const getProgressGradient = () => {
-    if (percentage === 0) return '#6366f1';
-    if (percentage === 100) return 'linear-gradient(90deg, #10b981, #059669)';
+    if (percentage === 0) return 'var(--primary)';
+    if (percentage === 100) return 'linear-gradient(90deg, var(--success), var(--success-light))';
     
-    // Gradient progressif du violet (#6366f1) vers le vert (#10b981)
-    const startColor = '#6366f1'; // Indigo
-    const midColor = '#8b5cf6';   // Violet
-    const endColor = '#10b981';   // Vert
+    // Gradient progressif du primary vers le success
+    const startColor = 'var(--primary)';
+    const midColor = 'var(--primary-light)';
+    const endColor = 'var(--success)';
     
     if (percentage < 50) {
       // De indigo à violet
@@ -26,7 +26,7 @@ export default function ProgressBar({ current, total, label }: ProgressBarProps)
       return `linear-gradient(90deg, ${midColor} 0%, ${endColor} ${ratio * 100}%)`;
     }
     
-    return `linear-gradient(90deg, ${endColor}, #059669)`;
+    return `linear-gradient(90deg, var(--success), var(--success-light))`;
   };
 
   return (
@@ -63,7 +63,7 @@ export default function ProgressBar({ current, total, label }: ProgressBarProps)
         <span>{label || `${current}/${total > 0 ? total : '?'}`}</span>
         <span style={{ 
           fontWeight: '600',
-          color: percentage === 100 ? '#10b981' : 'var(--primary)'
+          color: percentage === 100 ? 'var(--success)' : 'var(--primary)'
         }}>
           {percentage}%
         </span>

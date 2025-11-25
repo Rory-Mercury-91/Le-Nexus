@@ -1,46 +1,44 @@
-import { useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
+import BackToBottomButton from '../../components/collections/BackToBottomButton';
 import BackToTopButton from '../../components/collections/BackToTopButton';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
-import SyncProgressBanner from '../../components/common/SyncProgressBanner';
-import { useSettings } from '../../hooks/settings/useSettings';
-import AnimeDisplaySettingsModal from '../../components/modals/common/AnimeDisplaySettingsModal';
-import DisplaySettingsModal from '../../components/modals/common/DisplaySettingsModal';
-import MovieDisplaySettingsModal from '../../components/modals/common/MovieDisplaySettingsModal';
-import SeriesDisplaySettingsModal from '../../components/modals/common/SeriesDisplaySettingsModal';
-import AdulteGameDisplaySettingsModal from '../../components/modals/adulte-game/AdulteGameDisplaySettingsModal';
+import { ADULTE_GAME_DISPLAY_CATEGORIES, ADULTE_GAME_DISPLAY_DEFAULTS } from '../../components/modals/adulte-game/displayConfig';
+import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
+import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import ApiKeyGuideModal from '../../components/modals/settings/ApiKeyGuideModal';
+import { useSettings } from '../../hooks/settings/useSettings';
 import {
-    AppearanceSettings,
-    IntegrationsSettings,
-    DangerZone,
-    DatabaseSettings,
-    DevSettings,
-    NotificationSettings,
-    SourceCredits,
-    TampermonkeySettings,
-    UserManagement
+  AppearanceSettings,
+  DangerZone,
+  DatabaseSettings,
+  DevSettings,
+  IntegrationsSettings,
+  NotificationSettings,
+  SourceCredits,
+  TampermonkeySettings,
+  UserManagement
 } from './components';
+import MergeEntitiesModal, { MergePreviewData } from '../../components/modals/settings/MergeEntitiesModal';
 import type { ApiKeyProvider } from './components/apiKeyGuideTypes';
 
 export default function Settings() {
   const [apiGuideProvider, setApiGuideProvider] = useState<ApiKeyProvider | null>(null);
+  const [devMergePreview, setDevMergePreview] = useState<MergePreviewData | null>(null);
+  const [devMergeLoading, setDevMergeLoading] = useState(false);
+  const [devMergeApplying, setDevMergeApplying] = useState(false);
 
   const {
     theme,
     autoLaunch,
+    autoDownloadCovers,
     groqApiKey,
     contentPrefs,
     malConnected,
     malUser,
     malLastSync,
     malLastStatusSync,
-    malSyncing,
     malAutoSyncEnabled,
     autoTranslate,
-    translating,
-    translationProgress,
-    stoppingAnimeEnrichment,
-    stoppingMangaEnrichment,
     imageSource,
     baseDirectory,
     loading,
@@ -50,9 +48,6 @@ export default function Settings() {
     showExportSuccess,
     showImportSuccess,
     animeImportResult,
-    animeImportProgress,
-    mangaImportProgress,
-    importType,
     nautiljonAutoSyncIncludeTomes,
     users,
     userAvatars,
@@ -76,13 +71,12 @@ export default function Settings() {
     loadSettings,
     handleThemeChange,
     handleAutoLaunchChange,
+    handleAutoDownloadCoversChange,
     handleContentPrefChange,
     handleMalConnect,
     handleMalDisconnect,
     handleMalSyncNow,
     handleMalAutoSyncChange,
-    handleStopAnimeEnrichment,
-    handleStopMangaEnrichment,
     handleGroqApiKeyChange,
     handleAutoTranslateChange,
     nautiljonAutoSyncEnabled,
@@ -96,26 +90,88 @@ export default function Settings() {
     globalSyncInterval,
     globalSyncUpdating,
     handleGlobalSyncIntervalChange,
-    notifyEnrichment,
-    handleNotifyEnrichmentChange,
     handleChangeBaseDirectory,
     handleExport,
     handleImport,
     handleDeleteUserData,
-    handleDeleteAllData
+    handleDeleteAllData,
+    setSectionState
   } = useSettings();
+  const [notificationHeaderActions, setNotificationHeaderActions] = useState<ReactNode | null>(null);
 
-  if (loading) {
-    return (
-      <div style={{ padding: '40px' }} className="fade-in">
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <div className="loading" style={{ margin: '0 auto' }} />
-        </div>
-      </div>
-    );
-  }
+  const handleOpenDevMergeModal = async (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number }) => {
+    setDevMergeLoading(true);
+    try {
+      const preview = await window.electronAPI.getDevMergePreview?.(payload);
+      if (!preview?.success) {
+        showToast({
+          title: 'Préparation impossible',
+          message: preview?.error || 'Impossible de préparer la fusion',
+          type: 'error'
+        });
+        return;
+      }
+      setDevMergePreview(preview as MergePreviewData);
+    } catch (error: any) {
+      showToast({
+        title: 'Erreur',
+        message: error?.message || 'Impossible de préparer la fusion',
+        type: 'error'
+      });
+    } finally {
+      setDevMergeLoading(false);
+    }
+  };
 
-  const sectionDescriptors = [
+  const handleConfirmDevMerge = async (selectedFields: string[]) => {
+    if (!devMergePreview) return;
+    setDevMergeApplying(true);
+    try {
+      const result = await window.electronAPI.performDevMerge?.({
+        type: devMergePreview.type as 'manga' | 'anime' | 'movie' | 'tv' | 'game',
+        sourceId: devMergePreview.source.id,
+        targetId: devMergePreview.target.id,
+        selectedFields
+      });
+
+      if (!result?.success) {
+        showToast({
+          title: 'Erreur de fusion',
+          message: result?.error || 'Impossible de fusionner les entrées',
+          type: 'error'
+        });
+        return;
+      }
+
+      const updatedCount = result.updatedFields?.length || 0;
+      const transferSummary = result.transfers
+        ? Object.entries(result.transfers)
+            .filter(([, value]) => typeof value === 'number' && value > 0)
+            .map(([key, value]) => `${value} ${key}`)
+            .join(', ')
+        : '';
+
+      showToast({
+        title: 'Fusion terminée',
+        message:
+          `${updatedCount} champ(s) appliqué(s)` + (transferSummary ? ` • ${transferSummary}` : ''),
+        type: 'success',
+        duration: 5000
+      });
+
+      setDevMergePreview(null);
+    } catch (error: any) {
+      showToast({
+        title: 'Erreur',
+        message: error?.message || 'Impossible de fusionner les entrées',
+        type: 'error'
+      });
+    } finally {
+      setDevMergeApplying(false);
+    }
+  };
+
+  const sectionDescriptors = useMemo(() => [
     {
       id: 'user-management',
       title: 'Gestion utilisateurs',
@@ -146,9 +202,11 @@ export default function Settings() {
         <AppearanceSettings
           theme={theme}
           autoLaunch={autoLaunch}
+          autoDownloadCovers={autoDownloadCovers}
           contentPrefs={contentPrefs}
           onThemeChange={handleThemeChange}
           onAutoLaunchChange={handleAutoLaunchChange}
+          onAutoDownloadCoversChange={handleAutoDownloadCoversChange}
           onContentPrefChange={handleContentPrefChange}
           tmdbLanguage={tmdbLanguage}
           tmdbRegion={tmdbRegion}
@@ -167,7 +225,14 @@ export default function Settings() {
       id: 'notifications',
       title: 'Notifications',
       icon: '🔔',
-      content: <NotificationSettings showToast={showToast} />
+      headerActions: notificationHeaderActions,
+      content: (
+        <NotificationSettings
+          showToast={showToast}
+          onHeaderActionsChange={setNotificationHeaderActions}
+          globalSyncInterval={globalSyncInterval}
+        />
+      )
     },
     {
       id: 'integrations',
@@ -198,10 +263,10 @@ export default function Settings() {
           onGroqApiKeyChange={handleGroqApiKeyChange}
           autoTranslate={autoTranslate}
           onAutoTranslateChange={handleAutoTranslateChange}
-          notifyEnrichment={notifyEnrichment}
-          onNotifyEnrichmentChange={handleNotifyEnrichmentChange}
           showToast={showToast}
           animeImportResult={animeImportResult}
+          sectionStates={sectionStates}
+          onSectionStateChange={setSectionState}
         />
       ),
       span: 2
@@ -222,6 +287,8 @@ export default function Settings() {
           onChangeBaseDirectory={handleChangeBaseDirectory}
           onExport={handleExport}
           onImport={handleImport}
+          sectionStates={sectionStates}
+          onSectionStateChange={setSectionState}
         />
       ),
       span: 2
@@ -237,17 +304,33 @@ export default function Settings() {
       id: 'dev',
       title: 'Mode développeur',
       icon: '💻',
-      content: <DevSettings showToast={showToast} />,
+      content: (
+        <DevSettings
+          showToast={showToast}
+          mergePreviewLoading={devMergeLoading}
+          onOpenMergeModal={handleOpenDevMergeModal}
+        />
+      ),
       span: 2
     }
-  ] as const;
+  ], [notificationHeaderActions, showToast, users, userAvatars, loadSettings, confirm, theme, autoLaunch, contentPrefs, handleThemeChange, handleAutoLaunchChange, handleContentPrefChange, tmdbLanguage, tmdbRegion, handleTmdbLanguageChange, handleTmdbRegionChange, setShowMangaDisplayModal, setShowAnimeDisplayModal, setShowMovieDisplayModal, setShowSeriesDisplayModal, setShowAdulteGameDisplayModal, globalSyncInterval, malConnected, malUser, malLastSync, malLastStatusSync, handleMalConnect, handleMalDisconnect, handleMalSyncNow, malAutoSyncEnabled, handleMalAutoSyncChange, nautiljonAutoSyncEnabled, handleNautiljonAutoSyncChange, nautiljonAutoSyncIncludeTomes, handleNautiljonIncludeTomesChange, globalSyncUpdating, handleGlobalSyncIntervalChange, imageSource, handleImageSourceChange, groqApiKey, handleGroqApiKeyChange, autoTranslate, handleAutoTranslateChange, animeImportResult, sectionStates, setSectionState, baseDirectory, exporting, importing, showSuccess, showExportSuccess, showImportSuccess, handleChangeBaseDirectory, handleExport, handleImport, handleOpenDevMergeModal, devMergeLoading]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px' }} className="fade-in">
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div className="loading" style={{ margin: '0 auto' }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '40px' }} className="fade-in">
       <ConfirmDialog />
       {MalConfirmDialog && <MalConfirmDialog />}
       {ToastContainer}
-      
+
       <div
         style={{
           width: '100%',
@@ -261,22 +344,8 @@ export default function Settings() {
           ⚙️ Paramètres
         </h1>
 
-        {/* Bannière de progression de synchronisation (non-bloquante) */}
-        <SyncProgressBanner
-          isVisible={malSyncing || !!(animeImportProgress || mangaImportProgress) || translating}
-          animeProgress={animeImportProgress}
-          mangaProgress={mangaImportProgress}
-          translating={translating}
-          translationProgress={translationProgress}
-          onStopAnimeEnrichment={handleStopAnimeEnrichment}
-          onStopMangaEnrichment={handleStopMangaEnrichment}
-          stoppingAnimeEnrichment={stoppingAnimeEnrichment}
-          stoppingMangaEnrichment={stoppingMangaEnrichment}
-          importType={importType}
-        />
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-          {sectionDescriptors.map(({ id, title, icon, content }) => (
+          {sectionDescriptors.map(({ id, title, icon, content, headerActions }) => (
             <div
               key={id}
               style={{
@@ -289,6 +358,7 @@ export default function Settings() {
                 defaultIcon={icon}
                 isOpen={sectionStates[id] ?? true}
                 onToggle={() => toggleSection(id)}
+                headerActions={headerActions}
               >
                 {content}
               </CollapsibleSection>
@@ -300,39 +370,291 @@ export default function Settings() {
         <DangerZone
           onDeleteUserData={handleDeleteUserData}
           onDeleteAllData={handleDeleteAllData}
+          isOpen={sectionStates['danger-zone'] ?? false}
+          onToggle={() => setSectionState('danger-zone', !(sectionStates['danger-zone'] ?? false))}
         />
       </div>
 
       {showMangaDisplayModal && (
         <DisplaySettingsModal
+          title="Affichage des mangas"
+          description="Activez ou désactivez les sections visibles sur les fiches mangas."
+          fields={[
+            {
+              title: 'Informations principales',
+              icon: '📚',
+              fields: [
+                { key: 'couverture', label: 'Couverture' },
+                { key: 'titre', label: 'Titre' },
+                { key: 'description', label: 'Description / Synopsis' },
+                { key: 'titres_alternatifs', label: 'Titres alternatifs' }
+              ]
+            },
+            {
+              title: 'Publication',
+              icon: '📅',
+              fields: [
+                { key: 'annee_publication', label: 'Année de publication (VO)' },
+                { key: 'annee_vf', label: 'Année de publication (VF)' },
+                { key: 'date_debut', label: 'Date de début' },
+                { key: 'date_fin', label: 'Date de fin' },
+                { key: 'statut_publication', label: 'Statut de publication (VO)' },
+                { key: 'statut_publication_vf', label: 'Statut de publication (VF)' }
+              ]
+            },
+            {
+              title: 'Volumes et chapitres',
+              icon: '📖',
+              fields: [
+                { key: 'nb_volumes', label: 'Nombre de volumes (VO)' },
+                { key: 'nb_volumes_vf', label: 'Nombre de volumes (VF)' },
+                { key: 'nb_chapitres', label: 'Nombre de chapitres (VO)' },
+                { key: 'nb_chapitres_vf', label: 'Nombre de chapitres (VF)' },
+                { key: 'type_volume', label: 'Type de volume' }
+              ]
+            },
+            {
+              title: 'Classification',
+              icon: '🏷️',
+              fields: [
+                { key: 'genres', label: 'Genres' },
+                { key: 'themes', label: 'Thèmes' },
+                { key: 'demographie', label: 'Démographie' },
+                { key: 'rating', label: 'Classification / Rating' },
+                { key: 'media_type', label: 'Type de média' }
+              ]
+            },
+            {
+              title: 'Édition',
+              icon: '🏢',
+              fields: [
+                { key: 'editeur', label: 'Éditeur (VF)' },
+                { key: 'editeur_vo', label: 'Éditeur (VO)' },
+                { key: 'serialization', label: 'Sérialisation' },
+                { key: 'langue_originale', label: 'Langue originale' }
+              ]
+            },
+            {
+              title: 'Créateurs',
+              icon: '👤',
+              fields: [
+                { key: 'auteurs', label: 'Auteurs' }
+              ]
+            },
+            {
+              title: 'MyAnimeList',
+              icon: '🔗',
+              fields: [
+                { key: 'mal_id', label: 'ID MyAnimeList' },
+                { key: 'mal_block', label: 'Bloc MyAnimeList' }
+              ]
+            },
+            {
+              title: 'Sections de la fiche',
+              icon: '🗂️',
+              fields: [
+                { key: 'section_costs', label: 'Coûts & propriétaires' },
+                { key: 'section_progression', label: 'Progression de lecture' },
+                { key: 'section_chapitres', label: 'Gestion des chapitres' },
+                { key: 'section_tomes', label: 'Liste des tomes' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getMangaDisplaySettings?.();
+            return prefs || {};
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveMangaDisplaySettings?.(prefs);
+          }}
+          onSave={() => {
+            setShowMangaDisplayModal(false);
+          }}
           onClose={() => setShowMangaDisplayModal(false)}
           showToast={showToast}
         />
       )}
 
       {showAnimeDisplayModal && (
-        <AnimeDisplaySettingsModal
+        <DisplaySettingsModal
+          title="Paramètres d'affichage des animés"
+          description="Choisissez les informations visibles par défaut sur les fiches animés"
+          fields={ANIME_DISPLAY_FIELD_CATEGORIES}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getAnimeDisplaySettings?.();
+            return prefs || {};
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveAnimeDisplaySettings?.(prefs);
+          }}
           onClose={() => setShowAnimeDisplayModal(false)}
           showToast={showToast}
         />
       )}
 
       {showMovieDisplayModal && (
-        <MovieDisplaySettingsModal
+        <DisplaySettingsModal
+          title="Affichage des films"
+          description="Activez ou désactivez les sections visibles sur les fiches films."
+          fields={[
+            {
+              title: 'Présentation',
+              icon: '🎬',
+              fields: [
+                { key: 'banner', label: 'Bannière & affiches' },
+                { key: 'synopsis', label: 'Synopsis' }
+              ]
+            },
+            {
+              title: 'Métadonnées',
+              icon: '📊',
+              fields: [
+                { key: 'metadata', label: 'Informations principales' }
+              ]
+            },
+            {
+              title: 'Médias',
+              icon: '🎞️',
+              fields: [
+                { key: 'videos', label: 'Bandes-annonces' },
+                { key: 'images', label: 'Galerie d\'images' }
+              ]
+            },
+            {
+              title: 'Découverte',
+              icon: '✨',
+              fields: [
+                { key: 'recommendations', label: 'Recommandations & similaires' },
+                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getMovieDisplaySettings?.();
+            return prefs || {
+              banner: true,
+              synopsis: true,
+              metadata: true,
+              videos: true,
+              images: true,
+              recommendations: true,
+              externalLinks: true
+            };
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveMovieDisplaySettings?.(prefs);
+          }}
+          onSave={() => {
+            setShowMovieDisplayModal(false);
+          }}
           onClose={() => setShowMovieDisplayModal(false)}
           showToast={showToast}
         />
       )}
 
       {showSeriesDisplayModal && (
-        <SeriesDisplaySettingsModal
+        <DisplaySettingsModal
+          title="Affichage des séries"
+          description="Activez ou désactivez les sections visibles sur les fiches séries."
+          fields={[
+            {
+              title: 'Présentation',
+              icon: '📺',
+              fields: [
+                { key: 'banner', label: 'Bannière & affiches' },
+                { key: 'synopsis', label: 'Synopsis' },
+                { key: 'nextEpisode', label: 'Prochain épisode' }
+              ]
+            },
+            {
+              title: 'Métadonnées',
+              icon: '📊',
+              fields: [
+                { key: 'metadata', label: 'Informations principales' }
+              ]
+            },
+            {
+              title: 'Contenu',
+              icon: '🎬',
+              fields: [
+                { key: 'seasons', label: 'Saisons' },
+                { key: 'episodes', label: 'Épisodes' }
+              ]
+            },
+            {
+              title: 'Médias',
+              icon: '🎞️',
+              fields: [
+                { key: 'videos', label: 'Bandes-annonces' },
+                { key: 'images', label: 'Galerie d\'images' }
+              ]
+            },
+            {
+              title: 'Découverte',
+              icon: '✨',
+              fields: [
+                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' },
+                { key: 'recommendations', label: 'Recommandations TMDb' }
+              ]
+            },
+            {
+              title: 'Progression',
+              icon: '📊',
+              fields: [
+                { key: 'progression', label: 'Section progression utilisateur' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getSeriesDisplaySettings?.();
+            return prefs || {
+              banner: true,
+              synopsis: true,
+              nextEpisode: true,
+              metadata: true,
+              seasons: true,
+              episodes: true,
+              externalLinks: true,
+              videos: true,
+              images: true,
+              progression: true,
+              recommendations: true
+            };
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveSeriesDisplaySettings?.(prefs);
+            // Déclencher un événement pour recharger les préférences dans les pages de détails
+            window.dispatchEvent(new CustomEvent('series-display-settings-changed'));
+          }}
+          onSave={() => {
+            setShowSeriesDisplayModal(false);
+          }}
           onClose={() => setShowSeriesDisplayModal(false)}
           showToast={showToast}
         />
       )}
 
       {showAdulteGameDisplayModal && (
-        <AdulteGameDisplaySettingsModal
+        <DisplaySettingsModal
+          title="Affichage des jeux adultes"
+          description="Activez ou désactivez les sections visibles sur les fiches jeux adultes."
+          fields={ADULTE_GAME_DISPLAY_CATEGORIES as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getAdulteGameDisplaySettings?.();
+            return prefs || ADULTE_GAME_DISPLAY_DEFAULTS;
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveAdulteGameDisplaySettings?.(prefs);
+          }}
+          onSave={() => {
+            window.dispatchEvent(new CustomEvent('adulte-game-display-settings-updated'));
+            setShowAdulteGameDisplayModal(false);
+          }}
           onClose={() => setShowAdulteGameDisplayModal(false)}
           showToast={showToast}
         />
@@ -345,8 +667,18 @@ export default function Settings() {
         />
       )}
 
-      {/* Bouton retour en haut */}
+      {devMergePreview && (
+        <MergeEntitiesModal
+          preview={devMergePreview}
+          isSubmitting={devMergeApplying}
+          onConfirm={handleConfirmDevMerge}
+          onClose={() => setDevMergePreview(null)}
+        />
+      )}
+
+      {/* Boutons de navigation */}
       <BackToTopButton />
+      <BackToBottomButton />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { AnimeSerie } from '../../../types';
+import { cleanMalRewriteText } from '../../../utils/text-utils';
 
 interface AnimeMalBlockProps {
   anime: AnimeSerie;
@@ -15,21 +16,16 @@ export default function AnimeMalBlock({ anime, shouldShow }: AnimeMalBlockProps)
 
   return (
     <div style={{
-      padding: '16px',
-      marginTop: '20px',
-      marginBottom: '20px',
-      border: '1px solid var(--border)',
-      borderRadius: '8px',
-      background: 'var(--surface)'
+      marginTop: '16px'
     }}>
-      <h3 style={{ 
-        fontSize: '16px', 
-        fontWeight: '700', 
-        marginBottom: '16px', 
+      <div style={{ 
+        fontSize: '12px', 
+        fontWeight: '600', 
+        color: 'var(--text-secondary)', 
+        marginBottom: '16px',
         display: 'flex', 
         alignItems: 'center', 
-        gap: '8px',
-        color: 'var(--text)'
+        gap: '8px'
       }}>
         <span style={{
           background: '#2E51A2',
@@ -37,14 +33,14 @@ export default function AnimeMalBlock({ anime, shouldShow }: AnimeMalBlockProps)
           borderRadius: '4px',
           fontSize: '11px',
           color: 'white',
-          fontWeight: '700'
+          fontWeight: '600'
         }}>
-          📊 MAL
+          MAL
         </span>
-        Informations MyAnimeList
-      </h3>
+        <span>Informations MyAnimeList</span>
+      </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Ligne 1: Toutes les statistiques sur une seule ligne */}
         {(anime.score || anime.rank_mal || anime.popularity_mal || anime.scored_by || anime.favorites) && (
           <div style={{ 
@@ -117,7 +113,7 @@ export default function AnimeMalBlock({ anime, shouldShow }: AnimeMalBlockProps)
               Background (historique/description détaillée)
             </span>
             <p style={{ fontSize: '16px', color: 'var(--text)', lineHeight: '1.6', margin: 0 }}>
-              {anime.background}
+              {cleanMalRewriteText(anime.background)}
             </p>
           </div>
         )}

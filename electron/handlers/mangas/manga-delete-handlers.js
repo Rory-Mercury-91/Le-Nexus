@@ -22,7 +22,7 @@ async function handleDeleteSerie(db, getPathManager, store, id) {
   }
 
   // Récupérer tous les tome_id de cette série
-  const tomeIds = db.prepare('SELECT id FROM tomes WHERE serie_id = ?').all(id).map(t => t.id);
+  const tomeIds = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ?').all(id).map(t => t.id);
   
   // Vérifier si d'autres utilisateurs ont cette série
   let otherUsersHaveSerie = false;
@@ -43,17 +43,15 @@ async function handleDeleteSerie(db, getPathManager, store, id) {
       try {
         const userDb = require('better-sqlite3')(userDbPath, { readonly: true });
         
-        // Vérifier si cet utilisateur a des lectures pour les tomes de cette série
-        // On utilise les tome_id qu'on a récupérés depuis la base de données
-        const placeholders = tomeIds.map(() => '?').join(',');
-        const hasLecture = userDb.prepare(`
-          SELECT COUNT(*) as count 
-          FROM lecture_tomes 
-          WHERE tome_id IN (${placeholders})
-        `).get(...tomeIds);
+        // Vérifier si cet utilisateur a des données pour cette série dans manga_user_data
+        const hasData = userDb.prepare(`
+          SELECT id 
+          FROM manga_user_data 
+          WHERE serie_id = ?
+        `).get(id);
         userDb.close();
 
-        if (hasLecture && hasLecture.count > 0) {
+        if (hasData) {
           otherUsersHaveSerie = true;
           break;
         }
@@ -65,18 +63,18 @@ async function handleDeleteSerie(db, getPathManager, store, id) {
 
   if (otherUsersHaveSerie) {
     // D'autres utilisateurs ont cette série → supprimer SEULEMENT les données de lecture de l'utilisateur actuel
-    // Supprimer les données de lecture de l'utilisateur actuel pour tous les tomes de cette série
+    // Supprimer les données de lecture de l'utilisateur actuel pour tous les manga_tomes de cette série
       const { getUserIdByName } = require('./manga-helpers');
       const userId = getUserIdByName(db, currentUser);
       if (!userId) {
         return { success: false, error: 'Utilisateur non trouvé' };
       }
       
+      // Supprimer les données utilisateur pour cette série
       db.prepare(`
-      DELETE FROM lecture_tomes 
-      WHERE tome_id IN (SELECT id FROM tomes WHERE serie_id = ?) 
-      AND user_id = ?
-    `).run(id, userId);
+        DELETE FROM manga_user_data 
+        WHERE serie_id = ? AND user_id = ?
+      `).run(id, userId);
 
     return { success: true, partial: true, message: 'Série retirée de votre collection (conservée pour les autres utilisateurs)' };
   } else {
@@ -84,7 +82,7 @@ async function handleDeleteSerie(db, getPathManager, store, id) {
     
     // 1. Supprimer les images (dossier complet)
     const slug = createSlug(serieTitle);
-    const serieFolderPath = path.join(paths.covers, 'series', slug);
+    const serieFolderPath = path.join(paths.covers, 'manga_series', slug);
     
     if (fs.existsSync(serieFolderPath)) {
       try {
@@ -128,11 +126,11 @@ async function handleDeleteSerie(db, getPathManager, store, id) {
       }
     }
 
-    // 2. Supprimer les données de lecture (cascade via FK sur tomes)
-    // Pas besoin de supprimer manuellement lecture_tomes, le ON DELETE CASCADE le fera
+    // 2. Supprimer les données utilisateur (cascade via FK sur manga_series)
+    // Pas besoin de supprimer manuellement manga_user_data, le ON DELETE CASCADE le fera
     
-    // 3. Supprimer la série de la base de données (cascade supprime aussi les tomes)
-    db.prepare('DELETE FROM series WHERE id = ?').run(id);
+    // 3. Supprimer la série de la base de données (cascade supprime aussi les manga_tomes)
+    db.prepare('DELETE FROM manga_series WHERE id = ?').run(id);
 
     return { success: true, partial: false, message: 'Série supprimée complètement' };
   }

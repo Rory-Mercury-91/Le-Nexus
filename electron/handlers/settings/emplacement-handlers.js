@@ -23,15 +23,14 @@ function mergeDatabases(sourceDbPath, destDbPath) {
       { name: 'series', strategy: 'skip_duplicates' },
       { name: 'tomes', strategy: 'skip_duplicates' },
       { name: 'tomes_proprietaires', strategy: 'skip_duplicates' },
-      { name: 'lecture_tomes', strategy: 'skip_duplicates' },
-      { name: 'series_masquees', strategy: 'skip_duplicates' },
+      { name: 'manga_user_data', strategy: 'skip_duplicates' },
       { name: 'anime_series', strategy: 'skip_duplicates' },
       { name: 'anime_proprietaires', strategy: 'skip_duplicates' },
       { name: 'anime_episodes', strategy: 'skip_duplicates' },
-      { name: 'anime_masquees', strategy: 'skip_duplicates' },
+      { name: 'anime_user_data', strategy: 'skip_duplicates' },
       { name: 'adulte_game_games', strategy: 'skip_duplicates' },
-      { name: 'adulte_game_proprietaires', strategy: 'skip_duplicates' },
-      { name: 'adulte_game_masquees', strategy: 'skip_duplicates' }
+      { name: 'adulte_game_user_data', strategy: 'skip_duplicates' },
+      { name: 'user_preferences', strategy: 'skip_duplicates' }
     ];
 
     let totalMerged = 0;
@@ -210,6 +209,36 @@ function registerEmplacementHandlers(ipcMain, dialog, getMainWindow, getDb, stor
     return store.get('currentUser', '');
   });
 
+  // Vérifier si des bases de données existent dans un emplacement
+  ipcMain.handle('check-databases-in-location', async (event, basePath) => {
+    try {
+      if (!basePath || typeof basePath !== 'string') {
+        return { success: false, hasDatabases: false, count: 0, error: 'Chemin invalide' };
+      }
+
+      const tempPathManager = new PathManager(basePath);
+      const paths = tempPathManager.getPaths();
+
+      if (!fs.existsSync(paths.databases)) {
+        return { success: true, hasDatabases: false, count: 0 };
+      }
+
+      const dbFiles = fs.readdirSync(paths.databases).filter(f =>
+        f.endsWith('.db') && !f.startsWith('temp_')
+      );
+
+      return {
+        success: true,
+        hasDatabases: dbFiles.length > 0,
+        count: dbFiles.length,
+        databases: dbFiles
+      };
+    } catch (error) {
+      console.error('Erreur lors de la vérification des bases:', error);
+      return { success: false, hasDatabases: false, count: 0, error: error.message };
+    }
+  });
+
   // Choisir un emplacement de base (ouvre un dialogue)
   // Utilisé pendant l'onboarding pour sélectionner l'emplacement
   ipcMain.handle('choose-base-directory', async () => {
@@ -249,6 +278,13 @@ function registerEmplacementHandlers(ipcMain, dialog, getMainWindow, getDb, stor
       // Stocker le nouvel emplacement (source de vérité)
       store.set('baseDirectory', newBasePath);
       
+      // Appliquer les migrations à toutes les bases trouvées dans le nouvel emplacement
+      const paths = tempPathManager.getPaths();
+      if (fs.existsSync(paths.databases)) {
+        const { migrateAllDatabases } = require('../../services/database');
+        migrateAllDatabases(paths.databases);
+      }
+      
       // Mettre à jour aussi le registre Windows si on est sur Windows
       if (process.platform === 'win32') {
         const { execSync } = require('child_process');
@@ -287,6 +323,19 @@ function registerEmplacementHandlers(ipcMain, dialog, getMainWindow, getDb, stor
       
       // Stocker le nouvel emplacement (source de vérité)
       store.set('baseDirectory', newBasePath);
+      
+      // Mettre à jour la variable globale pathManager pour que getPathManager() fonctionne immédiatement
+      if (global.setPathManagerMain) {
+        global.setPathManagerMain(tempPathManager);
+        console.log('✅ PathManager global mis à jour');
+      }
+      
+      // Appliquer les migrations à toutes les bases trouvées dans le nouvel emplacement
+      const paths = tempPathManager.getPaths();
+      if (fs.existsSync(paths.databases)) {
+        const { migrateAllDatabases } = require('../../services/database');
+        migrateAllDatabases(paths.databases);
+      }
       
       console.log('✅ Nouvel emplacement configuré avec succès !');
       return { success: true, path: newBasePath };

@@ -3,7 +3,7 @@
  * Documentation: https://myanimelist.net/apiconfig/references/authorization
  */
 
-const { shell } = require('electron');
+const { shell, app } = require('electron');
 const http = require('http');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
@@ -34,19 +34,26 @@ function generatePKCEChallenge() {
   // MÉTHODE PLAIN: code_challenge = code_verifier (pas de hash !)
   const code_challenge = code_verifier;
   
-  console.log('🔑 PKCE Debug (méthode PLAIN):');
-  console.log('  code_verifier:', code_verifier.substring(0, 30) + '...');
-  console.log('  code_verifier length:', code_verifier.length);
-  console.log('  code_challenge = code_verifier:', code_challenge === code_verifier ? '✅' : '❌');
+  // Logs de debug uniquement en mode verbose ou développement
+  const isDev = app && !app.isPackaged;
+  const verboseLogging = store.get('verboseLogging', false);
+  if (isDev || verboseLogging) {
+    console.log('🔑 PKCE Debug (méthode PLAIN):');
+    console.log('  code_verifier:', code_verifier.substring(0, 30) + '...');
+    console.log('  code_verifier length:', code_verifier.length);
+    console.log('  code_challenge = code_verifier:', code_challenge === code_verifier ? '✅' : '❌');
+  }
   
   return { code_verifier, code_challenge };
 }
 
+const { PORTS, URLS, MAL_CONFIG } = require('../config/constants');
+
 // Configuration OAuth MAL
-const LEGACY_MAL_CLIENT_ID = 'e72b02a7bb078afbca8c4184caa53477'; // Ancienne valeur codée en dur (fallback)
-const DEFAULT_REDIRECT_URI = 'http://localhost:8888/callback';
-const MAL_AUTH_URL = 'https://myanimelist.net/v1/oauth2/authorize';
-const MAL_TOKEN_URL = 'https://myanimelist.net/v1/oauth2/token';
+const LEGACY_MAL_CLIENT_ID = MAL_CONFIG.LEGACY_CLIENT_ID;
+const DEFAULT_REDIRECT_URI = MAL_CONFIG.DEFAULT_REDIRECT_URI;
+const MAL_AUTH_URL = URLS.MAL_AUTH;
+const MAL_TOKEN_URL = URLS.MAL_TOKEN;
 
 function getConfiguredMalClientId() {
   const stored = (store.get('mal.clientId', '') || '').trim();
@@ -102,7 +109,7 @@ function startOAuthFlow(onSuccess, onError) {
   const server = http.createServer(async (req, res) => {
     if (callbackReceived) return;
     
-    const url = new URL(req.url, `http://localhost:8888`);
+    const url = new URL(req.url, `http://localhost:${PORTS.OAUTH_CALLBACK}`);
     
     if (url.pathname === '/callback') {
       callbackReceived = true;
@@ -190,7 +197,7 @@ function startOAuthFlow(onSuccess, onError) {
   
   // Démarrer le serveur
   server.listen(8888, () => {
-    console.log('🔐 Serveur OAuth callback démarré sur http://localhost:8888');
+    console.log(`🔐 Serveur OAuth callback démarré sur http://localhost:${PORTS.OAUTH_CALLBACK}`);
     
     // Construire l'URL d'autorisation
     const authUrl = new URL(MAL_AUTH_URL);

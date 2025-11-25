@@ -3,10 +3,11 @@ const { handleOptionsRequest, sendSuccessResponse, sendErrorResponse, notifyImpo
 const { registerMangaRoutes } = require('./mangas/import-routes');
 const { registerAnimeRoutes } = require('./animes/import-routes');
 const { registerAdulteGameRoutes } = require('./adulte-game/import-routes');
+const { PORTS } = require('../config/constants');
 
 /**
  * Crée un serveur HTTP local pour recevoir les imports depuis le navigateur
- * @param {number} port - Port du serveur (défaut: 51234)
+ * @param {number} port - Port du serveur (défaut: PORTS.IMPORT_SERVER)
  * @param {Function} getDb - Fonction pour récupérer l'instance de la base de données
  * @param {Store} store - Instance d'electron-store
  * @param {BrowserWindow} mainWindow - Fenêtre principale pour envoyer des événements

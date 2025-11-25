@@ -14,6 +14,7 @@ interface MangaTomesListProps {
   onDrop: (e: React.DragEvent, tome: Tome) => void;
   onToggleTomeLu: (tomeId: number, checked: boolean) => Promise<void>;
   onToggleTomePossede: (tomeId: number, checked: boolean) => Promise<void>;
+  onToggleTomeMihon: (tomeId: number, checked: boolean) => Promise<void>;
   onEditTome: (tomeId: number) => void;
   onDeleteTome: (tomeId: number) => void;
   onAddTome: () => void;
@@ -31,6 +32,7 @@ export function MangaTomesList({
   onDrop,
   onToggleTomeLu,
   onToggleTomePossede,
+  onToggleTomeMihon,
   onEditTome,
   onDeleteTome,
   onAddTome,
@@ -56,13 +58,14 @@ export function MangaTomesList({
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '700' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BookOpen size={20} />
           Tomes ({tomes.length})
         </h2>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {tomes.length > 0 && (
-            <button 
-              onClick={onPossederTousLesTomes} 
+            <button
+              onClick={onPossederTousLesTomes}
               className="btn btn-primary"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
             >
@@ -70,8 +73,8 @@ export function MangaTomesList({
               Posséder tous les tomes
             </button>
           )}
-          <button 
-            onClick={onAddTome} 
+          <button
+            onClick={onAddTome}
             className="btn btn-primary"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
@@ -84,13 +87,14 @@ export function MangaTomesList({
       {tomes.length > 0 ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
           gap: '16px'
         }}>
           {tomes.sort((a, b) => a.numero - b.numero).map((tome) => {
             const isDragging = draggingTomeId === tome.id;
             const isPossede = currentUserId !== null && tome.proprietaireIds?.includes(currentUserId) === true;
             const isLu = tome.lu === 1;
+            const isMihon = tome.mihon === 1;
 
             return (
               <div
@@ -122,7 +126,7 @@ export function MangaTomesList({
                 onDragLeave={onDragLeave}
                 onDrop={(e) => onDrop(e, tome)}
               >
-                {/* Header: Tome X + Deux checkboxes (Possédé | Lu) */}
+                {/* Header: Tome X + Trois checkboxes (Possédé | Lu | Mihon) */}
                 <div style={{
                   padding: '12px 16px',
                   background: isLu ? 'var(--success)22' : 'var(--surface-light)',
@@ -139,7 +143,7 @@ export function MangaTomesList({
                     <span>Tome {tome.numero}</span>
                   </div>
 
-                  {/* Droite: Deux checkboxes (Possédé | Lu) */}
+                  {/* Droite: Trois checkboxes (Possédé | Lu | Mihon) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     {/* Checkbox Possédé */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -186,6 +190,30 @@ export function MangaTomesList({
                       />
                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
                         Lu
+                      </span>
+                    </label>
+
+                    {/* Checkbox Mihon */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={isMihon}
+                        onChange={async (e) => {
+                          e.stopPropagation();
+                          await onToggleTomeMihon(tome.id, e.target.checked);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer',
+                          accentColor: 'var(--warning)',
+                          flexShrink: 0
+                        }}
+                        title={isMihon ? 'Marquer comme non Mihon' : 'Marquer comme Mihon'}
+                      />
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                        Mihon
                       </span>
                     </label>
                   </div>

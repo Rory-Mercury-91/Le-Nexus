@@ -1,6 +1,7 @@
 import { AlertCircle, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface BlacklistEntry {
   id: number;
@@ -20,6 +21,9 @@ interface BlacklistModalProps {
 export default function BlacklistModal({ onClose, onRemove }: BlacklistModalProps) {
   const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
 
   useEffect(() => {
     loadBlacklist();

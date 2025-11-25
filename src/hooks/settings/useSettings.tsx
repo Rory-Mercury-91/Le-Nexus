@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimeImportProgress, AnimeImportResult, ContentPreferences } from '../../types';
 import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
+import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import { useAppSettings } from './useAppSettings';
 import { useDatabaseSettings } from './useDatabaseSettings';
 import { useMalSettings } from './useMalSettings';
@@ -15,29 +16,25 @@ interface UserData {
   color: string;
 }
 
-interface NotificationConfig {
-  enabled: boolean;
-  checkAnimes: boolean;
-  checkAdulteGame: boolean;
-  notifyNautiljonSync: boolean;
-  notifyMalSync: boolean;
-  notifyEnrichment: boolean;
-  notifyBackup: boolean;
-  soundEnabled: boolean;
-  checkOnStartup: boolean;
-}
-
-const defaultNotificationConfig: NotificationConfig = {
-  enabled: false,
-  checkAnimes: true,
-  checkAdulteGame: true,
-  notifyNautiljonSync: true,
-  notifyMalSync: true,
-  notifyEnrichment: true,
-  notifyBackup: true,
-  soundEnabled: true,
-  checkOnStartup: false,
-};
+const getDefaultSectionStates = () => ({
+  'user-management': true,
+  'tampermonkey': true,
+  'appearance': true,
+  'notifications': true,
+  'integrations': true,
+  'ai': true,
+  'display-preferences': true,
+  'database': true,
+  'source-credits': true,
+  'dev': false, // Reste fermé par défaut
+  'danger-zone': false, // Reste fermé par défaut
+  'integrations-mal': true,
+  'integrations-tmdb': true,
+  'integrations-groq': true,
+  'integrations-adulteGame': true,
+  'database-backup-config': true,
+  'database-backups-list': true
+});
 
 export function useSettings() {
   const defaultContentPrefs: ContentPreferences = {
@@ -51,12 +48,14 @@ export function useSettings() {
   const [loading, setLoading] = useState(true);
   const [importingAnimes, setImportingAnimes] = useState(false);
   const [animeImportResult] = useState<AnimeImportResult | null>(null);
-  const [animeImportProgress, setAnimeImportProgress] = useState<AnimeImportProgress | null>(null);
   const [importStartTime, setImportStartTime] = useState<number>(0);
   const [importType, setImportType] = useState<'xml' | 'mal-sync'>('xml');
+  
+  // Utiliser le contexte global pour les progressions
+  const { setAnimeProgress } = useGlobalProgress();
   const [users, setUsers] = useState<UserData[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string | null>>({});
-  const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
+  const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(getDefaultSectionStates);
   const [showMangaDisplayModal, setShowMangaDisplayModal] = useState(false);
   const [showAnimeDisplayModal, setShowAnimeDisplayModal] = useState(false);
   const [showMovieDisplayModal, setShowMovieDisplayModal] = useState(false);
@@ -68,7 +67,6 @@ export function useSettings() {
   const [globalSyncInterval, setGlobalSyncInterval] = useState<1 | 3 | 6 | 12 | 24>(6);
   const [globalSyncInitialized, setGlobalSyncInitialized] = useState(false);
   const [globalSyncUpdating, setGlobalSyncUpdating] = useState(false);
-  const [notifyEnrichment, setNotifyEnrichment] = useState<boolean>(defaultNotificationConfig.notifyEnrichment);
 
   // Hooks spécialisés
   const malSettings = useMalSettings();
@@ -84,11 +82,10 @@ export function useSettings() {
     loadContentPreferences();
     loadSectionStates();
     loadMediaSyncSettings();
-    loadNotificationPreferences();
 
     // Écouter les mises à jour de progression de l'import XML
     const unsubscribeXml = window.electronAPI.onAnimeImportProgress((progress: AnimeImportProgress) => {
-      setAnimeImportProgress(progress);
+      setAnimeProgress(progress);
     });
 
     return () => {
@@ -128,71 +125,16 @@ export function useSettings() {
   const loadSectionStates = async () => {
     try {
       const stored = localStorage.getItem('settings-section-states');
-      // Toutes les sections sont ouvertes par défaut
-      const defaults = {
-        'user-management': true,
-        'tampermonkey': true,
-        'appearance': true,
-        'notifications': true,
-        'integrations': true,
-        'ai': true,
-        'display-preferences': true,
-        'database': true,
-        'source-credits': true,
-        'dev': true,
-        'danger-zone': true,
-        // Sections imbriquées dans IntegrationsSettings
-        'integrations-mal': true,
-        'integrations-tmdb': true,
-        'integrations-groq': true,
-        'integrations-adulteGame': true,
-        // Sections collapsibles dans DatabaseSettings
-        'database-backup-config': true,
-        'database-backups-list': true
-      };
+      const defaults = getDefaultSectionStates();
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Fusionner avec les defaults pour s'assurer que toutes les nouvelles sections sont ouvertes par défaut
         setSectionStates({ ...defaults, ...parsed });
       } else {
         setSectionStates(defaults);
       }
     } catch (error) {
       console.error('Erreur chargement états des sections:', error);
-      // En cas d'erreur, utiliser les defaults
-      setSectionStates({
-        'user-management': true,
-        'tampermonkey': true,
-        'appearance': true,
-        'notifications': true,
-        'integrations': true,
-        'ai': true,
-        'display-preferences': true,
-        'database': true,
-        'source-credits': true,
-        'dev': true,
-        'danger-zone': true,
-        'integrations-mal': true,
-        'integrations-tmdb': true,
-        'integrations-groq': true,
-        'integrations-adulteGame': true,
-        'database-backup-config': true,
-        'database-backups-list': true
-      });
-    }
-  };
-
-  const loadNotificationPreferences = async () => {
-    try {
-      const savedConfig = await window.electronAPI.getNotificationConfig();
-      const mergedConfig: NotificationConfig = {
-        ...defaultNotificationConfig,
-        ...(savedConfig || {})
-      };
-      setNotifyEnrichment(Boolean(mergedConfig.notifyEnrichment));
-    } catch (error) {
-      console.error('Erreur chargement configuration notifications:', error);
-      setNotifyEnrichment(defaultNotificationConfig.notifyEnrichment);
+      setSectionStates(getDefaultSectionStates());
     }
   };
 
@@ -209,12 +151,26 @@ export function useSettings() {
     }
   };
 
-  const toggleSection = (sectionId: string) => {
+  const updateSectionStates = (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
     setSectionStates(prev => {
-      const newStates = { ...prev, [sectionId]: !prev[sectionId] };
+      const newStates = updater(prev);
       localStorage.setItem('settings-section-states', JSON.stringify(newStates));
       return newStates;
     });
+  };
+
+  const toggleSection = (sectionId: string) => {
+    updateSectionStates(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const setSectionState = (sectionId: string, isOpen: boolean) => {
+    updateSectionStates(prev => ({
+      ...prev,
+      [sectionId]: isOpen
+    }));
   };
 
   // ========== HANDLERS ==========
@@ -255,33 +211,6 @@ export function useSettings() {
     const sanitized = (region.trim().slice(0, 2) || 'FR').toUpperCase();
     setTmdbRegion(sanitized);
     await saveMediaSyncSettings({ region: sanitized });
-  };
-
-  const handleNotifyEnrichmentChange = async (enabled: boolean) => {
-    const previousValue = notifyEnrichment;
-    setNotifyEnrichment(enabled);
-    try {
-      const latestConfig = await window.electronAPI.getNotificationConfig();
-      const mergedConfig: NotificationConfig = {
-        ...defaultNotificationConfig,
-        ...(latestConfig || {}),
-        notifyEnrichment: enabled
-      };
-      await window.electronAPI.saveNotificationConfig(mergedConfig);
-      showToast({
-        title: enabled ? 'Notification enrichissement activée' : 'Notification enrichissement désactivée',
-        type: 'success',
-        duration: 2000
-      });
-    } catch (error: any) {
-      console.error('Erreur sauvegarde notification enrichissement:', error);
-      setNotifyEnrichment(previousValue);
-      showToast({
-        title: 'Erreur',
-        message: error?.message || 'Impossible de mettre à jour la notification.',
-        type: 'error'
-      });
-    }
   };
 
   const handleMalSyncNow = async () => {
@@ -395,7 +324,7 @@ export function useSettings() {
     loading,
     importingAnimes,
     animeImportResult,
-    animeImportProgress: animeImportProgress || malAnimeImportProgress, // Préférer celui de XML, sinon celui de MAL
+    animeImportProgress: malAnimeImportProgress, // Utiliser celui du contexte global
     mangaImportProgress: malMangaImportProgress,
     importType,
     users,
@@ -415,7 +344,6 @@ export function useSettings() {
     tmdbRegion,
     globalSyncInterval,
     globalSyncUpdating,
-    notifyEnrichment,
 
     // Hooks spécialisés (sans duplication)
     ...restMalSettings,
@@ -432,6 +360,7 @@ export function useSettings() {
 
     // Functions locales
     toggleSection,
+    setSectionState,
     loadSettings,
     handleContentPrefChange,
     handleMalSyncNow,
@@ -460,6 +389,5 @@ export function useSettings() {
         setGlobalSyncUpdating(false);
       }
     },
-    handleNotifyEnrichmentChange,
   };
 }

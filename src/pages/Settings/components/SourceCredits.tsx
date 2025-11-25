@@ -1,25 +1,41 @@
 import { ExternalLink } from 'lucide-react';
-import malLogo from '../../../../assets/MyAnimeList_favicon.svg';
-import nautiljonLogo from '../../../../assets/logo_nautiljon.webp';
-import groqLogo from '../../../../assets/Groq_logo.svg';
-import tmdbLogo from '../../../../assets/Tmdb.new.logo.svg';
+// Fichiers dans public/assets/ (servis via le chemin public)
+// Helper pour obtenir le chemin correct selon l'environnement
+const getAssetPath = (path: string) => {
+  // En production Electron (file://), utiliser un chemin relatif
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return `./assets/${path.split('/assets/')[1]}`;
+  }
+  return path;
+};
+// Utiliser une fonction pour obtenir les chemins dynamiquement
+const getLogos = () => ({
+  mal: getAssetPath('/assets/MyAnimeList_favicon.svg'),
+  nautiljon: getAssetPath('/assets/logo_nautiljon.webp'),
+  groq: getAssetPath('/assets/Groq_logo.svg'),
+  tmdb: getAssetPath('/assets/Tmdb.new.logo.svg')
+});
+// Fichiers dans assets/ (imports directs - fichiers spécifiques à l'application)
 import f95Logo from '../../../../assets/F95logo.png';
 import googleLogo from '../../../../assets/google-wordmarks-2x.webp';
 import googleSheetsLogo from '../../../../assets/google-sheets.webp';
 
-const sourceCredits = [
+// Fonction pour créer les crédits avec les logos dynamiques
+const createSourceCredits = () => {
+  const logos = getLogos();
+  return [
   {
     name: 'MyAnimeList',
     url: 'https://myanimelist.net',
     type: 'API officielle & export XML',
-    usage: 'Synchronisation des listes d’animes/mangas, enrichissement des métadonnées et suivi des statuts.',
-    logo: malLogo
+    usage: 'Synchronisation des listes d\'animes/mangas, enrichissement des métadonnées et suivi des statuts.',
+    logo: logos.mal
   },
   {
     name: 'Google Cloud',
     url: 'https://developers.google.com/sheets/api',
     type: 'API officielle Google',
-    usage: 'Synchronisation des données de configuration et récupération d’informations via Google Sheets.',
+    usage: 'Synchronisation des données de configuration et récupération d\'informations via Google Sheets.',
     logos: [googleLogo, googleSheetsLogo]
   },
   {
@@ -27,21 +43,21 @@ const sourceCredits = [
     url: 'https://groq.com',
     type: 'API IA générative',
     usage: 'Génération et amélioration des traductions, résumés et assistants contextuels.',
-    logo: groqLogo
+    logo: logos.groq
   },
   {
     name: 'The Movie Database (TMDb)',
     url: 'https://www.themoviedb.org',
     type: 'API communautaire',
     usage: 'Import et enrichissement des fiches films/séries : visuels HD, distributions, recommandations et notes.',
-    logo: tmdbLogo
+    logo: logos.tmdb
   },
   {
     name: 'Nautiljon',
     url: 'https://www.nautiljon.com',
     type: 'Scraping encadré',
     usage: 'Mise à jour des titres, jaquettes françaises et informations spécifiques à la communauté francophone.',
-    logo: nautiljonLogo
+    logo: logos.nautiljon
   },
   {
     name: 'F95Zone',
@@ -50,13 +66,14 @@ const sourceCredits = [
     usage: 'Collecte des métadonnées, jaquettes alternatives et informations communautaires pour les jeux adultes (via scripts dédiés respectant les limitations du site).',
     logo: f95Logo
   }
-];
+  ];
+};
 
 export default function SourceCredits() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
       <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '8px' }}>
-        Les services ci-dessous alimentent l’application en données ou fonctionnalités. Merci de respecter leurs conditions d’utilisation et limitations d’API.
+        Les services ci-dessous alimentent l\'application en données ou fonctionnalités. Merci de respecter leurs conditions d\'utilisation et limitations d\'API.
       </p>
 
       <div
@@ -67,7 +84,7 @@ export default function SourceCredits() {
           width: '100%'
         }}
       >
-        {sourceCredits.map((source) => (
+        {createSourceCredits().map((source) => (
           <div
             key={source.name}
             style={{

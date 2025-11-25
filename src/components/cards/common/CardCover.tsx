@@ -76,7 +76,7 @@ export default function CardCover({ src, alt, fallbackIcon, objectFit = 'cover',
     <div style={{
       width: '100%',
       height: '100%',
-      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
+      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

@@ -1,10 +1,11 @@
 import { ChevronDown, RefreshCw } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdulteGameCard } from '../../components/cards';
 import { COMMON_STATUSES } from '../../components/cards/common';
 import {
   BackToTopButton,
+  BackToBottomButton,
   CollectionFiltersBar,
   CollectionHeader,
   CollectionSearchBar,
@@ -16,11 +17,11 @@ import {
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
 import AddAdulteGameModal from '../../components/modals/adulte-game/AddAdulteGameModal';
-import UpdateProgressInline from '../../components/collections/UpdateProgressInline';
 import { useAdulteGameCollection } from '../../hooks/collections/useAdulteGameCollection';
 import { useConfirm } from '../../hooks/common/useConfirm';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
+import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import type { AdulteGame, AdulteGameStatutJeu, AdulteGameStatutPerso } from '../../types';
 
 export default function AdulteGame() {
@@ -28,16 +29,8 @@ export default function AdulteGame() {
   const { ToastContainer } = useToast();
   const { ConfirmDialog: ConfirmModal } = useConfirm();
   
-  // État pour la progression des mises à jour
-  const [updateProgress, setUpdateProgress] = useState<{
-    phase: 'start' | 'sheet' | 'scraping' | 'complete' | 'error';
-    total: number;
-    current: number;
-    message: string;
-    gameTitle?: string;
-    updated?: number;
-    sheetSynced?: number;
-  } | null>(null);
+  // Utiliser le contexte global pour la progression
+  const { setAdulteGameUpdating, setAdulteGameProgress } = useGlobalProgress();
 
   // Hook principal qui gère toute la logique métier
   const {
@@ -59,6 +52,8 @@ export default function AdulteGame() {
     setShowFavoriteOnly,
     showHidden,
     setShowHidden,
+    showOutdatedTranslation,
+    setShowOutdatedTranslation,
     selectedMoteur,
     setSelectedMoteur,
     availableMoteurs,
@@ -111,28 +106,10 @@ export default function AdulteGame() {
 
   useScrollRestoration('collection.adulteGames.scroll', !loading);
 
-  // Écouter les événements de progression des mises à jour
-  useEffect(() => {
-    const unsubscribe = window.electronAPI.onAdulteGameUpdatesProgress?.((progress) => {
-      setUpdateProgress(progress);
-      // Auto-masquer après 5 secondes si terminé ou erreur
-      if (progress.phase === 'complete' || progress.phase === 'error') {
-        setTimeout(() => {
-          setUpdateProgress(null);
-        }, 5000);
-      }
-    });
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, []);
-
   // Wrapper pour handleCheckUpdates qui gère l'affichage de la progression
   const handleCheckUpdatesWithProgress = useCallback(async () => {
-    setUpdateProgress({
+    setAdulteGameUpdating(true);
+    setAdulteGameProgress({
       phase: 'start',
       total: 0,
       current: 0,
@@ -142,14 +119,14 @@ export default function AdulteGame() {
     try {
       await handleCheckUpdates();
     } catch (error) {
-      setUpdateProgress({
+      setAdulteGameProgress({
         phase: 'error',
         total: 0,
         current: 0,
         message: error instanceof Error ? error.message : 'Erreur lors de la vérification'
       });
     }
-  }, [handleCheckUpdates]);
+  }, [handleCheckUpdates, setAdulteGameUpdating, setAdulteGameProgress]);
 
   // États d'UI spécifiques au composant (affichage des filtres collapsibles)
   const [showTagsFilter, setShowTagsFilter] = useState(false);
@@ -336,9 +313,10 @@ export default function AdulteGame() {
               <button
                 onClick={handleCheckUpdatesWithProgress}
                 disabled={loading}
-                className="btn btn-primary"
+                className="btn btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                <RefreshCw size={20} />
+                <RefreshCw size={18} />
                 Vérifier MAJ
               </button>
             }
@@ -366,7 +344,9 @@ export default function AdulteGame() {
           )}
 
           {/* Stats de progression */}
-          <ProgressionHeader type="adulte-game" stats={stats} />
+          <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
+            <ProgressionHeader type="adulte-game" stats={stats} />
+          </div>
 
           {/* Recherche et filtres avec composants réutilisables */}
           <CollectionFiltersBar
@@ -382,12 +362,12 @@ export default function AdulteGame() {
             />
 
             {/* Ligne 1 : Tri et Selects */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'nowrap', alignItems: 'center', overflowX: 'auto' }}>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
                 className="select"
-                style={{ minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="title-asc">📖 Titre (A → Z)</option>
                 <option value="title-desc">📖 Titre (Z → A)</option>
@@ -401,7 +381,7 @@ export default function AdulteGame() {
                 value={selectedStatutJeu}
                 onChange={(e) => setSelectedStatutJeu(e.target.value as AdulteGameStatutJeu | 'all')}
                 className="select"
-                style={{ width: 'auto', minWidth: '180px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🔍 Tous les statuts jeu</option>
                 <option value="EN COURS">🎮 EN COURS</option>
@@ -413,7 +393,7 @@ export default function AdulteGame() {
                 value={selectedStatutPerso}
                 onChange={(e) => setSelectedStatutPerso(e.target.value as AdulteGameStatutPerso | 'all')}
                 className="select"
-                style={{ width: 'auto', minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🔍 Toutes les complétions</option>
                 <option value="À lire">📋 À lire</option>
@@ -427,7 +407,7 @@ export default function AdulteGame() {
                 value={selectedPlateforme}
                 onChange={(e) => setSelectedPlateforme(e.target.value as 'all' | 'F95Zone' | 'LewdCorner')}
                 className="select"
-                style={{ width: 'auto', minWidth: '180px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🔍 Toutes les plateformes</option>
                 <option value="F95Zone">🌐 F95Zone</option>
@@ -438,7 +418,7 @@ export default function AdulteGame() {
                 value={selectedMoteur}
                 onChange={(e) => setSelectedMoteur(e.target.value)}
                 className="select"
-                style={{ width: 'auto', minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🛠️ Tous les moteurs</option>
                 {availableMoteurs.map((moteur) => (
@@ -450,13 +430,14 @@ export default function AdulteGame() {
 
               <select
                 value={translationFilter}
-                onChange={(e) => setTranslationFilter(e.target.value as 'all' | 'translated' | 'not-translated')}
+                onChange={(e) => setTranslationFilter(e.target.value as 'all' | 'translated' | 'not-translated' | 'integrated')}
                 className="select"
-                style={{ width: 'auto', minWidth: '200px' }}
+                style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🌍 Toutes les traductions</option>
                 <option value="translated">🇫🇷 Jeux traduits</option>
                 <option value="not-translated">🛠️ Jeux non traduits</option>
+                <option value="integrated">🔧 Traduction intégré</option>
               </select>
             </div>
 
@@ -484,6 +465,14 @@ export default function AdulteGame() {
                 label="👁️ Jeux masqués"
                 icon="👁️"
                 activeColor="#f59e0b"
+              />
+
+              <FilterToggle
+                checked={showOutdatedTranslation}
+                onChange={setShowOutdatedTranslation}
+                label="⚠️ Version non à jour"
+                icon="⚠️"
+                activeColor="#ef4444"
               />
             </div>
 
@@ -625,7 +614,7 @@ export default function AdulteGame() {
             )}
           </CollectionFiltersBar>
 
-          {/* Pagination */}
+          {/* Pagination avec contrôles de vue et items par page */}
           {sortedGames.length > 0 && (
             <Pagination
               currentPage={currentPage}
@@ -633,7 +622,7 @@ export default function AdulteGame() {
               itemsPerPage={itemsPerPage as 25 | 50 | 100 | 'all'}
               totalItems={sortedGames.length}
               onPageChange={setCurrentPage}
-              onItemsPerPageChange={(items: 25 | 50 | 100 | 'all') => setItemsPerPage(items)}
+              onItemsPerPageChange={setItemsPerPage}
               onFirstPage={goToFirstPage}
               onLastPage={goToLastPage}
               onNextPage={goToNextPage}
@@ -641,8 +630,8 @@ export default function AdulteGame() {
               canGoNext={canGoNext}
               canGoPrevious={canGoPrevious}
               viewMode={viewMode}
-              onViewModeChange={(mode: 'grid' | 'list' | 'images') => handleViewModeChange(mode)}
-              hideImageView={true}
+              onViewModeChange={handleViewModeChange}
+              hideImageView
             />
           )}
 
@@ -694,29 +683,23 @@ export default function AdulteGame() {
             );
           })()}
 
-          {/* Progression des mises à jour (inline) */}
-          {updateProgress && (
-            <UpdateProgressInline
-              phase={updateProgress.phase}
-              total={updateProgress.total}
-              current={updateProgress.current}
-              message={updateProgress.message}
-              gameTitle={updateProgress.gameTitle}
-              updated={updateProgress.updated}
-              sheetSynced={updateProgress.sheetSynced}
-            />
-          )}
 
           {/* Liste des jeux */}
           <CollectionView
             items={paginatedItems}
-            loading={loading && !updateProgress}
+            loading={loading}
             viewMode={viewMode}
             key={`${viewMode}-${currentPage}`}
             renderCard={renderGameCard}
             renderListItem={renderGameListItem}
-            emptyMessage={games.length === 0 ? 'Ajoutez votre premier jeu adulte !' : (showAddFromUrl ? '' : 'Aucun jeu trouvé. Essayez de modifier vos filtres')}
-            emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3 }}>🎮</span>}
+            emptyMessage={
+              showAddFromUrl
+                ? ''
+                : (hasActiveFilters
+                  ? 'Aucun jeu adulte ne correspond à vos filtres'
+                  : 'Aucun jeu adulte dans votre collection')
+            }
+            emptyIcon={<span style={{ fontSize: '64px', opacity: 0.3, margin: '0 auto 24px', display: 'block' }}>🎮</span>}
             gridMinWidth={400}
             imageMinWidth={350}
           />
@@ -737,27 +720,31 @@ export default function AdulteGame() {
           )}
 
 
+          {/* Pagination en bas */}
           {sortedGames.length > 0 && (
-            <div style={{ marginTop: '32px' }}>
+            <div style={{ marginTop: '24px' }}>
               <Pagination
                 currentPage={currentPage}
                 totalPages={totalPages}
                 itemsPerPage={itemsPerPage as 25 | 50 | 100 | 'all'}
                 totalItems={sortedGames.length}
                 onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
                 onFirstPage={goToFirstPage}
                 onLastPage={goToLastPage}
                 onNextPage={goToNextPage}
                 onPreviousPage={goToPreviousPage}
                 canGoNext={canGoNext}
                 canGoPrevious={canGoPrevious}
-                hideItemsPerPageSelect
+                viewMode={viewMode}
+                onViewModeChange={handleViewModeChange}
                 hideImageView
               />
             </div>
           )}
 
           <BackToTopButton />
+          <BackToBottomButton />
         </div>
       </div>
     </>

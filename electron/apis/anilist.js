@@ -36,7 +36,7 @@ async function getAniListIdFromMAL(malId) {
  */
 // Fonction utilitaire pour filtrer les liens de streaming (plateformes acceptées et pages spécifiques)
 function filterStreamingLinks(links) {
-  // Plateformes acceptées
+  // Plateformes acceptées (liens externes depuis AniList/MyAnimeList)
   const acceptedPlatforms = [
     'ADN',
     'Anime Digital Network',
@@ -142,7 +142,7 @@ async function getStreamingLinksFromAniList(malId) {
     }));
     const filteredLinks = filterStreamingLinks(mappedLinks);
 
-    console.log(`✅ ${filteredLinks.length}/${streamingLinks.length} liens de streaming retenus pour anime MAL ID ${malId} (ADN, Disney+, Prime Video, Crunchyroll)`);
+    console.log(`✅ ${filteredLinks.length}/${streamingLinks.length} liens de streaming retenus pour anime MAL ID ${malId} (ADN, Disney+, Prime Video, Crunchyroll, Netflix)`);
     
     return filteredLinks.map(link => {
       // Si le nom de la plateforme est "Unknown", essayer de le déduire depuis l'URL

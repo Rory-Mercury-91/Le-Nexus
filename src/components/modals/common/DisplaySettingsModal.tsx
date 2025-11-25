@@ -1,216 +1,268 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState } from 'react';
 import Toggle from '../../common/Toggle';
 import Modal from './Modal';
 import { useModalEscape } from './useModalEscape';
 
-type FieldKey =
-  | 'couverture' | 'titre' | 'description'
-  | 'annee_publication' | 'annee_vf'
-  | 'nb_volumes' | 'nb_volumes_vf'
-  | 'nb_chapitres' | 'nb_chapitres_vf'
-  | 'demographie' | 'langue_originale'
-  | 'rating' | 'editeur' | 'editeur_vo' | 'serialization'
-  | 'genres' | 'themes' | 'auteurs' | 'media_type' | 'date_debut' | 'date_fin'
-  | 'mal_id' | 'titres_alternatifs' | 'type_volume'
-  | 'statut_publication' | 'statut_publication_vf' | 'mal_block';
+export interface DisplayField {
+  key: string;
+  label: string;
+  category?: string; // Optionnel : pour grouper les champs
+}
 
-interface FieldCategory {
+export interface DisplayFieldCategory {
   title: string;
   icon: string;
-  fields: { key: FieldKey; label: string }[];
+  fields: DisplayField[];
 }
 
-const FIELD_CATEGORIES: FieldCategory[] = [
-  {
-    title: 'Informations principales',
-    icon: '📚',
-    fields: [
-      { key: 'couverture', label: 'Couverture' },
-      { key: 'titre', label: 'Titre' },
-      { key: 'description', label: 'Description / Synopsis' },
-      { key: 'titres_alternatifs', label: 'Titres alternatifs' }
-    ]
-  },
-  {
-    title: 'Publication',
-    icon: '📅',
-    fields: [
-      { key: 'annee_publication', label: 'Année de publication (VO)' },
-      { key: 'annee_vf', label: 'Année de publication (VF)' },
-      { key: 'date_debut', label: 'Date de début' },
-      { key: 'date_fin', label: 'Date de fin' },
-      { key: 'statut_publication', label: 'Statut de publication (VO)' },
-      { key: 'statut_publication_vf', label: 'Statut de publication (VF)' }
-    ]
-  },
-  {
-    title: 'Volumes et chapitres',
-    icon: '📖',
-    fields: [
-      { key: 'nb_volumes', label: 'Nombre de volumes (VO)' },
-      { key: 'nb_volumes_vf', label: 'Nombre de volumes (VF)' },
-      { key: 'nb_chapitres', label: 'Nombre de chapitres (VO)' },
-      { key: 'nb_chapitres_vf', label: 'Nombre de chapitres (VF)' },
-      { key: 'type_volume', label: 'Type de volume' }
-    ]
-  },
-  {
-    title: 'Classification',
-    icon: '🏷️',
-    fields: [
-      { key: 'genres', label: 'Genres' },
-      { key: 'themes', label: 'Thèmes' },
-      { key: 'demographie', label: 'Démographie' },
-      { key: 'rating', label: 'Classification / Rating' },
-      { key: 'media_type', label: 'Type de média' }
-    ]
-  },
-  {
-    title: 'Édition',
-    icon: '🏢',
-    fields: [
-      { key: 'editeur', label: 'Éditeur (VF)' },
-      { key: 'editeur_vo', label: 'Éditeur (VO)' },
-      { key: 'serialization', label: 'Sérialisation' },
-      { key: 'langue_originale', label: 'Langue originale' }
-    ]
-  },
-  {
-    title: 'Créateurs',
-    icon: '✍️',
-    fields: [
-      { key: 'auteurs', label: 'Auteurs' }
-    ]
-  },
-  {
-    title: 'MyAnimeList',
-    icon: '🔗',
-    fields: [
-      { key: 'mal_id', label: 'ID MyAnimeList' },
-      { key: 'mal_block', label: 'Bloc MyAnimeList' }
-    ]
-  }
-];
+export type DisplayPreferencesMode = 'global' | 'global-local';
 
-const DEFAULTS: Record<FieldKey, boolean> = {
-  couverture: true,
-  titre: true,
-  description: true,
-  annee_publication: true,
-  annee_vf: true,
-  nb_volumes: true,
-  nb_volumes_vf: true,
-  nb_chapitres: true,
-  nb_chapitres_vf: true,
-  demographie: true,
-  langue_originale: true,
-  rating: true,
-  editeur: true,
-  editeur_vo: true,
-  serialization: true,
-  genres: true,
-  themes: true,
-  auteurs: true,
-  media_type: true,
-  date_debut: true,
-  date_fin: true,
-  mal_id: true,
-  titres_alternatifs: true,
-  type_volume: true,
-  statut_publication: true,
-  statut_publication_vf: true,
-  mal_block: true
-};
+export interface DisplaySettingsModalProps {
+  /**
+   * Titre de la modale
+   */
+  title: string;
 
-interface DisplaySettingsModalProps {
+  /**
+   * Description optionnelle
+   */
+  description?: string;
+
+  /**
+   * Liste des champs à afficher (peut être une liste simple ou des catégories)
+   */
+  fields: DisplayField[] | DisplayFieldCategory[];
+
+  /**
+   * Mode de fonctionnement : 'global' (simple) ou 'global-local' (avec overrides)
+   */
+  mode: DisplayPreferencesMode;
+
+  /**
+   * ID de l'item pour le mode 'global-local' (null pour mode 'global')
+   */
+  itemId?: number | null;
+
+  /**
+   * Callback pour charger les préférences globales
+   */
+  loadGlobalPrefs: () => Promise<Record<string, boolean>>;
+
+  /**
+   * Callback pour sauvegarder les préférences globales (mode 'global')
+   */
+  saveGlobalPrefs?: (prefs: Record<string, boolean>) => Promise<void>;
+
+  /**
+   * Callback pour charger les overrides locaux (mode 'global-local')
+   */
+  loadLocalOverrides?: (itemId: number) => Promise<Record<string, boolean>>;
+
+  /**
+   * Callback pour sauvegarder les overrides locaux (mode 'global-local')
+   */
+  saveLocalOverrides?: (itemId: number, overrides: Record<string, boolean>) => Promise<void>;
+
+  /**
+   * Callback pour supprimer des overrides locaux (mode 'global-local')
+   */
+  deleteLocalOverrides?: (itemId: number, keys: string[]) => Promise<void>;
+
+  /**
+   * Callback appelé après sauvegarde réussie
+   */
+  onSave?: () => void;
+
+  /**
+   * Callback appelé à la fermeture
+   */
   onClose: () => void;
-  showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
+
+  /**
+   * Optionnel : afficher un toast de succès
+   */
+  showToast?: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
 }
 
-export default function DisplaySettingsModal({ onClose, showToast }: DisplaySettingsModalProps) {
-  useModalEscape(onClose, false);
-  
-  const [prefs, setPrefs] = useState<Record<FieldKey, boolean>>(DEFAULTS);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+/**
+ * Composant générique pour les modales de préférences d'affichage.
+ * Supporte deux modes :
+ * - 'global' : Préférences globales simples (comme Movie/Series)
+ * - 'global-local' : Préférences globales avec overrides locaux (comme Anime/Manga)
+ */
+export default function DisplaySettingsModal({
+  title,
+  description,
+  fields,
+  mode,
+  itemId = null,
+  loadGlobalPrefs,
+  saveGlobalPrefs,
+  loadLocalOverrides,
+  saveLocalOverrides,
+  deleteLocalOverrides,
+  onSave,
+  onClose,
+  showToast
+}: DisplaySettingsModalProps) {
+  // Extraire tous les champs (plat) depuis fields ou categories
+  const allFields: DisplayField[] = Array.isArray(fields) && fields.length > 0 && 'title' in fields[0]
+    ? (fields as DisplayFieldCategory[]).flatMap(cat => cat.fields)
+    : (fields as DisplayField[]);
 
+  // Créer les valeurs par défaut (tous à true)
+  const getDefaultPrefs = (): Record<string, boolean> => {
+    const defaults: Record<string, boolean> = {};
+    allFields.forEach(({ key }) => {
+      defaults[key] = true;
+    });
+    return defaults;
+  };
+
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(getDefaultPrefs());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isLocalMode, setIsLocalMode] = useState(false);
+
+  // Charger les préférences au montage
   useEffect(() => {
     (async () => {
       try {
-        const stored = await window.electronAPI.getMangaDisplaySettings?.();
-        if (stored) {
-          setPrefs({ ...DEFAULTS, ...stored });
+        const defaults = getDefaultPrefs();
+        const globalPrefs = await loadGlobalPrefs();
+
+        if (mode === 'global-local' && itemId && loadLocalOverrides) {
+          // Mode global-local : fusionner defaults -> global -> local
+          const localOverrides = await loadLocalOverrides(itemId);
+          const merged = { ...defaults, ...globalPrefs, ...localOverrides };
+          setPrefs(merged);
+          // Vérifier si on a des overrides locaux
+          setIsLocalMode(Object.keys(localOverrides).length > 0);
+        } else {
+          // Mode global : fusionner defaults -> global
+          setPrefs({ ...defaults, ...globalPrefs });
+          setIsLocalMode(false);
         }
-      } catch {}
-      setTimeout(() => {
-        setIsInitialLoad(false);
-      }, 100);
+      } catch (error) {
+        console.error('Erreur chargement préférences:', error);
+        setPrefs(getDefaultPrefs());
+      } finally {
+        setLoading(false);
+      }
     })();
-  }, []);
+  }, [mode, itemId, loadGlobalPrefs, loadLocalOverrides]);
 
-  useEffect(() => {
-    if (isInitialLoad || !hasUserInteracted) return;
+  useModalEscape(onClose, saving);
 
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  const toggle = (key: string) => {
+    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+    // En mode global-local, activer le mode local si on modifie
+    if (mode === 'global-local') {
+      setIsLocalMode(true);
     }
+  };
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await window.electronAPI.saveMangaDisplaySettings?.(prefs);
-        showToast({
+  const handleSelectAll = () => {
+    setPrefs(getDefaultPrefs());
+    if (mode === 'global-local') {
+      setIsLocalMode(true);
+    }
+  };
+
+  const handleDeselectAll = () => {
+    const cleared = getDefaultPrefs();
+    Object.keys(cleared).forEach(key => {
+      cleared[key] = false;
+    });
+    setPrefs(cleared);
+    if (mode === 'global-local') {
+      setIsLocalMode(true);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (mode === 'global') {
+        // Mode global : sauvegarder directement
+        if (saveGlobalPrefs) {
+          await saveGlobalPrefs(prefs);
+          showToast?.({
+            title: 'Paramètres sauvegardés',
+            message: 'Les préférences d\'affichage ont été enregistrées',
+            type: 'success',
+            duration: 2000
+          });
+        }
+        onSave?.();
+        onClose();
+      } else if (mode === 'global-local' && itemId) {
+        // Mode global-local : calculer les overrides
+        const globalPrefs = await loadGlobalPrefs();
+        const existingOverrides = loadLocalOverrides ? await loadLocalOverrides(itemId) : {};
+
+        const overridesToSave: Record<string, boolean> = {};
+        const overridesToDelete: string[] = [];
+
+        // Utiliser les mêmes valeurs par défaut que lors du chargement
+        const defaults = getDefaultPrefs();
+        
+        for (const key of allFields.map(f => f.key)) {
+          // Valeur globale (ou défaut si non définie)
+          const globalValue = globalPrefs[key] ?? defaults[key] ?? true;
+          // Valeur actuelle dans la modale
+          const currentValue = prefs[key] ?? defaults[key] ?? true;
+
+          if (currentValue !== globalValue) {
+            // Différent de la valeur globale → override à sauvegarder
+            overridesToSave[key] = currentValue;
+          } else if (key in existingOverrides) {
+            // Identique à la valeur globale mais override existant → supprimer l'override
+            overridesToDelete.push(key);
+          }
+        }
+
+        if (saveLocalOverrides && Object.keys(overridesToSave).length > 0) {
+          await saveLocalOverrides(itemId, overridesToSave);
+        }
+
+        if (deleteLocalOverrides && overridesToDelete.length > 0) {
+          await deleteLocalOverrides(itemId, overridesToDelete);
+        }
+
+        showToast?.({
           title: 'Paramètres sauvegardés',
           message: 'Les préférences d\'affichage ont été enregistrées',
           type: 'success',
           duration: 2000
         });
-      } catch (error) {
-        showToast({
-          title: 'Erreur de sauvegarde',
-          message: 'Impossible de sauvegarder les paramètres',
-          type: 'error',
-          duration: 3000
-        });
+        onSave?.();
+        onClose();
       }
-    }, 500);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [prefs, isInitialLoad, hasUserInteracted, showToast]);
-
-  const handleToggle = (key: FieldKey) => {
-    setHasUserInteracted(true);
-    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+    } catch (error) {
+      console.error('Erreur sauvegarde préférences:', error);
+      showToast?.({
+        title: 'Erreur de sauvegarde',
+        message: 'Impossible de sauvegarder les paramètres',
+        type: 'error',
+        duration: 3000
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSelectAll = () => {
-    setHasUserInteracted(true);
-    const allSelected = { ...DEFAULTS };
-    Object.keys(DEFAULTS).forEach((k) => {
-      allSelected[k as FieldKey] = true;
-    });
-    setPrefs(allSelected);
-  };
+  if (loading) return null;
 
-  const handleDeselectAll = () => {
-    setHasUserInteracted(true);
-    const noneSelected = { ...DEFAULTS };
-    Object.keys(DEFAULTS).forEach((k) => {
-      noneSelected[k as FieldKey] = false;
-    });
-    setPrefs(noneSelected);
-  };
+  // Vérifier si on a des catégories
+  const hasCategories = Array.isArray(fields) && fields.length > 0 && 'title' in fields[0];
+  const categories = hasCategories ? (fields as DisplayFieldCategory[]) : null;
 
-  return createPortal(
+  return (
     <Modal 
       onClickOverlay={onClose}
-      maxWidth="900px"
+      maxWidth={hasCategories ? "900px" : "700px"}
       maxHeight="85vh"
       style={{
         display: 'flex',
@@ -218,7 +270,6 @@ export default function DisplaySettingsModal({ onClose, showToast }: DisplaySett
         overflow: 'hidden'
       }}
     >
-      {/* Header fixe */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -239,7 +290,7 @@ export default function DisplaySettingsModal({ onClose, showToast }: DisplaySett
             justifyContent: 'center',
             fontSize: '20px'
           }}>
-            📋
+            📺
           </div>
           <div>
             <h2 style={{
@@ -249,238 +300,167 @@ export default function DisplaySettingsModal({ onClose, showToast }: DisplaySett
               margin: 0,
               lineHeight: '1.2'
             }}>
-              Paramètres d'affichage des mangas
+              {title}
             </h2>
-            <p style={{
-              fontSize: '12px',
-              color: 'var(--text-secondary)',
-              margin: '4px 0 0 0'
-            }}>
-              Choisissez les informations à afficher
-            </p>
+            {description && (
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                margin: '4px 0 0 0'
+              }}>
+                {description}
+              </p>
+            )}
+            {mode === 'global-local' && isLocalMode && !description && (
+              <p style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                margin: '4px 0 0 0'
+              }}>
+                Les modifications locales surchargent les paramètres globaux pour cet item.
+              </p>
+            )}
           </div>
         </div>
         <button
           onClick={onClose}
           style={{
             background: 'transparent',
-            border: '1px solid var(--border)',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            border: 'none',
             color: 'var(--text-secondary)',
-            transition: 'all 0.2s',
-            width: '36px',
-            height: '36px'
+            cursor: 'pointer',
+            padding: '6px',
+            borderRadius: '50%',
+            transition: 'background 0.2s'
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--error)';
-            e.currentTarget.style.borderColor = 'var(--error)';
-            e.currentTarget.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--surface)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <X size={18} />
+          <X size={20} />
         </button>
       </div>
 
-      {/* Content scrollable */}
       <div style={{
-        padding: '28px',
-        flex: 1,
+        padding: '24px 28px',
         overflowY: 'auto',
-        overflowX: 'hidden'
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px'
       }}>
-        <div style={{ 
-          marginBottom: '24px',
-          padding: '16px',
-          background: 'rgba(var(--primary-rgb), 0.1)',
-          borderRadius: '10px',
-          border: '1px solid rgba(var(--primary-rgb), 0.2)'
-        }}>
-          <p style={{ 
-            fontSize: '13px', 
-            color: 'var(--text-secondary)', 
-            lineHeight: '1.6',
-            margin: 0
-          }}>
-            💡 Ces paramètres contrôlent uniquement l'affichage dans les cartes et pages de détails. 
-            Tous les champs sont toujours enrichis automatiquement en arrière-plan.
-          </p>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button onClick={handleSelectAll} className="btn btn-outline" style={{ fontSize: '13px' }}>
+            Tout sélectionner
+          </button>
+          <button onClick={handleDeselectAll} className="btn btn-outline" style={{ fontSize: '13px' }}>
+            Tout désélectionner
+          </button>
         </div>
 
-        {/* Boutons de sélection globale */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '28px',
-          paddingBottom: '20px',
-          borderBottom: '2px solid var(--border)'
-        }}>
-          <h3 style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: 'var(--text)',
-            margin: 0
+        {/* Affichage avec catégories */}
+        {hasCategories && categories ? (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '18px'
           }}>
-            Catégories de champs
-          </h3>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              onClick={handleSelectAll} 
-              className="btn btn-outline" 
-              style={{ 
-                fontSize: '13px', 
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontWeight: '500'
-              }}
-            >
-              ✓ Tout sélectionner
-            </button>
-            <button 
-              onClick={handleDeselectAll} 
-              className="btn btn-outline" 
-              style={{ 
-                fontSize: '13px', 
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontWeight: '500'
-              }}
-            >
-              ✗ Tout désélectionner
-            </button>
-          </div>
-        </div>
-
-        {/* Catégories organisées */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '1fr',
-          gap: '20px'
-        }}>
-          {FIELD_CATEGORIES.map((category) => (
-            <div 
-              key={category.title} 
-              style={{
-                background: 'var(--bg-secondary)',
-                borderRadius: '12px',
-                padding: '20px',
-                border: '1px solid var(--border)',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {/* En-tête de catégorie */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '16px',
-                paddingBottom: '12px',
-                borderBottom: '1px solid var(--border)'
-              }}>
+            {categories.map((category) => (
+              <div
+                key={category.title}
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  background: 'var(--surface)',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
                 <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: 'rgba(var(--primary-rgb), 0.1)',
+                  padding: '14px 16px',
+                  borderBottom: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px'
+                  gap: '8px'
                 }}>
-                  {category.icon}
+                  <span style={{ fontSize: '18px' }}>{category.icon}</span>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>
+                    {category.title}
+                  </span>
                 </div>
-                <h4 style={{
-                  fontSize: '15px',
-                  fontWeight: '700',
-                  color: 'var(--text)',
-                  margin: 0
-                }}>
-                  {category.title}
-                </h4>
+                <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {category.fields.map(({ key, label }) => (
+                    <label
+                      key={key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        fontSize: '13px',
+                        color: 'var(--text)'
+                      }}
+                    >
+                      <span>{label}</span>
+                      <Toggle checked={!!prefs[key]} onChange={() => toggle(key)} />
+                    </label>
+                  ))}
+                </div>
               </div>
-
-              {/* Champs de la catégorie */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                gap: '10px'
-              }}>
-                {category.fields.map((field) => (
-                  <div 
-                    key={field.key}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      transition: 'all 0.2s',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => handleToggle(field.key)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--primary)';
-                      e.currentTarget.style.background = 'rgba(var(--primary-rgb), 0.08)';
-                      e.currentTarget.style.transform = 'translateX(2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.background = 'var(--surface)';
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <span style={{
-                      fontSize: '13px',
-                      color: 'var(--text)',
-                      fontWeight: '500',
-                      flex: 1
-                    }}>
-                      {field.label}
-                    </span>
-                    <Toggle 
-                      checked={!!prefs[field.key]} 
-                      onChange={() => handleToggle(field.key)} 
-                    />
-                  </div>
-                ))}
+            ))}
+          </div>
+        ) : (
+          /* Affichage simple (liste plate) */
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+            {allFields.map((field) => (
+              <div
+                key={field.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  fontSize: '14px',
+                  padding: '8px 10px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => toggle(field.key)}
+              >
+                <span style={{ color: 'var(--text)' }}>{field.label}</span>
+                <Toggle checked={!!prefs[field.key]} onChange={() => toggle(field.key)} />
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Footer avec bouton Fermer */}
-      <div style={{
-        padding: '20px 28px',
-        borderTop: '2px solid var(--border)',
-        background: 'var(--bg-secondary)',
-        flexShrink: 0,
-        display: 'flex',
-        justifyContent: 'flex-end'
-      }}>
+      <div
+        style={{
+          padding: '20px 28px',
+          borderTop: '2px solid var(--border)',
+          background: 'var(--bg-secondary)',
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px'
+        }}
+      >
         <button
           onClick={onClose}
+          className="btn btn-outline"
+          style={{
+            padding: '10px 24px',
+            fontSize: '14px',
+            fontWeight: '600',
+            borderRadius: '8px'
+          }}
+          disabled={saving}
+        >
+          Annuler
+        </button>
+        <button
+          onClick={handleSave}
           className="btn btn-primary"
           style={{
             padding: '10px 24px',
@@ -488,11 +468,11 @@ export default function DisplaySettingsModal({ onClose, showToast }: DisplaySett
             fontWeight: '600',
             borderRadius: '8px'
           }}
+          disabled={saving}
         >
-          Fermer
+          {saving ? 'Enregistrement...' : 'Sauvegarder'}
         </button>
       </div>
-    </Modal>,
-    document.body
+    </Modal>
   );
 }

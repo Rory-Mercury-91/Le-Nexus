@@ -73,16 +73,16 @@ async function searchTranslationForGame(db, gameId) {
     db.prepare(`
       UPDATE adulte_game_games
       SET titre = ?,
-          version = ?,
-          statut_jeu = ?,
-          moteur = ?,
+          game_version = ?,
+          game_statut = ?,
+          game_engine = ?,
           tags = ?,
           couverture_url = COALESCE(?, couverture_url),
           traduction_fr_disponible = 1,
           version_traduite = ?,
           lien_traduction = ?,
-          type_trad_fr = ?,
           traducteur = ?,
+          type_traduction = ?,
           traductions_multiples = ?,
           derniere_sync_trad = datetime('now'),
           updated_at = datetime('now')
@@ -92,24 +92,25 @@ async function searchTranslationForGame(db, gameId) {
       activeEntry.version,
       activeEntry.statut,
       activeEntry.moteur,
-      JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []),
+      activeEntry.tags ? (Array.isArray(activeEntry.tags) ? activeEntry.tags.join(',') : activeEntry.tags) : null,
       imageUrl,
       activeEntry.versionTraduite,
-      activeEntry.lienTraduction,
-      activeEntry.typeTraduction,
-      activeEntry.traducteur,
+      activeEntry.lienTraduction || null,
+      activeEntry.traducteur || null,
+      activeEntry.typeTraduction || null,
       JSON.stringify(traductions),
       gameId
     );
     
-    console.log(`✅ Traduction mise à jour pour "${game.titre}" → "${activeEntry.nom}" (traducteur: ${activeEntry.traducteur})`);
+    console.log(`✅ Traduction mise à jour pour "${game.titre}" → "${activeEntry.nom}" (traducteur: ${activeEntry.traducteur}, type: ${activeEntry.typeTraduction || 'N/A'})`);
     
     return {
       success: true,
       found: true,
       traductions: traductions.length,
       traducteur: activeEntry.traducteur,
-      version: activeEntry.versionTraduite
+      version: activeEntry.versionTraduite,
+      type: activeEntry.typeTraduction
     };
   } catch (error) {
     console.error('❌ Erreur recherche traduction:', error);

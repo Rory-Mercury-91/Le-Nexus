@@ -18,38 +18,6 @@ export default function PlatformLogo({ platform, height = 28 }: PlatformLogoProp
     );
   }
 
-  if (platform === 'adkami') {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 40" height={height} style={{ width: 'auto' }}>
-        {/* Fond violet */}
-        <rect width="140" height="40" rx="6" fill="#8B5CF6"/>
-        
-        {/* Texte ADKami en blanc, légèrement incliné */}
-        <text 
-          x="12" 
-          y="26" 
-          fontFamily="Arial, Helvetica, sans-serif" 
-          fontSize="17" 
-          fontWeight="bold" 
-          fontStyle="italic"
-          fill="white"
-        >
-          ADKami
-        </text>
-        
-        {/* Étoile/éclat stylisé jaune-doré à droite */}
-        <g transform="translate(120, 20)">
-          {/* Étoile principale */}
-          <path d="M 0,-8 L 1.5,-2 L 7,-1 L 2,2 L 3,8 L 0,4 L -3,8 L -2,2 L -7,-1 L -1.5,-2 Z" fill="#FCD34D"/>
-          {/* Petits éclats autour */}
-          <circle cx="8" cy="-4" r="1.5" fill="#FCD34D" opacity="0.8"/>
-          <circle cx="6" cy="6" r="1" fill="#FCD34D" opacity="0.8"/>
-          <circle cx="-7" cy="3" r="1" fill="#FCD34D" opacity="0.8"/>
-        </g>
-      </svg>
-    );
-  }
-
   if (platform === 'crunchyroll') {
     return (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 615 116.9" height={height} style={{ width: 'auto' }}>
@@ -98,17 +66,6 @@ export default function PlatformLogo({ platform, height = 28 }: PlatformLogoProp
         <rect width="120" height="40" rx="4" fill="#2E51A2"/>
         <text x="10" y="26" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold" fill="white">
           MyAnimeList
-        </text>
-      </svg>
-    );
-  }
-
-  if (platform === 'kitsu') {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40" height={height} style={{ width: 'auto' }}>
-        <rect width="100" height="40" rx="4" fill="#F75239"/>
-        <text x="10" y="26" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold" fill="white">
-          Kitsu
         </text>
       </svg>
     );

@@ -1,284 +1,221 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { AnimeSerie } from '../../types';
+import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
+import { useAnimeEpisodes } from './useAnimeEpisodes';
+import { useDetailPage } from './useDetailPage';
+import { useItemActions } from './useItemActions';
+import { useStreamingLinks } from './useStreamingLinks';
 
-interface Episode {
-  numero: number;
-  vu: boolean;
-  date_visionnage: string | null;
-}
+type AnimeDisplayPrefs = Record<string, boolean>;
 
-interface StreamingLink {
-  source: 'anilist' | 'manual';
-  platform: string;
-  url: string;
-  language: string;
-  id?: number;
-  color?: string;
-  icon?: string;
-  createdAt?: string;
-}
+const animeDisplayDefaults: AnimeDisplayPrefs = {};
 
 export function useAnimeDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
-  
-  const [anime, setAnime] = useState<AnimeSerie | null>(null);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showCustomizeDisplay, setShowCustomizeDisplay] = useState(false);
-  const [streamingLinks, setStreamingLinks] = useState<StreamingLink[]>([]);
-  const [showAddLinkForm, setShowAddLinkForm] = useState(false);
-  const [newLink, setNewLink] = useState({ platform: '', url: '', language: 'fr' });
-  const [globalPrefs, setGlobalPrefs] = useState<Record<string, boolean>>({});
-  const [localPrefs, setLocalPrefs] = useState<Record<string, boolean>>({});
-  const [enriching, setEnriching] = useState(false);
+  const { confirm, ConfirmDialog } = useConfirm();
 
-  useEffect(() => {
-    if (id) {
-      loadAnime();
+  // Mémoriser les fonctions pour éviter les re-renders en boucle
+  const loadDetailApi = useCallback(async (itemId: number) => {
+    const result = await window.electronAPI.getAnimeDetail(itemId);
+    if (result.success && result.anime) {
+      return result.anime;
     }
-  }, [id]);
+    return null;
+  }, []);
 
-  const loadDisplayPreferences = async (targetAnimeId?: number) => {
-    const resolvedId = targetAnimeId ?? (anime ? anime.id : id ? parseInt(id) : undefined);
-    try {
-      const gp = await window.electronAPI.getAnimeDisplaySettings?.() || {};
-      setGlobalPrefs(gp);
+  const loadDisplaySettingsApi = useCallback(async () => {
+    const result = await window.electronAPI.getAnimeDisplaySettings?.();
+    return result || null;
+  }, []);
 
-      if (resolvedId) {
-        const lp = await window.electronAPI.getAnimeDisplayOverrides?.(resolvedId) || {};
-        setLocalPrefs(lp);
-      } else {
-        setLocalPrefs({});
+  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
+    const result = await window.electronAPI.getAnimeDisplayOverrides?.(itemId);
+    return result || null;
+  }, []);
+
+  const isEventForCurrentItem = useCallback((event: CustomEvent, _item: AnimeSerie | null, itemId: string | undefined) => {
+    const { animeId } = event.detail;
+    const currentId = itemId ? Number(itemId) : null;
+    return currentId !== null && animeId === currentId;
+  }, []);
+
+  const reloadAfterEvent = useCallback(async (event: CustomEvent, itemId: string | undefined) => {
+    const { animeId } = event.detail;
+    const targetId = animeId || (itemId ? Number(itemId) : null);
+    if (targetId) {
+      const result = await window.electronAPI.getAnimeDetail(targetId);
+      if (result.success && result.anime) {
+        return result.anime;
       }
-    } catch (error) {
-      console.error('Erreur chargement préférences affichage anime:', error);
     }
-  };
+    return null;
+  }, []);
+
+  // Hook pour la page de détails (chargement, états, modales)
+  const {
+    item: anime,
+    setItem: setAnime,
+    loading,
+    displayPrefs,
+    showDisplaySettingsModal,
+    setShowDisplaySettingsModal,
+    showEditModal,
+    setShowEditModal,
+    loadDetail,
+    refreshDisplayPrefs
+  } = useDetailPage<AnimeSerie, AnimeDisplayPrefs>({
+    itemId: id,
+    displayDefaults: animeDisplayDefaults,
+    loadDetailApi,
+    displayPreferencesMode: 'global-local',
+    loadDisplaySettingsApi,
+    loadDisplayOverridesApi,
+    statusEventName: 'anime-status-changed',
+    isEventForCurrentItem,
+    reloadAfterEvent,
+    missingIdError: 'Identifiant anime manquant',
+    notFoundError: 'Anime introuvable dans votre collection'
+  });
+
+  // Hook pour les actions communes (favorite, status)
+  const {
+    handleStatusChange,
+    handleToggleFavorite
+  } = useItemActions<AnimeSerie>({
+    itemId: anime?.id,
+    item: anime,
+    updateItem: setAnime,
+    reloadItem: async () => {
+      if (anime?.id) {
+        const result = await window.electronAPI.getAnimeDetail(anime.id);
+        if (result.success && result.anime) {
+          setAnime(result.anime);
+        }
+      }
+    },
+    setStatusApi: ({ itemId, statut }) => window.electronAPI.setAnimeStatutVisionnage(itemId, statut),
+    toggleFavoriteApi: async (itemId) => {
+      const currentUser = await window.electronAPI.getCurrentUser();
+      const users = await window.electronAPI.getAllUsers();
+      const user = users.find((u: any) => u.name === currentUser);
+      if (user) {
+        await window.electronAPI.toggleAnimeFavorite(itemId, user.id);
+        const result = await window.electronAPI.getAnimeDetail(itemId);
+        if (result.success && result.anime) {
+          return { success: true, isFavorite: result.anime.is_favorite };
+        }
+      }
+      return { success: false, isFavorite: false };
+    },
+    deleteApi: (itemId) => window.electronAPI.deleteAnime(itemId),
+    statusEventName: 'anime-status-changed',
+    getStatusEventData: (item) => ({
+      animeId: item.id,
+      statut: item.statut_visionnage
+    }),
+    redirectRoute: '/animes',
+    itemName: 'anime',
+    getItemTitle: (item) => item.titre,
+    getCurrentStatus: (item) => item.statut_visionnage
+  });
+
+  // Suppression avec confirmation
+  const handleDelete = useCallback(async () => {
+    if (!anime) return;
+
+    const confirmed = await confirm({
+      title: 'Supprimer l\'anime',
+      message: `Êtes-vous sûr de vouloir supprimer "${anime.titre}" ? Cette action est irréversible.`,
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDanger: true
+    });
+
+    if (!confirmed) return;
+
+    try {
+      const result = await window.electronAPI.deleteAnime(anime.id);
+      if (result?.success) {
+        showToast({
+          title: 'Anime supprimé',
+          message: `"${anime.titre}" a été supprimé de votre collection.`,
+          type: 'success'
+        });
+        window.location.href = '/animes';
+      } else {
+        const errorMessage = (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string')
+          ? result.error
+          : 'Impossible de supprimer l\'anime.';
+        showToast({
+          title: 'Erreur',
+          message: errorMessage,
+          type: 'error'
+        });
+      }
+    } catch (error: any) {
+      console.error('Erreur suppression anime:', error);
+      showToast({
+        title: 'Erreur',
+        message: error?.message || 'Impossible de supprimer l\'anime.',
+        type: 'error'
+      });
+    }
+  }, [anime, confirm, showToast]);
+
+  // Hook pour les épisodes
+  const {
+    episodes,
+    episodesVus,
+    updateEpisodes,
+    handleToggleEpisode,
+    handleMarquerToutVu
+  } = useAnimeEpisodes({
+    animeId: anime?.id || null,
+    initialEpisodes: [],
+    onAnimeUpdated: (updatedAnime) => {
+      setAnime(updatedAnime);
+    }
+  });
+
+  // Hook pour les liens streaming
+  const {
+    streamingLinks,
+    showAddLinkForm,
+    setShowAddLinkForm,
+    newLink,
+    setNewLink,
+    loadStreamingLinks,
+    handleAddLink,
+    handleDeleteLink,
+    handleAddExternalLink
+  } = useStreamingLinks({
+    animeId: anime?.id || null,
+    malId: anime?.mal_id || null,
+    initialLinks: []
+  });
+
+  // Charger les épisodes et liens streaming après le chargement de l'anime
+  useEffect(() => {
+    if (anime) {
+      // Charger les épisodes depuis le résultat de getAnimeDetail
+      window.electronAPI.getAnimeDetail(anime.id).then((result) => {
+        if (result.success) {
+          updateEpisodes(result.episodes || []);
+          loadStreamingLinks(anime.id, anime.mal_id);
+        }
+      });
+    }
+  }, [anime?.id, anime?.mal_id, updateEpisodes, loadStreamingLinks]);
 
   const loadAnime = async () => {
-    setLoading(true);
-    try {
-      const result = await window.electronAPI.getAnimeDetail(parseInt(id!));
-      if (result.success) {
-        setAnime(result.anime || null);
-        setEpisodes((result.episodes || []).map((ep: Episode) => ({
-          ...ep,
-          date_visionnage: ep.date_visionnage || null
-        })));
-        
-        if (result.anime) {
-          loadStreamingLinks(result.anime.id, result.anime.mal_id);
-          loadDisplayPreferences(result.anime.id);
-        } else {
-          loadDisplayPreferences(undefined);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'anime:', error);
-    } finally {
-      setLoading(false);
-    }
+    await loadDetail();
   };
 
-  const loadStreamingLinks = async (animeId: number, malId?: number) => {
-    try {
-      const result = await window.electronAPI.getStreamingLinks(animeId, malId);
-      if (result.success) {
-        setStreamingLinks(result.links);
-      }
-    } catch (error) {
-      console.error('Erreur chargement liens streaming:', error);
-    }
-  };
-
-  const handleAddLink = async () => {
-    if (!newLink.platform || !newLink.url) {
-      showToast({
-        title: 'Erreur',
-        message: 'Veuillez remplir tous les champs',
-        type: 'error'
-      });
-      return;
-    }
-
-    try {
-      const result = await window.electronAPI.addStreamingLink(parseInt(id!), newLink);
-      if (result.success) {
-        showToast({
-          title: 'Lien ajouté',
-          message: `Le lien ${newLink.platform} a été ajouté`,
-          type: 'success'
-        });
-        setNewLink({ platform: '', url: '', language: 'fr' });
-        setShowAddLinkForm(false);
-        loadStreamingLinks(parseInt(id!), anime?.mal_id);
-      } else {
-        showToast({
-          title: 'Erreur',
-          message: result.error || 'Erreur lors de l\'ajout',
-          type: 'error'
-        });
-      }
-    } catch (error: any) {
-      showToast({
-        title: 'Erreur',
-        message: error.message,
-        type: 'error'
-      });
-    }
-  };
-
-  const handleDeleteLink = async (linkId: number) => {
-    try {
-      const result = await window.electronAPI.deleteStreamingLink(linkId);
-      if (result.success) {
-        showToast({
-          title: 'Lien supprimé',
-          message: 'Le lien a été supprimé avec succès',
-          type: 'success'
-        });
-        loadStreamingLinks(parseInt(id!), anime?.mal_id);
-      } else {
-        showToast({
-          title: 'Erreur',
-          message: result.error || 'Erreur lors de la suppression',
-          type: 'error'
-        });
-      }
-    } catch (error: any) {
-      showToast({
-        title: 'Erreur',
-        message: error.message,
-        type: 'error'
-      });
-    }
-  };
-
-  const handleAddExternalLink = async (linkData: { name: string; url: string }) => {
-    try {
-      const result = await window.electronAPI.addExternalLink(parseInt(id!), linkData);
-      if (result.success) {
-        showToast({
-          title: 'Lien ajouté',
-          message: 'Le lien a été ajouté avec succès',
-          type: 'success'
-        });
-        loadAnime(); // Recharger pour afficher le nouveau lien
-      } else {
-        showToast({
-          title: 'Erreur',
-          message: result.error || 'Erreur lors de l\'ajout',
-          type: 'error'
-        });
-      }
-    } catch (error: any) {
-      showToast({
-        title: 'Erreur',
-        message: error.message,
-        type: 'error'
-      });
-    }
-  };
-
-  const handleToggleEpisode = async (episodeNumero: number, currentVu: boolean) => {
-    try {
-      setEpisodes(prevEpisodes => 
-        prevEpisodes.map(ep => 
-          ep.numero === episodeNumero 
-            ? { ...ep, vu: !currentVu, date_visionnage: !currentVu ? new Date().toISOString() : null }
-            : ep
-        )
-      );
-      
-      await window.electronAPI.toggleEpisodeVu(parseInt(id!), episodeNumero, !currentVu);
-      
-      // Recharger l'anime pour obtenir le nouveau statut (qui peut avoir changé automatiquement)
-      const result = await window.electronAPI.getAnimeDetail(parseInt(id!));
-      if (result.success && result.anime) {
-        setAnime(result.anime);
-        setEpisodes((result.episodes || []).map((ep: Episode) => ({
-          ...ep,
-          date_visionnage: ep.date_visionnage || null
-        })));
-        
-        // Notifier la page de collection si le statut a changé
-        if (result.anime.statut_visionnage) {
-          window.dispatchEvent(new CustomEvent('anime-status-changed', {
-            detail: { animeId: parseInt(id!), statut: result.anime.statut_visionnage, episodes_vus: result.anime.episodes_vus }
-          }));
-        }
-      }
-    } catch (error) {
-      console.error('Erreur toggle episode:', error);
-      showToast({
-        title: 'Erreur',
-        message: 'Impossible de mettre à jour l\'épisode',
-        type: 'error'
-      });
-      loadAnime();
-    }
-  };
-
-  const handleMarquerToutVu = async () => {
-    try {
-      await window.electronAPI.marquerAnimeComplet(parseInt(id!));
-      loadAnime();
-    } catch (error) {
-      console.error('Erreur marquer tout vu:', error);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      const animeId = parseInt(id!);
-      await window.electronAPI.deleteAnime(animeId);
-      
-      // Notifier la page de collection pour supprimer l'anime de la liste
-      window.dispatchEvent(new CustomEvent('anime-deleted', {
-        detail: { animeId }
-      }));
-      
-      navigate('/animes');
-    } catch (error) {
-      console.error('Erreur suppression anime:', error);
-    }
-  };
-
-  const handleChangeStatutVisionnage = async (nouveauStatut: 'En cours' | 'Terminé' | 'Abandonné' | 'À regarder' | 'En pause') => {
-    try {
-      const animeId = parseInt(id!);
-      await window.electronAPI.setAnimeStatutVisionnage(animeId, nouveauStatut);
-      
-      // Mettre à jour l'état local sans recharger
-      if (anime) {
-        setAnime({ ...anime, statut_visionnage: nouveauStatut });
-      }
-      
-      // Notifier la page de collection pour mettre à jour les cartes
-      window.dispatchEvent(new CustomEvent('anime-status-changed', {
-        detail: { animeId, statut: nouveauStatut }
-      }));
-      
-      showToast({
-        title: 'Statut modifié',
-        type: 'success'
-      });
-    } catch (error) {
-      console.error('Erreur changement statut:', error);
-      showToast({
-        title: 'Erreur',
-        message: 'Erreur lors du changement de statut',
-        type: 'error'
-      });
-    }
-  };
-
+  // Enrichissement
+  const [enriching, setEnriching] = React.useState(false);
   const handleEnrich = async () => {
     if (!anime?.mal_id) {
       showToast({
@@ -290,7 +227,7 @@ export function useAnimeDetail() {
     }
     setEnriching(true);
     try {
-      const res = await window.electronAPI.enrichAnimeNow?.(anime.id, true);
+      const res = await window.electronAPI.enrichAnimeNow?.(anime.id, false);
       if (res && res.success) {
         showToast({
           title: 'Enrichissement réussi',
@@ -310,53 +247,84 @@ export function useAnimeDetail() {
     }
   };
 
-  const handleToggleFavorite = async () => {
-    try {
-      const currentUser = await window.electronAPI.getCurrentUser();
-      const users = await window.electronAPI.getAllUsers();
-      const user = users.find((u: any) => u.name === currentUser);
-      
-      if (user && anime) {
-        await window.electronAPI.toggleAnimeFavorite(parseInt(id!), user.id);
-        
-        // Mettre à jour l'état local sans recharger
-        setAnime({ ...anime, is_favorite: !anime.is_favorite });
-        
-        // Notifier la page de collection pour mettre à jour les cartes
-        window.dispatchEvent(new CustomEvent('anime-favorite-changed', {
-          detail: { animeId: parseInt(id!), isFavorite: !anime.is_favorite }
-        }));
-        
-        showToast({
-          title: 'Favoris modifiés',
-          type: 'success'
-        });
-      }
-    } catch (error) {
-      console.error('Erreur toggle favori:', error);
+  // Force vérification (ignore user_modified_fields)
+  const handleForceEnrich = async () => {
+    if (!anime?.mal_id) {
       showToast({
         title: 'Erreur',
-        message: 'Erreur lors de la modification des favoris',
+        message: "Cet anime n'a pas de MAL ID. Ajoutez un MAL ID (via édition ou import MAL) pour lancer l'enrichissement.",
         type: 'error'
       });
+      return;
     }
-  };
 
-  const shouldShow = (field: string): boolean => {
-    if (field in localPrefs) return !!localPrefs[field];
-    if (field in globalPrefs) return !!globalPrefs[field];
-    return true;
-  };
+    // Récupérer les champs protégés pour afficher dans la confirmation
+    const userModifiedFields = anime.user_modified_fields || null;
+    let protectedFields: string[] = [];
+    if (userModifiedFields) {
+      try {
+        const parsed = JSON.parse(userModifiedFields);
+        if (Array.isArray(parsed)) {
+          protectedFields = parsed;
+        }
+      } catch (e) {
+        // Ignorer les erreurs de parsing
+      }
+    }
 
-  const reloadDisplayPreferences = async () => {
-    await loadDisplayPreferences();
+    // Filtrer pour ne garder que les champs d'enrichissement (pas les champs personnalisés)
+    const enrichmentFields = [
+      'titre', 'titre_romaji', 'titre_natif', 'titre_anglais', 'titres_alternatifs',
+      'description', 'date_debut', 'date_fin', 'nb_episodes', 'statut_diffusion',
+      'themes', 'demographics', 'genres', 'score', 'rank_mal', 'popularity_mal',
+      'studios', 'producteurs', 'diffuseurs', 'rating', 'age_conseille', 'type',
+      'source', 'annee', 'saison_diffusion', 'date_sortie_vf', 'date_debut_streaming',
+      'duree', 'editeur', 'site_web', 'en_cours_diffusion'
+    ];
+    
+    const fieldsToUpdate = protectedFields.filter(field => enrichmentFields.includes(field));
+
+    // Demander confirmation
+    const confirmed = await confirm({
+      title: 'Force vérification',
+      message: fieldsToUpdate.length > 0
+        ? `Les champs suivants seront mis à jour depuis les sources externes (protection ignorée) :\n\n${fieldsToUpdate.map(f => `• ${f}`).join('\n')}\n\nLes champs personnalisés (labels, notes privées, etc.) ne seront pas modifiés.\n\nContinuer ?`
+        : 'Aucun champ protégé ne sera mis à jour. Continuer ?',
+      confirmText: 'Forcer la vérification',
+      cancelText: 'Annuler',
+      isDanger: false
+    });
+
+    if (!confirmed) return;
+
+    setEnriching(true);
+    try {
+      const res = await window.electronAPI.enrichAnimeNow?.(anime.id, true);
+      if (res && res.success) {
+        showToast({
+          title: 'Force vérification terminée',
+          type: 'success'
+        });
+        loadAnime();
+      } else {
+        showToast({
+          title: 'Erreur',
+          message: res?.error || 'Impossible de forcer la vérification',
+          type: 'error'
+        });
+      }
+    } finally {
+      setEnriching(false);
+    }
   };
 
   // Calculs dérivés
   const liensStreaming = anime?.liens_streaming ? JSON.parse(anime.liens_streaming) : [];
   const liensExternes = anime?.liens_externes ? JSON.parse(anime.liens_externes) : [];
-  const episodesVus = episodes.filter(ep => ep.vu).length;
-  const isCrunchyroll = anime?.source_import === 'crunchyroll';
+
+  const shouldShow = (field: string): boolean => {
+    return displayPrefs[field] !== false;
+  };
 
   return {
     // Données
@@ -367,20 +335,17 @@ export function useAnimeDetail() {
     liensStreaming,
     liensExternes,
     episodesVus,
-    isCrunchyroll,
-    
+
     // États UI
-    showDeleteModal,
     showEditModal,
-    showCustomizeDisplay,
+    showCustomizeDisplay: showDisplaySettingsModal,
     showAddLinkForm,
     newLink,
     enriching,
-    
+
     // Actions
-    setShowDeleteModal,
     setShowEditModal,
-    setShowCustomizeDisplay,
+    setShowCustomizeDisplay: setShowDisplaySettingsModal,
     setShowAddLinkForm,
     setNewLink,
     handleDelete,
@@ -389,17 +354,18 @@ export function useAnimeDetail() {
     handleAddExternalLink,
     handleToggleEpisode,
     handleMarquerToutVu,
-    handleChangeStatutVisionnage,
+    handleChangeStatutVisionnage: handleStatusChange,
     handleToggleFavorite,
     handleEnrich,
+    handleForceEnrich,
     loadAnime,
-    reloadDisplayPreferences,
+    reloadDisplayPreferences: refreshDisplayPrefs,
     shouldShow,
-    
-    // Navigation
-    navigate,
-    
+
     // Toast
-    ToastContainer
+    ToastContainer,
+
+    // Confirm
+    ConfirmDialog
   };
 }

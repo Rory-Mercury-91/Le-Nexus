@@ -1,16 +1,24 @@
 import { Tv } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import CoverImage from '../../../components/common/CoverImage';
+import ExternalLinkIcon from '../../../components/common/ExternalLinkIcon';
+import DetailStatusSection from '../../../components/details/DetailStatusSection';
+import ImageModal from '../../../components/modals/common/ImageModal';
+import { useCoverDragAndDrop } from '../../../hooks/details/useCoverDragAndDrop';
 import { AnimeSerie } from '../../../types';
-import AnimeStatusSection from './AnimeStatusSection';
+import { COMMON_STATUSES } from '../../../utils/status';
+
+const ANIME_STATUS_OPTIONS = COMMON_STATUSES.ANIME;
+type AnimeStatus = (typeof ANIME_STATUS_OPTIONS)[number];
 
 interface AnimeCoverProps {
   anime: AnimeSerie;
   episodesVus: number;
   nbEpisodes: number;
-  onStatusChange: (status: 'En cours' | 'Terminé' | 'Abandonné' | 'À regarder' | 'En pause') => void;
+  onStatusChange: (status: AnimeStatus) => void;
   onToggleFavorite: () => void;
   shouldShow: (field: string) => boolean;
+  onCoverUpdated?: () => void;
 }
 
 export default function AnimeCover({
@@ -19,8 +27,11 @@ export default function AnimeCover({
   nbEpisodes,
   onStatusChange,
   onToggleFavorite,
-  shouldShow
+  shouldShow,
+  onCoverUpdated
 }: AnimeCoverProps) {
+  const [showImageModal, setShowImageModal] = useState(false);
+
   // Calculer le statut actuel selon la progression
   const currentStatus = useMemo(() => {
     // Si aucun épisode n'est vu → "À regarder"
@@ -41,21 +52,69 @@ export default function AnimeCover({
     // Sinon, utiliser le statut actuel ou "À regarder" par défaut
     // Mapper "En attente" vers "En pause" car "En attente" n'est pas dans les statuts valides
     const statut = anime.statut_visionnage || 'À regarder';
-    return statut === 'En attente' ? 'En pause' : (statut as 'En cours' | 'Terminé' | 'Abandonné' | 'À regarder' | 'En pause');
+    return statut === 'En attente' ? 'En pause' : (statut as AnimeStatus);
   }, [anime.statut_visionnage, episodesVus, nbEpisodes]);
+
+  // Hook pour le drag & drop de couverture
+  const { isDragging, handleDragOver, handleDragLeave, handleDrop } = useCoverDragAndDrop({
+    mediaType: 'anime',
+    title: anime.titre,
+    itemId: anime.id,
+    currentCoverUrl: anime.couverture_url,
+    saveOptions: {
+      mediaType: 'Anime'
+    },
+    updateCoverApi: async (itemId, coverUrl) => {
+      await window.electronAPI.updateAnime?.(Number(itemId), { couverture_url: coverUrl });
+    },
+    onCoverUpdated: () => {
+      onCoverUpdated?.();
+    },
+    onError: (error) => {
+      console.error('Erreur mise à jour couverture anime:', error);
+    }
+  });
 
   if (!shouldShow('couverture')) return null;
 
   return (
     <div style={{ width: 'clamp(180px, 20vw, 250px)', flexShrink: 0 }}>
-      <div style={{
-        borderRadius: '12px',
-        overflow: 'hidden',
-        border: '2px solid var(--border)',
-        background: 'var(--surface)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-      }}>
-        {anime.couverture_url ? (
+      {/* Image couverture avec drag & drop */}
+      <div
+        style={{
+          borderRadius: '12px',
+          overflow: 'hidden',
+          border: isDragging ? '3px dashed var(--primary)' : '2px solid var(--border)',
+          background: isDragging ? 'var(--primary)22' : 'var(--surface)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          cursor: anime.couverture_url ? 'pointer' : 'default',
+          transition: 'border-color 0.2s',
+          position: 'relative'
+        }}
+        onClick={() => anime.couverture_url && setShowImageModal(true)}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {isDragging ? (
+          <div style={{
+            width: '100%',
+            aspectRatio: '2/3',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--primary)',
+            fontSize: '14px',
+            fontWeight: '600',
+            textAlign: 'center',
+            padding: '20px',
+            gap: '12px'
+          }}>
+            📥
+            <div>Déposer l'image<br />de l'anime</div>
+          </div>
+        ) : anime.couverture_url ? (
           <CoverImage
             src={anime.couverture_url}
             alt={anime.titre}
@@ -63,7 +122,18 @@ export default function AnimeCover({
               width: '100%',
               height: 'auto',
               aspectRatio: '2/3',
-              objectFit: 'cover'
+              objectFit: 'cover',
+              transition: 'transform 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (e.currentTarget) {
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (e.currentTarget) {
+                e.currentTarget.style.transform = 'scale(1)';
+              }
             }}
           />
         ) : (
@@ -81,49 +151,45 @@ export default function AnimeCover({
       </div>
 
       {/* Liens rapides */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', alignItems: 'center' }}>
         {anime.mal_id && (
-          <button
-            onClick={() => window.electronAPI.openExternal?.(`https://myanimelist.net/anime/${anime.mal_id}`)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              width: '100%',
-              padding: '8px 14px',
-              background: '#2E51A2',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '600',
-              transition: 'all 0.2s',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#1e3a8a';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#2E51A2';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <span>🔗</span>
-            Voir sur MyAnimeList
-          </button>
+          <ExternalLinkIcon
+            href={`https://myanimelist.net/anime/${anime.mal_id}`}
+            type="mal"
+            size={40}
+            title="Voir sur MyAnimeList"
+          />
+        )}
+
+        {(anime.nautiljon_url || (anime.mal_url && anime.mal_url.includes('nautiljon.com'))) && (
+          <ExternalLinkIcon
+            href={anime.nautiljon_url || anime.mal_url!}
+            type="nautiljon"
+            size={40}
+            title="Voir sur Nautiljon"
+          />
         )}
       </div>
 
-      {/* Section Mon Statut : Favori + Sélecteur de statut */}
-      <AnimeStatusSection
-        anime={anime}
+      {/* Section Mon Statut : Utilisation du composant commun */}
+      <DetailStatusSection
+        isFavorite={!!anime.is_favorite}
         currentStatus={currentStatus}
-        onStatusChange={onStatusChange}
+        availableStatuses={ANIME_STATUS_OPTIONS}
+        statusCategory="anime"
         onToggleFavorite={onToggleFavorite}
+        onStatusChange={(status) => onStatusChange(status as AnimeStatus)}
+        showLabel={true}
       />
+
+      {/* Modal image plein écran */}
+      {showImageModal && anime.couverture_url && (
+        <ImageModal
+          src={anime.couverture_url}
+          alt={anime.titre}
+          onClose={() => setShowImageModal(false)}
+        />
+      )}
     </div>
   );
 }

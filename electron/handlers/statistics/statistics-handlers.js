@@ -16,12 +16,13 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       const stats = {
         totaux: {},
+        totalMihon: 0,
         parType: {},
         parStatut: {},
         nbSeries: 0,
         nbTomes: 0,
         nbTomesParProprietaire: {},
-        nbTomesParProprietaireParType: {}, // Nouveau : nombre de tomes par type par propriétaire
+        nbTomesParProprietaireParType: {}, // Nouveau : nombre de manga_tomes par type par propriétaire
         users: [] // Nouveau : liste des utilisateurs avec leurs couleurs
       };
 
@@ -36,17 +37,23 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         stats.nbTomesParProprietaireParType[user.id] = {};
       });
 
-      // Calcul dynamique des coûts et tomes par propriétaire
-      const tomes = db.prepare(`
-        SELECT t.id, t.prix, s.type_volume 
-        FROM tomes t
-        JOIN series s ON t.serie_id = s.id
+      // Calcul dynamique des coûts et manga_tomes par propriétaire
+      const manga_tomes = db.prepare(`
+        SELECT t.id, t.prix, t.mihon, s.type_volume 
+        FROM manga_tomes t
+        JOIN manga_series s ON t.serie_id = s.id
       `).all();
       
-      tomes.forEach(tome => {
+      manga_tomes.forEach(tome => {
+        // Calculer le total Mihon (gain)
+        if (tome.mihon === 1) {
+          stats.totalMihon = (stats.totalMihon || 0) + tome.prix;
+          return; // Exclure les manga_tomes Mihon du coût global
+        }
+        
         // Récupérer les propriétaires de ce tome
         const proprietaires = db.prepare(`
-          SELECT user_id FROM tomes_proprietaires WHERE tome_id = ?
+          SELECT user_id FROM manga_manga_tomes_proprietaires WHERE tome_id = ?
         `).all(tome.id);
 
         if (proprietaires.length > 0) {
@@ -67,11 +74,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         }
       });
 
-      // Nombre de tomes par type
+      // Nombre de manga_tomes par type
       const parType = db.prepare(`
         SELECT s.type_volume, COUNT(t.id) as count, SUM(t.prix) as total
-        FROM tomes t
-        JOIN series s ON t.serie_id = s.id
+        FROM manga_tomes t
+        JOIN manga_series s ON t.serie_id = s.id
         GROUP BY s.type_volume
       `).all();
       
@@ -83,14 +90,14 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       });
 
       // Nombre de séries par statut
-      const parStatut = db.prepare('SELECT statut, COUNT(*) as count FROM series GROUP BY statut').all();
+      const parStatut = db.prepare('SELECT statut, COUNT(*) as count FROM manga_series GROUP BY statut').all();
       parStatut.forEach(row => {
         stats.parStatut[row.statut] = row.count;
       });
 
       // Totaux généraux
-      stats.nbSeries = db.prepare('SELECT COUNT(*) as count FROM series').get().count;
-      stats.nbTomes = db.prepare('SELECT COUNT(*) as count FROM tomes').get().count;
+      stats.nbSeries = db.prepare('SELECT COUNT(*) as count FROM manga_series').get().count;
+      stats.nbTomes = db.prepare('SELECT COUNT(*) as count FROM manga_tomes').get().count;
 
       return stats;
     } catch (error) {
@@ -110,12 +117,12 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       const currentUser = store.get('currentUser', '');
       if (!currentUser) {
         return {
-          tomesLus: 0,
-          tomesTotal: 0,
+          manga_tomesLus: 0,
+          manga_tomesTotal: 0,
           chapitresLus: 0,
           chapitresTotal: 0,
-          seriesCompletes: 0,
-          seriesTotal: 0,
+          manga_seriesCompletes: 0,
+          manga_seriesTotal: 0,
           progression: 0,
           derniersTomesLus: []
         };
@@ -127,95 +134,153 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         return { error: 'Utilisateur non trouvé' };
       }
 
-      // Nombre total de tomes (collection globale)
-      const tomesTotal = db.prepare('SELECT COUNT(*) as count FROM tomes').get().count;
+      // Nombre total de manga_tomes (collection globale)
+      const manga_tomesTotal = db.prepare('SELECT COUNT(*) as count FROM manga_tomes').get().count;
 
-      // Nombre de tomes lus par l'utilisateur
-      const tomesLus = db.prepare(`
-        SELECT COUNT(*) as count 
-        FROM lecture_tomes 
-        WHERE user_id = ? AND lu = 1
-      `).get(userId).count;
+      // Nombre de manga_tomes lus par l'utilisateur (depuis manga_user_data.tome_progress)
+      const { safeJsonParse } = require('../common-helpers');
+      let manga_tomesLus = 0;
+      const allUserData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE user_id = ?').all(userId);
+      for (const userData of allUserData) {
+        if (userData.tome_progress) {
+          const tomeProgress = safeJsonParse(userData.tome_progress, []);
+          if (Array.isArray(tomeProgress)) {
+            manga_tomesLus += tomeProgress.filter(tp => tp.lu === true || tp.lu === 1).length;
+          }
+        }
+      }
 
-      // Séries suivies par l'utilisateur (statut ou tomes possédés)
-      const seriesTotal = db.prepare(`
+      // Séries suivies par l'utilisateur (statut ou manga_tomes possédés)
+      const manga_seriesTotal = db.prepare(`
         SELECT COUNT(*) as count
-        FROM series s
+        FROM manga_series s
         WHERE EXISTS (
-          SELECT 1 FROM serie_statut_utilisateur ssu
-          WHERE ssu.serie_id = s.id AND ssu.user_id = ?
+          SELECT 1 FROM manga_user_data mud
+          WHERE mud.serie_id = s.id AND mud.user_id = ?
         )
         OR EXISTS (
           SELECT 1 
-          FROM tomes t
-          JOIN tomes_proprietaires tp ON tp.tome_id = t.id
+          FROM manga_tomes t
+          JOIN manga_manga_tomes_proprietaires tp ON tp.tome_id = t.id
           WHERE t.serie_id = s.id AND tp.user_id = ?
         )
       `).get(userId, userId).count;
 
-      // Séries complètes basées sur les tomes
-      const seriesCompletesTomes = db.prepare(`
-        SELECT COUNT(DISTINCT s.id) as count
-        FROM series s
-        WHERE (
-          SELECT COUNT(*) 
-          FROM tomes t 
-          WHERE t.serie_id = s.id
-        ) = (
-          SELECT COUNT(*) 
-          FROM tomes t 
-          LEFT JOIN lecture_tomes lt ON t.id = lt.tome_id AND lt.user_id = ?
-          WHERE t.serie_id = s.id AND lt.lu = 1
-        )
-        AND (SELECT COUNT(*) FROM tomes WHERE serie_id = s.id) > 0
-      `).get(userId).count;
+      // Séries complètes basées sur les manga_tomes
+      // Compter les séries où tous les manga_tomes sont lus (depuis tome_progress)
+      let manga_seriesCompletesTomes = 0;
+      const manga_seriesWithTomes = db.prepare(`
+        SELECT s.id, 
+               (SELECT COUNT(*) FROM manga_tomes WHERE serie_id = s.id) as total_manga_tomes
+        FROM manga_series s
+        WHERE (SELECT COUNT(*) FROM manga_tomes WHERE serie_id = s.id) > 0
+      `).all();
+      
+      for (const serie of manga_seriesWithTomes) {
+        const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serie.id, userId);
+        if (userData && userData.tome_progress) {
+          const tomeProgress = safeJsonParse(userData.tome_progress, []);
+          if (Array.isArray(tomeProgress)) {
+            const manga_tomesLusCount = tomeProgress.filter(tp => tp.lu === true || tp.lu === 1).length;
+            if (manga_tomesLusCount === serie.total_manga_tomes && serie.total_manga_tomes > 0) {
+              manga_seriesCompletesTomes++;
+            }
+          }
+        }
+      }
 
-      // Séries à chapitres (sans tomes)
-      const seriesChapitres = db.prepare(`
+      // Séries à chapitres (sans manga_tomes)
+      const manga_seriesChapitres = db.prepare(`
         SELECT 
           s.id,
           s.nb_chapitres as total_chapitres,
-          COALESCE(ssu.chapitres_lus, s.chapitres_lus, 0) as chapitres_lus
-        FROM series s
-        LEFT JOIN serie_statut_utilisateur ssu ON s.id = ssu.serie_id AND ssu.user_id = ?
-        WHERE (SELECT COUNT(*) FROM tomes WHERE serie_id = s.id) = 0
+          COALESCE(mud.chapitres_lus, s.chapitres_lus, 0) as chapitres_lus
+        FROM manga_series s
+        LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+        WHERE (SELECT COUNT(*) FROM manga_tomes WHERE serie_id = s.id) = 0
           AND s.nb_chapitres IS NOT NULL
           AND s.nb_chapitres > 0
           AND (
-            ssu.user_id IS NOT NULL
+            mud.user_id IS NOT NULL
             OR COALESCE(s.chapitres_lus, 0) > 0
           )
       `).all(userId);
 
-      const chapitresTotal = seriesChapitres.reduce((acc, serie) => acc + (serie.total_chapitres || 0), 0);
-      const chapitresLus = seriesChapitres.reduce((acc, serie) => {
+      const chapitresTotal = manga_seriesChapitres.reduce((acc, serie) => acc + (serie.total_chapitres || 0), 0);
+      const chapitresLus = manga_seriesChapitres.reduce((acc, serie) => {
         const total = serie.total_chapitres || 0;
         const lus = Math.min(serie.chapitres_lus || 0, total);
         return acc + lus;
       }, 0);
 
-      const seriesCompletesChapitres = seriesChapitres.filter(serie => {
+      const manga_seriesCompletesChapitres = manga_seriesChapitres.filter(serie => {
         const total = serie.total_chapitres || 0;
         if (total === 0) return false;
         const lus = Math.min(serie.chapitres_lus || 0, total);
         return lus >= total;
       }).length;
 
-      const seriesCompletes = seriesCompletesTomes + seriesCompletesChapitres;
+      const manga_seriesCompletes = manga_seriesCompletesTomes + manga_seriesCompletesChapitres;
 
-      // Derniers tomes lus (les 10 plus récents)
+      // Derniers manga_tomes lus (les 10 plus récents) - depuis manga_user_data.tome_progress
+      const derniersTomesLus = [];
+      const userDataWithProgress = db.prepare(`
+        SELECT mud.serie_id, mud.tome_progress, s.titre as serie_titre
+        FROM manga_user_data mud
+        JOIN manga_series s ON mud.serie_id = s.id
+        WHERE mud.user_id = ? AND mud.tome_progress IS NOT NULL
+      `).all(userId);
+      
+      for (const userData of userDataWithProgress) {
+        const tomeProgress = safeJsonParse(userData.tome_progress, []);
+        if (Array.isArray(tomeProgress)) {
+          for (const tp of tomeProgress) {
+            if (tp.lu === true || tp.lu === 1) {
+              const tome = db.prepare('SELECT id, numero, couverture_url FROM manga_tomes WHERE id = ?').get(tp.tome_id);
+              if (tome) {
+                derniersTomesLus.push({
+                  id: tome.id,
+                  numero: tome.numero,
+                  couverture_url: tome.couverture_url,
+                  serie_titre: userData.serie_titre,
+                  serie_id: userData.serie_id,
+                  date_lecture: tp.date_lecture || null
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Trier par date_lecture décroissante et prendre les 10 premiers
+      derniersTomesLus.sort((a, b) => {
+        if (!a.date_lecture && !b.date_lecture) return 0;
+        if (!a.date_lecture) return 1;
+        if (!b.date_lecture) return -1;
+        return new Date(b.date_lecture) - new Date(a.date_lecture);
+      });
+      
+      const derniersTomesLusLimited = derniersTomesLus.slice(0, 10);
+      
+      // Ancienne requête (commentée pour référence)
+      /*
       const derniersTomesLus = db.prepare(`
         SELECT t.id, t.numero, t.couverture_url, s.titre as serie_titre, s.id as serie_id, lt.date_lecture
-        FROM lecture_tomes lt
-        JOIN tomes t ON lt.tome_id = t.id
-        JOIN series s ON t.serie_id = s.id
+        FROM lecture_manga_tomes lt
+        JOIN manga_tomes t ON lt.tome_id = t.id
+        JOIN manga_series s ON t.serie_id = s.id
         WHERE lt.user_id = ? AND lt.lu = 1
         ORDER BY lt.date_lecture DESC
         LIMIT 10
       `).all(userId);
+      */
+      
+      // Réassigner pour utiliser la version limitée
+      derniersTomesLus.length = 0;
+      derniersTomesLus.push(...derniersTomesLusLimited);
 
-      const progressionTomes = tomesTotal > 0
-        ? (tomesLus / tomesTotal) * 100
+      const progressionTomes = manga_tomesTotal > 0
+        ? (manga_tomesLus / manga_tomesTotal) * 100
         : null;
 
       const progressionChapitres = chapitresTotal > 0
@@ -232,12 +297,12 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         : 0;
 
       return {
-        tomesLus,
-        tomesTotal,
+        manga_tomesLus,
+        manga_tomesTotal,
         chapitresLus,
         chapitresTotal,
-        seriesCompletes,
-        seriesTotal,
+        manga_seriesCompletes,
+        manga_seriesTotal,
         progression,
         progressionTomes,
         progressionChapitres,
@@ -276,28 +341,73 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       }
 
       // Récupérer le serie_id du tome
-      const tome = db.prepare('SELECT serie_id FROM tomes WHERE id = ?').get(tomeId);
+      const tome = db.prepare('SELECT serie_id FROM manga_tomes WHERE id = ?').get(tomeId);
       if (!tome) {
         throw new Error('Tome non trouvé');
       }
 
       const dateLecture = lu ? new Date().toISOString().replace('T', ' ').replace('Z', '') : null;
 
-      // Utiliser INSERT OR REPLACE pour gérer l'insertion ou la mise à jour
+      // S'assurer qu'une entrée manga_user_data existe
+      const { ensureMangaUserDataRow, clearManualTagOverride, updateAutoCompletionTag } = require('../mangas/manga-helpers');
+      const { safeJsonParse } = require('../common-helpers');
+      ensureMangaUserDataRow(db, tome.serie_id, userId);
+      clearManualTagOverride(db, tome.serie_id, userId);
+
+      // Récupérer tome_progress existant
+      const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(tome.serie_id, userId);
+      let tomeProgress = safeJsonParse(userData?.tome_progress, []);
+      
+      // Trouver ou créer l'entrée pour ce tome
+      const existingIndex = tomeProgress.findIndex(tp => tp.tome_id === tomeId);
+      if (existingIndex >= 0) {
+        // Mettre à jour l'entrée existante
+        tomeProgress[existingIndex] = {
+          tome_id: tomeId,
+          lu: lu ? true : false,
+          date_lecture: dateLecture
+        };
+      } else {
+        // Ajouter une nouvelle entrée
+        tomeProgress.push({
+          tome_id: tomeId,
+          lu: lu ? true : false,
+          date_lecture: dateLecture
+        });
+      }
+
+      // Sauvegarder dans manga_user_data
+      const tomeProgressJson = JSON.stringify(tomeProgress);
       db.prepare(`
-        INSERT INTO lecture_tomes (tome_id, user_id, lu, date_lecture)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(tome_id, user_id) 
-        DO UPDATE SET lu = ?, date_lecture = ?
-      `).run(tomeId, userId, lu ? 1 : 0, dateLecture, lu ? 1 : 0, dateLecture);
+        UPDATE manga_user_data 
+        SET tome_progress = ?, updated_at = datetime('now')
+        WHERE serie_id = ? AND user_id = ?
+      `).run(tomeProgressJson, tome.serie_id, userId);
 
       // Mettre à jour automatiquement le tag de completion
-      const { updateAutoCompletionTag } = require('../mangas/manga-helpers');
       updateAutoCompletionTag(db, tome.serie_id, userId);
 
       return { success: true };
     } catch (error) {
       console.error('Erreur toggle-tome-lu:', error);
+      throw error;
+    }
+  });
+
+  // Marquer un tome comme Mihon/non Mihon
+  ipcMain.handle('toggle-tome-mihon', (event, tomeId, mihon) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      // Mettre à jour directement le champ mihon dans la table manga_tomes
+      db.prepare('UPDATE manga_tomes SET mihon = ? WHERE id = ?').run(mihon ? 1 : 0, tomeId);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur toggle-tome-mihon:', error);
       throw error;
     }
   });
@@ -321,16 +431,21 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
+      const tome = db.prepare('SELECT serie_id FROM manga_tomes WHERE id = ?').get(tomeId);
+      if (!tome) {
+        throw new Error('Tome introuvable');
+      }
+
       if (possede) {
         // Ajouter l'utilisateur comme propriétaire
         db.prepare(`
-          INSERT OR IGNORE INTO tomes_proprietaires (tome_id, user_id)
-          VALUES (?, ?)
-        `).run(tomeId, userId);
+          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
+          VALUES (?, ?, ?)
+        `).run(tome.serie_id, tomeId, userId);
       } else {
         // Retirer l'utilisateur des propriétaires
         db.prepare(`
-          DELETE FROM tomes_proprietaires
+          DELETE FROM manga_manga_tomes_proprietaires
           WHERE tome_id = ? AND user_id = ?
         `).run(tomeId, userId);
       }
@@ -342,8 +457,8 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
     }
   });
 
-  // Posséder tous les tomes d'une série
-  ipcMain.handle('posseder-tous-les-tomes', (event, serieId) => {
+  // Posséder tous les manga_tomes d'une série
+  ipcMain.handle('posseder-tous-les-manga_tomes', (event, serieId) => {
     try {
       const db = getDb();
       if (!db) {
@@ -361,24 +476,21 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
-      // Récupérer tous les tomes de la série
-      const tomes = db.prepare('SELECT id FROM tomes WHERE serie_id = ?').all(serieId);
+      // Récupérer tous les manga_tomes de la série
+      const manga_tomes = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ?').all(serieId);
       
-      // Ajouter l'utilisateur comme propriétaire de tous les tomes
-      const insertProprietaire = db.prepare(`
-        INSERT OR IGNORE INTO tomes_proprietaires (tome_id, user_id)
-        VALUES (?, ?)
-      `);
-
-      let tomesUpdated = 0;
-      for (const tome of tomes) {
-        insertProprietaire.run(tome.id, userId);
-        tomesUpdated++;
+      let manga_tomesUpdated = 0;
+      for (const tome of manga_tomes) {
+        db.prepare(`
+          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
+          VALUES (?, ?, ?)
+        `).run(serieId, tome.id, userId);
+        manga_tomesUpdated++;
       }
 
-      return { success: true, tomesUpdated };
+      return { success: true, manga_tomesUpdated };
     } catch (error) {
-      console.error('Erreur posseder-tous-les-tomes:', error);
+      console.error('Erreur posseder-tous-les-manga_tomes:', error);
       throw error;
     }
   });
@@ -391,11 +503,11 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      // Récupérer tous les tomes avec leur date d'achat
-      const tomes = db.prepare(`
+      // Récupérer tous les manga_tomes avec leur date d'achat
+      const manga_tomes = db.prepare(`
         SELECT t.id, t.prix, t.date_achat, s.type_volume
-        FROM tomes t
-        JOIN series s ON t.serie_id = s.id
+        FROM manga_tomes t
+        JOIN manga_series s ON t.serie_id = s.id
         WHERE t.date_achat IS NOT NULL
         ORDER BY t.date_achat ASC
       `).all();
@@ -404,7 +516,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       const parMois = {};
       const parAnnee = {};
 
-      tomes.forEach(tome => {
+      manga_tomes.forEach(tome => {
         const date = new Date(tome.date_achat);
         const mois = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const annee = date.getFullYear().toString();
@@ -427,7 +539,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       return {
         parMois,
         parAnnee,
-        totalTomes: tomes.length
+        totalTomes: manga_tomes.length
       };
     } catch (error) {
       console.error('Erreur get-evolution-statistics:', error);
@@ -435,7 +547,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
     }
   });
 
-  // Récupérer toutes les progressions récentes (tomes + chapitres + épisodes)
+  // Récupérer toutes les progressions récentes (manga_tomes + chapitres + épisodes)
   ipcMain.handle('get-recent-progress', () => {
     try {
       const db = getDb();
@@ -447,7 +559,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       if (!currentUser) {
         console.log('⚠️ get-recent-progress: Aucun utilisateur connecté');
         return {
-          tomes: [],
+          manga_tomes: [],
           chapitres: [],
           episodes: [],
           movies: [],
@@ -460,7 +572,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       if (!userId) {
         console.log('⚠️ get-recent-progress: Utilisateur non trouvé');
         return {
-          tomes: [],
+          manga_tomes: [],
           chapitres: [],
           episodes: [],
           movies: [],
@@ -470,21 +582,51 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       console.log(`📊 get-recent-progress: Chargement pour l'utilisateur "${currentUser}"`);
 
-      // 1. Derniers tomes lus (mangas classiques)
-      const derniersTomesLus = db.prepare(`
-        SELECT t.id, t.numero, t.couverture_url, s.titre as serie_titre, s.id as serie_id, lt.date_lecture
-        FROM lecture_tomes lt
-        JOIN tomes t ON lt.tome_id = t.id
-        JOIN series s ON t.serie_id = s.id
-        WHERE lt.user_id = ? AND lt.lu = 1
-        ORDER BY lt.date_lecture DESC
-        LIMIT 10
+      // 1. Derniers manga_tomes lus (mangas classiques) - depuis manga_user_data.tome_progress
+      const { safeJsonParse } = require('../common-helpers');
+      const derniersTomesLus = [];
+      const userDataWithProgress = db.prepare(`
+        SELECT mud.serie_id, mud.tome_progress, s.titre as serie_titre
+        FROM manga_user_data mud
+        JOIN manga_series s ON mud.serie_id = s.id
+        WHERE mud.user_id = ? AND mud.tome_progress IS NOT NULL
       `).all(userId);
       
-      console.log(`  ✅ ${derniersTomesLus.length} tomes lus récents`);
+      for (const userData of userDataWithProgress) {
+        const tomeProgress = safeJsonParse(userData.tome_progress, []);
+        if (Array.isArray(tomeProgress)) {
+          for (const tp of tomeProgress) {
+            if (tp.lu === true || tp.lu === 1) {
+              const tome = db.prepare('SELECT id, numero, couverture_url FROM manga_tomes WHERE id = ?').get(tp.tome_id);
+              if (tome) {
+                derniersTomesLus.push({
+                  id: tome.id,
+                  numero: tome.numero,
+                  couverture_url: tome.couverture_url,
+                  serie_titre: userData.serie_titre,
+                  serie_id: userData.serie_id,
+                  date_lecture: tp.date_lecture || null
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Trier par date_lecture décroissante et prendre les 10 premiers
+      derniersTomesLus.sort((a, b) => {
+        if (!a.date_lecture && !b.date_lecture) return 0;
+        if (!a.date_lecture) return 1;
+        if (!b.date_lecture) return -1;
+        return new Date(b.date_lecture) - new Date(a.date_lecture);
+      });
+      
+      const derniersTomesLusLimited = derniersTomesLus.slice(0, 10);
+      
+      console.log(`  ✅ ${derniersTomesLusLimited.length} manga_tomes lus récents`);
 
       // 2. Dernières progressions de chapitres (scans/manhwa + mangas MAL)
-      // Note: chapitres_lus est global (pas par utilisateur) car stocké dans la table series
+      // Note: chapitres_lus est global (pas par utilisateur) car stocké dans la table manga_series
       const dernieresProgressionsChapitres = db.prepare(`
         SELECT 
           s.id as serie_id,
@@ -493,7 +635,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           s.chapitres_lus,
           s.nb_chapitres,
           s.updated_at as date_progression
-        FROM series s
+        FROM manga_series s
         WHERE (s.type_contenu = 'chapitre' OR s.mal_id IS NOT NULL)
           AND s.chapitres_lus > 0
         ORDER BY s.updated_at DESC
@@ -508,23 +650,17 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           a.id as anime_id,
           a.titre as anime_titre,
           a.couverture_url,
-          (SELECT COUNT(*) FROM anime_episodes_vus aev 
-           WHERE aev.anime_id = a.id 
-           AND aev.user_id = ? 
-           AND aev.vu = 1) as episodes_vus,
+          COALESCE(aud.episodes_vus, 0) as episodes_vus,
           a.nb_episodes,
-          (SELECT MAX(aev2.date_visionnage) FROM anime_episodes_vus aev2 
-           WHERE aev2.anime_id = a.id 
-           AND aev2.user_id = ? 
-           AND aev2.vu = 1) as date_progression
+          (SELECT MAX(json_extract(value, '$.date_visionnage')) 
+           FROM json_each(aud.episode_progress)
+           WHERE json_extract(value, '$.vu') = 1) as date_progression
         FROM anime_series a
-        WHERE (SELECT COUNT(*) FROM anime_episodes_vus aev 
-               WHERE aev.anime_id = a.id 
-               AND aev.user_id = ? 
-               AND aev.vu = 1) > 0
+        INNER JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
+        WHERE aud.episodes_vus > 0
         ORDER BY date_progression DESC
         LIMIT 10
-      `).all(userId, userId, userId);
+      `).all(userId);
       
       console.log(`  ✅ ${dernieresProgressionsEpisodes.length} progressions épisodes animes`);
 
@@ -535,51 +671,51 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           m.tmdb_id AS tmdb_id,
           m.titre AS movie_titre,
           m.poster_path,
-          mus.statut_visionnage,
-          mus.date_visionnage,
-          mus.date_modification
-        FROM movie_user_status mus
-        JOIN movies m ON m.id = mus.movie_id
-        WHERE mus.user_id = ?
+          mud.statut_visionnage,
+          mud.date_visionnage,
+          mud.updated_at AS date_modification
+        FROM movie_user_data mud
+        JOIN movies m ON m.id = mud.movie_id
+        WHERE mud.user_id = ?
           AND (
-            mus.date_visionnage IS NOT NULL
-            OR mus.statut_visionnage IN ('En cours', 'Terminé', 'En pause', 'Abandonné')
+            mud.date_visionnage IS NOT NULL
+            OR mud.statut_visionnage IN ('En cours', 'Terminé', 'En pause', 'Abandonné')
           )
-        ORDER BY COALESCE(mus.date_visionnage, mus.date_modification, m.updated_at) DESC
+        ORDER BY COALESCE(mud.date_visionnage, mud.updated_at, m.updated_at) DESC
         LIMIT 10
       `).all(userId);
 
       console.log(`  ✅ ${filmsRecents.length} films visionnés récemment`);
 
       // 5. Progressions sur les séries TV
-      const seriesTvRecents = db.prepare(`
+      const manga_seriesTvRecents = db.prepare(`
         SELECT
           s.id AS show_id,
           s.tmdb_id AS tmdb_id,
           s.titre AS show_titre,
           s.poster_path,
-          tus.episodes_vus,
+          tud.episodes_vus,
           COALESCE(
             s.nb_episodes,
             (SELECT COUNT(*) FROM tv_episodes e WHERE e.show_id = s.id)
           ) AS nb_episodes,
-          tus.date_modification AS date_progression,
-          tus.statut_visionnage
-        FROM tv_show_user_status tus
-        JOIN tv_shows s ON s.id = tus.show_id
-        WHERE tus.user_id = ?
-          AND tus.episodes_vus > 0
-        ORDER BY tus.date_modification DESC
+          tud.updated_at AS date_progression,
+          tud.statut_visionnage
+        FROM tv_show_user_data tud
+        JOIN tv_shows s ON s.id = tud.show_id
+        WHERE tud.user_id = ?
+          AND tud.episodes_vus > 0
+        ORDER BY tud.updated_at DESC
         LIMIT 10
       `).all(userId);
 
-      console.log(`  ✅ ${seriesTvRecents.length} progressions séries TV`);
+      console.log(`  ✅ ${manga_seriesTvRecents.length} progressions séries TV`);
       
-      const totalItems = derniersTomesLus.length + dernieresProgressionsChapitres.length + dernieresProgressionsEpisodes.length + filmsRecents.length + seriesTvRecents.length;
+      const totalItems = derniersTomesLus.length + dernieresProgressionsChapitres.length + dernieresProgressionsEpisodes.length + filmsRecents.length + manga_seriesTvRecents.length;
       console.log(`  📊 Total: ${totalItems} éléments de progression récente`);
 
       return {
-        tomes: derniersTomesLus.map(tome => ({
+        manga_tomes: derniersTomesLus.map(tome => ({
           type: 'tome',
           id: tome.id,
           serieId: tome.serie_id,
@@ -616,7 +752,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           dateVisionnage: movie.date_visionnage,
           tmdbId: movie.tmdb_id
         })),
-        tvShows: seriesTvRecents.map((show) => ({
+        tvShows: manga_seriesTvRecents.map((show) => ({
           type: 'tv',
           showId: show.show_id,
           showTitre: show.show_titre,
@@ -653,27 +789,56 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
-      // Récupérer tous les tomes de la série, triés par numéro
-      const tomes = db.prepare('SELECT id FROM tomes WHERE serie_id = ? ORDER BY numero ASC').all(serieId);
-      
-      // Marquer tous les tomes comme lus avec des timestamps espacés de quelques secondes
-      // pour conserver l'ordre chronologique (1 seconde entre chaque tome)
-      const stmt = db.prepare(`
-        INSERT INTO lecture_tomes (tome_id, user_id, lu, date_lecture)
-        VALUES (?, ?, 1, ?)
-        ON CONFLICT(tome_id, user_id) 
-        DO UPDATE SET lu = 1, date_lecture = ?
-      `);
+      // S'assurer qu'une entrée manga_user_data existe
+      const { ensureMangaUserDataRow, clearManualTagOverride, updateAutoCompletionTag } = require('../mangas/manga-helpers');
+      const { safeJsonParse } = require('../common-helpers');
+      ensureMangaUserDataRow(db, serieId, userId);
 
+      // Récupérer tous les manga_tomes de la série, triés par numéro
+      const manga_tomes = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? ORDER BY numero ASC').all(serieId);
+      
+      // Récupérer tome_progress existant
+      const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
+      let tomeProgress = safeJsonParse(userData?.tome_progress, []);
+      
+      // Marquer tous les manga_tomes comme lus avec des timestamps espacés de quelques secondes
+      // pour conserver l'ordre chronologique (1 seconde entre chaque tome)
       const baseDate = new Date();
-      tomes.forEach((tome, index) => {
+      manga_tomes.forEach((tome, index) => {
         const dateLecture = new Date(baseDate.getTime() + (index * 1000)); // +1 seconde par tome
         const dateLectureStr = dateLecture.toISOString().replace('T', ' ').replace('Z', '');
-        stmt.run(tome.id, userId, dateLectureStr, dateLectureStr);
+        
+        // Trouver ou créer l'entrée pour ce tome
+        const existingIndex = tomeProgress.findIndex(tp => tp.tome_id === tome.id);
+        if (existingIndex >= 0) {
+          // Mettre à jour l'entrée existante
+          tomeProgress[existingIndex] = {
+            tome_id: tome.id,
+            lu: true,
+            date_lecture: dateLectureStr
+          };
+        } else {
+          // Ajouter une nouvelle entrée
+          tomeProgress.push({
+            tome_id: tome.id,
+            lu: true,
+            date_lecture: dateLectureStr
+          });
+        }
       });
 
+      // Sauvegarder dans manga_user_data
+      const tomeProgressJson = JSON.stringify(tomeProgress);
+      db.prepare(`
+        UPDATE manga_user_data 
+        SET tome_progress = ?, updated_at = datetime('now')
+        WHERE serie_id = ? AND user_id = ?
+      `).run(tomeProgressJson, serieId, userId);
 
-      return { success: true, tomesMarques: tomes.length };
+      clearManualTagOverride(db, serieId, userId);
+      updateAutoCompletionTag(db, serieId, userId);
+
+      return { success: true, manga_tomesMarques: manga_tomes.length };
     } catch (error) {
       console.error('Erreur marquer-serie-lue:', error);
       throw error;

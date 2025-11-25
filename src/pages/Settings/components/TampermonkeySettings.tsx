@@ -42,8 +42,7 @@ export default function TampermonkeySettings({ showToast }: TampermonkeySettings
   return (
     <div>
       <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-        Les scripts Tampermonkey permettent d'intégrer Nexus avec vos sites préférés (Crunchyroll, ADN,
-        ADKami, Nautiljon, F95Zone, LewdCorner). Marquez automatiquement vos épisodes vus, importez des mangas et Jeux Adultes en un clic !
+        Les scripts Tampermonkey permettent d'intégrer Nexus avec vos sites préférés (Nautiljon, F95Zone, LewdCorner). Importez des mangas et Jeux Adultes en un clic !
       </p>
 
       <div style={{
@@ -101,23 +100,18 @@ export default function TampermonkeySettings({ showToast }: TampermonkeySettings
           border: '1px solid var(--border)'
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '24px', marginBottom: '5px' }}>✅</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Marquage épisodes</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7 }}>Crunchyroll, ADN, ADKami</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '24px', marginBottom: '5px' }}>📚</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Import mangas</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Lectures</div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7 }}>Nautiljon, MyAnimeList</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '24px', marginBottom: '5px' }}>📥</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Import animes</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7 }}>MyAnimeList, ADKami</div>
+            <div style={{ fontSize: '24px', marginBottom: '5px' }}>🎬</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Animes</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7 }}>Nautiljon, MyAnimeList</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '24px', marginBottom: '5px' }}>🎮</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Import Jeux Adultes</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Jeux adultes</div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.7 }}>F95Zone, LewdCorner</div>
           </div>
         </div>

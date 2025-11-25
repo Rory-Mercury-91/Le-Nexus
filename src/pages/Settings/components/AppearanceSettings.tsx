@@ -6,9 +6,11 @@ import type { ContentPreferences } from '../../../types';
 interface AppearanceSettingsProps {
   theme: 'dark' | 'light';
   autoLaunch: boolean;
+  autoDownloadCovers: boolean;
   contentPrefs: ContentPreferences;
   onThemeChange: (theme: 'dark' | 'light') => void;
   onAutoLaunchChange: (enabled: boolean) => void;
+  onAutoDownloadCoversChange: (enabled: boolean) => void;
   onContentPrefChange: (key: keyof ContentPreferences, value: boolean) => void;
   tmdbLanguage: string;
   tmdbRegion: string;
@@ -24,9 +26,11 @@ interface AppearanceSettingsProps {
 export default function AppearanceSettings({
   theme,
   autoLaunch,
+  autoDownloadCovers,
   contentPrefs,
   onThemeChange,
   onAutoLaunchChange,
+  onAutoDownloadCoversChange,
   onContentPrefChange,
   tmdbLanguage,
   tmdbRegion,
@@ -53,6 +57,7 @@ export default function AppearanceSettings({
   const tooltipTexts: Record<string, string> = {
     theme: 'Mémorisation : Le thème est automatiquement sauvegardé d\'une session à l\'autre.',
     startup: 'Confort : Démarre Nexus automatiquement au lancement de Windows.',
+    autoDownloadCovers: 'Téléchargement : Les couvertures seront automatiquement téléchargées localement lors des imports (Mihon, Nautiljon, etc.). Utile pour contourner les protections Cloudflare.',
     visibility: 'Affichage : Contrôle si ces pages de contenu s\'affichent ou non dans la navigation et sur l\'accueil.'
   };
 
@@ -105,7 +110,7 @@ export default function AppearanceSettings({
   );
 
   const visibilityOptions: Array<{ label: string; key: keyof ContentPreferences }> = [
-    { label: '📚 Mangas', key: 'showMangas' },
+    { label: '📚 Lectures', key: 'showMangas' },
     { label: '🎬 Animes', key: 'showAnimes' },
     { label: '🎞️ Films', key: 'showMovies' },
     { label: '📺 Séries', key: 'showSeries' },
@@ -121,8 +126,8 @@ export default function AppearanceSettings({
   }> = [
       {
         id: 'manga',
-        title: 'Mangas',
-        description: 'Activez ou masquez les sections des fiches mangas (bibliothèque et détails).',
+        title: 'Lectures',
+        description: 'Activez ou masquez les sections des fiches lectures (manga, manhwa, comics…).',
         icon: '📚',
         onOpen: onOpenMangaSettings,
       },
@@ -239,6 +244,27 @@ export default function AppearanceSettings({
           <TooltipIcon id="startup" icon="❓" ariaLabel="Informations sur le démarrage automatique" />
         </div>
         <Toggle checked={autoLaunch} onChange={onAutoLaunchChange} />
+      </div>
+
+      {/* Téléchargement automatique des couvertures */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+          padding: '16px 20px',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
+          Téléchargement automatique des couvertures
+          <TooltipIcon id="autoDownloadCovers" icon="💡" ariaLabel="Informations sur le téléchargement automatique" />
+        </div>
+        <Toggle checked={autoDownloadCovers} onChange={onAutoDownloadCoversChange} />
       </div>
 
       {/* Visibilité */}

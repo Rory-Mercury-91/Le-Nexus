@@ -1,15 +1,51 @@
 const { syncTvShowFromTmdb } = require('../../services/tv/tv-sync-service');
 const { searchTv } = require('../../apis/tmdb');
-const { getUserIdByName } = require('../common-helpers');
+const { getUserIdByName, safeJsonParse } = require('../common-helpers');
+const { createToggleFavoriteHandler, createToggleHiddenHandler, createSetStatusHandler } = require('../common/item-action-helpers');
 
-function ensureTvShowStatusRow(db, showId, userId) {
-  const existing = db.prepare('SELECT show_id FROM tv_show_user_status WHERE show_id = ? AND user_id = ?').get(showId, userId);
+function ensureTvShowUserDataRow(db, showId, userId) {
+  const existing = db.prepare('SELECT id FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
   if (!existing) {
     db.prepare(`
-      INSERT INTO tv_show_user_status (show_id, user_id, statut_visionnage, score, saisons_vues, episodes_vus, date_debut, date_fin, is_favorite, is_hidden)
-      VALUES (?, ?, 'À regarder', NULL, NULL, NULL, NULL, NULL, 0, 0)
+      INSERT INTO tv_show_user_data (
+        show_id, user_id, statut_visionnage, score, saisons_vues, episodes_vus,
+        date_debut, date_fin, is_favorite, is_hidden,
+        user_images, user_videos, episode_videos, episode_progress,
+        notes_privees, display_preferences, created_at, updated_at
+      )
+      VALUES (?, ?, 'À regarder', NULL, 0, 0, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, datetime('now'), datetime('now'))
     `).run(showId, userId);
   }
+}
+
+function fetchSeasonsAndEpisodes(db, showId, episodeProgressMap = {}) {
+  const seasons = db.prepare(`
+    SELECT *
+    FROM tv_seasons
+    WHERE show_id = ?
+    ORDER BY numero ASC
+  `).all(showId).map((season) => ({
+    ...season,
+    synopsis: season.synopsis || null,
+    donnees_brutes: safeJsonParse(season.donnees_brutes, null)
+  }));
+
+  const episodes = db.prepare(`
+    SELECT *
+    FROM tv_episodes
+    WHERE show_id = ?
+    ORDER BY saison_numero ASC, episode_numero ASC
+  `).all(showId).map((episode) => {
+    const progress = episodeProgressMap[String(episode.id)] || { vu: false, date_visionnage: null };
+    return {
+      ...episode,
+      vu: Boolean(progress.vu),
+      date_visionnage: progress.date_visionnage || null,
+      donnees_brutes: episode.donnees_brutes ? safeJsonParse(episode.donnees_brutes, null) : null
+    };
+  });
+
+  return { seasons, episodes };
 }
 
 function registerTvHandlers(ipcMain, getDb, store) {
@@ -111,34 +147,45 @@ function registerTvHandlers(ipcMain, getDb, store) {
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-    const allowedOrder = ['date_premiere', 'note_moyenne', 'popularite', 'created_at', 'titre'];
-    const orderColumn = allowedOrder.includes(orderBy) ? orderBy : 'date_premiere';
-    const sortDirection = sort === 'ASC' ? 'ASC' : 'DESC';
+
+    // Mapping sécurisé des colonnes ORDER BY pour éviter l'injection SQL
+    const orderColumnMap = {
+      'date_premiere': 's.date_premiere',
+      'created_at': 's.created_at',
+      'titre': 's.titre'
+    };
+    const sortDirectionMap = {
+      'ASC': 'ASC',
+      'DESC': 'DESC'
+    };
+
+    const safeOrderColumn = orderColumnMap[orderBy] || orderColumnMap['date_premiere'];
+    const safeSortDirection = sortDirectionMap[sort] || 'DESC';
 
     const stmt = db.prepare(`
       SELECT
         s.*,
-        tus.statut_visionnage,
-        tus.score,
-        tus.saisons_vues,
-        tus.episodes_vus,
-        tus.date_debut,
-        tus.date_fin,
-        COALESCE(tus.is_favorite, 0) AS is_favorite,
-        COALESCE(tus.is_hidden, 0) AS is_hidden
+        tud.statut_visionnage,
+        tud.score,
+        tud.saisons_vues,
+        tud.episodes_vus,
+        tud.date_debut,
+        tud.date_fin,
+        COALESCE(tud.is_favorite, 0) AS is_favorite,
+        COALESCE(tud.is_hidden, 0) AS is_hidden
       FROM tv_shows s
-      LEFT JOIN tv_show_user_status tus ON s.id = tus.show_id AND tus.user_id = ?
+      LEFT JOIN tv_show_user_data tud ON s.id = tud.show_id AND tud.user_id = ?
       ${where}
-      ORDER BY ${orderColumn} ${sortDirection}
+      ORDER BY ${safeOrderColumn} ${safeSortDirection}
       LIMIT ?
       OFFSET ?
     `);
 
     return stmt.all(...params, limit, offset).map((show) => ({
       ...show,
-      genres: show.genres ? JSON.parse(show.genres) : [],
-      prochain_episode: show.prochain_episode ? JSON.parse(show.prochain_episode) : null,
-      dernier_episode: show.dernier_episode ? JSON.parse(show.dernier_episode) : null,
+      genres: safeJsonParse(show.genres, []),
+      prochain_episode: safeJsonParse(show.prochain_episode, null),
+      dernier_episode: safeJsonParse(show.dernier_episode, null),
       is_favorite: Boolean(show.is_favorite),
       is_hidden: Boolean(show.is_hidden)
     }));
@@ -153,32 +200,36 @@ function registerTvHandlers(ipcMain, getDb, store) {
       row = db.prepare(`
         SELECT
           s.*,
-          tus.statut_visionnage,
-          tus.score,
-          tus.saisons_vues,
-          tus.episodes_vus,
-          tus.date_debut,
-          tus.date_fin,
-          COALESCE(tus.is_favorite, 0) AS is_favorite,
-          COALESCE(tus.is_hidden, 0) AS is_hidden
+          tud.statut_visionnage,
+          tud.score,
+          tud.saisons_vues,
+          tud.episodes_vus,
+          tud.date_debut,
+          tud.date_fin,
+          COALESCE(tud.is_favorite, 0) AS is_favorite,
+          COALESCE(tud.is_hidden, 0) AS is_hidden,
+          tud.episode_progress,
+          tud.display_preferences
         FROM tv_shows s
-        LEFT JOIN tv_show_user_status tus ON s.id = tus.show_id AND tus.user_id = ?
+        LEFT JOIN tv_show_user_data tud ON s.id = tud.show_id AND tud.user_id = ?
         WHERE s.id = ?
       `).get(userId || -1, showId);
     } else if (tmdbId) {
       row = db.prepare(`
         SELECT
           s.*,
-          tus.statut_visionnage,
-          tus.score,
-          tus.saisons_vues,
-          tus.episodes_vus,
-          tus.date_debut,
-          tus.date_fin,
-          COALESCE(tus.is_favorite, 0) AS is_favorite,
-          COALESCE(tus.is_hidden, 0) AS is_hidden
+          tud.statut_visionnage,
+          tud.score,
+          tud.saisons_vues,
+          tud.episodes_vus,
+          tud.date_debut,
+          tud.date_fin,
+          COALESCE(tud.is_favorite, 0) AS is_favorite,
+          COALESCE(tud.is_hidden, 0) AS is_hidden,
+          tud.episode_progress,
+          tud.display_preferences
         FROM tv_shows s
-        LEFT JOIN tv_show_user_status tus ON s.id = tus.show_id AND tus.user_id = ?
+        LEFT JOIN tv_show_user_data tud ON s.id = tud.show_id AND tud.user_id = ?
         WHERE s.tmdb_id = ?
       `).get(userId || -1, tmdbId);
     }
@@ -187,55 +238,28 @@ function registerTvHandlers(ipcMain, getDb, store) {
       return null;
     }
 
-    const seasons = db.prepare(`
-      SELECT *
-      FROM tv_seasons
-      WHERE show_id = ?
-      ORDER BY numero ASC
-    `).all(row.id).map((season) => ({
-      ...season,
-      synopsis: season.synopsis || null,
-      donnees_brutes: season.donnees_brutes ? JSON.parse(season.donnees_brutes) : null
-    }));
-
-    const episodesStmt = db.prepare(`
-      SELECT
-        e.*,
-        COALESCE(p.vu, 0) AS progress_vu,
-        p.date_visionnage AS progress_date_visionnage
-      FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
-      WHERE e.show_id = ?
-      ORDER BY e.saison_numero ASC, e.episode_numero ASC
-    `);
-    const episodes = episodesStmt.all(userId || -1, row.id).map((episode) => {
-      const { donnees_brutes, progress_vu, progress_date_visionnage, ...rest } = episode;
-      return {
-        ...rest,
-        vu: Boolean(progress_vu),
-        date_visionnage: progress_date_visionnage || null,
-        donnees_brutes: donnees_brutes ? JSON.parse(donnees_brutes) : null
-      };
-    });
+    const episodeProgress = safeJsonParse(row.episode_progress, {});
+    const { seasons, episodes } = fetchSeasonsAndEpisodes(db, row.id, episodeProgress);
 
     return {
       ...row,
-      genres: row.genres ? JSON.parse(row.genres) : [],
-      mots_cles: row.mots_cles ? JSON.parse(row.mots_cles) : [],
-      compagnies: row.compagnies ? JSON.parse(row.compagnies) : [],
-      pays_production: row.pays_production ? JSON.parse(row.pays_production) : [],
-      reseaux: row.reseaux ? JSON.parse(row.reseaux) : [],
-      plateformes: row.plateformes ? JSON.parse(row.plateformes) : [],
-      prochain_episode: row.prochain_episode ? JSON.parse(row.prochain_episode) : null,
-      dernier_episode: row.dernier_episode ? JSON.parse(row.dernier_episode) : null,
-      images: row.images ? JSON.parse(row.images) : null,
-      videos: row.videos ? JSON.parse(row.videos) : null,
-      fournisseurs: row.fournisseurs ? JSON.parse(row.fournisseurs) : null,
-      ids_externes: row.ids_externes ? JSON.parse(row.ids_externes) : null,
-      traductions: row.traductions ? JSON.parse(row.traductions) : null,
+      genres: safeJsonParse(row.genres, []),
+      mots_cles: safeJsonParse(row.mots_cles, []),
+      compagnies: safeJsonParse(row.compagnies, []),
+      pays_production: safeJsonParse(row.pays_production, []),
+      reseaux: safeJsonParse(row.reseaux, []),
+      plateformes: safeJsonParse(row.plateformes, []),
+      prochain_episode: safeJsonParse(row.prochain_episode, null),
+      dernier_episode: safeJsonParse(row.dernier_episode, null),
+      images: safeJsonParse(row.images, null),
+      videos: safeJsonParse(row.videos, null),
+      fournisseurs: safeJsonParse(row.fournisseurs, null),
+      ids_externes: safeJsonParse(row.ids_externes, null),
+      traductions: safeJsonParse(row.traductions, null),
       is_favorite: Boolean(row.is_favorite),
       is_hidden: Boolean(row.is_hidden),
-      donnees_brutes: row.donnees_brutes ? JSON.parse(row.donnees_brutes) : null,
+      donnees_brutes: safeJsonParse(row.donnees_brutes, null),
+      display_preferences: safeJsonParse(row.display_preferences, {}),
       seasons,
       episodes
     };
@@ -249,49 +273,448 @@ function registerTvHandlers(ipcMain, getDb, store) {
     const db = getDb();
     const currentUser = store.get('currentUser', '');
     const userId = currentUser ? getUserIdByName(db, currentUser) : null;
+
+    // Récupérer la progression depuis episode_progress JSON
+    const userData = db.prepare(`
+      SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?
+    `).get(showId, userId || -1);
+    const episodeProgress = safeJsonParse(userData?.episode_progress, {});
+
     const stmt = db.prepare(`
-      SELECT
-        e.*,
-        COALESCE(p.vu, 0) AS progress_vu,
-        p.date_visionnage AS progress_date_visionnage
+      SELECT e.*
       FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
       WHERE e.show_id = ?
         AND (? IS NULL OR e.saison_numero = ?)
       ORDER BY e.saison_numero ASC, e.episode_numero ASC
     `);
 
     const seasonParam = seasonNumber ?? null;
-    return stmt.all(userId || -1, showId, seasonParam, seasonParam).map((episode) => {
-      const { donnees_brutes, progress_vu, progress_date_visionnage, ...rest } = episode;
+    return stmt.all(showId, seasonParam, seasonParam).map((episode) => {
+      const { donnees_brutes, ...rest } = episode;
+      const progress = episodeProgress[String(episode.id)] || { vu: false, date_visionnage: null };
       return {
         ...rest,
-        vu: Boolean(progress_vu),
-        date_visionnage: progress_date_visionnage || null,
-        donnees_brutes: donnees_brutes ? JSON.parse(donnees_brutes) : null
+        vu: Boolean(progress.vu),
+        date_visionnage: progress.date_visionnage || null,
+        donnees_brutes: donnees_brutes ? safeJsonParse(donnees_brutes, null) : null
       };
     });
   });
 
-  ipcMain.handle('tv-set-status', (event, { showId, statut, score, saisonsVues, episodesVus, dateDebut, dateFin }) => {
-    if (!showId) {
-      throw new Error('showId est requis');
-    }
+  ipcMain.handle('tv-create-season', (event, payload = {}) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
 
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
+      const {
+        showId,
+        seasonNumber,
+        episodeCount,
+        title,
+        synopsis,
+        defaultEpisodeDuration,
+        duplicateFromSeasonId
+      } = payload;
 
-    ensureTvShowStatusRow(db, showId, userId);
+      if (!showId) {
+        return { success: false, error: 'showId est requis' };
+      }
+      if (seasonNumber === undefined || seasonNumber === null) {
+        return { success: false, error: 'Numéro de saison requis' };
+      }
 
-    const stmt = db.prepare(`
-      UPDATE tv_show_user_status
+      const show = db.prepare('SELECT id FROM tv_shows WHERE id = ?').get(showId);
+      if (!show) {
+        return { success: false, error: 'Série introuvable' };
+      }
+
+      const existingSeason = db.prepare('SELECT id FROM tv_seasons WHERE show_id = ? AND numero = ?').get(showId, seasonNumber);
+      if (existingSeason) {
+        return { success: false, error: 'Une saison avec ce numéro existe déjà' };
+      }
+
+      let episodesTemplate = [];
+
+      if (duplicateFromSeasonId) {
+        const sourceSeason = db.prepare('SELECT id, show_id FROM tv_seasons WHERE id = ?').get(duplicateFromSeasonId);
+        if (!sourceSeason || sourceSeason.show_id !== showId) {
+          return { success: false, error: 'Saison à dupliquer introuvable' };
+        }
+
+        const sourceEpisodes = db.prepare(`
+          SELECT titre, synopsis, duree, still_path
+          FROM tv_episodes
+          WHERE season_id = ?
+          ORDER BY episode_numero ASC
+        `).all(sourceSeason.id);
+
+        if (sourceEpisodes.length === 0) {
+          return { success: false, error: 'La saison à dupliquer ne contient aucun épisode' };
+        }
+
+        episodesTemplate = sourceEpisodes.map((episode, index) => ({
+          episodeNumber: index + 1,
+          titre: episode.titre || `Épisode ${index + 1}`,
+          synopsis: episode.synopsis || null,
+          duree: episode.duree || null,
+          stillPath: episode.still_path || null
+        }));
+      } else {
+        if (!episodeCount || episodeCount <= 0) {
+          return { success: false, error: 'Nombre d\'épisodes requis' };
+        }
+        episodesTemplate = Array.from({ length: episodeCount }).map((_, index) => ({
+          episodeNumber: index + 1,
+          titre: `Épisode ${index + 1}`,
+          synopsis: null,
+          duree: defaultEpisodeDuration || null,
+          stillPath: null
+        }));
+      }
+
+      const insertSeasonStmt = db.prepare(`
+        INSERT INTO tv_seasons (
+          show_id, tmdb_id, numero, titre, synopsis, date_premiere,
+          nb_episodes, poster_path, donnees_brutes, created_at, updated_at
+        )
+        VALUES (?, NULL, ?, ?, ?, NULL, ?, NULL, NULL, datetime('now'), datetime('now'))
+      `);
+
+      const insertEpisodeStmt = db.prepare(`
+        INSERT INTO tv_episodes (
+          show_id, season_id, tmdb_id, tvmaze_id, saison_numero, episode_numero,
+          titre, synopsis, date_diffusion, duree, note_moyenne, nb_votes,
+          still_path, donnees_brutes, created_at, updated_at
+        )
+        VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, NULL, ?, NULL, NULL, ?, NULL, datetime('now'), datetime('now'))
+      `);
+
+      const transaction = db.transaction(() => {
+        const seasonInsert = insertSeasonStmt.run(
+          showId,
+          seasonNumber,
+          title?.trim() || `Saison ${seasonNumber}`,
+          synopsis?.trim() || null,
+          episodesTemplate.length
+        );
+        const newSeasonId = seasonInsert.lastInsertRowid;
+
+        episodesTemplate.forEach((episode) => {
+          insertEpisodeStmt.run(
+            showId,
+            newSeasonId,
+            seasonNumber,
+            episode.episodeNumber,
+            episode.titre,
+            episode.synopsis,
+            episode.duree,
+            episode.stillPath
+          );
+        });
+
+        const totals = db.prepare('SELECT COUNT(*) as count FROM tv_seasons WHERE show_id = ?').get(showId);
+        const episodesTotals = db.prepare('SELECT COUNT(*) as count FROM tv_episodes WHERE show_id = ?').get(showId);
+        db.prepare(`
+          UPDATE tv_shows
+          SET nb_saisons = ?, nb_episodes = ?, updated_at = datetime('now')
+          WHERE id = ?
+        `).run(totals?.count || 0, episodesTotals?.count || 0, showId);
+
+        return newSeasonId;
+      });
+
+      const newSeasonId = transaction();
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+
+      return { success: true, seasonId: newSeasonId, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-create-season:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-update-season', (event, payload = {}) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      const { showId, seasonId, title, synopsis, datePremiere, posterPath } = payload;
+      if (!showId || !seasonId) {
+        return { success: false, error: 'showId et seasonId sont requis' };
+      }
+      const season = db.prepare('SELECT id FROM tv_seasons WHERE id = ? AND show_id = ?').get(seasonId, showId);
+      if (!season) {
+        return { success: false, error: 'Saison introuvable' };
+      }
+
+      db.prepare(`
+        UPDATE tv_seasons
+        SET
+          titre = ?,
+          synopsis = ?,
+          date_premiere = ?,
+          poster_path = COALESCE(?, poster_path),
+          updated_at = datetime('now')
+        WHERE id = ? AND show_id = ?
+      `).run(
+        title?.trim() || null,
+        synopsis?.trim() || null,
+        datePremiere || null,
+        posterPath || null,
+        seasonId,
+        showId
+      );
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-update-season:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-delete-season', (event, { showId, seasonId }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      if (!showId || !seasonId) {
+        return { success: false, error: 'showId et seasonId sont requis' };
+      }
+
+      db.prepare('DELETE FROM tv_episodes WHERE show_id = ? AND season_id = ?').run(showId, seasonId);
+      const result = db.prepare('DELETE FROM tv_seasons WHERE id = ? AND show_id = ?').run(seasonId, showId);
+      if (result.changes === 0) {
+        return { success: false, error: 'Saison introuvable' };
+      }
+
+      const totals = db.prepare('SELECT COUNT(*) as count FROM tv_seasons WHERE show_id = ?').get(showId);
+      const episodesTotals = db.prepare('SELECT COUNT(*) as count FROM tv_episodes WHERE show_id = ?').get(showId);
+      db.prepare(`
+        UPDATE tv_shows
+        SET nb_saisons = ?, nb_episodes = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(totals?.count || 0, episodesTotals?.count || 0, showId);
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-delete-season:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-update-episode', (event, payload = {}) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      const { showId, episodeId, title, synopsis, dateDiffusion, duree } = payload;
+      if (!showId || !episodeId) {
+        return { success: false, error: 'showId et episodeId requis' };
+      }
+
+      const episode = db.prepare('SELECT id FROM tv_episodes WHERE id = ? AND show_id = ?').get(episodeId, showId);
+      if (!episode) {
+        return { success: false, error: 'Épisode introuvable' };
+      }
+
+      db.prepare(`
+        UPDATE tv_episodes
+        SET
+          titre = ?,
+          synopsis = ?,
+          date_diffusion = ?,
+          duree = ?,
+          updated_at = datetime('now')
+        WHERE id = ? AND show_id = ?
+      `).run(
+        title?.trim() || null,
+        synopsis?.trim() || null,
+        dateDiffusion || null,
+        (duree || duree === 0) ? parseInt(String(duree), 10) : null,
+        episodeId,
+        showId
+      );
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-update-episode:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-delete-episode', (event, { showId, episodeId }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      if (!showId || !episodeId) {
+        return { success: false, error: 'showId et episodeId requis' };
+      }
+
+      const result = db.prepare('DELETE FROM tv_episodes WHERE id = ? AND show_id = ?').run(episodeId, showId);
+      if (result.changes === 0) {
+        return { success: false, error: 'Épisode introuvable' };
+      }
+
+      const episodesTotals = db.prepare('SELECT COUNT(*) as count FROM tv_episodes WHERE show_id = ?').get(showId);
+      db.prepare(`
+        UPDATE tv_shows
+        SET nb_episodes = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(episodesTotals?.count || 0, showId);
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-delete-episode:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-reorder-episodes', (event, { showId, seasonNumber, order }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      if (!showId || !seasonNumber || !Array.isArray(order) || order.length === 0) {
+        return { success: false, error: 'Paramètres manquants' };
+      }
+
+      const updateStmt = db.prepare(`
+        UPDATE tv_episodes
+        SET episode_numero = ?, updated_at = datetime('now')
+        WHERE id = ? AND show_id = ? AND saison_numero = ?
+      `);
+
+      const transaction = db.transaction(() => {
+        order.forEach(({ episodeId, episodeNumber }) => {
+          updateStmt.run(episodeNumber, episodeId, showId, seasonNumber);
+        });
+      });
+      transaction();
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-reorder-episodes:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('tv-update-season-poster', (event, { showId, seasonId, posterPath }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+      if (!showId || !seasonId || !posterPath) {
+        return { success: false, error: 'Paramètres manquants' };
+      }
+
+      const season = db.prepare('SELECT id FROM tv_seasons WHERE id = ? AND show_id = ?').get(seasonId, showId);
+      if (!season) {
+        return { success: false, error: 'Saison introuvable' };
+      }
+
+      db.prepare(`
+        UPDATE tv_seasons
+        SET poster_path = ?, updated_at = datetime('now')
+        WHERE id = ? AND show_id = ?
+      `).run(posterPath, seasonId, showId);
+
+      let episodeProgressMap = {};
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          const userData = db.prepare('SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?').get(showId, userId);
+          episodeProgressMap = safeJsonParse(userData?.episode_progress, {});
+        }
+      }
+      const { seasons, episodes } = fetchSeasonsAndEpisodes(db, showId, episodeProgressMap);
+      return { success: true, seasons, episodes };
+    } catch (error) {
+      console.error('Erreur tv-update-season-poster:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Handlers génériques pour les actions communes
+  ipcMain.handle('tv-set-status', createSetStatusHandler({
+    getDb,
+    store,
+    itemIdParamName: 'showId',
+    statusTableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    ensureStatusRowFn: ensureTvShowUserDataRow,
+    buildUpdateQuery: (tableName, itemIdColumnName) => `
+      UPDATE ${tableName}
       SET
         statut_visionnage = ?,
         score = ?,
@@ -299,71 +722,38 @@ function registerTvHandlers(ipcMain, getDb, store) {
         episodes_vus = ?,
         date_debut = ?,
         date_fin = ?,
-        date_modification = CURRENT_TIMESTAMP
-      WHERE show_id = ? AND user_id = ?
-    `);
-
-    stmt.run(
-      statut || 'À regarder',
-      score ?? null,
-      saisonsVues ?? null,
-      episodesVus ?? null,
-      dateDebut || null,
-      dateFin || null,
-      showId,
+        updated_at = datetime('now')
+      WHERE ${itemIdColumnName} = ? AND user_id = ?
+    `,
+    buildUpdateParams: (params, itemId, userId) => [
+      params.statut || 'À regarder',
+      params.score ?? null,
+      params.saisonsVues ?? null,
+      params.episodesVus ?? null,
+      params.dateDebut || null,
+      params.dateFin || null,
+      itemId,
       userId
-    );
+    ]
+  }));
 
-    return { success: true, statut: statut || 'À regarder' };
-  });
+  ipcMain.handle('tv-toggle-favorite', createToggleFavoriteHandler({
+    getDb,
+    store,
+    itemIdParamName: 'showId',
+    statusTableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    ensureStatusRowFn: ensureTvShowUserDataRow
+  }));
 
-  ipcMain.handle('tv-toggle-favorite', (event, { showId }) => {
-    if (!showId) {
-      throw new Error('showId est requis');
-    }
-
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
-
-    ensureTvShowStatusRow(db, showId, userId);
-    const current = db.prepare('SELECT is_favorite FROM tv_show_user_status WHERE show_id = ? AND user_id = ?').get(showId, userId);
-    const newValue = current?.is_favorite === 1 ? 0 : 1;
-    db.prepare('UPDATE tv_show_user_status SET is_favorite = ?, date_modification = CURRENT_TIMESTAMP WHERE show_id = ? AND user_id = ?')
-      .run(newValue, showId, userId);
-
-    return { success: true, isFavorite: !!newValue };
-  });
-
-  ipcMain.handle('tv-toggle-hidden', (event, { showId }) => {
-    if (!showId) {
-      throw new Error('showId est requis');
-    }
-
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
-
-    ensureTvShowStatusRow(db, showId, userId);
-    const current = db.prepare('SELECT is_hidden FROM tv_show_user_status WHERE show_id = ? AND user_id = ?').get(showId, userId);
-    const newValue = current?.is_hidden === 1 ? 0 : 1;
-    db.prepare('UPDATE tv_show_user_status SET is_hidden = ?, date_modification = CURRENT_TIMESTAMP WHERE show_id = ? AND user_id = ?')
-      .run(newValue, showId, userId);
-
-    return { success: true, isHidden: !!newValue };
-  });
+  ipcMain.handle('tv-toggle-hidden', createToggleHiddenHandler({
+    getDb,
+    store,
+    itemIdParamName: 'showId',
+    statusTableName: 'tv_show_user_data',
+    itemIdColumnName: 'show_id',
+    ensureStatusRowFn: ensureTvShowUserDataRow
+  }));
 
   ipcMain.handle('tv-mark-episode', (event, { episodeId, userId, vu, dateVisionnage }) => {
     if (!episodeId || !userId) {
@@ -376,71 +766,134 @@ function registerTvHandlers(ipcMain, getDb, store) {
       throw new Error('Épisode introuvable');
     }
 
-    ensureTvShowStatusRow(db, episodeRow.show_id, userId);
+    ensureTvShowUserDataRow(db, episodeRow.show_id, userId);
     const shouldMarkAsSeen = vu === undefined ? true : !!vu;
     const visionnageDate = shouldMarkAsSeen ? (dateVisionnage || new Date().toISOString()) : null;
 
-    const stmt = db.prepare(`
-      INSERT INTO tv_episode_progress (episode_id, user_id, vu, date_visionnage)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(episode_id, user_id) DO UPDATE SET
-        vu = excluded.vu,
-        date_visionnage = excluded.date_visionnage
-    `);
+    // Récupérer et mettre à jour episode_progress JSON
+    const userData = db.prepare(`
+      SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?
+    `).get(episodeRow.show_id, userId);
+    const episodeProgress = safeJsonParse(userData?.episode_progress, {});
 
-    stmt.run(
-      episodeId,
-      userId,
-      shouldMarkAsSeen ? 1 : 0,
-      visionnageDate
-    );
+    // Mettre à jour la progression pour cet épisode
+    episodeProgress[String(episodeId)] = {
+      vu: shouldMarkAsSeen,
+      date_visionnage: visionnageDate
+    };
 
-    const episodesStats = db.prepare(`
-      SELECT
-        SUM(CASE WHEN p.vu = 1 THEN 1 ELSE 0 END) AS episodes_vus
-      FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
-      WHERE e.show_id = ?
-    `).get(userId, episodeRow.show_id);
+    // Sauvegarder le JSON mis à jour
+    db.prepare(`
+      UPDATE tv_show_user_data 
+      SET episode_progress = ?, updated_at = datetime('now')
+      WHERE show_id = ? AND user_id = ?
+    `).run(JSON.stringify(episodeProgress), episodeRow.show_id, userId);
 
-    const seasonsStats = db.prepare(`
-      SELECT
-        e.saison_numero,
-        COUNT(*) AS total,
-        SUM(CASE WHEN p.vu = 1 THEN 1 ELSE 0 END) AS vus
-      FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
-      WHERE e.show_id = ?
-      GROUP BY e.saison_numero
-    `).all(userId, episodeRow.show_id);
+    // Récupérer le statut actuel AVANT la mise à jour pour comparer
+    const currentStatus = db.prepare(`
+      SELECT statut_visionnage, episodes_vus FROM tv_show_user_data
+      WHERE show_id = ? AND user_id = ?
+    `).get(episodeRow.show_id, userId);
 
-    const seasonsVues = seasonsStats.reduce((count, season) => {
+    const previousEpisodesVus = currentStatus ? (currentStatus.episodes_vus || 0) : 0;
+
+    // Récupérer le nombre total d'épisodes
+    const showInfo = db.prepare('SELECT nb_episodes FROM tv_shows WHERE id = ?').get(episodeRow.show_id);
+    const nbEpisodes = showInfo?.nb_episodes || 0;
+
+    // Calculer les stats depuis episode_progress JSON
+    const allEpisodes = db.prepare('SELECT id, saison_numero FROM tv_episodes WHERE show_id = ?').all(episodeRow.show_id);
+    let episodesVusCount = 0;
+    const seasonsStats = {};
+
+    for (const ep of allEpisodes) {
+      const progress = episodeProgress[String(ep.id)];
+      if (progress && progress.vu) {
+        episodesVusCount++;
+        if (!seasonsStats[ep.saison_numero]) {
+          seasonsStats[ep.saison_numero] = { total: 0, vus: 0 };
+        }
+        seasonsStats[ep.saison_numero].vus++;
+      }
+      if (!seasonsStats[ep.saison_numero]) {
+        seasonsStats[ep.saison_numero] = { total: 0, vus: 0 };
+      }
+      seasonsStats[ep.saison_numero].total++;
+    }
+
+    const seasonsVues = Object.values(seasonsStats).reduce((count, season) => {
       if (season.total > 0 && season.vus === season.total) {
         return count + 1;
       }
       return count;
     }, 0);
 
-    db.prepare(`
-      UPDATE tv_show_user_status
-      SET
-        episodes_vus = ?,
-        saisons_vues = ?,
-        date_modification = CURRENT_TIMESTAMP
-      WHERE show_id = ? AND user_id = ?
-    `).run(
-      episodesStats?.episodes_vus || 0,
-      seasonsVues,
-      episodeRow.show_id,
-      userId
+    const wasZero = previousEpisodesVus === 0;
+    const isNowOneOrMore = episodesVusCount >= 1;
+
+    // Calculer automatiquement le statut de visionnage
+    let autoStatut = null;
+    if (episodesVusCount === 0) {
+      autoStatut = 'À regarder';
+    } else if (nbEpisodes > 0 && episodesVusCount === nbEpisodes) {
+      autoStatut = 'Terminé';
+    } else if (episodesVusCount >= 1) {
+      autoStatut = 'En cours';
+    }
+
+    // Mettre à jour le statut automatiquement si :
+    // 1. On passe de 0 à >= 1 (forcer "En cours" même si statut était "Abandonné" ou "En pause")
+    // 2. Le statut actuel est automatique (À regarder, En cours, Terminé)
+    // 3. On atteint 100% (forcer "Terminé")
+    const shouldUpdate = autoStatut && (
+      (wasZero && isNowOneOrMore) || // Passage de 0 à >= 1
+      (nbEpisodes > 0 && episodesVusCount === nbEpisodes) || // 100% complété
+      (!currentStatus || currentStatus.statut_visionnage === 'À regarder' || currentStatus.statut_visionnage === 'En cours' || currentStatus.statut_visionnage === 'Terminé') // Statut automatique
     );
+
+    // Mettre à jour les stats dans tv_show_user_data (avec le statut si nécessaire)
+    if (shouldUpdate) {
+      db.prepare(`
+        UPDATE tv_show_user_data
+        SET
+          episodes_vus = ?,
+          saisons_vues = ?,
+          statut_visionnage = ?,
+          updated_at = datetime('now')
+        WHERE show_id = ? AND user_id = ?
+      `).run(
+        episodesVusCount,
+        seasonsVues,
+        autoStatut,
+        episodeRow.show_id,
+        userId
+      );
+
+      console.log(`✅ Auto-update: Série ${episodeRow.show_id} statut mis à jour vers "${autoStatut}" (${episodesVusCount}/${nbEpisodes} épisodes)`);
+    } else {
+      // Mettre à jour seulement episodes_vus et saisons_vues sans changer le statut
+      db.prepare(`
+        UPDATE tv_show_user_data
+        SET
+          episodes_vus = ?,
+          saisons_vues = ?,
+          updated_at = datetime('now')
+        WHERE show_id = ? AND user_id = ?
+      `).run(
+        episodesVusCount,
+        seasonsVues,
+        episodeRow.show_id,
+        userId
+      );
+    }
 
     return {
       success: true,
       vu: shouldMarkAsSeen,
-      episodesVus: episodesStats?.episodes_vus || 0,
+      episodesVus: episodesVusCount,
       saisonsVues: seasonsVues,
-      dateVisionnage: visionnageDate
+      dateVisionnage: visionnageDate,
+      statutUpdated: shouldUpdate ? autoStatut : null
     };
   });
 
@@ -459,7 +912,7 @@ function registerTvHandlers(ipcMain, getDb, store) {
       throw new Error('Utilisateur introuvable');
     }
 
-    ensureTvShowStatusRow(db, showId, userId);
+    ensureTvShowUserDataRow(db, showId, userId);
 
     const markAsSeen = vu === undefined ? true : !!vu;
     const visionnageDate = markAsSeen ? new Date().toISOString() : null;
@@ -467,43 +920,50 @@ function registerTvHandlers(ipcMain, getDb, store) {
     const showRow = db.prepare('SELECT nb_episodes, nb_saisons FROM tv_shows WHERE id = ?').get(showId);
     const totalEpisodes = episodes.length || showRow?.nb_episodes || 0;
 
-    if (episodes.length > 0) {
-      const stmt = db.prepare(`
-        INSERT INTO tv_episode_progress (episode_id, user_id, vu, date_visionnage)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(episode_id, user_id) DO UPDATE SET
-          vu = excluded.vu,
-          date_visionnage = excluded.date_visionnage
-      `);
+    // Récupérer et mettre à jour episode_progress JSON
+    const userData = db.prepare(`
+      SELECT episode_progress FROM tv_show_user_data WHERE show_id = ? AND user_id = ?
+    `).get(showId, userId);
+    const episodeProgress = safeJsonParse(userData?.episode_progress, {});
 
-      const transaction = db.transaction((rows) => {
-        rows.forEach((ep) => {
-          stmt.run(ep.id, userId, markAsSeen ? 1 : 0, markAsSeen ? visionnageDate : null);
-        });
+    // Mettre à jour tous les épisodes
+    if (episodes.length > 0) {
+      episodes.forEach((ep) => {
+        episodeProgress[String(ep.id)] = {
+          vu: markAsSeen,
+          date_visionnage: markAsSeen ? visionnageDate : null
+        };
       });
-      transaction(episodes);
+
+      // Sauvegarder le JSON mis à jour
+      db.prepare(`
+        UPDATE tv_show_user_data 
+        SET episode_progress = ?, updated_at = datetime('now')
+        WHERE show_id = ? AND user_id = ?
+      `).run(JSON.stringify(episodeProgress), showId, userId);
     }
 
-    const episodesStats = db.prepare(`
-      SELECT
-        SUM(CASE WHEN p.vu = 1 THEN 1 ELSE 0 END) AS episodes_vus
-      FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
-      WHERE e.show_id = ?
-    `).get(userId, showId);
+    // Calculer les stats depuis episode_progress JSON
+    const allEpisodes = db.prepare('SELECT id, saison_numero FROM tv_episodes WHERE show_id = ?').all(showId);
+    let episodesVusCount = 0;
+    const seasonsStats = {};
 
-    const seasonsStats = db.prepare(`
-      SELECT
-        e.saison_numero,
-        COUNT(*) AS total,
-        SUM(CASE WHEN p.vu = 1 THEN 1 ELSE 0 END) AS vus
-      FROM tv_episodes e
-      LEFT JOIN tv_episode_progress p ON p.episode_id = e.id AND p.user_id = ?
-      WHERE e.show_id = ?
-      GROUP BY e.saison_numero
-    `).all(userId, showId);
+    for (const ep of allEpisodes) {
+      const progress = episodeProgress[String(ep.id)];
+      if (progress && progress.vu) {
+        episodesVusCount++;
+        if (!seasonsStats[ep.saison_numero]) {
+          seasonsStats[ep.saison_numero] = { total: 0, vus: 0 };
+        }
+        seasonsStats[ep.saison_numero].vus++;
+      }
+      if (!seasonsStats[ep.saison_numero]) {
+        seasonsStats[ep.saison_numero] = { total: 0, vus: 0 };
+      }
+      seasonsStats[ep.saison_numero].total++;
+    }
 
-    const seasonsVues = seasonsStats.reduce((count, season) => {
+    const seasonsVues = Object.values(seasonsStats).reduce((count, season) => {
       if (season.total > 0 && season.vus === season.total) {
         return count + 1;
       }
@@ -512,40 +972,243 @@ function registerTvHandlers(ipcMain, getDb, store) {
 
     const updateStmt = markAsSeen
       ? db.prepare(`
-        UPDATE tv_show_user_status
+        UPDATE tv_show_user_data
         SET
           episodes_vus = ?,
           saisons_vues = ?,
           statut_visionnage = 'Terminé',
-          date_modification = CURRENT_TIMESTAMP
+          updated_at = datetime('now')
         WHERE show_id = ? AND user_id = ?
       `)
       : db.prepare(`
-        UPDATE tv_show_user_status
+        UPDATE tv_show_user_data
         SET
           episodes_vus = ?,
           saisons_vues = ?,
-          date_modification = CURRENT_TIMESTAMP
+          updated_at = datetime('now')
         WHERE show_id = ? AND user_id = ?
       `);
 
     updateStmt.run(
-      episodesStats?.episodes_vus || (markAsSeen ? totalEpisodes : 0),
-      seasonsStats.length > 0 ? seasonsVues : (markAsSeen ? (showRow?.nb_saisons || seasonsVues) : 0),
+      episodesVusCount,
+      seasonsVues,
       showId,
       userId
     );
 
     return {
       success: true,
-      episodesVus: episodesStats?.episodes_vus || (markAsSeen ? totalEpisodes : 0),
-      saisonsVues: seasonsStats.length > 0 ? seasonsVues : (markAsSeen ? (showRow?.nb_saisons || seasonsVues) : 0),
+      episodesVus: episodesVusCount,
+      saisonsVues: seasonsVues,
       dateVisionnage: visionnageDate,
       totalEpisodes
     };
   });
+
+  // Créer une série manuellement
+  ipcMain.handle('create-tv-show', (event, tvShowData) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+
+      // Utiliser le tmdb_id fourni, sinon générer un tmdb_id négatif unique pour les séries manuelles
+      let newTmdbId;
+      if (tvShowData.tmdb_id && tvShowData.tmdb_id > 0) {
+        // Si un tmdb_id positif est fourni, l'utiliser (vient de TMDB)
+        newTmdbId = tvShowData.tmdb_id;
+      } else {
+        // Sinon, générer un ID négatif unique pour les séries manuelles
+        const existingMax = db.prepare('SELECT MIN(tmdb_id) as min_id FROM tv_shows WHERE tmdb_id < 0').get();
+        newTmdbId = existingMax?.min_id ? existingMax.min_id - 1 : -1;
+      }
+
+      const toJson = (value) => {
+        if (value === undefined || value === null) return null;
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return null;
+        }
+      };
+
+      // Vérifier si la série existe déjà avec ce tmdb_id
+      const existingShow = db.prepare('SELECT id FROM tv_shows WHERE tmdb_id = ?').get(newTmdbId);
+      if (existingShow) {
+        // Si la série existe déjà, utiliser son ID
+        const showId = existingShow.id;
+        const currentUser = store.get('currentUser', '');
+        if (currentUser) {
+          const userId = getUserIdByName(db, currentUser);
+          if (userId) {
+            ensureTvShowUserDataRow(db, showId, userId);
+          }
+        }
+        return { success: true, showId, alreadyExists: true };
+      }
+
+      const insertStmt = db.prepare(`
+        INSERT INTO tv_shows (
+          tmdb_id, titre, titre_original, synopsis, statut, type,
+          date_premiere, date_derniere, nb_saisons, nb_episodes, duree_episode,
+          genres, poster_path, backdrop_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const result = insertStmt.run(
+        newTmdbId,
+        tvShowData.titre || '',
+        tvShowData.titre_original || null,
+        tvShowData.synopsis || null,
+        tvShowData.statut || null,
+        tvShowData.type || null,
+        tvShowData.date_premiere || null,
+        tvShowData.date_derniere || null,
+        tvShowData.nb_saisons || null,
+        tvShowData.nb_episodes || null,
+        tvShowData.duree_episode || null,
+        toJson(tvShowData.genres || []),
+        tvShowData.poster_path || null,
+        tvShowData.backdrop_path || null
+      );
+
+      // Vérifier si l'insertion a réussi
+      if (result.changes === 0) {
+        // L'insertion a échoué, probablement à cause d'une contrainte UNIQUE
+        // Vérifier à nouveau si la série existe maintenant
+        const existingShow = db.prepare('SELECT id FROM tv_shows WHERE tmdb_id = ?').get(newTmdbId);
+        if (existingShow) {
+          const showId = existingShow.id;
+          const currentUser = store.get('currentUser', '');
+          if (currentUser) {
+            const userId = getUserIdByName(db, currentUser);
+            if (userId) {
+              ensureTvShowUserDataRow(db, showId, userId);
+            }
+          }
+          return { success: true, showId, alreadyExists: true };
+        }
+        throw new Error('Échec de la création de la série : aucune ligne insérée');
+      }
+
+      const showId = result.lastInsertRowid;
+      if (!showId || showId === 0) {
+        throw new Error('Échec de la création de la série : aucun ID retourné');
+      }
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          ensureTvShowUserDataRow(db, showId, userId);
+        }
+      }
+
+      return { success: true, showId };
+    } catch (error) {
+      console.error('❌ Erreur create-tv-show:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Mettre à jour une série manuellement
+  ipcMain.handle('update-tv-show', (event, { showId, tvShowData }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+
+      const toJson = (value) => {
+        if (value === undefined || value === null) return null;
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return null;
+        }
+      };
+
+      const updateStmt = db.prepare(`
+        UPDATE tv_shows SET
+          titre = ?,
+          titre_original = ?,
+          synopsis = ?,
+          statut = ?,
+          type = ?,
+          date_premiere = ?,
+          date_derniere = ?,
+          nb_saisons = ?,
+          nb_episodes = ?,
+          duree_episode = ?,
+          genres = ?,
+          poster_path = ?,
+          backdrop_path = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+
+      updateStmt.run(
+        tvShowData.titre || '',
+        tvShowData.titre_original || null,
+        tvShowData.synopsis || null,
+        tvShowData.statut || null,
+        tvShowData.type || null,
+        tvShowData.date_premiere || null,
+        tvShowData.date_derniere || null,
+        tvShowData.nb_saisons || null,
+        tvShowData.nb_episodes || null,
+        tvShowData.duree_episode || null,
+        toJson(tvShowData.genres || []),
+        tvShowData.poster_path || null,
+        tvShowData.backdrop_path || null,
+        showId
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur update-tv-show:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Supprimer une série TV
+  ipcMain.handle('delete-tv-show', (event, showId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+
+      // Vérifier que la série existe
+      const show = db.prepare('SELECT id, titre FROM tv_shows WHERE id = ?').get(showId);
+      if (!show) {
+        return { success: false, error: 'Série introuvable' };
+      }
+
+      // Supprimer la série (cascade supprimera les données utilisateur via FOREIGN KEY)
+      db.prepare('DELETE FROM tv_shows WHERE id = ?').run(showId);
+
+      console.log(`✅ Série TV supprimée (ID: ${showId}, Titre: ${show.titre})`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur delete-tv-show:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}
+
+const { registerTvShowGalleryHandlers } = require('./tv-show-gallery-handlers');
+const { registerTvEpisodeVideoHandlers } = require('./tv-episode-video-handlers');
+const { registerTvShowVideoHandlers } = require('./tv-show-video-handlers');
+
+function registerAllTvHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager) {
+  registerTvHandlers(ipcMain, getDb, store);
+  registerTvShowGalleryHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
 }
 
 module.exports = {
-  registerTvHandlers
+  registerTvHandlers,
+  registerAllTvHandlers
 };

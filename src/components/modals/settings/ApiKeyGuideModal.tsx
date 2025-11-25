@@ -1,13 +1,17 @@
 import { BookOpenCheck, ExternalLink, Globe2, KeyRound, ShieldCheck, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { ApiKeyProvider } from '../../../pages/Settings/components/apiKeyGuideTypes';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface ApiKeyGuideModalProps {
   initialProvider: ApiKeyProvider;
   onClose: () => void;
 }
+
+type ProviderBullet = string | { text: string; copyValue?: string };
+type ProviderStep = string | { text: string; bullets?: ProviderBullet[] };
 
 type ProviderConfig = {
   id: ApiKeyProvider;
@@ -19,7 +23,7 @@ type ProviderConfig = {
   summary: string;
   recommendedName?: string;
   recommendedWebsite?: string;
-  steps: string[];
+  steps: ProviderStep[];
   notes?: string[];
   extra?: ReactNode;
 };
@@ -35,16 +39,26 @@ const PROVIDERS: ProviderConfig[] = [
     summary: 'Requis pour la synchronisation et l’enrichissement de votre collection anime/manga.',
     recommendedName: 'Nexus (usage personnel)',
     steps: [
-      'Connectez-vous à votre compte MyAnimeList et ouvrez le portail développeur.',
-      'Cliquez sur « Create new application ».',
-      'Saisissez un nom clair (ex. « Nexus (perso) ») et une description précisant que l\'usage est strictement personnel.',
-      'Renseignez l’URL de redirection sur http://localhost:8888/callback (obligatoire et sensible à la casse).',
-      'Sélectionnez un type d’application (Other / Development) puis validez.',
-      'Copiez le Client ID généré et collez-le dans les paramètres MAL de Nexus.'
+      'Cliquez sur le bouton « Portail développeur MAL » (ci-dessus) : MyAnimeList vous demandera de vous connecter si nécessaire.',
+      'Cliquez sur « Create ID ».',
+      {
+        text: 'Pour vous simplifier la vie, voici nos suggestions pour chaque champ obligatoire :',
+        bullets: [
+          'App Name * : indiquez un nom explicite, par exemple « Nexus (usage personnel) ».',
+          'App Type * : choisissez « Other ».',
+          'App Description * : précisez « Synchronisation et consultation privée de ma collection dans Nexus » (ou formulation équivalente).',
+          { text: 'App Redirect URL * : utilisez le bouton « Copier » pour coller l\'URL.', copyValue: 'http://localhost:8888/callback' },
+          'Homepage URL * : vous pouvez indiquer https://github.com/Rory-Mercury-91/le-nexus (ou votre page personnelle).',
+          'Commercial / Non-Commercial * : sélectionnez « Non-commercial ».',
+          'Name / Company Name * : renseignez votre nom/pseudo (ou « Usage personnel »).',
+          'Purpose of Use * : choisissez « Hobbyist » (usage passion).'
+        ]
+      },
+      'Validez la création, puis utilisez le bouton de retour à la liste et ouvrez l’ID en cliquant sur « Edit » pour afficher le Client ID : copiez-le et collez-le dans les paramètres MAL de Nexus.'
     ],
     notes: [
       'Ne partagez pas votre Client ID publiquement.',
-      'Chaque utilisateur doit générer sa propre clé sur son compte MyAnimeList.'
+      'Chaque utilisateur doit générer son propre Client ID : MyAnimeList limite les quotas par compte et exige un OAuth personnel.'
     ]
   },
   {
@@ -54,11 +68,11 @@ const PROVIDERS: ProviderConfig[] = [
     accent: 'linear-gradient(135deg, #10b981, #059669)',
     url: 'https://www.themoviedb.org/settings/api',
     urlLabel: 'Tableau de bord API TMDb',
-    summary: 'Nécessaire pour les affiches, métadonnées films & séries, et certaines fonctionnalités de recherche.',
+    summary: 'Nécessaire pour les affiches, métadonnées complètes (films, séries, animes), images haute qualité, et fonctionnalités de recherche avancées.',
     recommendedName: 'Nexus (films & séries)',
     recommendedWebsite: 'https://github.com/Rory-Mercury-91/le-nexus',
     steps: [
-      'Créez (ou connectez) un compte TMDb, puis ouvrez le tableau de bord API.',
+      'Cliquez sur le bouton « Tableau de bord API TMDb » (ci-dessus) : The Movie Database vous demandera de vous connecter si nécessaire.',
       'Dans « Request an API Key », choisissez « Developer » puis indiquez un usage personnel/non commercial.',
       'Renseignez un nom d\'application (ex. « Nexus (perso) ») et l\'URL du site (vous pouvez mettre https://github.com/Rory-Mercury-91/le-nexus ou laisser vide).',
       'Décrivez brièvement l’utilisation : import local, consultation et enrichissement privés de votre médiathèque.',
@@ -92,9 +106,9 @@ const PROVIDERS: ProviderConfig[] = [
     accent: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
     url: 'https://console.groq.com/keys',
     urlLabel: 'Console Groq',
-    summary: 'Utilisé pour la traduction automatique des synopsis lorsque TMDb ou MAL ne fournissent pas de texte français.',
+    summary: 'Utilisé pour traduire les synopsis/backgrounds MyAnimeList lorsque le texte FR est absent.',
     steps: [
-      'Connectez-vous à la console Groq et ouvrez la section « API Keys ».',
+      'Cliquez sur le bouton « Console Groq » (ci-dessus) : Groq vous demandera de vous connecter si nécessaire. Ouvrez ensuite la section « API Keys ».',
       'Créez une nouvelle clé avec un nom explicite (ex. « Nexus traductions »).',
       'Copiez la clé et collez-la dans la section Intelligence Artificielle de Nexus.',
       'Conservez la clé dans un coffre-fort (1Password, Bitwarden, Vaultwarden…) : il n’est plus possible de l’afficher après la fermeture du dialogue.'
@@ -102,13 +116,49 @@ const PROVIDERS: ProviderConfig[] = [
     notes: [
       'La facturation Groq dépend de votre usage. Consultez la console pour surveiller les quotas.',
       'Vous pouvez révoquer la clé à tout moment si vous suspectez une fuite.',
-      '📊 Limite gratuite : 14 400 traductions/jour (30 par minute). Pensez à répartir vos enrichissements si vous approchez du quota.'
+      '📊 Limite gratuite : 14 400 traductions/jour (30 par minute). Pensez à répartir vos enrichissements si vous approchez du quota.',
+      '⚠️ Les VPN ou proxies agressifs peuvent bloquer les requêtes Groq : privilégiez une connexion directe.'
+    ]
+  },
+  {
+    id: 'adulteGame',
+    name: 'Jeux Adultes & Discord',
+    icon: '🕹️',
+    accent: 'linear-gradient(135deg, #ec4899, #f97316)',
+    url: 'https://support.discord.com/hc/fr/articles/228383668-introduction-aux-webhooks',
+    urlLabel: 'Créer un webhook Discord',
+    summary: 'Permet d’automatiser les alertes (webhook et mentions) pour les traductions/synchronisations des jeux adultes (le bouton « Créer un webhook Discord » ouvre simplement la documentation officielle pour vous guider).',
+    steps: [
+      'Ouvrez Discord (bureau ou web) et, sur le salon où doivent arriver les alertes, ouvrez les Paramètres du salon > Intégrations > Webhooks.',
+      'Cliquez sur « Nouveau Webhook », choisissez un nom (ex. « Nexus - Jeux adultes ») et le salon de destination, puis copiez l’URL générée.',
+      'Collez cette URL dans la carte « Webhook Discord » de la section Jeux Adultes dans Nexus.',
+      'Dans Discord, activez le mode développeur (Paramètres utilisateurs > Avancés) pour pouvoir copier les IDs des membres.',
+      'Ajoutez vos traducteurs dans Nexus puis, dans « Mentions Discord automatiques », collez pour chacun l’ID numérique (clic droit > Copier l’ID).',
+      'Enregistrez : chaque synchronisation ou mise à jour enverra désormais un message vers votre serveur Discord.'
+    ],
+    notes: [
+      'Le webhook ne fonctionne que sur les salons où vous disposez des droits « Gérer les webhooks ». Demandez-les si besoin.',
+      'Les IDs Discord sont sensibles : conservez-les en privé.',
+      'Un seul webhook est utilisé par Nexus : choisissez le salon d’alertes qui centralise vos notifications.'
     ]
   }
 ];
 
 export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGuideModalProps) {
   const [activeProvider, setActiveProvider] = useState<ApiKeyProvider>(initialProvider);
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
+  
+  const handleCopy = useCallback((value: string) => {
+    if (navigator?.clipboard?.writeText) {
+      void navigator.clipboard.writeText(value).then(() => {
+        setCopiedValue(value);
+        setTimeout(() => setCopiedValue(null), 2000);
+      }).catch(() => undefined);
+    }
+  }, []);
 
   const providerConfig = useMemo(
     () => PROVIDERS.find((provider) => provider.id === activeProvider) ?? PROVIDERS[0],
@@ -116,6 +166,23 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
   );
 
   return createPortal(
+    <>
+      <style>{`
+        .api-guide-scroll::-webkit-scrollbar {
+          width: 8px;
+        }
+        .api-guide-scroll::-webkit-scrollbar-track {
+          background: var(--surface-light);
+          border-radius: 4px;
+        }
+        .api-guide-scroll::-webkit-scrollbar-thumb {
+          background: var(--border);
+          border-radius: 4px;
+        }
+        .api-guide-scroll::-webkit-scrollbar-thumb:hover {
+          background: var(--text-secondary);
+        }
+      `}</style>
     <div
       style={{
         position: 'fixed',
@@ -133,7 +200,7 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
       <div
         style={{
           width: 'min(960px, 100%)',
-          maxHeight: '90vh',
+          height: '80vh',
           background: 'var(--surface)',
           borderRadius: '20px',
           border: '1px solid var(--border)',
@@ -189,9 +256,8 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
                 onClick={() => setActiveProvider(provider.id)}
                 style={{
                   display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: '4px',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   width: '100%',
                   borderRadius: '12px',
                   border: '1px solid transparent',
@@ -215,16 +281,15 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
                   }
                 }}
               >
-                <span style={{ fontSize: '16px', fontWeight: 600 }}>
+                <span style={{ fontSize: '15px', fontWeight: 600 }}>
                   {provider.icon} {provider.name}
                 </span>
-                <span style={{ fontSize: '12px' }}>{provider.summary}</span>
               </button>
             ))}
           </nav>
         </aside>
 
-        <section style={{ padding: '32px 36px', overflowY: 'auto' }}>
+        <section className="api-guide-scroll" style={{ padding: '32px 36px', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin', scrollbarColor: 'var(--border) var(--surface-light)' }}>
           <div
             style={{
               display: 'flex',
@@ -325,7 +390,7 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
           <ol
             style={{
               marginTop: '24px',
-              paddingLeft: '20px',
+              paddingLeft: '24px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
@@ -333,9 +398,56 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
               color: 'var(--text)'
             }}
           >
-            {providerConfig.steps.map((step, index) => (
-              <li key={index} style={{ lineHeight: 1.6 }}>{step}</li>
-            ))}
+            {providerConfig.steps.map((step, index) => {
+              if (typeof step === 'string') {
+                return (
+                  <li key={index} style={{ lineHeight: 1.6 }}>
+                    {step}
+                  </li>
+                );
+              }
+              return (
+                <li key={index} style={{ lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span>{step.text}</span>
+                  {step.bullets && (
+                    <ul style={{ margin: 0, paddingLeft: '28px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+                      {step.bullets.map((bullet, bulletIndex) => {
+                        if (typeof bullet === 'string') {
+                          return (
+                            <li key={bulletIndex} style={{ lineHeight: 1.5 }}>
+                              {bullet}
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={bulletIndex} style={{ lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span>{bullet.text}</span>
+                            {bullet.copyValue && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bullet.copyValue!)}
+                                style={{
+                                  border: '1px solid var(--border)',
+                                  background: copiedValue === bullet.copyValue ? 'rgba(34, 197, 94, 0.15)' : 'var(--surface)',
+                                  color: copiedValue === bullet.copyValue ? '#10b981' : 'var(--text-secondary)',
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {copiedValue === bullet.copyValue ? 'Copié !' : 'Copier'}
+                              </button>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ol>
 
           {providerConfig.notes && providerConfig.notes.length > 0 && (
@@ -364,7 +476,8 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
           {providerConfig.extra}
         </section>
       </div>
-    </div>,
+    </div>
+    </>,
     document.body
   );
 }

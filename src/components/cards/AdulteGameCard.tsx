@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useAdulteGameLock } from '../../hooks/useAdulteGameLock';
 import { AdulteGame } from '../../types';
 import AdulteGameLabelsModal from '../modals/adulte-game/AdulteGameLabelsModal';
-import { CardActionsMenu, CardBadge, CardContent, CardCover, COMMON_STATUSES, FavoriteBadge, StatusBadge, useIsNew } from './common';
+import { CardActionsMenu, CardBadge, CardCover, CardTitle, COMMON_STATUSES, FavoriteBadge, StatusBadge, useIsNew } from './common';
 
 interface AdulteGameCardProps {
   game: AdulteGame;
@@ -95,29 +95,6 @@ export default function AdulteGameCard({
     }
   };
 
-  // Pour la progression, on affiche version jouée / version actuelle
-  const getVersionProgress = () => {
-    const versionActuelle = game.version || '0.0';
-    const versionJouee = game.version_jouee || versionActuelle;
-    
-    // Retirer le préfixe "v" ou "V" s'il existe
-    const cleanVersion = (v: string) => v.replace(/^v/i, '');
-    
-    // Convertir les versions en nombres pour la barre de progression
-    const parseVersion = (v: string) => {
-      const nums = v.match(/\d+/g);
-      if (!nums || nums.length === 0) return 0;
-      return parseInt(nums.join(''));
-    };
-    
-    return {
-      current: parseVersion(versionJouee),
-      total: parseVersion(versionActuelle),
-      label: `v${cleanVersion(versionJouee)} / v${cleanVersion(versionActuelle)}`
-    };
-  };
-
-  const progress = getVersionProgress();
   const shouldBlurCover = hasPassword && isLocked;
 
   // Mode Images uniquement : désactivé pour JEUX ADULTES (format paysage différent 16/9 vs 2/3)
@@ -142,10 +119,11 @@ export default function AdulteGameCard({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
         cursor: dragging ? 'copy' : 'pointer',
         zIndex: isMenuOpen ? 1000 : 1,
         border: dragging ? '2px solid var(--primary)' : undefined,
-        background: dragging ? 'rgba(139, 92, 246, 0.1)' : undefined
+        background: dragging ? 'rgba(99, 102, 241, 0.1)' : undefined
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -202,6 +180,16 @@ export default function AdulteGameCard({
         {/* Badge Nouveau (à gauche, après le cœur) */}
         <CardBadge show={isNew()} offsetForFavorite={!!game.is_favorite} />
 
+        {/* Badge Mise à jour disponible */}
+        <CardBadge 
+          show={!!game.maj_disponible} 
+          offsetForFavorite={!!game.is_favorite}
+          offsetForNew={isNew()}
+          text="🔄 MAJ"
+          background="linear-gradient(135deg, var(--primary), var(--primary-light))"
+          boxShadow="0 3px 10px rgba(99, 102, 241, 0.4)"
+        />
+
         {/* Badge Statut (Abandonné, En pause, Refusé, etc.) */}
         <StatusBadge key={`status-${game.id}-${game.statut_perso}`} status={game.statut_perso || ''} type="adulte-game" />
 
@@ -232,32 +220,90 @@ export default function AdulteGameCard({
         />
       )}
 
-      {/* Contenu : Progression + Titre */}
-      <CardContent
-        progress={{
-          current: progress.current,
-          total: progress.total,
-          label: progress.label
-        }}
-        title={game.titre}
-      >
-        {/* Badge Traduction FR */}
-        {!!game.traduction_fr_disponible && (
-          <span style={{
-            padding: '3px 8px',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: '700',
-            background: 'linear-gradient(135deg, #0055A4 0%, #0055A4 33%, #FFFFFF 33%, #FFFFFF 66%, #EF4135 66%, #EF4135 100%)',
-            color: '#000000',
-            flexShrink: 0,
-            alignSelf: 'flex-start',
-            letterSpacing: '0.5px'
+      {/* Contenu : Versions + Titre */}
+      <div style={{ 
+        padding: '10px 12px 6px 12px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        gap: '8px',
+        borderTop: '1px solid var(--border)',
+        flex: '1 1 auto'
+      }}>
+        {/* Informations de version */}
+        <div style={{
+          fontSize: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}>
+          {/* Ligne 1 : Version actuelle et Version traduite côte à côte */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center'
           }}>
-            FR
-          </span>
-        )}
-      </CardContent>
+            <span>
+              <span style={{ color: 'var(--text-secondary)' }}>Version actuelle : </span>
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+                {game.version || 'Non connue'}
+              </span>
+            </span>
+            <span>
+              <span style={{ color: 'var(--text-secondary)' }}>Version traduite : </span>
+              <span style={{ 
+                color: (() => {
+                  if (!game.version_traduite) {
+                    return 'var(--text-secondary)';
+                  }
+                  // Si c'est "intégré", couleur neutre
+                  if (game.version_traduite.toLowerCase().includes('intégré')) {
+                    return 'var(--text)';
+                  }
+                  // Sinon, comparer avec la version actuelle
+                  if (game.version && game.version_traduite !== game.version) {
+                    return 'var(--error)';
+                  }
+                  return 'var(--success)';
+                })(), 
+                fontWeight: 600 
+              }}>
+                {game.version_traduite || 'Non connue'}
+              </span>
+            </span>
+          </div>
+          {/* Ligne 2 : Dernière version jouée (uniquement si renseignée) */}
+          {game.version_jouee && (
+            <span>
+              <span style={{ color: 'var(--text-secondary)' }}>Dernière version jouée : </span>
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+                {game.version_jouee}
+              </span>
+            </span>
+          )}
+        </div>
+        
+        {/* Titre + Badges additionnels */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+          {/* Badge Traduction FR */}
+          {!!game.traduction_fr_disponible && (
+            <span style={{
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: '700',
+              background: 'linear-gradient(135deg, #0055A4 0%, #0055A4 33%, #FFFFFF 33%, #FFFFFF 66%, #EF4135 66%, #EF4135 100%)',
+              color: '#000000',
+              flexShrink: 0,
+              alignSelf: 'flex-start',
+              letterSpacing: '0.5px'
+            }}>
+              FR
+            </span>
+          )}
+          <CardTitle title={game.titre}>{game.titre}</CardTitle>
+        </div>
+      </div>
 
       <div
         style={{
@@ -265,7 +311,9 @@ export default function AdulteGameCard({
           display: 'flex',
           alignItems: hasLabels ? 'center' : 'stretch',
           justifyContent: hasLabels ? 'space-between' : 'flex-start',
-          gap: '10px'
+          gap: '10px',
+          minHeight: '48px',
+          flexShrink: 0
         }}
       >
         {hasLabels ? (
@@ -309,7 +357,7 @@ export default function AdulteGameCard({
               fontWeight: 600,
               borderRadius: '8px',
               border: '1px dashed var(--border-strong)',
-              background: 'rgba(139, 92, 246, 0.08)',
+              background: 'rgba(99, 102, 241, 0.08)',
               color: 'var(--primary)',
               cursor: 'pointer'
             }}

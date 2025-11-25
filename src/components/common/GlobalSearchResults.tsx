@@ -217,7 +217,7 @@ export default function GlobalSearchResults({
             Recherchez dans toutes vos collections
           </div>
           <div style={{ fontSize: '12px' }}>
-            Mangas • Animes • Jeux adultes
+            Lectures • Animes • Jeux adultes
           </div>
         </div>
       )}

@@ -1,41 +1,19 @@
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { useState } from 'react';
 
 interface DangerZoneProps {
   onDeleteUserData: () => void;
   onDeleteAllData: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
-export default function DangerZone({ onDeleteUserData, onDeleteAllData }: DangerZoneProps) {
-  // Charger l'état depuis localStorage (ouvert par défaut)
-  const [isOpen, setIsOpen] = useState(() => {
-    const saved = localStorage.getItem('settings-section-states');
-    if (saved) {
-      try {
-        const states = JSON.parse(saved);
-        return states['danger-zone'] ?? true; // Par défaut ouvert
-      } catch {
-        return true; // Par défaut ouvert
-      }
-    }
-    return true; // Par défaut ouvert
-  });
-
-  const handleToggle = () => {
-    const newState = !isOpen;
-    setIsOpen(newState);
-    // Sauvegarder dans localStorage
-    const saved = localStorage.getItem('settings-section-states');
-    const states = saved ? JSON.parse(saved) : {};
-    states['danger-zone'] = newState;
-    localStorage.setItem('settings-section-states', JSON.stringify(states));
-  };
+export default function DangerZone({ onDeleteUserData, onDeleteAllData, isOpen, onToggle }: DangerZoneProps) {
 
   return (
     <div style={{ marginBottom: '24px' }}>
       <div className="card" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--error)', background: 'rgba(239, 68, 68, 0.05)' }}>
         <div
-          onClick={handleToggle}
+          onClick={onToggle}
           style={{
             padding: '20px',
             cursor: 'pointer',

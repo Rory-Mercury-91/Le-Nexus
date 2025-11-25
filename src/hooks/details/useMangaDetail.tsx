@@ -1,58 +1,130 @@
-import { Ban, BookMarked, CheckCircle2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Serie, SerieTag } from '../../types';
 import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
+import { useDetailPage } from './useDetailPage';
+import { useMangaTomes } from './useMangaTomes';
 
-const TAG_CONFIG: Record<SerieTag, { label: string; icon: any; color: string; bg: string }> = {
-  a_lire: { label: 'À lire', icon: BookMarked, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
-  en_cours: { label: 'En cours', icon: BookMarked, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
-  lu: { label: 'Lu', icon: CheckCircle2, color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
-  abandonne: { label: 'Abandonné', icon: Ban, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)' },
-  en_pause: { label: 'En pause', icon: BookMarked, color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)' }
-};
+type MangaDisplayPrefs = Record<string, boolean>;
 
-// Tags manuels uniquement
-const MANUAL_TAGS: SerieTag[] = ['a_lire', 'abandonne', 'en_pause'];
+const mangaDisplayDefaults: MangaDisplayPrefs = {};
 
 export function useMangaDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { confirm, ConfirmDialog } = useConfirm();
   const { showToast } = useToast();
+  const { confirm, ConfirmDialog: SerieConfirmDialog } = useConfirm();
 
-  const [serie, setSerie] = useState<Serie | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showAddTome, setShowAddTome] = useState(false);
-  const [showEditSerie, setShowEditSerie] = useState(false);
-  const [editingTome, setEditingTome] = useState<number | null>(null);
-  const [showCustomizeDisplay, setShowCustomizeDisplay] = useState(false);
-  const [draggingTomeId, setDraggingTomeId] = useState<number | null>(null);
-  const [draggingSerie, setDraggingSerie] = useState(false);
-  const [scrollPosition, setScrollPosition] = useState<number | null>(null);
-  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
-  const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
+  // Mémoriser les fonctions pour éviter les re-renders en boucle
+  const loadDetailApi = useCallback(async (itemId: number) => {
+    const data = await window.electronAPI.getSerie(itemId);
+    return data || null;
+  }, []);
+
+  const loadDisplaySettingsApi = useCallback(async () => {
+    const result = await window.electronAPI.getMangaDisplaySettings?.();
+    return result || null;
+  }, []);
+
+  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
+    const result = await window.electronAPI.getMangaDisplayOverrides?.(itemId);
+    return result || null;
+  }, []);
+
+  const isEventForCurrentItem = useCallback((event: CustomEvent, _item: Serie | null, itemId: string | undefined) => {
+    const { serieId } = event.detail;
+    const currentId = itemId ? Number(itemId) : null;
+    return currentId !== null && serieId === currentId;
+  }, []);
+
+  const reloadAfterEvent = useCallback(async (event: CustomEvent, itemId: string | undefined) => {
+    const { serieId } = event.detail;
+    const targetId = serieId || (itemId ? Number(itemId) : null);
+    if (targetId) {
+      return await window.electronAPI.getSerie(targetId);
+    }
+    return null;
+  }, []);
+
+  // Hook pour la page de détails (chargement, états, modales)
+  const {
+    item: serie,
+    setItem: setSerie,
+    loading,
+    displayPrefs,
+    showDisplaySettingsModal,
+    setShowDisplaySettingsModal,
+    showEditModal,
+    setShowEditModal,
+    loadDetail
+  } = useDetailPage<Serie, MangaDisplayPrefs>({
+    itemId: id,
+    displayDefaults: mangaDisplayDefaults,
+    loadDetailApi,
+    displayPreferencesMode: 'global-local',
+    loadDisplaySettingsApi,
+    loadDisplayOverridesApi,
+    statusEventName: 'manga-status-changed',
+    isEventForCurrentItem,
+    reloadAfterEvent,
+    missingIdError: 'Identifiant série manquant',
+    notFoundError: 'Série introuvable dans votre collection'
+  });
+
+  // États spécifiques
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string } | null>(null);
+  const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
+  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
   const [enriching, setEnriching] = useState(false);
-  const [globalPrefs, setGlobalPrefs] = useState<Record<string, boolean>>({});
-  const [localPrefs, setLocalPrefs] = useState<Record<string, boolean>>({});
+  const [scrollPosition, setScrollPosition] = useState<number | null>(null);
 
+  // Définir loadSerie avant de l'utiliser dans les useEffect
+  const loadSerie = useCallback(async (preserveScroll = false) => {
+    if (preserveScroll) {
+      setScrollPosition(window.scrollY);
+    }
+
+    if (!preserveScroll) {
+      // Le loading est géré par useDetailPage
+    }
+
+    await loadDetail({ silent: preserveScroll });
+  }, [loadDetail]);
+
+  // Charger utilisateur et images de profil
   useEffect(() => {
-    loadSerie();
-    loadProfileImages();
+    const loadCurrentUser = async () => {
+      const allUsers = await window.electronAPI.getAllUsers();
+      const userName = await window.electronAPI.getCurrentUser();
+      const user = allUsers.find((u: { id: number; name: string }) => u.name === userName);
+      setCurrentUser(user || null);
+      setUsers(allUsers);
+    };
+
+    const loadProfileImages = async () => {
+      const allUsers = await window.electronAPI.getAllUsers();
+      const images: Record<string, string | null> = {};
+      for (const user of allUsers) {
+        const image = await window.electronAPI.getUserProfileImage(user.name);
+        images[user.name] = image;
+      }
+      setProfileImages(images);
+    };
+
     loadCurrentUser();
-    window.electronAPI.getAllUsers().then(setUsers);
+    loadProfileImages();
 
     // Écouter l'événement d'import pour rafraîchir la série si elle est mise à jour
-    const handleMangaImported = (_event: unknown, data: { serieId: number }) => {
-      if (Number(data.serieId) === Number(id)) {
+    const handleMangaImported = (_event: unknown, data: { id?: number; serieId?: number }) => {
+      const serieId = data.id || data.serieId;
+      if (serieId && Number(serieId) === Number(id)) {
+        console.log(`🔄 [MangaDetail] Rafraîchissement après import pour série ${serieId}`);
         loadSerie(true);
       }
     };
 
     const unsubscribe = window.electronAPI.onMangaImported?.(handleMangaImported);
-
     return () => {
       if (unsubscribe) {
         unsubscribe();
@@ -60,91 +132,55 @@ export function useMangaDetail() {
         window.electronAPI.offMangaImported(handleMangaImported);
       }
     };
-  }, [id]);
+  }, [id, loadSerie]);
 
-  const loadCurrentUser = async () => {
-    const allUsers = await window.electronAPI.getAllUsers();
-    const userName = await window.electronAPI.getCurrentUser();
-    const user = allUsers.find((u: { id: number; name: string }) => u.name === userName);
-    setCurrentUser(user || null);
-  };
-
-  const loadProfileImages = async () => {
-    const allUsers = await window.electronAPI.getAllUsers();
-    const images: Record<string, string | null> = {};
-
-    for (const user of allUsers) {
-      const image = await window.electronAPI.getUserProfileImage(user.name);
-      images[user.name] = image;
-    }
-
-    setProfileImages(images);
-  };
-
+  // Restaurer la position de scroll après le chargement
   useEffect(() => {
-    // Restaurer la position de scroll après le chargement
     if (scrollPosition !== null && !loading) {
       window.scrollTo(0, scrollPosition);
       setScrollPosition(null);
     }
   }, [loading, scrollPosition]);
 
-  const loadSerie = async (preserveScroll = false) => {
-    if (preserveScroll) {
-      setScrollPosition(window.scrollY);
+  // Hook pour les tomes
+  const {
+    tomes,
+    lastTome,
+    totalPrix,
+    totalMihon,
+    showAddTome,
+    setShowAddTome,
+    editingTome,
+    setEditingTome,
+    draggingTomeId,
+    updateTomes,
+    handleDeleteTome,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    ConfirmDialog: TomeConfirmDialog
+  } = useMangaTomes({
+    serieId: serie?.id || null,
+    initialTomes: serie?.tomes || [],
+    onSerieReload: async () => {
+      await loadSerie(true);
     }
+  });
 
-    if (!preserveScroll) {
-      setLoading(true);
+  // Mettre à jour les tomes quand la série change
+  useEffect(() => {
+    if (serie?.tomes) {
+      updateTomes(serie.tomes);
     }
+  }, [serie?.tomes, updateTomes]);
 
-    const data = await window.electronAPI.getSerie(Number(id));
-    if (!data) {
-      navigate('/collection');
-      return;
-    }
-    
-    // Notifier la page de collection si le tag ou le statut a changé
-    if (serie && data) {
-      const tagChanged = serie.tag !== data.tag;
-      const statutChanged = serie.statut !== data.statut || serie.statut_lecture !== data.statut_lecture;
-      const volumesLusChanged = serie.volumes_lus !== data.volumes_lus;
-      const chapitresLusChanged = serie.chapitres_lus !== data.chapitres_lus;
-      
-      if (tagChanged || statutChanged || volumesLusChanged || chapitresLusChanged) {
-        window.dispatchEvent(new CustomEvent('manga-status-changed', {
-          detail: {
-            serieId: data.id,
-            tag: data.tag,
-            statut: data.statut,
-            statutLecture: data.statut_lecture,
-            volumes_lus: data.volumes_lus,
-            chapitres_lus: data.chapitres_lus
-          }
-        }));
-      }
-    }
-    
-    setSerie(data);
-    try {
-      const gp = await window.electronAPI.getMangaDisplaySettings?.();
-      const lp = await window.electronAPI.getMangaDisplayOverrides?.(Number(id));
-      setGlobalPrefs(gp || {});
-      setLocalPrefs(lp || {});
-    } catch { }
-    setLoading(false);
-  };
+  // Suppression
+  const handleDeleteSerie = useCallback(async () => {
+    if (!serie) return;
 
-  const shouldShow = (field: string): boolean => {
-    if (field in localPrefs) return !!localPrefs[field];
-    if (field in globalPrefs) return !!globalPrefs[field];
-    return true;
-  };
-
-  const handleDeleteSerie = async () => {
     const confirmed = await confirm({
       title: 'Supprimer la série',
-      message: `Êtes-vous sûr de vouloir supprimer "${serie?.titre}" et tous ses tomes ?`,
+      message: `Êtes-vous sûr de vouloir supprimer "${serie.titre}" et tous ses tomes ?`,
       confirmText: 'Supprimer',
       cancelText: 'Annuler',
       isDanger: true
@@ -152,26 +188,21 @@ export function useMangaDetail() {
 
     if (!confirmed) return;
 
-    await window.electronAPI.deleteSerie(Number(id));
-    navigate('/collection');
-  };
+    try {
+      await window.electronAPI.deleteSerie(serie.id);
+      navigate('/collection', { replace: true });
+    } catch (error) {
+      console.error('Erreur suppression série:', error);
+      showToast({
+        title: 'Erreur',
+        message: 'Impossible de supprimer la série',
+        type: 'error'
+      });
+    }
+  }, [serie, showToast]);
 
-  const handleDeleteTome = async (tomeId: number) => {
-    const confirmed = await confirm({
-      title: 'Supprimer le tome',
-      message: 'Êtes-vous sûr de vouloir supprimer ce tome ?',
-      confirmText: 'Supprimer',
-      cancelText: 'Annuler',
-      isDanger: true
-    });
-
-    if (!confirmed) return;
-
-    await window.electronAPI.deleteTome(tomeId);
-    loadSerie(true);
-  };
-
-  const handleStatusChange = async (status: 'En cours' | 'Terminé' | 'Abandonné' | 'En pause' | 'À lire') => {
+  // Changement de statut (avec gestion des tags)
+  const handleStatusChange = useCallback(async (status: 'En cours' | 'Terminé' | 'Abandonné' | 'En pause' | 'À lire') => {
     if (!currentUser || !serie) return;
 
     try {
@@ -180,44 +211,39 @@ export function useMangaDetail() {
 
       // Convertir le statut en tag ou mettre à jour le statut de la série
       const lectureStatus = status === 'Terminé' ? 'Terminé' : status;
-      if (status === 'À lire') {
-        newTag = 'a_lire';
-        await window.electronAPI.setSerieTag(serie.id, currentUser.id, 'a_lire');
-        await window.electronAPI.updateSerie(serie.id, { statut_lecture: lectureStatus });
-      } else if (status === 'Abandonné') {
-        newTag = 'abandonne';
-        newStatut = 'Abandonnée';
-        await window.electronAPI.setSerieTag(serie.id, currentUser.id, 'abandonne');
-        await window.electronAPI.updateSerie(serie.id, { statut: 'Abandonnée', statut_lecture: lectureStatus });
-      } else if (status === 'En pause') {
-        newTag = 'en_pause';
-        await window.electronAPI.setSerieTag(serie.id, currentUser.id, 'en_pause');
-        await window.electronAPI.updateSerie(serie.id, { statut_lecture: lectureStatus });
-      } else if (status === 'En cours') {
-        // Retirer les tags manuels si présents
-        if (serie.tag === 'a_lire' || serie.tag === 'abandonne' || serie.tag === 'en_pause') {
-          await window.electronAPI.removeSerieTag(serie.id, currentUser.id);
-        }
-        newStatut = 'En cours';
-        await window.electronAPI.updateSerie(serie.id, { statut: 'En cours', statut_lecture: lectureStatus });
-      } else if (status === 'Terminé') {
-        // Retirer les tags manuels si présents
-        if (serie.tag === 'a_lire' || serie.tag === 'abandonne' || serie.tag === 'en_pause') {
-          await window.electronAPI.removeSerieTag(serie.id, currentUser.id);
-        }
-        newStatut = 'Terminée';
-        await window.electronAPI.updateSerie(serie.id, { statut: 'Terminée', statut_lecture: lectureStatus });
+      const statusToTagMap: Record<'À lire' | 'En cours' | 'Terminé' | 'Abandonné' | 'En pause', SerieTag> = {
+        'À lire': 'a_lire',
+        'En cours': 'en_cours',
+        'Terminé': 'lu',
+        'Abandonné': 'abandonne',
+        'En pause': 'en_pause'
+      };
+
+      const mappedTag = statusToTagMap[status];
+      if (mappedTag) {
+        await window.electronAPI.setSerieTag(serie.id, currentUser.id, mappedTag);
+        newTag = mappedTag;
       }
 
-      // Mettre à jour l'état local sans recharger
+      const updatePayload: Record<string, string> = { statut_lecture: lectureStatus };
+      if (status === 'Abandonné') {
+        newStatut = 'Abandonnée';
+        updatePayload.statut = 'Abandonnée';
+      } else if (status === 'En cours') {
+        newStatut = 'En cours';
+        updatePayload.statut = 'En cours';
+      } else if (status === 'Terminé') {
+        newStatut = 'Terminée';
+        updatePayload.statut = 'Terminée';
+      }
+
+      await window.electronAPI.updateSerie(serie.id, updatePayload);
+
+      // Mettre à jour l'état local
       if (serie) {
         let finalTag: SerieTag | null = serie.tag ?? null;
         if (newTag !== null) {
-          // Si un nouveau tag est défini, l'utiliser
           finalTag = newTag;
-        } else if (status === 'En cours' || status === 'Terminé') {
-          // Si on passe à "En cours" ou "Terminé", retirer le tag
-          finalTag = null;
         }
 
         setSerie({
@@ -227,7 +253,7 @@ export function useMangaDetail() {
           statut_lecture: lectureStatus
         });
 
-        // Notifier la page de collection pour mettre à jour les cartes
+        // Notifier la page de collection
         window.dispatchEvent(new CustomEvent('manga-status-changed', {
           detail: {
             serieId: serie.id,
@@ -251,18 +277,16 @@ export function useMangaDetail() {
         type: 'error'
       });
     }
-  };
+  }, [currentUser, serie, setSerie, showToast]);
 
-  const handleToggleFavorite = async () => {
+  // Toggle favorite
+  const handleToggleFavorite = useCallback(async () => {
     if (!currentUser || !serie) return;
 
     try {
       await window.electronAPI.toggleSerieFavorite(serie.id, currentUser.id);
-
-      // Mettre à jour l'état local sans recharger
       setSerie({ ...serie, is_favorite: !serie.is_favorite });
 
-      // Notifier la page de collection pour mettre à jour les cartes
       window.dispatchEvent(new CustomEvent('manga-favorite-changed', {
         detail: { serieId: serie.id, isFavorite: !serie.is_favorite }
       }));
@@ -279,97 +303,17 @@ export function useMangaDetail() {
         type: 'error'
       });
     }
-  };
+  }, [currentUser, serie, setSerie, showToast]);
 
-  const handleDragOver = (e: React.DragEvent, tomeId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingTomeId(tomeId);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingTomeId(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, tome: any) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingTomeId(null);
-
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
-
-    const file = files[0];
-    // @ts-expect-error path est injecté par Electron dans l'environnement renderer
-    const filePath = file.path;
-
-    if (!filePath) return;
-    if (!serie) return;
-
-    const result = await window.electronAPI.saveCoverFromPath(filePath, serie.titre, 'tome', {
-      mediaType: serie.media_type,
-      typeVolume: serie.type_volume
-    });
-
-    if (result.success && result.localPath) {
-      await window.electronAPI.updateTome(tome.id, {
-        couverture_url: result.localPath
-      });
-      loadSerie(true);
-    }
-  };
-
-  const handleSerieDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingSerie(true);
-  };
-
-  const handleSerieDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingSerie(false);
-  };
-
-  const handleSerieDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDraggingSerie(false);
-
-    if (!serie) return;
-
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
-
-    const file = files[0];
-    // @ts-expect-error path est injecté par Electron dans l'environnement renderer
-    const filePath = file.path;
-
-    if (!filePath) return;
-
-    const result = await window.electronAPI.saveCoverFromPath(filePath, serie.titre, 'serie', {
-      mediaType: serie.media_type,
-      typeVolume: serie.type_volume
-    });
-
-    if (result.success && result.localPath) {
-      await window.electronAPI.updateSerie(serie.id, {
-        couverture_url: result.localPath
-      });
-      loadSerie(true);
-    }
-  };
-
-  const handleEnrich = async () => {
+  // Enrichissement
+  const handleEnrich = useCallback(async () => {
     if (!serie?.mal_id) {
       alert("Ce manga n'a pas de MAL ID. Ajoutez un MAL ID (via édition ou import MAL) pour lancer l'enrichissement.");
       return;
     }
     setEnriching(true);
     try {
-      const res = await window.electronAPI.enrichMangaNow?.(serie.id);
+      const res = await window.electronAPI.enrichMangaNow?.(serie.id, false);
       if (res && res.success) {
         loadSerie(true);
       } else {
@@ -378,14 +322,69 @@ export function useMangaDetail() {
     } finally {
       setEnriching(false);
     }
-  };
+  }, [serie, loadSerie]);
+
+  // Force vérification (ignore user_modified_fields)
+  const handleForceEnrich = useCallback(async () => {
+    if (!serie?.mal_id) {
+      alert("Ce manga n'a pas de MAL ID. Ajoutez un MAL ID (via édition ou import MAL) pour lancer l'enrichissement.");
+      return;
+    }
+
+    // Récupérer les champs protégés pour afficher dans la confirmation
+    const userModifiedFields = serie.user_modified_fields || null;
+    let protectedFields: string[] = [];
+    if (userModifiedFields) {
+      try {
+        const parsed = JSON.parse(userModifiedFields);
+        if (Array.isArray(parsed)) {
+          protectedFields = parsed;
+        }
+      } catch (e) {
+        // Ignorer les erreurs de parsing
+      }
+    }
+
+    // Filtrer pour ne garder que les champs d'enrichissement (pas les champs personnalisés)
+    const enrichmentFields = [
+      'titre', 'titre_romaji', 'titre_natif', 'titre_anglais', 'titres_alternatifs',
+      'description', 'date_debut', 'date_fin', 'nb_volumes', 'nb_chapitres',
+      'statut_publication', 'themes', 'demographie', 'genres', 'score_mal',
+      'rank_mal', 'popularity_mal', 'serialization', 'auteurs', 'rating',
+      'langue_originale', 'editeur', 'editeur_vo', 'annee_publication', 'annee_vf',
+      'nb_volumes_vf', 'nb_chapitres_vf', 'statut_publication_vf', 'media_type', 'type_volume', 'type_contenu'
+    ];
+
+    const fieldsToUpdate = protectedFields.filter(field => enrichmentFields.includes(field));
+
+    // Demander confirmation
+    const confirmed = await confirm({
+      title: 'Force vérification',
+      message: fieldsToUpdate.length > 0
+        ? `Les champs suivants seront mis à jour depuis les sources externes (protection ignorée) :\n\n${fieldsToUpdate.map(f => `• ${f}`).join('\n')}\n\nLes champs personnalisés (labels, notes privées, etc.) ne seront pas modifiés.\n\nContinuer ?`
+        : 'Aucun champ protégé ne sera mis à jour. Continuer ?',
+      confirmText: 'Forcer la vérification',
+      cancelText: 'Annuler',
+      isDanger: false
+    });
+
+    if (!confirmed) return;
+
+    setEnriching(true);
+    try {
+      const res = await window.electronAPI.enrichMangaNow?.(serie.id, true);
+      if (res && res.success) {
+        showToast({ title: 'Force vérification terminée', type: 'success' });
+        loadSerie(true);
+      } else {
+        showToast({ title: 'Erreur', message: res?.error || 'Impossible de forcer la vérification', type: 'error' });
+      }
+    } finally {
+      setEnriching(false);
+    }
+  }, [serie, confirm, showToast, loadSerie]);
 
   // Calculs dérivés
-  const tomes = serie?.tomes || [];
-  const lastTome = tomes.length > 0
-    ? tomes.reduce((max, tome) => tome.numero > max.numero ? tome : max, tomes[0])
-    : null;
-  const totalPrix = tomes.reduce((sum, tome) => sum + tome.prix, 0);
   const costsByUser = users.map(user => {
     const userCost = tomes.reduce((sum, tome) => {
       if (!tome.proprietaires || tome.proprietaires.length === 0) return sum;
@@ -401,6 +400,10 @@ export function useMangaDetail() {
     return { user, cost: userCost, tomesCount };
   }).filter(item => item.cost > 0 || item.tomesCount > 0);
 
+  const shouldShow = useCallback((field: string): boolean => {
+    return displayPrefs[field] !== false;
+  }, [displayPrefs]);
+
   return {
     // Données
     serie,
@@ -408,27 +411,26 @@ export function useMangaDetail() {
     tomes,
     lastTome,
     totalPrix,
+    totalMihon,
     costsByUser,
     users,
     currentUser,
     profileImages,
-    globalPrefs,
-    localPrefs,
+    displayPrefs: displayPrefs as Record<string, boolean>,
 
     // États UI
     showAddTome,
-    showEditSerie,
+    showEditSerie: showEditModal,
     editingTome,
-    showCustomizeDisplay,
+    showCustomizeDisplay: showDisplaySettingsModal,
     draggingTomeId,
-    draggingSerie,
     enriching,
 
     // Actions
     setShowAddTome,
-    setShowEditSerie,
+    setShowEditSerie: setShowEditModal,
     setEditingTome,
-    setShowCustomizeDisplay,
+    setShowCustomizeDisplay: setShowDisplaySettingsModal,
     handleDeleteSerie,
     handleDeleteTome,
     handleStatusChange,
@@ -436,21 +438,23 @@ export function useMangaDetail() {
     handleDragOver,
     handleDragLeave,
     handleDrop,
-    handleSerieDragOver,
-    handleSerieDragLeave,
-    handleSerieDrop,
     handleEnrich,
+    handleForceEnrich,
     loadSerie,
     shouldShow,
 
-    // Navigation
-    navigate,
-
     // Confirm
-    ConfirmDialog,
+    ConfirmDialog: SerieConfirmDialog,
+    TomeConfirmDialog,
 
-    // Config
-    TAG_CONFIG,
-    MANUAL_TAGS
+    // Config (pour compatibilité)
+    TAG_CONFIG: {
+      a_lire: { label: 'À lire', icon: null, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+      en_cours: { label: 'En cours', icon: null, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
+      lu: { label: 'Lu', icon: null, color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+      abandonne: { label: 'Abandonné', icon: null, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.15)' },
+      en_pause: { label: 'En pause', icon: null, color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)' }
+    },
+    MANUAL_TAGS: ['a_lire', 'abandonne', 'en_pause'] as SerieTag[]
   };
 }

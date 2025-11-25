@@ -277,7 +277,7 @@ async function handleCreateSerie(db, getPathManager, store, serie, getDb = null)
   }
   
   const stmt = db.prepare(`
-    INSERT INTO series (
+    INSERT INTO manga_series (
       titre, statut, type_volume, type_contenu, couverture_url, description,
       statut_publication, statut_publication_vf, annee_publication, annee_vf,
       genres, nb_volumes, nb_volumes_vf, nb_chapitres, nb_chapitres_vf,
@@ -285,9 +285,10 @@ async function handleCreateSerie(db, getPathManager, store, serie, getDb = null)
       mal_id, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
       date_debut, date_fin, themes, score_mal, rank_mal, popularity_mal,
       auteurs, serialization, background, media_type, prequel_mal_id, sequel_mal_id,
-      anime_adaptation_mal_id, light_novel_mal_id, manga_adaptation_mal_id, relations
+      anime_adaptation_mal_id, light_novel_mal_id, manga_adaptation_mal_id, relations,
+      source_donnees, source_url, source_id
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     enrichedSerieData.titre,
@@ -330,7 +331,10 @@ async function handleCreateSerie(db, getPathManager, store, serie, getDb = null)
     enrichedSerieData.anime_adaptation_mal_id || null,
     enrichedSerieData.light_novel_mal_id || null,
     enrichedSerieData.manga_adaptation_mal_id || null,
-    enrichedSerieData.relations || null
+    enrichedSerieData.relations || null,
+    enrichedSerieData.source_donnees || null,
+    enrichedSerieData.source_url || null,
+    enrichedSerieData.source_id || null
   );
   
   const serieId = result.lastInsertRowid;
@@ -346,16 +350,17 @@ async function handleCreateSerie(db, getPathManager, store, serie, getDb = null)
         ? enrichedSerieData.chapitres_lus
         : 0;
 
+      const { ensureMangaUserDataRow } = require('./manga-helpers');
+      ensureMangaUserDataRow(db, serieId, currentUserId);
+      
       db.prepare(`
-        INSERT INTO serie_statut_utilisateur (
-          serie_id, user_id, statut_lecture, volumes_lus, chapitres_lus, date_modification
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT(serie_id, user_id) DO UPDATE SET
-          statut_lecture = excluded.statut_lecture,
-          volumes_lus = excluded.volumes_lus,
-          chapitres_lus = excluded.chapitres_lus,
-          date_modification = datetime('now')
-      `).run(serieId, currentUserId, statutLecture, volumesLus, chapitresLus);
+        UPDATE manga_user_data
+        SET statut_lecture = ?,
+            volumes_lus = ?,
+            chapitres_lus = ?,
+            updated_at = datetime('now')
+        WHERE serie_id = ? AND user_id = ?
+      `).run(statutLecture, volumesLus, chapitresLus, serieId, currentUserId);
     }
   } catch (ownershipError) {
     console.warn('⚠️ Impossible d’enregistrer le propriétaire de la série', ownershipError);
@@ -399,14 +404,22 @@ function registerMangaSeriesCreateHandlers(ipcMain, getDb, getPathManager, store
     try {
       const db = getDb();
       if (!db) {
-        throw new Error('Base de données non initialisée');
+        return { success: false, error: 'Base de données non initialisée' };
       }
-      return await handleCreateSerie(db, getPathManager, store, serie, getDb);
+      const serieId = await handleCreateSerie(db, getPathManager, store, serie, getDb);
+      return { success: true, id: serieId };
     } catch (error) {
       console.error('Erreur create-serie:', error);
-      throw error;
+      
+      // Améliorer le message d'erreur pour les contraintes UNIQUE
+      let errorMessage = error.message || 'Erreur lors de la création de la série';
+      if (error.message && error.message.includes('UNIQUE constraint failed') && error.message.includes('mal_id')) {
+        errorMessage = 'Entrée déjà présente dans la collection';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   });
 }
 
-module.exports = { registerMangaSeriesCreateHandlers };
+module.exports = { registerMangaSeriesCreateHandlers, handleCreateSerie };

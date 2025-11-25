@@ -185,7 +185,7 @@ function buildEpisodeData(episode, { showId, seasonId }) {
     synopsis: episode.overview || null,
     date_diffusion: episode.air_date || null,
     duree: episode.runtime || null,
-    note_moyenne: episode.vote_average || null,
+    note_moyenne: episode.vote_average != null ? Math.round(episode.vote_average * 10) / 10 : null,
     nb_votes: episode.vote_count || null,
     still_path: episode.still_path || null,
     donnees_brutes: toJson(episode)

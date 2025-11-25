@@ -9,7 +9,6 @@ export default defineConfig([
   {
     ignores: [
       "dist/**",
-      "coverage/**",
       "node_modules/**",
       "scripts/**",
       "assets/**",

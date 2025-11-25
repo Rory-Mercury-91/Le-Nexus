@@ -1,6 +1,7 @@
-import { ChevronDown, FolderOpen } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { ChevronDown, Search } from 'lucide-react';
+import { FormEvent, useState, useRef, useEffect } from 'react';
 import type { AdulteGameMoteur } from '../../../types';
+import CoverImageUpload from '../common/CoverImageUpload';
 
 interface AddAdulteGameManualFormProps {
   titre: string;
@@ -25,12 +26,11 @@ interface AddAdulteGameManualFormProps {
   setTypeTradFr: (type: string) => void;
   traducteur: string;
   setTraducteur: (traducteur: string) => void;
-  dragging: boolean;
+  lienTraduction: string;
+  setLienTraduction: (lien: string) => void;
+  traducteursList: string[];
+  loadingTraducteurs: boolean;
   loading: boolean;
-  onChooseCoverImage: () => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDragLeave: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
   onSubmit: (e: FormEvent) => void;
 }
 
@@ -66,15 +66,48 @@ export default function AddAdulteGameManualForm({
   setTypeTradFr,
   traducteur,
   setTraducteur,
-  dragging,
+  lienTraduction,
+  setLienTraduction,
+  traducteursList,
+  loadingTraducteurs,
   loading,
-  onChooseCoverImage,
-  onDragOver,
-  onDragLeave,
-  onDrop,
   onSubmit
 }: AddAdulteGameManualFormProps) {
   const [showTraductionSection, setShowTraductionSection] = useState(false);
+  const [traducteurSearch, setTraducteurSearch] = useState('');
+  const [showTraducteurSuggestions, setShowTraducteurSuggestions] = useState(false);
+  const traducteurInputRef = useRef<HTMLInputElement>(null);
+  const traducteurContainerRef = useRef<HTMLDivElement>(null);
+
+  // Filtrer les traducteurs selon la recherche
+  const filteredTraducteurs = traducteursList.filter(trad =>
+    trad.toLowerCase().includes(traducteurSearch.toLowerCase())
+  );
+
+  // Gérer le clic en dehors pour fermer les suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        traducteurContainerRef.current &&
+        !traducteurContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowTraducteurSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectTraducteur = (trad: string) => {
+    setTraducteur(trad);
+    setTraducteurSearch(trad);
+    setShowTraducteurSuggestions(false);
+    // Focus sur le champ après sélection
+    if (traducteurInputRef.current) {
+      traducteurInputRef.current.focus();
+    }
+  };
 
   return (
     <form onSubmit={onSubmit}>
@@ -203,84 +236,82 @@ export default function AddAdulteGameManualForm({
 
         {/* URL couverture (pleine largeur) */}
         <div>
-          <label htmlFor="couverture_url" className="label">
-            URL de la couverture <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optionnel)</span>
+          <label className="label" style={{ marginBottom: '12px' }}>
+            Couverture <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optionnel)</span>
           </label>
-          <div 
-            style={{ 
-              display: 'flex', 
-              gap: '8px',
-              border: dragging ? '2px dashed var(--primary)' : 'none',
-              borderRadius: dragging ? '8px' : '0',
-              padding: dragging ? '8px' : '0',
-              background: dragging ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
-              transition: 'all 0.2s',
-              position: 'relative'
+          <CoverImageUpload
+            imageUrl={couvertureUrl}
+            onImageChange={setCouvertureUrl}
+            mediaType="adulte-game"
+            itemTitle={titre || 'nouveau_jeu'}
+            useDirectPath={true}
+            onSelectImage={async () => {
+              const result = await window.electronAPI.selectAdulteGameCoverImage();
+              return result;
             }}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-          >
-            <input
-              type="text"
-              id="couverture_url"
-              value={couvertureUrl}
-              onChange={(e) => setCouvertureUrl(e.target.value)}
-              className="input"
-              placeholder={dragging ? "Déposez l'image ici..." : "https://... ou chemin local"}
-              style={{ flex: 1 }}
-            />
-            <button
-              type="button"
-              onClick={onChooseCoverImage}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <FolderOpen size={16} />
-              Parcourir
-            </button>
-          </div>
+          />
         </div>
 
         {/* Section Traduction */}
-        <div style={{
-          border: showTraductionSection ? '1px solid var(--border)' : 'none',
-          borderRadius: '8px',
-          background: showTraductionSection ? 'var(--surface)' : 'transparent',
-          padding: showTraductionSection ? '0' : '0'
-        }}>
-          <button
-            type="button"
+        <div 
+          className="card"
+          style={{
+            marginBottom: 0,
+            padding: '0',
+            overflow: 'hidden'
+          }}
+        >
+          <div
             onClick={() => setShowTraductionSection(!showTraductionSection)}
             style={{
-              width: '100%',
+              padding: '20px',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 16px',
-              background: showTraductionSection ? 'transparent' : 'var(--surface)',
-              border: showTraductionSection ? 'none' : '1px solid var(--border)',
+              gap: '12px',
               borderBottom: showTraductionSection ? '1px solid var(--border)' : 'none',
-              borderRadius: showTraductionSection ? '8px 8px 0 0' : '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
+              userSelect: 'none',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
             }}
           >
-            <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🌐 Informations de traduction <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optionnel)</span>
+            <span style={{ fontSize: '20px' }}>🌐</span>
+            <h3 style={{ 
+              fontSize: '16px', 
+              fontWeight: '600', 
+              margin: 0,
+              flex: 1,
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              color: 'var(--text)'
+            }}>
+              <span>Informations de traduction</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optionnel)</span>
             </h3>
             <ChevronDown
               size={20}
               style={{
                 color: 'var(--text-secondary)',
                 transform: showTraductionSection ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s'
+                transition: 'transform 0.2s ease',
+                flexShrink: 0
               }}
             />
-          </button>
+          </div>
 
           {showTraductionSection && (
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ 
+              padding: '24px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '16px'
+            }}>
               {/* Ligne 1 : Version de la traduction | Type de traduction */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 {/* Version traduite */}
@@ -313,22 +344,120 @@ export default function AddAdulteGameManualForm({
                     <option value="Traduction Humaine">👤 Traduction Humaine</option>
                     <option value="Traduction Automatique">🤖 Traduction Automatique</option>
                     <option value="Traduction Semi-Automatique">🤖👤 Traduction Semi-Automatique</option>
+                    <option value="Intégré">✨ Intégré</option>
                   </select>
                 </div>
               </div>
 
-              {/* Traducteur */}
-              <div>
+              {/* Traducteur avec autocomplete */}
+              <div ref={traducteurContainerRef} style={{ position: 'relative' }}>
                 <label htmlFor="traducteur" className="label">
                   Traducteur
                 </label>
+                <div style={{ position: 'relative' }}>
+                  <Search
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-secondary)',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                  <input
+                    ref={traducteurInputRef}
+                    type="text"
+                    id="traducteur"
+                    value={traducteurSearch || traducteur}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setTraducteurSearch(value);
+                      // Si la valeur correspond exactement à un traducteur, l'assigner
+                      if (traducteursList.includes(value)) {
+                        setTraducteur(value);
+                      } else {
+                        // Sinon, garder la recherche mais vider le traducteur sélectionné
+                        setTraducteur('');
+                      }
+                      setShowTraducteurSuggestions(value.length > 0);
+                    }}
+                    onFocus={() => {
+                      if (traducteurSearch || !traducteur) {
+                        setShowTraducteurSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Si le traducteur n'est pas sélectionné mais qu'on a tapé quelque chose, garder la valeur
+                      if (traducteurSearch && !traducteursList.includes(traducteurSearch)) {
+                        setTraducteur(traducteurSearch);
+                      }
+                      // Fermer les suggestions après un court délai pour permettre le clic
+                      // Note: Pas besoin de cleanup ici car c'est un événement utilisateur ponctuel
+                      window.setTimeout(() => setShowTraducteurSuggestions(false), 200);
+                    }}
+                    className="input"
+                    placeholder={loadingTraducteurs ? 'Chargement...' : 'Rechercher un traducteur (ex: Rory)...'}
+                    style={{ paddingLeft: '40px' }}
+                    disabled={loadingTraducteurs}
+                  />
+                </div>
+
+                {/* Suggestions autocomplete */}
+                {showTraducteurSuggestions && filteredTraducteurs.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      marginTop: '4px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px var(--shadow)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 1000
+                    }}
+                  >
+                    {filteredTraducteurs.slice(0, 10).map((trad) => (
+                      <div
+                        key={trad}
+                        onClick={() => handleSelectTraducteur(trad)}
+                        style={{
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid var(--border)',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--surface-light)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        {trad}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Lien de traduction */}
+              <div>
+                <label htmlFor="lien_traduction" className="label">
+                  Lien de traduction <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optionnel)</span>
+                </label>
                 <input
-                  type="text"
-                  id="traducteur"
-                  value={traducteur}
-                  onChange={(e) => setTraducteur(e.target.value)}
+                  type="url"
+                  id="lien_traduction"
+                  value={lienTraduction}
+                  onChange={(e) => setLienTraduction(e.target.value)}
                   className="input"
-                  placeholder="ex: Rory-Mercury91"
+                  placeholder="https://..."
                 />
               </div>
             </div>

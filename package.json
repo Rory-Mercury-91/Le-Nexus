@@ -2,7 +2,7 @@
   "name": "le-nexus",
   "version": "1.0.0",
   "description": "Application de gestion de collections multimédias (Mangas, Animés, Jeux Adultes)",
-  "author": "Le Nexus Team",
+  "author": "Nexus Team",
   "main": "electron/main.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--no-deprecation concurrently \"npm run start:react\" \"wait-on http://localhost:3000 && npm run start:electron\"",
@@ -11,22 +11,14 @@
     "start:electron": "electron .",
     "build": "node scripts/build-vite-quiet.js",
     "build:win": "npm run build && electron-builder --win --x64",
-    "build:win:safe": "node scripts/build-win-safe.js",
     "build:win:clean": "npm run build && electron-builder --win --x64 --publish never",
     "clean:electron-builder": "node scripts/clean-electron-builder-cache.js",
     "build:win:fresh": "npm run clean:electron-builder && npm run build:win",
     "preview": "vite preview",
     "clear-cache": "node scripts/clear-cache.js",
     "clean:all": "node scripts/clean-all.js",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest --watch",
-    "test:functions": "node scripts/generate-function-list.js",
-    "test:dead-code": "npm run test:coverage && npm run test:functions && node scripts/check-dead-code.js",
     "lint": "eslint . --ext .ts,.tsx",
-    "coverage:view": "node scripts/view-ipc-coverage.js"
+    "version:update": "node scripts/update-version.js"
   },
   "build": {
     "appId": "com.lenexus.app",
@@ -41,7 +33,8 @@
     ],
     "asarUnpack": [
       "assets/**/*",
-      "tampermonkey/**/*"
+      "tampermonkey/**/*",
+      "node_modules/@ffmpeg-installer/**/*"
     ],
     "directories": {
       "buildResources": "assets"
@@ -61,15 +54,18 @@
     }
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "1.1.0",
     "bcrypt": "6.0.0",
-    "better-sqlite3": "^9.2.2",
+    "better-sqlite3": "12.4.6",
     "electron-fetch": "1.9.1",
     "electron-store": "^8.1.0",
+    "fluent-ffmpeg": "2.1.3",
     "googleapis": "^140.0.0",
     "groq-sdk": "0.34.0",
     "jsdom": "^23.0.1",
     "lucide-react": "^0.303.0",
     "node-cron": "4.2.1",
+    "protobufjs": "^7.5.4",
     "puppeteer": "24.30.0",
     "puppeteer-core": "24.30.0",
     "react": "^18.2.0",
@@ -79,21 +75,17 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
-    "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/react": "^14.1.2",
-    "@testing-library/user-event": "^14.5.1",
     "@types/better-sqlite3": "^7.6.8",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "8.46.3",
     "@typescript-eslint/parser": "8.46.3",
     "@vitejs/plugin-react": "^4.2.1",
-    "@vitest/coverage-v8": "^1.0.4",
-    "@vitest/ui": "^1.0.4",
     "concurrently": "^9.1.0",
     "cross-env": "7.0.3",
     "electron": "^28.1.0",
     "electron-builder": "^24.9.1",
+    "electron-rebuild": "3.2.9",
     "eslint": "9.39.1",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.0.1",
@@ -101,7 +93,6 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "8.46.3",
     "vite": "^5.0.11",
-    "vitest": "^1.0.4",
     "wait-on": "^7.2.0"
   }
 }

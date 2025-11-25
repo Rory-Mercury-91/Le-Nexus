@@ -25,7 +25,7 @@ export default function WelcomeStep() {
         maxWidth: '480px',
         margin: '0 auto 32px'
       }}>
-        Gérez votre collection de mangas et d'animes de manière simple et élégante.
+        Gérez votre collection de mangas, animes, films, séries et jeux adultes de manière simple et élégante.
         Nous allons configurer votre espace personnel en quelques étapes.
       </p>
     </div>

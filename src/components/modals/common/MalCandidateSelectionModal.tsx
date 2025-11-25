@@ -13,7 +13,7 @@ type Candidate = {
 };
 
 interface MalCandidateSelectionModalProps {
-  malId: number;
+  malId?: number; // Optionnel pour Nautiljon
   candidates: Candidate[];
   loading?: boolean;
   onSelect: (candidateId: number) => void;
@@ -48,8 +48,11 @@ export default function MalCandidateSelectionModal({
         }}>
           <AlertTriangle size={20} style={{ color: 'var(--primary)' }} />
           <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-            Nous avons détecté {candidates.length} entrée{candidates.length > 1 ? 's' : ''} pouvant correspondre à l’ID MAL <strong>{malId}</strong>.
-            Choisissez celle à fusionner ou créez une nouvelle entrée.
+            {malId ? (
+              <>Nous avons détecté {candidates.length} entrée{candidates.length > 1 ? 's' : ''} pouvant correspondre à l'ID MAL <strong>{malId}</strong>. Choisissez celle à fusionner ou créez une nouvelle entrée.</>
+            ) : (
+              <>Nous avons détecté {candidates.length} entrée{candidates.length > 1 ? 's' : ''} existante{candidates.length > 1 ? 's' : ''} qui correspond{candidates.length > 1 ? 'ent' : ''} potentiellement à cette série. Choisissez celle à fusionner ou créez une nouvelle entrée.</>
+            )}
           </div>
         </div>
 

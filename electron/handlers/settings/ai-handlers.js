@@ -8,7 +8,7 @@ const { translateText: groqTranslate, validateApiKey: validateGroqApiKey } = req
  * @param {Store} store - Instance d'electron-store
  */
 function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager = null) {
-  
+
   // Récupérer la clé API Groq
   ipcMain.handle('get-groq-api-key', () => {
     return store.get('groqApiKey', '');
@@ -67,7 +67,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         titre_natif: true,
         titre_anglais: true,
         titres_alternatifs: true,
-        
+
         // Métadonnées de base
         source: true,
         duree: true,
@@ -75,35 +75,35 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         date_debut: true,
         date_fin: true,
         en_cours_diffusion: true,
-        
+
         // Classification et contenu
         genres: true,
         themes: true,
         demographics: true,
         rating: true,
-        
+
         // Scores et statistiques
         score: true,
         rank: true,
         popularity: true,
         scored_by: true,
         favorites: true,
-        
+
         // Producteurs et diffuseurs
         producteurs: true,
         diffuseurs: true,
-        
+
         // Relations et franchise
         franchise: true,
-        
+
         // Informations contextuelles
         synopsis: true,
         background: true,
       }
     };
-    
+
     const savedConfig = store.get('animeEnrichmentConfig', {});
-    
+
     // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
     return {
       enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
@@ -125,22 +125,23 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
     try {
       const { processEnrichmentQueue } = require('../../services/animes/anime-enrichment-queue');
       const currentUser = store.get('currentUser', '');
-      
+
       console.log('🚀 Démarrage de l\'enrichissement anime en arrière-plan...');
-      
+
       processEnrichmentQueue(getDb, currentUser, (progress) => {
         const mainWindow = getMainWindow();
         if (mainWindow) {
           mainWindow.webContents.send('anime-enrichment-progress', progress);
         }
-      }).then((stats) => {
+      }, getMainWindow, getPathManager).then((stats) => {
         if (stats?.alreadyRunning) {
           console.warn('⚠️ Enrichissement anime déjà en cours, aucun nouveau traitement lancé.');
           return;
         }
 
+        // Ne pas envoyer l'événement si l'arrêt a été détecté (déjà envoyé dans la queue)
         const mainWindow = getMainWindow();
-        if (mainWindow) {
+        if (mainWindow && !stats?.cancelled) {
           mainWindow.webContents.send('anime-enrichment-complete', stats);
         }
         if (stats?.cancelled) {
@@ -155,7 +156,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
       }).catch((error) => {
         console.error('❌ Erreur enrichissement anime:', error);
       });
-      
+
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur démarrage enrichissement anime:', error);
@@ -173,6 +174,34 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur arrêt enrichissement anime:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('pause-anime-enrichment', async () => {
+    try {
+      const { pauseEnrichment } = require('../../services/animes/anime-enrichment-queue');
+      const result = pauseEnrichment();
+      if (!result.success) {
+        return { success: false, error: 'Aucun enrichissement anime en cours' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur pause enrichissement anime:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('resume-anime-enrichment', async () => {
+    try {
+      const { resumeEnrichment } = require('../../services/animes/anime-enrichment-queue');
+      const result = resumeEnrichment();
+      if (!result.success) {
+        return { success: false, error: 'Aucun enrichissement anime en cours' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur reprise enrichissement anime:', error);
       return { success: false, error: error.message };
     }
   });
@@ -201,9 +230,9 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         background: true,
       }
     };
-    
+
     const savedConfig = store.get('mangaEnrichmentConfig', {});
-    
+
     // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
     return {
       enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
@@ -219,27 +248,28 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
     store.set('mangaEnrichmentConfig', config);
     console.log('✅ Configuration enrichissement manga sauvegardée:', config);
   });
-  
+
   ipcMain.handle('start-manga-enrichment', async () => {
     try {
       const { processEnrichmentQueue } = require('../../services/mangas/manga-enrichment-queue');
       const currentUser = store.get('currentUser', '');
-      
+
       console.log('🚀 Démarrage de l\'enrichissement manga en arrière-plan...');
-      
+
       processEnrichmentQueue(getDb, currentUser, (progress) => {
         const mainWindow = getMainWindow();
         if (mainWindow) {
           mainWindow.webContents.send('manga-enrichment-progress', progress);
         }
-      }, getPathManager).then((stats) => {
+      }, getPathManager, getMainWindow).then((stats) => {
         if (stats?.alreadyRunning) {
           console.warn('⚠️ Enrichissement manga déjà en cours, aucun nouveau traitement lancé.');
           return;
         }
 
+        // Ne pas envoyer l'événement si l'arrêt a été détecté (déjà envoyé dans la queue)
         const mainWindow = getMainWindow();
-        if (mainWindow) {
+        if (mainWindow && !stats?.cancelled) {
           mainWindow.webContents.send('manga-enrichment-complete', stats);
         }
         if (stats?.cancelled) {
@@ -254,7 +284,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
       }).catch((error) => {
         console.error('❌ Erreur enrichissement manga:', error);
       });
-      
+
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur démarrage enrichissement manga:', error);
@@ -276,12 +306,40 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
     }
   });
 
+  ipcMain.handle('pause-manga-enrichment', async () => {
+    try {
+      const { pauseEnrichment } = require('../../services/mangas/manga-enrichment-queue');
+      const result = pauseEnrichment();
+      if (!result.success) {
+        return { success: false, error: 'Aucun enrichissement manga en cours' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur pause enrichissement manga:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('resume-manga-enrichment', async () => {
+    try {
+      const { resumeEnrichment } = require('../../services/mangas/manga-enrichment-queue');
+      const result = resumeEnrichment();
+      if (!result.success) {
+        return { success: false, error: 'Aucun enrichissement manga en cours' };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur reprise enrichissement manga:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('enrich-manga-now', async (event, mangaId, force = false) => {
     try {
       const db = getDb();
       if (!db) return { success: false, error: 'Base de données non initialisée' };
       const currentUser = store.get('currentUser', '');
-      const serie = db.prepare('SELECT id, mal_id, titre FROM series WHERE id = ?').get(mangaId);
+      const serie = db.prepare('SELECT id, mal_id, titre FROM manga_series WHERE id = ?').get(mangaId);
       if (!serie) return { success: false, error: 'Manga introuvable' };
       if (!serie.mal_id) return { success: false, error: 'MAL ID manquant' };
 
@@ -290,7 +348,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
 
       // Si forcé, réinitialiser le statut d'enrichissement
       if (force) {
-        resetEnrichmentStatus(db, 'series', mangaId);
+        resetEnrichmentStatus(db, 'manga_series', mangaId);
       }
 
       // Utiliser la même logique que get-manga-enrichment-config pour avoir les valeurs par défaut complètes
@@ -316,7 +374,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
           background: true,
         }
       });
-      
+
       // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
       const defaultFields = {
         titre_romaji: true,
@@ -336,7 +394,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         synopsis: true,
         background: true,
       };
-      
+
       const finalConfig = {
         enabled: enrichmentConfig.enabled !== undefined ? enrichmentConfig.enabled : true,
         autoTranslate: enrichmentConfig.autoTranslate !== undefined ? enrichmentConfig.autoTranslate : false,
@@ -345,7 +403,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
           ...(enrichmentConfig.fields || {})
         }
       };
-      
+
       const result = await enrichManga(getDb, serie.id, serie.mal_id, currentUser, finalConfig, getPathManager, null, force);
       return result;
     } catch (error) {
@@ -378,14 +436,14 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         imageSource: 'anilist',
         fields: {}
       });
-      
+
       const finalConfig = {
         enabled: enrichmentConfig.enabled !== undefined ? enrichmentConfig.enabled : true,
         autoTranslate: enrichmentConfig.autoTranslate !== undefined ? enrichmentConfig.autoTranslate : false,
         imageSource: enrichmentConfig.imageSource || 'anilist',
         fields: enrichmentConfig.fields || {}
       };
-      
+
       const result = await enrichAnime(getDb, anime.id, anime.mal_id, currentUser, finalConfig, null, force);
       return result;
     } catch (error) {

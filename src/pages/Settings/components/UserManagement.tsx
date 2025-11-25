@@ -58,11 +58,27 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
     });
 
     if (confirmed) {
-      // Sauvegarder le nouvel utilisateur dans localStorage
-      localStorage.setItem('currentUser', user.name);
+      try {
+        // Marquer qu'on vient d'un changement depuis les paramètres
+        sessionStorage.setItem('userSwitchFromSettings', 'true');
+        
+        // Appeler l'API Electron pour charger la base de données de l'utilisateur
+        await window.electronAPI.setCurrentUser(user.name);
+        
+        // Sauvegarder le nouvel utilisateur dans localStorage
+        localStorage.setItem('currentUser', user.name);
 
-      // Recharger l'application
-      window.location.reload();
+        // Recharger l'application
+        window.location.reload();
+      } catch (error) {
+        console.error('Erreur lors du changement d\'utilisateur:', error);
+        sessionStorage.removeItem('userSwitchFromSettings');
+        showToast({
+          title: 'Erreur',
+          message: 'Impossible de changer d\'utilisateur',
+          type: 'error',
+        });
+      }
     }
   };
 
@@ -92,7 +108,7 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (user: UserData) => {
     const users = await window.electronAPI.getAllUsers();
     if (users.length === 1) {
       showToast({
@@ -105,14 +121,14 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
 
     const confirmed = await confirm({
       title: 'Supprimer l\'utilisateur',
-      message: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ? Toutes ses données seront supprimées.',
+      message: `Êtes-vous sûr de vouloir supprimer "${user.name}" ? Toutes ses données seront supprimées.`,
       confirmText: 'Supprimer',
       cancelText: 'Annuler',
       isDanger: true,
     });
 
     if (confirmed) {
-      const result = await window.electronAPI.deleteUser(userId);
+      const result = await window.electronAPI.deleteUser(user.name);
       if (result.success) {
         onUsersChange();
       } else {
@@ -277,7 +293,7 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
                     <Edit2 size={16} />
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(user.id)}
+                    onClick={() => handleDeleteUser(user)}
                     className="btn"
                     style={{
                       padding: '8px 12px',

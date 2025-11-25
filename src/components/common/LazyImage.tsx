@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import MediaErrorDisplay from './MediaErrorDisplay';
 
 interface LazyImageProps {
   src: string | null;
@@ -7,23 +8,32 @@ interface LazyImageProps {
   onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
   placeholder?: React.ReactNode;
   threshold?: number;
+  onMouseEnter?: (e: React.MouseEvent<HTMLImageElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLImageElement>) => void;
+  showError?: boolean; // Afficher le composant d'erreur au lieu de masquer
+  fileName?: string; // Nom du fichier pour les messages d'erreur
 }
 
 /**
  * Composant d'image avec chargement différé (lazy loading)
  * L'image n'est chargée que lorsqu'elle entre dans le viewport
  */
-export default function LazyImage({ 
-  src, 
-  alt, 
-  style, 
+export default function LazyImage({
+  src,
+  alt,
+  style,
   onError,
   placeholder,
-  threshold = 0.1
+  threshold = 0.1,
+  onMouseEnter,
+  onMouseLeave,
+  showError = true,
+  fileName
 }: LazyImageProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [isInView, setIsInView] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const imgRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +65,7 @@ export default function LazyImage({
     // Si la source change, réinitialiser l'état pour forcer un rechargement
     setHasLoaded(false);
     setImageSrc(null);
+    setLoadError(null);
   }, [src]);
 
   useEffect(() => {
@@ -87,9 +98,10 @@ export default function LazyImage({
         } else {
           setImageSrc(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erreur chargement image:', error);
         setImageSrc(null);
+        setLoadError(error?.message || 'Erreur lors du chargement de l\'image');
       }
     } else {
       // C'est une URL en ligne
@@ -118,7 +130,19 @@ export default function LazyImage({
     );
   }
 
-  if (!imageSrc) {
+  // Afficher l'erreur si elle existe et si showError est activé
+  if (loadError && showError && hasLoaded) {
+    return (
+      <MediaErrorDisplay
+        type="image"
+        error={loadError}
+        fileName={fileName || (src ? src.split('/').pop() : undefined)}
+        style={style}
+      />
+    );
+  }
+
+  if (!imageSrc && hasLoaded && !loadError) {
     return (
       <div style={style}>
         {placeholder || (
@@ -129,18 +153,18 @@ export default function LazyImage({
             justifyContent: 'center',
             background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)'
           }}>
-            <svg 
-              width="48" 
-              height="48" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
               strokeWidth="1.5"
               style={{ margin: '0 auto', color: 'var(--text-secondary)', opacity: 0.6 }}
             >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
             </svg>
           </div>
         )}
@@ -148,12 +172,34 @@ export default function LazyImage({
     );
   }
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget;
+    const errorMsg = `Impossible de charger l'image${fileName ? ` : ${fileName}` : ''}`;
+    setLoadError(errorMsg);
+
+    if (onError) {
+      onError(e);
+    } else if (!showError) {
+      // Si showError est désactivé, masquer l'image comme avant
+      target.style.display = 'none';
+    }
+  };
+
   return (
     <img
-      src={imageSrc}
+      src={imageSrc || undefined}
       alt={alt}
-      style={style}
-      onError={onError}
+      style={{
+        ...style,
+        filter: style?.filter || 'none',
+        imageRendering: style?.imageRendering || 'auto',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+        transform: style?.transform || 'translateZ(0)'
+      } as React.CSSProperties}
+      onError={handleImageError}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       loading="lazy"
     />
   );

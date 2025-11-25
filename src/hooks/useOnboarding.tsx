@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ContentPreferences } from '../types';
 
 export interface OnboardingData {
@@ -24,6 +24,9 @@ interface UseOnboardingReturn {
   error: string;
   showAdulteGamePassword: boolean;
   showAdulteGamePasswordConfirm: boolean;
+  hasExistingDatabases: boolean;
+  existingUsers: Array<{ name: string; emoji: string; color: string; avatar_path: string | null }>;
+  autoConnectUser: string | null;
   setStep: (step: number) => void;
   setName: (name: string) => void;
   setEmoji: (emoji: string) => void;
@@ -48,18 +51,23 @@ interface UseOnboardingReturn {
   handleAvatarSelect: () => Promise<void>;
   handleRemoveAvatar: () => void;
   handleComplete: (onComplete: () => void) => Promise<void>;
+  handleSelectExistingUser: (userName: string, onComplete: () => void) => Promise<void>;
+  handleCreateNewProfile: () => void;
 }
 
-export function useOnboarding(): UseOnboardingReturn {
-  const [step, setStep] = useState(1);
+export function useOnboarding(initialStep: number = 1, initialBaseDirectory: string | null = null): UseOnboardingReturn {
+  const [step, setStep] = useState(initialStep);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('👤');
   const [color, setColor] = useState('#8b5cf6');
   const [avatarFile, setAvatarFile] = useState<File | string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [baseDirectory, setBaseDirectory] = useState<string | null>(null);
+  const [baseDirectory, setBaseDirectory] = useState<string | null>(initialBaseDirectory);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hasExistingDatabases, setHasExistingDatabases] = useState(false);
+  const [existingUsers, setExistingUsers] = useState<Array<{ name: string; emoji: string; color: string; avatar_path: string | null }>>([]);
+  const [autoConnectUser, setAutoConnectUser] = useState<string | null>(null);
 
   // Préférences de contenu
   const defaultContentPrefs: ContentPreferences = {
@@ -81,49 +89,95 @@ export function useOnboarding(): UseOnboardingReturn {
   const [showAdulteGamePassword, setShowAdulteGamePassword] = useState(false);
   const [showAdulteGamePasswordConfirm, setShowAdulteGamePasswordConfirm] = useState(false);
 
+  // Si on démarre directement à l'étape 3, configurer le baseDirectory
+  useEffect(() => {
+    if (step === 3 && baseDirectory && !loading) {
+      // Configurer l'emplacement si ce n'est pas déjà fait
+      window.electronAPI.setBaseDirectory(baseDirectory).catch(error => {
+        console.error('Erreur lors de la configuration de l\'emplacement:', error);
+      });
+    }
+  }, [step, baseDirectory, loading]);
+
+  // Vérifier les bases existantes quand un emplacement est sélectionné
+  useEffect(() => {
+    const checkDatabases = async () => {
+      if (!baseDirectory) {
+        setHasExistingDatabases(false);
+        setExistingUsers([]);
+        return;
+      }
+
+      try {
+        // Configurer l'emplacement temporairement pour vérifier les bases
+        // Il faut d'abord configurer l'emplacement pour que getAllUsers puisse fonctionner
+        await window.electronAPI.setBaseDirectory(baseDirectory);
+        
+        // Attendre un peu pour que l'emplacement soit bien configuré
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const checkResult = await window.electronAPI.checkDatabasesInLocation(baseDirectory);
+        if (checkResult.success && checkResult.hasDatabases) {
+          setHasExistingDatabases(true);
+          // Charger les utilisateurs depuis les bases trouvées
+          const users = await window.electronAPI.getAllUsers();
+          setExistingUsers(users || []);
+          
+          // Si une seule base de données, marquer pour connexion automatique
+          if (users && users.length === 1 && step === 2) {
+            const singleUser = users[0].name;
+            setAutoConnectUser(singleUser);
+          } else {
+            setAutoConnectUser(null);
+          }
+        } else {
+          setHasExistingDatabases(false);
+          setExistingUsers([]);
+          // Si aucune base n'existe et qu'on est à l'étape 2, passer automatiquement à l'étape 3
+          // Utiliser setTimeout pour éviter les mises à jour d'état pendant le rendu
+          setTimeout(() => {
+            if (step === 2) {
+              setStep(3);
+            }
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification des bases:', error);
+        setHasExistingDatabases(false);
+        setExistingUsers([]);
+        // En cas d'erreur, permettre quand même de continuer
+        setTimeout(() => {
+          if (step === 2) {
+            setStep(3);
+          }
+        }, 100);
+      }
+    };
+
+    checkDatabases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseDirectory]);
+
   const handleNext = () => {
     if (step === 1) {
       setStep(2);
     } else if (step === 2) {
-      if (!name.trim()) {
-        setError('Veuillez saisir un nom');
-        return;
-      }
-      setError('');
-      setStep(3);
-    } else if (step === 3) {
-      // Valider qu'un emplacement a été sélectionné
+      // Si des bases existent, on reste à l'étape 2 pour afficher le sélecteur
+      // Sinon, on passe directement à l'étape 3
       if (!baseDirectory) {
         setError('Veuillez sélectionner un emplacement pour la base de données');
         return;
       }
-      setError('');
-      setStep(4);
-    } else if (step === 4) {
-      // Valider qu'au moins un type de contenu est sélectionné
-      if (!showMangas && !showAnimes && !showMovies && !showSeries && !showAdulteGame) {
-        setError('Veuillez sélectionner au moins un type de contenu');
+      // Si des bases existent, on reste à l'étape 2 pour afficher le sélecteur utilisateur
+      // Le sélecteur gérera la sélection ou la création d'un nouveau profil
+      if (hasExistingDatabases && existingUsers.length > 0) {
+        // Rester à l'étape 2 pour afficher le sélecteur utilisateur
+        setError('');
         return;
       }
+      // Pas de bases existantes, passer à l'étape 3 pour créer un nouveau profil
       setError('');
-      // Si jeux adultes est activé, proposer le mot de passe
-      if (showAdulteGame) {
-        setStep(5);
-      } else {
-        setStep(6);
-      }
-    } else if (step === 5) {
-      // Valider le mot de passe jeux adultes si renseigné
-      if (adulteGamePassword && adulteGamePassword !== adulteGamePasswordConfirm) {
-        setError('Les mots de passe ne correspondent pas');
-        return;
-      }
-      if (adulteGamePassword && adulteGamePassword.length < 4) {
-        setError('Le mot de passe doit contenir au moins 4 caractères');
-        return;
-      }
-      setError('');
-      setStep(6);
+      setStep(3);
     }
   };
 
@@ -152,8 +206,7 @@ export function useOnboarding(): UseOnboardingReturn {
   const handleAvatarSelect = async () => {
     const result = await window.electronAPI.chooseAvatarFile();
     if (result.success && result.path) {
-      setAvatarFile(result.path as any); // On stocke le chemin au lieu du File
-      // Utiliser le protocole manga:// pour afficher l'image
+      setAvatarFile(result.path as any);
       setAvatarPreview(`manga://${encodeURIComponent(result.path)}`);
     }
   };
@@ -163,14 +216,80 @@ export function useOnboarding(): UseOnboardingReturn {
     setAvatarPreview(null);
   };
 
+  const handleSelectExistingUser = async (userName: string, onComplete: () => void) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      if (!baseDirectory) {
+        setError('Aucun emplacement sélectionné');
+        setLoading(false);
+        return;
+      }
+
+      // Configurer l'emplacement
+      const setDirectoryResult = await window.electronAPI.setBaseDirectory(baseDirectory);
+      if (!setDirectoryResult.success) {
+        setError(setDirectoryResult.error || 'Erreur lors de la définition de l\'emplacement');
+        setLoading(false);
+        return;
+      }
+
+      // Sélectionner l'utilisateur existant
+      await window.electronAPI.setCurrentUser(userName);
+
+      // Sauvegarder dans localStorage pour que App.tsx le détecte
+      localStorage.setItem('currentUser', userName);
+
+      // Compléter l'onboarding (sans rechargement, onComplete gère la transition)
+      setTimeout(() => {
+        onComplete();
+      }, 300);
+    } catch (error) {
+      console.error('Erreur lors de la sélection de l\'utilisateur:', error);
+      setError('Une erreur est survenue. Veuillez réessayer.');
+      setLoading(false);
+    }
+  };
+
+  const handleCreateNewProfile = () => {
+    // Passer à l'étape 3 pour créer un nouveau profil
+    setStep(3);
+    setError('');
+  };
+
   const handleComplete = async (onComplete: () => void) => {
     setLoading(true);
     setError('');
 
     try {
-      // S'assurer qu'un emplacement a été sélectionné
+      // Validation
+      if (!name.trim()) {
+        setError('Veuillez saisir un nom');
+        setLoading(false);
+        return;
+      }
+
       if (!baseDirectory) {
         setError('Veuillez sélectionner un emplacement pour la base de données');
+        setLoading(false);
+        return;
+      }
+
+      if (!showMangas && !showAnimes && !showMovies && !showSeries && !showAdulteGame) {
+        setError('Veuillez sélectionner au moins un type de contenu');
+        setLoading(false);
+        return;
+      }
+
+      if (adulteGamePassword && adulteGamePassword !== adulteGamePasswordConfirm) {
+        setError('Les mots de passe ne correspondent pas');
+        setLoading(false);
+        return;
+      }
+
+      if (adulteGamePassword && adulteGamePassword.length < 4) {
+        setError('Le mot de passe doit contenir au moins 4 caractères');
         setLoading(false);
         return;
       }
@@ -202,7 +321,12 @@ export function useOnboarding(): UseOnboardingReturn {
       }
 
       // Définir l'utilisateur actuel
-      const userName = name.trim();
+      // Utiliser result.user.name pour garantir la correspondance exacte avec la base de données
+      const userName = result.user.name;
+      
+      // Sauvegarder dans localStorage AVANT d'appeler setCurrentUser
+      localStorage.setItem('currentUser', userName);
+      
       await window.electronAPI.setCurrentUser(userName);
 
       // Sauvegarder les préférences de contenu
@@ -223,10 +347,13 @@ export function useOnboarding(): UseOnboardingReturn {
         }
       }
 
+      // Marquer que l'onboarding est terminé et qu'un utilisateur a été créé
+      // Cela permettra à App.tsx de charger directement l'utilisateur
+      setLoading(false);
+      
       // Compléter l'onboarding
-      setTimeout(() => {
-        onComplete();
-      }, 500);
+      // onComplete va vérifier localStorage.getItem('currentUser') et charger l'utilisateur
+      onComplete();
     } catch (error) {
       console.error('Erreur lors de la finalisation:', error);
       setError('Une erreur est survenue. Veuillez réessayer.');
@@ -255,6 +382,9 @@ export function useOnboarding(): UseOnboardingReturn {
     error,
     showAdulteGamePassword,
     showAdulteGamePasswordConfirm,
+    hasExistingDatabases,
+    existingUsers,
+    autoConnectUser,
     setStep,
     setName,
     setEmoji,
@@ -278,6 +408,8 @@ export function useOnboarding(): UseOnboardingReturn {
     handleChooseDirectory,
     handleAvatarSelect,
     handleRemoveAvatar,
-    handleComplete
+    handleComplete,
+    handleSelectExistingUser,
+    handleCreateNewProfile
   };
 }

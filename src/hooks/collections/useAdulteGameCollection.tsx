@@ -8,6 +8,7 @@ import type {
   AdulteGameStatutJeu,
   AdulteGameStatutPerso
 } from '../../types';
+import { useCollectionFilters } from '../common/useCollectionFilters';
 import { usePersistentState } from '../common/usePersistentState';
 import { useToast } from '../common/useToast';
 import { useCollectionViewMode, type ViewMode } from './useCollectionViewMode';
@@ -18,11 +19,11 @@ type AdulteGameSortOption = (typeof ADULTE_GAME_SORT_OPTIONS)[number];
 const ADULTE_GAME_SORT_SET = new Set<string>(ADULTE_GAME_SORT_OPTIONS);
 const isAdulteGameSortOption = (value: unknown): value is AdulteGameSortOption =>
   typeof value === 'string' && ADULTE_GAME_SORT_SET.has(value);
-type TranslationFilter = 'all' | 'translated' | 'not-translated';
+type TranslationFilter = 'all' | 'translated' | 'not-translated' | 'integrated';
 const ADULTE_GAME_STATUT_JEU_SET = new Set<AdulteGameStatutJeu>(['TERMINÉ', 'ABANDONNÉ', 'EN COURS']);
 const ADULTE_GAME_STATUT_PERSO_SET = new Set<AdulteGameStatutPerso>(['Terminé', 'En cours', 'En pause', 'À lire', 'Abandonné']);
 const PLATEFORME_FILTER_SET = new Set(['all', 'F95Zone', 'LewdCorner']);
-const TRANSLATION_FILTER_SET = new Set<TranslationFilter>(['all', 'translated', 'not-translated']);
+const TRANSLATION_FILTER_SET = new Set<TranslationFilter>(['all', 'translated', 'not-translated', 'integrated']);
 const ADULTE_GAME_MOTEUR_SET = new Set<AdulteGameMoteur>(['RenPy', 'Unity', 'RPGM', 'Unreal', 'HTML', 'Flash', 'QSP', 'Autre']);
 const UNKNOWN_MOTOR_VALUE = '__unknown__';
 
@@ -76,6 +77,8 @@ interface UseAdulteGameCollectionReturn {
   setShowFavoriteOnly: (show: boolean) => void;
   showHidden: boolean;
   setShowHidden: (show: boolean) => void;
+  showOutdatedTranslation: boolean;
+  setShowOutdatedTranslation: (show: boolean) => void;
   selectedTags: string[];
   setSelectedTags: (tags: string[]) => void;
   selectedLabels: string[];
@@ -202,6 +205,11 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   );
   const [showHidden, setShowHidden] = usePersistentState<boolean>(
     'collection.adulteGames.filters.showHidden',
+    false,
+    { storage: 'session' }
+  );
+  const [showOutdatedTranslation, setShowOutdatedTranslation] = usePersistentState<boolean>(
+    'collection.adulteGames.filters.showOutdatedTranslation',
     false,
     { storage: 'session' }
   );
@@ -357,6 +365,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     // }
     if (translationFilter === 'translated') filters.traduction_fr_disponible = true;
     if (translationFilter === 'not-translated') filters.traduction_fr_disponible = false;
+    if (translationFilter === 'integrated') filters.statut_traduction = 'Traduction intégré';
 
     return filters;
   }, [searchTerm, selectedStatutJeu, selectedStatutPerso, translationFilter]);
@@ -373,11 +382,20 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
       setGames(data);
       calculateStats(data);
 
-      // Charger les labels de chaque jeu
+      // Extraire les labels directement depuis les données (maintenant dans game.labels)
       const labelsMap: Record<number, GameLabel[]> = {};
       for (const game of data) {
-        const labels = await window.electronAPI.getAdulteGameLabels(game.id);
-        labelsMap[game.id] = labels.map(l => ({ label: l.label, color: l.color }));
+        if (game.labels && Array.isArray(game.labels)) {
+          labelsMap[game.id] = game.labels;
+        } else {
+          // Fallback : charger depuis l'API si pas présent (pour compatibilité)
+          try {
+            const labels = await window.electronAPI.getAdulteGameLabels(game.id);
+            labelsMap[game.id] = labels.map(l => ({ label: l.label, color: l.color }));
+          } catch (e) {
+            labelsMap[game.id] = [];
+          }
+        }
       }
       setGameLabels(labelsMap);
     } catch (error) {
@@ -417,12 +435,29 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     };
   }, [refreshLabelsForGame]);
 
+  // Écouter les mises à jour marquées comme "vues" depuis la page de détail
+  useEffect(() => {
+    const handleUpdateSeenFromDetail = (event: Event) => {
+      const customEvent = event as CustomEvent<{ gameId: number }>;
+      const { gameId } = customEvent.detail;
+      
+      // Mettre à jour l'état local pour retirer le badge de mise à jour
+      updateGameInState(gameId, { maj_disponible: false });
+    };
+
+    window.addEventListener('adulte-game-update-seen', handleUpdateSeenFromDetail);
+
+    return () => {
+      window.removeEventListener('adulte-game-update-seen', handleUpdateSeenFromDetail);
+    };
+  }, [updateGameInState]);
+
   // Vérifier les mises à jour
   const handleCheckUpdates = useCallback(async () => {
     try {
       setLoading(true);
       setMessage(null);
-      
+
       // Écouter les événements de progression
       const unsubscribe = window.electronAPI.onAdulteGameUpdatesProgress?.((progress) => {
         // La progression sera gérée par le composant parent via un état partagé
@@ -434,12 +469,12 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
 
       // Vérifier les mises à jour pour tous les jeux (passer 0 pour tous)
       const result = await window.electronAPI.checkAdulteGameUpdates(0);
-      
+
       // Nettoyer l'écouteur
       if (unsubscribe) {
         unsubscribe();
       }
-      
+
       await loadGames(true);
 
       if (result.updated > 0) {
@@ -494,99 +529,139 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     return { type: null, id: null };
   }, []);
 
-  // Filtrer les jeux
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const hasSearchTerm = normalizedSearchTerm.length > 0;
-  const urlOrIdForSearch = hasSearchTerm ? detectUrlOrId(searchTerm) : { type: null, id: null };
-  const isNumericSearchTerm = hasSearchTerm && /^\d+$/.test(normalizedSearchTerm);
-  const searchId = isNumericSearchTerm
-    ? parseInt(normalizedSearchTerm, 10)
-    : (urlOrIdForSearch.id ? parseInt(urlOrIdForSearch.id, 10) : null);
-
-  const filteredGames = games.filter(game => {
-    if (showFavoriteOnly) {
-      return Boolean(game.is_favorite);
-    }
-
-    if (showHidden) {
-      return Boolean(game.is_hidden);
-    }
-
-    if (showMajOnly) {
-      return Boolean(game.maj_disponible);
-    }
-
-    if (!showHidden && game.is_hidden) return false;
-
-    if (hasSearchTerm) {
-      const isLewdCorner = game.lien_f95?.includes('lewdcorner.com');
-      const matchesSearch = (isNumericSearchTerm || urlOrIdForSearch.id)
-        ? (game.f95_thread_id === searchId || (isLewdCorner && searchId !== null && game.lien_f95?.includes(`/threads/${searchId}/`)))
-        : game.titre.toLowerCase().includes(normalizedSearchTerm);
-
-      if (!matchesSearch) return false;
-    }
-    if (selectedStatutJeu !== 'all' && game.statut_jeu !== selectedStatutJeu) return false;
-    if (selectedStatutPerso !== 'all' && game.statut_perso !== selectedStatutPerso) return false;
-    if (selectedMoteur !== 'all') {
-      if (selectedMoteur === UNKNOWN_MOTOR_VALUE) {
-        if (game.moteur) return false;
-      } else if ((game.moteur || '') !== selectedMoteur) {
-        return false;
+  // Utiliser useCollectionFilters pour la recherche et tri de base
+  const {
+    sortedItems: sortedGames,
+    hasActiveFilters: hasActiveFiltersBase
+  } = useCollectionFilters({
+    items: games,
+    search: searchTerm,
+    statusFilter: selectedStatutPerso !== 'all' ? selectedStatutPerso : undefined,
+    showFavoriteOnly,
+    showHidden,
+    showMajOnly,
+    sortBy,
+    searchConfig: {
+      getTitle: (game) => game.titre,
+      getExternalId: (game) => game.f95_thread_id || null,
+      detectIdFromSearch: (searchTerm: string) => {
+        const detected = detectUrlOrId(searchTerm);
+        if (detected.id) {
+          return { id: parseInt(detected.id, 10) };
+        }
+        // Recherche numérique directe
+        if (/^\d+$/.test(searchTerm.trim())) {
+          return { id: parseInt(searchTerm.trim(), 10) };
+        }
+        return null;
       }
+    },
+    filterConfig: {
+      getIsHidden: (game) => !!game.is_hidden,
+      getIsFavorite: (game) => !!game.is_favorite,
+      getStatus: (game) => game.statut_perso || null,
+      getHasUpdates: (game) => !!game.maj_disponible,
+      customFilter: (game) => {
+        // Filtres spécifiques AdulteGame
+        if (selectedStatutJeu !== 'all' && game.statut_jeu !== selectedStatutJeu) return false;
+
+        if (selectedMoteur !== 'all') {
+          if (selectedMoteur === UNKNOWN_MOTOR_VALUE) {
+            if (game.moteur) return false;
+          } else if ((game.moteur || '') !== selectedMoteur) {
+            return false;
+          }
+        }
+
+        if (selectedPlateforme !== 'all' && game.plateforme !== selectedPlateforme) return false;
+
+        const hasTranslation = Boolean(game.traduction_fr_disponible);
+        if (translationFilter === 'translated' && !hasTranslation) return false;
+        if (translationFilter === 'not-translated' && hasTranslation) return false;
+
+        if (selectedTags.length > 0) {
+          if (!game.tags || game.tags.length === 0) return false;
+          const hasAllTags = selectedTags.every(tag => game.tags?.includes(tag));
+          if (!hasAllTags) return false;
+        }
+
+        if (selectedLabels.length > 0) {
+          const labels = gameLabels[game.id] || [];
+          const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
+          if (!hasAnyLabel) return false;
+        }
+
+        // Filtre : version traduite non à jour
+        if (showOutdatedTranslation) {
+          // Vérifier si la version traduite existe et est différente de la version actuelle
+          // Ignorer si c'est "intégré" car ce n'est pas une vraie version
+          if (game.version && game.version_traduite) {
+            const isIntegrated = game.version_traduite.toLowerCase().includes('intégré');
+            if (isIntegrated || game.version_traduite === game.version) {
+              return false; // Exclure si intégré ou si à jour
+            }
+          } else {
+            return false; // Exclure si pas de version ou version traduite
+          }
+        }
+
+        // Recherche spéciale pour URLs F95Zone/LewdCorner (si la recherche textuelle n'a pas déjà matché)
+        const normalizedSearch = searchTerm.trim().toLowerCase();
+        if (normalizedSearch) {
+          const urlOrIdForSearch = detectUrlOrId(searchTerm);
+          if (urlOrIdForSearch.id) {
+            const searchId = parseInt(urlOrIdForSearch.id, 10);
+            const isLewdCorner = game.lien_f95?.includes('lewdcorner.com');
+            const matchesId = game.f95_thread_id === searchId ||
+              (isLewdCorner && game.lien_f95?.includes(`/threads/${searchId}/`));
+            if (!matchesId) return false;
+          }
+        }
+
+        return true;
+      }
+    },
+    sortConfig: {
+      sortOptions: {
+        'title-asc': {
+          label: 'Titre A-Z',
+          compare: (a, b) => a.titre.localeCompare(b.titre)
+        },
+        'title-desc': {
+          label: 'Titre Z-A',
+          compare: (a, b) => b.titre.localeCompare(a.titre)
+        },
+        'date-desc': {
+          label: 'Date ↓',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+          }
+        },
+        'date-asc': {
+          label: 'Date ↑',
+          compare: (a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateA - dateB;
+          }
+        },
+        'platform-asc': {
+          label: 'Plateforme A-Z',
+          compare: (a, b) => (a.plateforme || '').localeCompare(b.plateforme || '')
+        },
+        'platform-desc': {
+          label: 'Plateforme Z-A',
+          compare: (a, b) => (b.plateforme || '').localeCompare(a.plateforme || '')
+        }
+      },
+      defaultSort: 'title-asc'
     }
-    if (selectedPlateforme !== 'all' && game.plateforme !== selectedPlateforme) return false;
-
-    const hasTranslation = Boolean(game.traduction_fr_disponible);
-    if (translationFilter === 'translated' && !hasTranslation) return false;
-    if (translationFilter === 'not-translated' && hasTranslation) return false;
-
-    if (selectedTags.length > 0) {
-      if (!game.tags || game.tags.length === 0) return false;
-      const hasAllTags = selectedTags.every(tag => game.tags?.includes(tag));
-      if (!hasAllTags) return false;
-    }
-
-    if (selectedLabels.length > 0) {
-      const labels = gameLabels[game.id] || [];
-      const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
-      if (!hasAnyLabel) return false;
-    }
-
-    return true;
   });
 
-  // Trier les jeux
-  const sortGames = useCallback((gamesToSort: AdulteGame[]) => {
-    const sorted = [...gamesToSort];
-
-    switch (sortBy) {
-      case 'title-asc':
-        return sorted.sort((a, b) => a.titre.localeCompare(b.titre));
-      case 'title-desc':
-        return sorted.sort((a, b) => b.titre.localeCompare(a.titre));
-      case 'date-desc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateB - dateA;
-        });
-      case 'date-asc':
-        return sorted.sort((a, b) => {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-          return dateA - dateB;
-        });
-      case 'platform-asc':
-        return sorted.sort((a, b) => (a.plateforme || '').localeCompare(b.plateforme || ''));
-      case 'platform-desc':
-        return sorted.sort((a, b) => (b.plateforme || '').localeCompare(a.plateforme || ''));
-      default:
-        return sorted;
-    }
-  }, [sortBy]);
-
-  const sortedGames = sortGames(filteredGames);
+  // Les jeux filtrés sont les mêmes que triés (le filtrage est fait dans useCollectionFilters)
+  const filteredGames = sortedGames;
 
   // Tags triés selon les préférences
   const sortedTags = (() => {
@@ -611,6 +686,8 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   const allTags = sortedTags;
 
   // Détecter si on doit afficher le bouton d'ajout depuis URL
+  const hasSearchTerm = !!searchTerm.trim();
+  const urlOrIdForSearch = detectUrlOrId(searchTerm);
   const detectedUrlOrId = hasSearchTerm ? urlOrIdForSearch : { type: null, id: null };
   const hasNoResults = !loading && sortedGames.length === 0 && hasSearchTerm;
   const showAddFromUrl = hasNoResults && detectedUrlOrId.id !== null && !importingF95 && detectedUrlOrId.type !== 'lewdcorner';
@@ -864,16 +941,12 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     storageKey: 'adulte-game-items-per-page'
   });
 
-  // Calculer si des filtres sont actifs
-  const hasActiveFilters = hasSearchTerm ||
+  // Calculer si des filtres sont actifs (incluant les filtres spécifiques)
+  const hasActiveFilters = hasActiveFiltersBase ||
     selectedStatutJeu !== 'all' ||
-    selectedStatutPerso !== 'all' ||
     selectedPlateforme !== 'all' ||
     selectedMoteur !== 'all' ||
     translationFilter !== 'all' ||
-    showMajOnly ||
-    showFavoriteOnly ||
-    showHidden ||
     selectedTags.length > 0 ||
     selectedLabels.length > 0;
 
@@ -899,7 +972,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     loadGames();
     loadLabels();
     loadCurrentUser();
-     
+
   }, []);
 
   useEffect(() => {
@@ -947,6 +1020,8 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     setShowFavoriteOnly,
     showHidden,
     setShowHidden,
+    showOutdatedTranslation,
+    setShowOutdatedTranslation,
     selectedTags,
     setSelectedTags,
     selectedLabels,

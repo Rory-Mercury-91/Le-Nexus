@@ -228,7 +228,7 @@ export default function CardActionsMenu({
               padding: '6px 10px',
               background: isFavorite ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
               border: 'none',
-              color: isFavorite ? '#ef4444' : 'var(--text)',
+              color: isFavorite ? 'var(--error)' : 'var(--text)',
               cursor: 'pointer',
               fontSize: '12px',
               fontWeight: isFavorite ? '600' : '400',
@@ -242,7 +242,7 @@ export default function CardActionsMenu({
               e.currentTarget.style.background = isFavorite ? 'rgba(239, 68, 68, 0.15)' : 'transparent';
             }}
           >
-            <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} />
+            <Heart size={16} fill={isFavorite ? 'var(--error)' : 'none'} />
             {isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           </button>
 
@@ -267,7 +267,7 @@ export default function CardActionsMenu({
                 style={{
                   width: '100%',
                   padding: '6px 10px',
-                  background: isCurrentStatus ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+                  background: isCurrentStatus ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
                   border: 'none',
                   textAlign: 'left',
                   cursor: 'pointer',
@@ -278,13 +278,13 @@ export default function CardActionsMenu({
                 }}
                 onMouseEnter={(e) => {
                   if (!isCurrentStatus) {
-                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.05)';
+                    e.currentTarget.style.background = 'rgba(99, 102, 241, 0.05)';
                   } else {
                     e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isCurrentStatus ? 'rgba(139, 92, 246, 0.1)' : 'transparent';
+                  e.currentTarget.style.background = isCurrentStatus ? 'rgba(99, 102, 241, 0.1)' : 'transparent';
                 }}
               >
                 {isCurrentStatus ? `✓ ${label}` : label}
@@ -306,7 +306,7 @@ export default function CardActionsMenu({
               padding: '6px 10px',
               background: isHidden ? 'rgba(251, 146, 60, 0.15)' : 'transparent',
               border: 'none',
-              color: isHidden ? '#fb923c' : 'var(--text)',
+              color: isHidden ? 'var(--warning)' : 'var(--text)',
               cursor: 'pointer',
               fontSize: '13px',
               fontWeight: isHidden ? '600' : '400',

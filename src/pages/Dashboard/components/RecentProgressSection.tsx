@@ -57,7 +57,7 @@ export default function RecentProgressSection({
   }
 
   return (
-    <div className="card" style={{ padding: '20px', marginBottom: '24px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
+    <div className="card" style={{ padding: '20px', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
       <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         📖 Progression récente
       </h2>

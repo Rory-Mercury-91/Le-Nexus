@@ -3,6 +3,7 @@
  */
 
 const { markFieldAsUserModified } = require('../../utils/enrichment-helpers');
+const { buildDynamicUpdateQuery, executeUpdateWithMarking } = require('../common/crud-helpers');
 
 /**
  * Met à jour un anime
@@ -20,87 +21,46 @@ function handleUpdateAnime(db, id, animeData) {
     'mal_id'
   ]);
   
-  // Marquer tous les champs fournis comme modifiés par l'utilisateur
-  // (sauf les champs de progression comme episodes_vus qui peuvent être mis à jour automatiquement)
-  Object.keys(animeData).forEach(fieldName => {
-    if (fieldsToMarkAsUserModified.has(fieldName)) {
-      markFieldAsUserModified(db, 'anime_series', id, fieldName);
+  // Construire la requête dynamique
+  const { fields, values, fieldsToMark } = buildDynamicUpdateQuery({
+    tableName: 'anime_series',
+    data: animeData,
+    itemId: id,
+    fieldsToMarkAsUserModified,
+    progressionFields: new Set(), // Pas de champs de progression pour les animes dans cette table
+    transformValue: (fieldName, value) => {
+      // Gérer les valeurs null/undefined
+      if (value === undefined) return undefined;
+      
+      // Le champ titre ne peut pas être null (contrainte NOT NULL)
+      if (fieldName === 'titre' && (value === null || value === '')) {
+        console.warn('⚠️ Impossible de mettre à jour le titre avec une valeur null/vide, champ ignoré');
+        return undefined; // Retourner undefined pour ignorer ce champ
+      }
+      
+      // Le champ type ne peut pas être null (contrainte NOT NULL)
+      if (fieldName === 'type' && (value === null || value === '')) {
+        console.warn('⚠️ Impossible de mettre à jour le type avec une valeur null/vide, champ ignoré');
+        return undefined;
+      }
+      
+      // Le champ nb_episodes ne peut pas être null (contrainte NOT NULL DEFAULT 0)
+      if (fieldName === 'nb_episodes' && (value === null || value === undefined)) {
+        return 0; // Valeur par défaut
+      }
+      
+      if (value === null || value === '') return null;
+      return value;
     }
   });
   
-  const stmt = db.prepare(`
-    UPDATE anime_series 
-    SET titre = ?, 
-        titre_romaji = ?,
-        titre_natif = ?,
-        titre_anglais = ?,
-        titres_alternatifs = ?,
-        description = ?, 
-        genres = ?, 
-        themes = ?,
-        demographics = ?,
-        studios = ?, 
-        producteurs = ?,
-        diffuseurs = ?,
-        annee = ?,
-        saison_diffusion = ?,
-        date_debut = ?,
-        date_fin = ?,
-        date_sortie_vf = ?,
-        date_debut_streaming = ?,
-        duree = ?,
-        rating = ?, 
-        age_conseille = ?,
-        type = ?, 
-        source = ?,
-        nb_episodes = ?, 
-        couverture_url = ?,
-        score = ?,
-        statut_diffusion = ?,
-        en_cours_diffusion = ?,
-        editeur = ?,
-        site_web = ?,
-        liens_externes = ?,
-        liens_streaming = ?,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `);
+  if (fields.length === 0) {
+    console.log('⚠️ Aucun champ à mettre à jour pour l\'anime', id);
+    return { success: true };
+  }
   
-  stmt.run(
-    animeData.titre,
-    animeData.titre_romaji || null,
-    animeData.titre_natif || null,
-    animeData.titre_anglais || null,
-    animeData.titres_alternatifs || null,
-    animeData.description,
-    animeData.genres,
-    animeData.themes || null,
-    animeData.demographics || null,
-    animeData.studios,
-    animeData.producteurs || null,
-    animeData.diffuseurs || null,
-    animeData.annee,
-    animeData.saison_diffusion || null,
-    animeData.date_debut || null,
-    animeData.date_fin || null,
-    animeData.date_sortie_vf || null,
-    animeData.date_debut_streaming || null,
-    animeData.duree || null,
-    animeData.rating,
-    animeData.age_conseille || null,
-    animeData.type,
-    animeData.source || null,
-    animeData.nb_episodes,
-    animeData.couverture_url || null,
-    animeData.score || null,
-    animeData.statut_diffusion || null,
-    animeData.en_cours_diffusion ? 1 : 0,
-    animeData.editeur || null,
-    animeData.site_web || null,
-    animeData.liens_externes || null,
-    animeData.liens_streaming || null,
-    id
-  );
+  // Exécuter la mise à jour avec marquage des champs
+  executeUpdateWithMarking(db, 'anime_series', 'id', id, fields, values, fieldsToMark);
 
   return { success: true };
 }
@@ -116,14 +76,11 @@ function handleAddExternalLink(db, animeId, linkData) {
       return { success: false, error: 'Anime non trouvé' };
     }
 
+    const { safeJsonParse } = require('../common-helpers');
     let existingLinks = [];
     if (anime.liens_externes) {
-      try {
-        existingLinks = JSON.parse(anime.liens_externes);
-        if (!Array.isArray(existingLinks)) {
-          existingLinks = [];
-        }
-      } catch (e) {
+      existingLinks = safeJsonParse(anime.liens_externes, []);
+      if (!Array.isArray(existingLinks)) {
         existingLinks = [];
       }
     }

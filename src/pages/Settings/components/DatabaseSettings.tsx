@@ -14,6 +14,8 @@ interface DatabaseSettingsProps {
   onChangeBaseDirectory: () => void;
   onExport: () => void;
   onImport: () => void;
+  sectionStates: Record<string, boolean>;
+  onSectionStateChange: (sectionId: string, isOpen: boolean) => void;
 }
 
 type BackupFrequency = 'daily' | 'weekly' | 'manual';
@@ -48,6 +50,8 @@ export default function DatabaseSettings({
   onChangeBaseDirectory,
   onExport,
   onImport,
+  sectionStates,
+  onSectionStateChange,
 }: DatabaseSettingsProps) {
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -69,37 +73,8 @@ export default function DatabaseSettings({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   
-  // Charger les états des sections collapsibles depuis localStorage (ouvertes par défaut)
-  const loadCollapsibleStates = () => {
-    try {
-      const stored = localStorage.getItem('settings-section-states');
-      const defaults = {
-        'database-backup-config': true,
-        'database-backups-list': true,
-      };
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          showBackupConfig: parsed['database-backup-config'] ?? defaults['database-backup-config'],
-          showBackupsList: parsed['database-backups-list'] ?? defaults['database-backups-list'],
-        };
-      }
-      return {
-        showBackupConfig: defaults['database-backup-config'],
-        showBackupsList: defaults['database-backups-list'],
-      };
-    } catch (error) {
-      console.error('Erreur chargement états sections database:', error);
-      return {
-        showBackupConfig: true,
-        showBackupsList: true,
-      };
-    }
-  };
-
-  const initialCollapsibleStates = loadCollapsibleStates();
-  const [showBackupsList, setShowBackupsList] = useState(initialCollapsibleStates.showBackupsList);
-  const [showBackupConfig, setShowBackupConfig] = useState(initialCollapsibleStates.showBackupConfig);
+  const showBackupConfig = sectionStates['database-backup-config'] ?? true;
+  const showBackupsList = sectionStates['database-backups-list'] ?? true;
 
   // Charger la configuration au montage
   useEffect(() => {
@@ -471,16 +446,7 @@ export default function DatabaseSettings({
                 type="button"
                 onClick={() => {
                   const newState = !showBackupConfig;
-                  setShowBackupConfig(newState);
-                  // Sauvegarder dans localStorage
-                  try {
-                    const stored = localStorage.getItem('settings-section-states');
-                    const states = stored ? JSON.parse(stored) : {};
-                    states['database-backup-config'] = newState;
-                    localStorage.setItem('settings-section-states', JSON.stringify(states));
-                  } catch (error) {
-                    console.error('Erreur sauvegarde état section backup config:', error);
-                  }
+                  onSectionStateChange('database-backup-config', newState);
                 }}
                 disabled={!backupConfig.enabled}
                 style={{
@@ -653,16 +619,7 @@ export default function DatabaseSettings({
             }}
             onClick={() => {
               const newState = !showBackupsList;
-              setShowBackupsList(newState);
-              // Sauvegarder dans localStorage
-              try {
-                const stored = localStorage.getItem('settings-section-states');
-                const states = stored ? JSON.parse(stored) : {};
-                states['database-backups-list'] = newState;
-                localStorage.setItem('settings-section-states', JSON.stringify(states));
-              } catch (error) {
-                console.error('Erreur sauvegarde état section backups list:', error);
-              }
+              onSectionStateChange('database-backups-list', newState);
             }}
           >
             <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>

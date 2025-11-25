@@ -26,87 +26,53 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ## 🎬 Scripts Animes
 
-### ✅ Crunchyroll Episode Tracker
+### 🎬 Nautiljon Extractor (Mangas & Animes)
 
-**Fichier** : `animes/Crunchyroll Episode Tracker.user.js`  
-**Version** : 2.6.1 (support Chrome/Chromium + CSP)
+**Fichier** : `animes/Nautiljon Extractor.user.js`  
+**Version** : 1.6.2 (support CSP)
 
-**Fonction** : Marque automatiquement les épisodes visionnés sur Crunchyroll avec import automatique de l'anime si nécessaire.
+**Fonction** : Import complet depuis Nautiljon. Détecte automatiquement si vous êtes sur une page manga ou anime. Pour les mangas : menu avec 3 points verticaux (⋮) en bas à gauche avec options Import complet (📚) ou Import tomes uniquement (📖). Pour les animes : bouton d'import simple. Priorise les valeurs françaises (écrase les données des APIs).
 
-**Pages compatibles** : `https://www.crunchyroll.com/watch/*`
+**Pages compatibles** : `https://www.nautiljon.com/animes/*` et `https://www.nautiljon.com/mangas/*`
 
 #### 📋 Fonctionnalités
-- ✅ Bouton **✅** en bas à gauche pendant le visionnage
-- 📥 Bouton **📥** sur la page série pour importer l'anime
-- 🚀 Import automatique si l'anime n'existe pas encore
-- 🎯 Détection automatique du numéro d'épisode
-- ✨ Animations de feedback (succès/erreur/chargement)
-- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
+- 🎯 Détection automatique du type de page (manga ou anime)
+- 📚 Pour les mangas : menu ⋮ avec options Import complet ou Import tomes
+- 🎬 Pour les animes : bouton d'import simple
+- 🇫🇷 Priorise les valeurs françaises (écrase les données des APIs)
+- ✨ Feedback visuel (succès/erreur)
 
 #### 🎯 Utilisation
-1. Regardez un épisode sur Crunchyroll
-2. Un bouton **✅** apparaît en bas à gauche
-3. Cliquez pour marquer l'épisode comme vu
-4. Si l'anime n'existe pas, il sera importé automatiquement !
+1. Naviguez vers une page anime sur Nautiljon
+2. Un bouton d'import apparaît
+3. Cliquez pour importer l'anime
+4. ✅ L'anime est ajouté avec toutes ses métadonnées françaises !
 
 ---
 
-### ✅ ADN Episode Tracker
-
-**Fichier** : `animes/ADN Episode Tracker.user.js`  
-**Version** : 1.1.1 (support Chrome/Chromium + CSP)
-
-**Fonction** : Marque automatiquement les épisodes visionnés sur Animation Digital Network avec import automatique.
-
-**Pages compatibles** : `https://animationdigitalnetwork.fr/*`
-
-#### 📋 Fonctionnalités
-- ✅ Bouton **✅** en bas à gauche pendant le visionnage
-- 🚀 Import automatique complet depuis ADN
-- 🎯 Détection automatique saison/épisode
-- ✨ Gestion intelligente des données ADN
-- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
-
----
-
-### ✅ ADKami Integration
-
-**Fichier** : `animes/ADKami Episode Tracker.user.js`  
-**Version** : 2.3.1 (support Chrome/Chromium + CSP)
-
-**Fonction** : Intégration complète avec ADKami pour import d'animes et marquage d'épisodes.
-
-**Pages compatibles** : `https://adkami.com/*`
-
-#### 📋 Fonctionnalités
-- ✅ Bouton **✅** pour marquer un épisode (bas à gauche)
-- 📥 Bouton **📥** pour importer l'anime complet (bas à gauche, 80px)
-- 🎯 Détection automatique des métadonnées ADKami
-- 🔄 **Support SPAs (Single Page Applications) sur Chrome/Chromium**
-
----
-
-### 📥 MyAnimeList Quick Add
+### 📥 MyAnimeList Quick Add (Animes & Mangas)
 
 **Fichier** : `animes/MyAnimeList Quick Add.user.js`  
-**Version** : 2.0.1 (support CSP)
+**Version** : 2.1.0 (support CSP, script unifié)
 
-**Fonction** : Import rapide d'animes depuis MyAnimeList avec enrichissement automatique des données.
+**Fonction** : Import rapide d'animes et mangas depuis MyAnimeList avec enrichissement automatique des données. Détecte automatiquement le type de page.
 
-**Pages compatibles** : `https://myanimelist.net/anime/*`
+**Pages compatibles** : `https://myanimelist.net/anime/*` et `https://myanimelist.net/manga/*`
 
 #### 📋 Fonctionnalités
 - 📥 Bouton "Ajouter à Le Nexus" avec design moderne
-- ✅ Import complet automatique (Jikan + AniList + Groq)
-- 🎨 28 champs enrichis récupérés (cover HD, synopsis traduit, genres, themes, etc.)
+- 🎯 Détection automatique du type de page (anime ou manga)
+- ✅ Import complet automatique (Jikan + AniList + Groq pour animes, Jikan + Groq pour mangas)
+- 🎨 Métadonnées enrichies (cover HD, synopsis traduit, genres, themes, etc.)
 - ✨ Feedback visuel (succès/erreur)
-- 🎯 Détection automatique du MAL ID depuis l'URL
+- 🎨 Couleurs adaptées selon le type (violet pour animes, orange pour mangas)
+- 🔄 Overlay de sélection pour fusion avec entrées existantes
 
 #### 🎯 Utilisation
-1. Naviguez vers une page d'anime sur MyAnimeList
-2. Un bouton apparaît sous le titre
+1. Naviguez vers une page d'anime ou de manga sur MyAnimeList
+2. Un bouton apparaît sous le titre (couleur adaptée au type)
 3. Cliquez sur **"Ajouter à Le Nexus"**
-4. ✅ L'anime est ajouté avec toutes ses métadonnées !
+4. ✅ L'élément est ajouté avec toutes ses métadonnées !
 
 #### ⚠️ Prérequis
 - **Le Nexus doit être lancé** (serveur d'import sur port 40000)
@@ -185,34 +151,6 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 #### 🎨 Interface
 
 Menu moderne en **bas à gauche** pour éviter les conflits avec les éléments flottants des forums (généralement en bas à droite). Design avec fond semi-transparent et effet de flou.
-
----
-
-### 📥 MyAnimeList Manga Quick Add
-
-**Fichier** : `mangas/MyAnimeList Manga Quick Add.user.js`  
-**Version** : 1.0.1 (support CSP)
-
-**Fonction** : Import rapide de mangas depuis MyAnimeList avec enrichissement automatique des données.
-
-**Pages compatibles** : `https://myanimelist.net/manga/*`
-
-#### 📋 Fonctionnalités
-- 📥 Bouton "Ajouter à Le Nexus" avec design moderne
-- ✅ Import complet automatique (Jikan + Groq)
-- 🎨 Métadonnées enrichies
-- ✨ Feedback visuel (succès/erreur)
-- 🎯 Détection automatique du MAL ID depuis l'URL
-
-#### 🎯 Utilisation
-1. Naviguez vers une page manga sur MyAnimeList
-2. Un bouton apparaît sous le titre
-3. Cliquez sur **"Ajouter à Le Nexus"**
-4. ✅ Le manga est ajouté avec toutes ses métadonnées !
-
-#### ⚠️ Prérequis
-- **Le Nexus doit être lancé** (serveur d'import sur port 40000)
-- Connexion Internet pour les API (Jikan, Groq)
 
 ---
 

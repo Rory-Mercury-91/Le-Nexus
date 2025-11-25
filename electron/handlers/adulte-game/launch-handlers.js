@@ -25,9 +25,9 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
       }
 
       const userGame = db.prepare(`
-        SELECT ug.chemin_executable, g.titre
+        SELECT ud.chemin_executable, g.titre
         FROM adulte_game_games g
-        LEFT JOIN adulte_game_user_games ug ON g.id = ug.game_id AND ug.user_id = ?
+        INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id AND ud.user_id = ?
         WHERE g.id = ?
       `).get(userId, id);
       
@@ -35,26 +35,23 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun exécutable défini pour ce jeu');
       }
       
+      const { safeJsonParse } = require('../common-helpers');
       let executablePath;
-      try {
-        const parsed = JSON.parse(userGame.chemin_executable);
-        if (Array.isArray(parsed)) {
-          if (versionToLaunch) {
-            const exe = parsed.find(e => e.version === versionToLaunch);
-            if (!exe) {
-              throw new Error(`Version ${versionToLaunch} non trouvée`);
-            }
-            executablePath = exe.path;
-          } else {
-            if (parsed.length === 0) {
-              throw new Error('Aucun exécutable défini pour ce jeu');
-            }
-            executablePath = parsed[0].path;
+      const parsed = safeJsonParse(userGame.chemin_executable, null);
+      if (parsed && Array.isArray(parsed)) {
+        if (versionToLaunch) {
+          const exe = parsed.find(e => e.version === versionToLaunch);
+          if (!exe) {
+            throw new Error(`Version ${versionToLaunch} non trouvée`);
           }
+          executablePath = exe.path;
         } else {
-          executablePath = userGame.chemin_executable;
+          if (parsed.length === 0) {
+            throw new Error('Aucun exécutable défini pour ce jeu');
+          }
+          executablePath = parsed[0].path;
         }
-      } catch (error) {
+      } else {
         executablePath = userGame.chemin_executable;
       }
       
@@ -67,25 +64,19 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
       if (metadata.version_jouee) {
         console.log(`📌 Version détectée: ${metadata.version_jouee}`);
         
-        const updateUserGame = db.prepare(`
-          UPDATE adulte_game_user_games 
-          SET version_jouee = ? 
+        const updateResult = db.prepare(`
+          UPDATE adulte_game_user_data 
+          SET version_jouee = ?,
+              updated_at = datetime('now')
           WHERE game_id = ? AND user_id = ?
-        `);
-        const updateResult = updateUserGame.run(metadata.version_jouee, id, userId);
+        `).run(metadata.version_jouee, id, userId);
         
         if (updateResult.changes === 0) {
           db.prepare(`
-            INSERT INTO adulte_game_user_games (game_id, user_id, version_jouee, chemin_executable)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO adulte_game_user_data (game_id, user_id, version_jouee, chemin_executable, created_at, updated_at)
+            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
           `).run(id, userId, metadata.version_jouee, executablePath);
         }
-        
-        db.prepare(`
-          UPDATE adulte_game_games 
-          SET version_jouee = ? 
-          WHERE id = ?
-        `).run(metadata.version_jouee, id);
       }
       
       const gamePath = path.resolve(executablePath);
@@ -99,19 +90,18 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
         }
       });
       
-      db.prepare(`
-        INSERT INTO adulte_game_user_games (game_id, user_id, derniere_session)
-        VALUES (?, ?, datetime('now'))
-        ON CONFLICT(game_id, user_id) DO UPDATE SET
-          derniere_session = datetime('now')
+      const updateResult = db.prepare(`
+        UPDATE adulte_game_user_data 
+        SET derniere_session = datetime('now'),
+            updated_at = datetime('now')
+        WHERE game_id = ? AND user_id = ?
       `).run(id, userId);
       
-      if (metadata.derniere_session) {
+      if (updateResult.changes === 0) {
         db.prepare(`
-          UPDATE adulte_game_games 
-          SET derniere_session = ? 
-          WHERE id = ?
-        `).run(metadata.derniere_session.toISOString(), id);
+          INSERT INTO adulte_game_user_data (game_id, user_id, derniere_session, created_at, updated_at)
+          VALUES (?, ?, datetime('now'), datetime('now'), datetime('now'))
+        `).run(id, userId);
       }
       
       return { success: true };
@@ -196,12 +186,19 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
         throw new Error('Utilisateur non trouvé');
       }
 
-      db.prepare(`
-        INSERT INTO adulte_game_user_games (game_id, user_id, notes_privees)
-        VALUES (?, ?, ?)
-        ON CONFLICT(game_id, user_id) DO UPDATE SET
-          notes_privees = excluded.notes_privees
-      `).run(gameId, userId, notes);
+      const updateResult = db.prepare(`
+        UPDATE adulte_game_user_data 
+        SET notes_privees = ?,
+            updated_at = datetime('now')
+        WHERE game_id = ? AND user_id = ?
+      `).run(notes, gameId, userId);
+      
+      if (updateResult.changes === 0) {
+        db.prepare(`
+          INSERT INTO adulte_game_user_data (game_id, user_id, notes_privees, created_at, updated_at)
+          VALUES (?, ?, ?, datetime('now'), datetime('now'))
+        `).run(gameId, userId, notes);
+      }
 
       return { success: true };
     } catch (error) {
@@ -228,19 +225,26 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
 
       const userGame = db.prepare(`
         SELECT is_favorite
-        FROM adulte_game_user_games
+        FROM adulte_game_user_data
         WHERE game_id = ? AND user_id = ?
       `).get(gameId, userId);
       
       const currentFavorite = userGame?.is_favorite || 0;
       const newFavorite = currentFavorite ? 0 : 1;
       
-      db.prepare(`
-        INSERT INTO adulte_game_user_games (game_id, user_id, is_favorite)
-        VALUES (?, ?, ?)
-        ON CONFLICT(game_id, user_id) DO UPDATE SET
-          is_favorite = ?
-      `).run(gameId, userId, newFavorite, newFavorite);
+      const updateResult = db.prepare(`
+        UPDATE adulte_game_user_data 
+        SET is_favorite = ?,
+            updated_at = datetime('now')
+        WHERE game_id = ? AND user_id = ?
+      `).run(newFavorite, gameId, userId);
+      
+      if (updateResult.changes === 0) {
+        db.prepare(`
+          INSERT INTO adulte_game_user_data (game_id, user_id, is_favorite, created_at, updated_at)
+          VALUES (?, ?, ?, datetime('now'), datetime('now'))
+        `).run(gameId, userId, newFavorite);
+      }
       
       console.log(`✅ Favori ${newFavorite ? 'ajouté' : 'retiré'} pour le jeu ID ${gameId} (utilisateur: ${currentUser})`);
       

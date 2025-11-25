@@ -1,4 +1,5 @@
 export { default as BackToTopButton } from './BackToTopButton';
+export { default as BackToBottomButton } from './BackToBottomButton';
 export { default as CollectionFiltersBar } from './CollectionFiltersBar';
 export { default as CollectionHeader } from './CollectionHeader';
 export { default as CollectionSearchBar } from './CollectionSearchBar';

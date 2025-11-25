@@ -187,9 +187,9 @@ const AdulteGameLabelsCard: React.FC<AdulteGameLabelsCardProps> = ({ gameId, onL
         {/* Liste des labels existants */}
         {labels.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {labels.map((label) => (
+            {labels.map((label, index) => (
               <div
-                key={label.id}
+                key={`${label.label}-${index}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

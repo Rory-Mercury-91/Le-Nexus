@@ -1,5 +1,7 @@
-import { ArrowLeft, ChevronDown, Edit, Play, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Edit, Play, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import CheckUpdateButton from '../../../components/common/CheckUpdateButton';
+import { useGlobalProgress } from '../../../contexts/GlobalProgressContext';
 
 interface GameVersion {
   version: string;
@@ -9,6 +11,7 @@ interface GameVersion {
 interface AdulteGameHeaderProps {
   onBack: () => void;
   onCheckUpdate?: () => void;
+  onForceCheckUpdate?: () => void;
   onPlay?: () => void;
   onPlayVersion?: (version: string) => void;
   availableVersions?: GameVersion[];
@@ -22,6 +25,7 @@ interface AdulteGameHeaderProps {
 export default function AdulteGameHeader({
   onBack,
   onCheckUpdate,
+  onForceCheckUpdate,
   onPlay,
   onPlayVersion,
   availableVersions = [],
@@ -34,12 +38,33 @@ export default function AdulteGameHeader({
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const hasMultipleVersions = availableVersions.length > 1;
 
+  // Calculer la hauteur de la barre de progression pour ajuster le top du header
+  const {
+    malSyncing,
+    animeProgress,
+    mangaProgress,
+    translating,
+    adulteGameUpdating,
+    adulteGameProgress,
+    isProgressCollapsed
+  } = useGlobalProgress();
+  
+  const hasActiveProgress = malSyncing ||
+    animeProgress !== null ||
+    mangaProgress !== null ||
+    translating ||
+    adulteGameUpdating ||
+    adulteGameProgress !== null;
+  
+  // Calculer le top en fonction de l'état collapsed (60px si réduit, 200px si étendu)
+  const progressHeaderHeight = hasActiveProgress ? (isProgressCollapsed ? 60 : 200) : 0;
+
   return (
     <div
       className="adulte-game-detail-header"
       style={{
         position: 'fixed',
-        top: 0,
+        top: `${progressHeaderHeight}px`,
         left: '260px',
         right: 0,
         zIndex: 1000,
@@ -51,7 +76,8 @@ export default function AdulteGameHeader({
         justifyContent: 'space-between',
         gap: '16px',
         backdropFilter: 'blur(10px)',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        transition: 'top 0.3s ease'
       }}
     >
       {/* Bouton Retour */}
@@ -85,39 +111,29 @@ export default function AdulteGameHeader({
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         {onCustomizeDisplay && (
           <button
+            type="button"
             onClick={onCustomizeDisplay}
             className="btn btn-outline"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '8px'
+              gap: '8px'
             }}
           >
-            ⚙️ Affichage
+            <Settings size={16} />
+            Personnaliser l'affichage
           </button>
         )}
 
         {/* Bouton Vérifier MAJ */}
         {onCheckUpdate && (
-          <button
-            onClick={onCheckUpdate}
-            disabled={isUpdating}
-            className="btn btn-primary"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              opacity: isUpdating ? 0.6 : 1
-            }}
-          >
-            <RefreshCw
-              size={18}
-              style={isUpdating ? { animation: 'spin 1s linear infinite' } : {}}
-            />
-            {isUpdating ? 'Vérification...' : 'Vérifier MAJ'}
-          </button>
+          <CheckUpdateButton
+            onCheckUpdate={onCheckUpdate}
+            onForceCheckUpdate={onForceCheckUpdate}
+            isUpdating={isUpdating}
+            buttonLabel="Vérifier MAJ"
+            forceButtonLabel="🔄 Force vérification"
+          />
         )}
 
         {/* Bouton Jouer */}

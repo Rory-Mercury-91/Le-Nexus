@@ -121,7 +121,7 @@ function findExistingSerie(db, parsedData) {
   const existingSerie = matchResult.serie;
   
   // Récupérer le type de média complet de la série existante
-  const fullSerie = db.prepare('SELECT id, titre, media_type, type_volume FROM series WHERE id = ?').get(existingSerie.id);
+  const fullSerie = db.prepare('SELECT id, titre, media_type, type_volume FROM manga_series WHERE id = ?').get(existingSerie.id);
   
   const existingMediaType = normalizeMediaType(fullSerie.media_type);
   

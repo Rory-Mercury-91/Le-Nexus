@@ -42,6 +42,21 @@ function serializeUserModifiedFields(fields) {
  */
 function markFieldAsUserModified(db, tableName, entityId, fieldName) {
   try {
+    // Vérifier si la colonne user_modified_fields existe
+    const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    const hasUserModifiedFields = tableInfo.some(column => column.name === 'user_modified_fields');
+    
+    if (!hasUserModifiedFields) {
+      // La colonne n'existe pas, l'ajouter
+      try {
+        db.prepare(`ALTER TABLE ${tableName} ADD COLUMN user_modified_fields TEXT`).run();
+        console.log(`✅ Colonne user_modified_fields ajoutée à ${tableName} (fallback)`);
+      } catch (alterError) {
+        console.warn(`⚠️ Impossible d'ajouter la colonne user_modified_fields à ${tableName}:`, alterError.message);
+        return; // Ne pas continuer si on ne peut pas ajouter la colonne
+      }
+    }
+
     const entity = db.prepare(`SELECT user_modified_fields FROM ${tableName} WHERE id = ?`).get(entityId);
     if (!entity) {
       console.warn(`Entité ${entityId} introuvable dans ${tableName}`);
@@ -133,12 +148,17 @@ function resetEnrichmentStatus(db, tableName, entityId) {
  * @param {string} fieldName - Nom du champ
  * @param {any} newValue - Nouvelle valeur
  * @param {string|null|undefined} userModifiedFields - JSON string des champs modifiés
+ * @param {boolean} force - Si true, ignore la protection user_modified_fields (force vérification)
  * @returns {boolean} - true si la mise à jour a été effectuée
  */
-function updateFieldIfNotUserModified(db, tableName, entityId, fieldName, newValue, userModifiedFields) {
-  if (isFieldUserModified(userModifiedFields, fieldName)) {
+function updateFieldIfNotUserModified(db, tableName, entityId, fieldName, newValue, userModifiedFields, force = false) {
+  if (!force && isFieldUserModified(userModifiedFields, fieldName)) {
     console.log(`⏭️ Champ ${fieldName} ignoré (modifié par l'utilisateur) pour ${tableName} ID ${entityId}`);
     return false;
+  }
+  
+  if (force && isFieldUserModified(userModifiedFields, fieldName)) {
+    console.log(`🔄 Champ ${fieldName} mis à jour en mode FORCE (protection ignorée) pour ${tableName} ID ${entityId}`);
   }
 
   try {
@@ -149,14 +169,38 @@ function updateFieldIfNotUserModified(db, tableName, entityId, fieldName, newVal
       return false;
     }
 
-    db.prepare(`
+    // S'assurer que newValue n'est pas undefined (peut être null)
+    // Si newValue est undefined, on ne met pas à jour
+    if (newValue === undefined) {
+      console.log(`⏭️ Champ ${fieldName} ignoré (valeur undefined) pour ${tableName} ID ${entityId}`);
+      return false;
+    }
+
+    // Vérifier que newValue n'est pas un objet vide ou invalide pour les champs texte
+    // Si c'est un objet, on ne peut pas le stocker dans un champ texte
+    if (typeof newValue === 'object' && newValue !== null && !Array.isArray(newValue)) {
+      // Si c'est un objet vide {}, on l'ignore
+      if (Object.keys(newValue).length === 0) {
+        console.log(`⏭️ Champ ${fieldName} ignoré (objet vide) pour ${tableName} ID ${entityId}`);
+        return false;
+      }
+      // Sinon, c'est peut-être un objet complexe qui devrait être sérialisé en JSON
+      console.warn(`⚠️ Champ ${fieldName} reçoit un objet non-sérialisé pour ${tableName} ID ${entityId}, conversion en JSON`);
+      newValue = JSON.stringify(newValue);
+    }
+
+    // Pour les champs texte, permettre null mais pas undefined
+    // null est une valeur valide en SQL pour indiquer l'absence de valeur
+    const stmt = db.prepare(`
       UPDATE ${tableName}
       SET ${fieldName} = ?
       WHERE id = ?
-    `).run(newValue, entityId);
+    `);
+    stmt.run(newValue, entityId);
     return true;
   } catch (error) {
     console.error(`Erreur mise à jour champ (${tableName}, ${entityId}, ${fieldName}):`, error);
+    console.error(`Valeur reçue:`, newValue, `Type:`, typeof newValue);
     return false;
   }
 }

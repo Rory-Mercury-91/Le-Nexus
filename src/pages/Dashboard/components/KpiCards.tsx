@@ -14,7 +14,7 @@ interface KpiCardsProps {
 
 export default function KpiCards({ stats, lectureStats, coutTotal }: KpiCardsProps) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '16px', marginBottom: '32px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '16px' }}>
       <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
         <BookOpen size={24} style={{ color: COLORS.series, margin: '0 auto 8px' }} />
         <div style={{ fontSize: '32px', fontWeight: '700', color: COLORS.series, marginBottom: '4px' }}>
@@ -43,6 +43,11 @@ export default function KpiCards({ stats, lectureStats, coutTotal }: KpiCardsPro
         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
           Investissement
         </div>
+        {stats.totalMihon && stats.totalMihon > 0 && (
+          <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '500', marginTop: '4px' }}>
+            Gain Mihon : {stats.totalMihon.toFixed(0)}€
+          </div>
+        )}
       </div>
 
       {lectureStats && (lectureStats.tomesTotal > 0 || lectureStats.chapitresTotal > 0) && (

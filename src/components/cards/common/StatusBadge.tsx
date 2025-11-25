@@ -3,7 +3,7 @@ interface StatusBadgeProps {
   type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'series';
 }
 
-export default function StatusBadge({ status }: StatusBadgeProps) {
+export default function StatusBadge({ status, type }: StatusBadgeProps) {
   if (!status) return null;
 
   // Configuration des couleurs par statut (fonds opaques, bien visibles)
@@ -18,23 +18,29 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
           label: status
         };
       case 'En cours':
+        // Utiliser 📺 pour les animes, séries et films, 📖 pour les mangas, 🎮 pour les jeux
+        const enCoursIcon = type === 'anime' || type === 'series' || type === 'movie' 
+          ? '📺' 
+          : type === 'adulte-game' 
+          ? '🎮' 
+          : '📖';
         return { 
           color: '#ffffff', 
           bg: '#8b5cf6', // Violet vif
-          icon: '📖',
+          icon: enCoursIcon,
           label: 'En cours'
         };
       case 'Terminé':
         return { 
           color: '#ffffff', 
-          bg: '#10b981', // Vert vif
+          bg: 'var(--success)', // Vert vif
           icon: '✅',
           label: 'Terminé'
         };
       case 'Abandonné':
         return { 
           color: '#ffffff', 
-          bg: '#ef4444', // Rouge vif
+          bg: 'var(--error)', // Rouge vif
           icon: '🚫',
           label: 'Abandonné'
         };
@@ -42,7 +48,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
       case 'En pause':
         return { 
           color: '#000000', 
-          bg: '#fbbf24', // Jaune vif
+          bg: 'var(--warning-light)', // Jaune vif
           icon: '⏸️',
           label: status
         };

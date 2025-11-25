@@ -23,8 +23,17 @@
             --text-secondary: #94a3b8;
             --border: #334155;
             --success: #10b981;
+            --success-light: #34d399;
             --warning: #f59e0b;
+            --warning-light: #fbbf24;
             --error: #ef4444;
+            --error-light: #f87171;
+            --shadow: rgba(8, 15, 35, 0.55);
+            --card-shadow: 0 18px 38px rgba(8, 15, 35, 0.35);
+            --card-shadow-hover: 0 26px 48px rgba(8, 15, 35, 0.45);
+            --scrollbar-hover: #475569;
+            --modal-overlay: rgba(0, 0, 0, 0.7);
+            --modal-shadow: rgba(0, 0, 0, 0.5);
         }
 
         body {
@@ -276,7 +285,7 @@
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary);
+            background: var(--scrollbar-hover);
         }
     </style>
 </head>
@@ -321,85 +330,31 @@
             <div class="step-content">
                 <p style="margin-bottom: 25px;">Cliquez sur "📥 Installer" pour chaque script souhaité :</p>
 
-                <!-- Scripts Animes -->
+                <!-- Tous les scripts -->
                 <div class="scripts-category">
-                    <h3>🎬 Scripts Animes</h3>
-
-                    <div class="script-card">
-                        <div class="script-header">
-                            <span class="script-name">Crunchyroll Episode Tracker</span>
-                            <span class="script-icon">✅</span>
-                        </div>
-                        <div class="script-description">
-                            Marque automatiquement les épisodes visionnés sur Crunchyroll. Bouton ✅ en bas à gauche avec import automatique si l'anime n'existe pas.
-                        </div>
-                        <a href="animes/Crunchyroll Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
-                    </div>
-
-                    <div class="script-card">
-                        <div class="script-header">
-                            <span class="script-name">ADN Episode Tracker</span>
-                            <span class="script-icon">✅</span>
-                        </div>
-                        <div class="script-description">
-                            Marque automatiquement les épisodes visionnés sur Animation Digital Network (ADN). Import automatique de l'anime si nécessaire.
-                        </div>
-                        <a href="animes/ADN Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
-                    </div>
-
-                    <div class="script-card">
-                        <div class="script-header">
-                            <span class="script-name">ADKami Episode Tracker</span>
-                            <span class="script-icon">✅</span>
-                        </div>
-                        <div class="script-description">
-                            Intégration complète avec ADKami : import d'animes et marquage d'épisodes. Boutons en bas à gauche.
-                        </div>
-                        <a href="animes/ADKami Episode Tracker.user.js" class="install-button" target="_blank">📥 Installer</a>
-                    </div>
-
-                    <div class="script-card">
-                        <div class="script-header">
-                            <span class="script-name">MyAnimeList Quick Add</span>
-                            <span class="script-icon">📥</span>
-                        </div>
-                        <div class="script-description">
-                            Ajoute un bouton sur MyAnimeList pour importer rapidement un anime avec toutes ses métadonnées enrichies (Jikan + AniList + Groq).
-                        </div>
-                        <a href="animes/MyAnimeList Quick Add.user.js" class="install-button" target="_blank">📥 Installer</a>
-                    </div>
+                    <h3>📦 Scripts disponibles</h3>
 
                     <div class="script-card">
                         <div class="script-header">
                             <span class="script-name">Nautiljon Extractor (Mangas & Animes)</span>
-                            <span class="script-icon">🎬</span>
+                            <span class="script-icon">📚🎬</span>
                         </div>
                         <div class="script-description">
                             Import complet depuis Nautiljon. Détecte automatiquement si vous êtes sur une page manga ou anime. Pour les mangas : menu avec 3 points verticaux (⋮) en bas à gauche avec options Import complet (📚) ou Import tomes uniquement (📖). Pour les animes : bouton d'import simple. Priorise les valeurs françaises (écrase les données des APIs).
                         </div>
                         <a href="animes/Nautiljon Extractor.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
-                </div>
-
-                <!-- Scripts Mangas -->
-                <div class="scripts-category">
-                    <h3>📚 Scripts Mangas</h3>
 
                     <div class="script-card">
                         <div class="script-header">
-                            <span class="script-name">MyAnimeList Manga Quick Add</span>
+                            <span class="script-name">MyAnimeList Quick Add (Animes & Mangas)</span>
                             <span class="script-icon">📥</span>
                         </div>
                         <div class="script-description">
-                            Ajoute un bouton sur MyAnimeList pour importer rapidement un manga avec toutes ses métadonnées enrichies (Jikan + Groq).
+                            Ajoute un bouton sur MyAnimeList pour importer rapidement un anime ou un manga avec toutes ses métadonnées enrichies. Détecte automatiquement le type de page (anime ou manga).
                         </div>
-                        <a href="mangas/MyAnimeList Manga Quick Add.user.js" class="install-button" target="_blank">📥 Installer</a>
+                        <a href="animes/MyAnimeList Quick Add.user.js" class="install-button" target="_blank">📥 Installer</a>
                     </div>
-                </div>
-
-                <!-- Scripts Jeux adulte -->
-                <div class="scripts-category">
-                    <h3>🎮 Scripts Jeux adulte</h3>
 
                     <div class="script-card">
                         <div class="script-header">
@@ -450,7 +405,6 @@
             <div class="step-content">
                 <p style="margin-bottom: 15px;">Les scripts s'activent automatiquement sur les sites compatibles :</p>
                 <ul class="usage-list">
-                    <li>🎬 <strong>Crunchyroll, ADN, ADKami</strong> : Bouton ✅ en bas à gauche pour marquer un épisode comme vu</li>
                     <li>📥 <strong>MyAnimeList</strong> : Bouton d'import sous le titre de l'anime ou du manga</li>
                     <li>📚🎬 <strong>Nautiljon (Mangas & Animes)</strong> : Script combiné qui détecte automatiquement le type de page. Pour les mangas : menu ⋮ avec options 📚 (import complet) et 📖 (import tomes). Pour les animes : bouton d'import simple. Priorise les valeurs françaises</li>
                     <li>🎮 <strong>F95Zone & LewdCorner</strong> : Menu 🎮 Le Nexus pour importer directement les jeux pour adultes (F95Zone) ou copier le JSON (les deux)</li>

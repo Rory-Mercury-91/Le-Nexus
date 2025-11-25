@@ -1,0 +1,152 @@
+// Schéma Protobuf pour les backups Mihon/Tachiyomi
+// Généré à partir des modèles Kotlin dans mihon-main
+// Syntaxe proto3 pour compatibilité avec kotlinx.serialization.protobuf
+
+syntax = "proto3";
+
+message Backup {
+  repeated BackupManga backupManga = 1;
+  repeated BackupCategory backupCategories = 2;
+  // ProtoNumber 100 est réservé pour backupBrokenSources (legacy)
+  repeated BackupSource backupSources = 101;
+  repeated BackupPreference backupPreferences = 104;
+  repeated BackupSourcePreferences backupSourcePreferences = 105;
+  repeated BackupExtensionRepos backupExtensionRepo = 106;
+}
+
+message BackupManga {
+  int64 source = 1;
+  string url = 2;
+  string title = 3;
+  string artist = 4;  // optional
+  string author = 5;  // optional
+  string description = 6;  // optional
+  repeated string genre = 7;
+  int32 status = 8;
+  string thumbnailUrl = 9;  // optional
+  // ProtoNumber 10 réservé pour customCover (1.x legacy)
+  // ProtoNumber 11 réservé pour lastUpdate (1.x legacy)
+  // ProtoNumber 12 réservé pour lastInit (1.x legacy)
+  int64 dateAdded = 13;
+  int32 viewer = 14;  // Replaced by viewer_flags
+  // ProtoNumber 15 réservé pour flags (1.x legacy)
+  repeated BackupChapter chapters = 16;
+  repeated int64 categories = 17;
+  repeated BackupTracking tracking = 18;
+  // Bump by 100 for values not saved in 1.x but used in 0.x
+  bool favorite = 100;
+  int32 chapterFlags = 101;
+  // ProtoNumber 102 réservé pour brokenHistory (legacy)
+  int32 viewer_flags = 103;  // optional
+  repeated BackupHistory history = 104;
+  int32 updateStrategy = 105;  // UpdateStrategy enum
+  int64 lastModifiedAt = 106;
+  int64 favoriteModifiedAt = 107;  // optional
+  // Mihon values start here
+  repeated string excludedScanlators = 108;
+  int64 version = 109;
+  string notes = 110;
+  bool initialized = 111;
+}
+
+message BackupChapter {
+  string url = 1;
+  string name = 2;
+  string scanlator = 3;  // optional
+  bool read = 4;
+  bool bookmark = 5;
+  int64 lastPageRead = 6;
+  int64 dateFetch = 7;
+  int64 dateUpload = 8;
+  float chapterNumber = 9;
+  int64 sourceOrder = 10;
+  int64 lastModifiedAt = 11;
+  int64 version = 12;
+}
+
+message BackupCategory {
+  string name = 1;
+  int64 order = 2;
+  int64 id = 3;
+  // ProtoNumber 3 réservé pour updateInterval (1.x legacy)
+  int64 flags = 100;
+}
+
+message BackupSource {
+  string name = 1;
+  int64 sourceId = 2;
+}
+
+message BackupTracking {
+  int32 syncId = 1;
+  int64 libraryId = 2;
+  int32 mediaIdInt = 3;  // deprecated, use mediaId instead
+  string trackingUrl = 4;
+  string title = 5;
+  float lastChapterRead = 6;
+  int32 totalChapters = 7;
+  float score = 8;
+  int32 status = 9;
+  int64 startedReadingDate = 10;
+  int64 finishedReadingDate = 11;
+  bool private = 12;
+  int64 mediaId = 100;  // Use this instead of mediaIdInt
+}
+
+message BackupHistory {
+  string url = 1;
+  int64 lastRead = 2;
+  int64 readDuration = 3;
+}
+
+message BackupPreference {
+  string key = 1;
+  // PreferenceValue est une sealed class
+  // kotlinx.serialization protobuf sérialise les sealed classes avec un discriminant
+  // On doit utiliser un oneof mais avec la bonne structure
+  oneof value_oneof {
+    IntPreferenceValue int_value = 2;
+    LongPreferenceValue long_value = 3;
+    FloatPreferenceValue float_value = 4;
+    StringPreferenceValue string_value = 5;
+    BooleanPreferenceValue bool_value = 6;
+    StringSetPreferenceValue string_set_value = 7;
+  }
+}
+
+message IntPreferenceValue {
+  int32 value = 1;
+}
+
+message LongPreferenceValue {
+  int64 value = 1;
+}
+
+message FloatPreferenceValue {
+  float value = 1;
+}
+
+message StringPreferenceValue {
+  string value = 1;
+}
+
+message BooleanPreferenceValue {
+  bool value = 1;
+}
+
+message StringSetPreferenceValue {
+  repeated string value = 1;
+}
+
+message BackupSourcePreferences {
+  string sourceKey = 1;
+  repeated BackupPreference prefs = 2;
+}
+
+message BackupExtensionRepos {
+  string baseUrl = 1;
+  string name = 2;
+  string shortName = 3;  // optional
+  string website = 4;
+  string signingKeyFingerprint = 5;
+}

@@ -8,8 +8,10 @@ interface AddAnimeSearchSectionProps {
   searchResults: AnimeSearchResult[];
   searching: boolean;
   showResults: boolean;
+  importing?: boolean;
   onSearch: (e: FormEvent) => void;
   onSelectResult: (result: AnimeSearchResult) => void;
+  onImportFromMal?: (malId: number) => void;
 }
 
 /**
@@ -21,13 +23,15 @@ export default function AddAnimeSearchSection({
   searchResults,
   searching,
   showResults,
+  importing = false,
   onSearch,
-  onSelectResult
+  onSelectResult,
+  onImportFromMal
 }: AddAnimeSearchSectionProps) {
   const getSourceBadgeColor = (source: string) => {
     switch (source) {
       case 'AniList': return '#02A9FF';
-      case 'Kitsu': return '#F75239';
+      case 'MyAnimeList': return '#2E51A2';
       default: return 'var(--primary)';
     }
   };
@@ -110,117 +114,184 @@ export default function AddAnimeSearchSection({
             </div>
           ) : (
             <div>
-              {searchResults.map((result, index) => (
-                <div
-                  key={`${result.source}-${result.id}-${index}`}
-                  onClick={() => onSelectResult(result)}
-                  style={{
-                    padding: '16px',
-                    borderBottom: index < searchResults.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                    display: 'flex',
-                    gap: '16px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  {result.couverture && (
-                    <img
-                      src={result.couverture}
-                      alt={result.titre}
-                      style={{
-                        width: '60px',
-                        height: '85px',
-                        objectFit: 'cover',
-                        borderRadius: '6px',
-                        flexShrink: 0
-                      }}
-                    />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <h4 style={{
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        margin: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {result.titre}
-                      </h4>
-                      <span style={{
-                        fontSize: '11px',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: getSourceBadgeColor(result.source),
-                        color: 'white',
-                        fontWeight: '600',
-                        flexShrink: 0
-                      }}>
-                        {result.source}
-                      </span>
-                    </div>
-                    {result.titre_romaji && result.titre_romaji !== result.titre && (
-                      <p style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        margin: '0 0 6px 0'
-                      }}>
-                        {result.titre_romaji}
-                      </p>
-                    )}
-                    <div style={{
-                      fontSize: '12px',
-                      color: 'var(--text-secondary)',
+              {searchResults.map((result, index) => {
+                const isMalResult = result.source === 'MyAnimeList';
+                const malId = isMalResult ? parseInt(result.id, 10) : null;
+                
+                return (
+                  <div
+                    key={`${result.source}-${result.id}-${index}`}
+                    style={{
+                      padding: '16px',
+                      borderBottom: index < searchResults.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                      transition: 'background 0.2s',
                       display: 'flex',
-                      gap: '12px',
-                      flexWrap: 'wrap',
-                      alignItems: 'center'
-                    }}>
-                      {result.format && <span>📺 {result.format}</span>}
-                      {result.episodes && <span>🎬 {result.episodes} ép.</span>}
-                      {result.annee_debut && (
-                        <span>
-                          📅 {result.annee_debut}
-                          {result.annee_fin && result.annee_fin !== result.annee_debut 
-                            ? `-${result.annee_fin}` 
-                            : result.annee_fin ? '' : '-?'}
-                        </span>
+                      gap: '16px',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <div
+                      onClick={() => onSelectResult(result)}
+                      style={{
+                        cursor: 'pointer',
+                        display: 'flex',
+                        gap: '16px'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {result.couverture && (
+                        <img
+                          src={result.couverture}
+                          alt={result.titre}
+                          style={{
+                            width: '60px',
+                            height: '85px',
+                            objectFit: 'cover',
+                            borderRadius: '6px',
+                            flexShrink: 0
+                          }}
+                        />
                       )}
-                      {result.rating && <span>⭐ {result.rating}</span>}
-                      {result.statut && (
-                        <span style={{
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          background: getStatutColor(result.statut),
-                          color: 'white'
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <h4 style={{
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            margin: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {result.titre}
+                          </h4>
+                          <span style={{
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: getSourceBadgeColor(result.source),
+                            color: 'white',
+                            fontWeight: '600',
+                            flexShrink: 0
+                          }}>
+                            {result.source}
+                          </span>
+                        </div>
+                        {result.titre_romaji && result.titre_romaji !== result.titre && (
+                          <p style={{
+                            fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            margin: '0 0 6px 0'
+                          }}>
+                            {result.titre_romaji}
+                          </p>
+                        )}
+                        <div style={{
+                          fontSize: '12px',
+                          color: 'var(--text-secondary)',
+                          display: 'flex',
+                          gap: '12px',
+                          flexWrap: 'wrap',
+                          alignItems: 'center'
                         }}>
-                          {getStatutLabel(result.statut)}
-                        </span>
-                      )}
+                          {result.format && <span>📺 {result.format}</span>}
+                          {result.episodes && <span>🎬 {result.episodes} ép.</span>}
+                          {result.annee_debut && (
+                            <span>
+                              📅 {result.annee_debut}
+                              {result.annee_fin && result.annee_fin !== result.annee_debut 
+                                ? `-${result.annee_fin}` 
+                                : result.annee_fin ? '' : '-?'}
+                            </span>
+                          )}
+                          {result.rating && <span>⭐ {result.rating}</span>}
+                          {result.statut && (
+                            <span style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              background: getStatutColor(result.statut),
+                              color: 'white'
+                            }}>
+                              {getStatutLabel(result.statut)}
+                            </span>
+                          )}
+                        </div>
+                        {result.description && (
+                          <p style={{
+                            fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            marginTop: '8px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 4,
+                            WebkitBoxOrient: 'vertical',
+                            lineHeight: '1.5'
+                          }}>
+                            {result.description.replace(/<[^>]*>/g, '')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {result.description && (
-                      <p style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
+                    
+                    {/* Bouton d'import direct MAL si disponible */}
+                    {isMalResult && malId && onImportFromMal && (
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
                         marginTop: '8px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 4,
-                        WebkitBoxOrient: 'vertical',
-                        lineHeight: '1.5'
+                        paddingTop: '8px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.05)'
                       }}>
-                        {result.description.replace(/<[^>]*>/g, '')}
-                      </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onImportFromMal(malId);
+                          }}
+                          className="btn"
+                          style={{
+                            background: '#2e51a2',
+                            color: 'white',
+                            border: 'none',
+                            fontSize: '13px',
+                            padding: '8px 16px',
+                            flex: 1
+                          }}
+                          disabled={importing}
+                        >
+                          {importing ? (
+                            <>
+                              <Loader2 size={16} className="spin" />
+                              Import depuis MAL...
+                            </>
+                          ) : (
+                            <>
+                              🚀 Importer directement depuis MyAnimeList
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectResult(result);
+                          }}
+                          className="btn btn-outline"
+                          style={{
+                            fontSize: '13px',
+                            padding: '8px 16px'
+                          }}
+                        >
+                          Pré-remplir le formulaire
+                        </button>
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

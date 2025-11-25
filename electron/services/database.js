@@ -1,22 +1,60 @@
 const Database = require('better-sqlite3');
-const migrations = [
-  require('../migrations/20251109_add_adulte_game_developer'),
-  require('../migrations/20251110_add_user_id_ajout'),
-  require('../migrations/20250111_change_default_status'),
-  require('../migrations/20250112_add_enrichment_tracking')
-];
+const { propagateAllRelations } = require('./relations/relation-propagator');
+
+function columnExists(db, tableName, columnName) {
+  try {
+    const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return columns.some(col => col.name === columnName);
+  } catch (error) {
+    console.warn(`⚠️ Impossible de vérifier la colonne ${columnName} sur ${tableName}: ${error.message}`);
+    return false;
+  }
+}
+
+function ensureColumn(db, tableName, columnName, definition) {
+  if (columnExists(db, tableName, columnName)) {
+    return;
+  }
+
+  try {
+    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+    console.log(`✅ Colonne ${columnName} ajoutée à ${tableName}`);
+  } catch (error) {
+    console.warn(`⚠️ Impossible d'ajouter la colonne ${columnName} à ${tableName}: ${error.message}`);
+  }
+}
 
 /**
  * Initialise la base de données avec toutes les tables
+ * Schéma consolidé complet - toutes les tables, colonnes, index et contraintes
  * @param {string} dbPath - Chemin vers le fichier de base de données
  * @returns {Database} Instance de la base de données
  */
 function initDatabase(dbPath) {
   const db = new Database(dbPath);
-  
-  // Création des tables
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS series (
+
+  // Création des tables (schéma complet consolidé)
+  try {
+    db.exec(`
+    -- ========================================
+    -- TABLES SYSTÈME
+    -- ========================================
+    
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      emoji TEXT,
+      avatar_path TEXT,
+      color TEXT NOT NULL DEFAULT '#8b5cf6',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- ========================================
+    -- TABLES MANGAS
+    -- ========================================
+    
+    CREATE TABLE IF NOT EXISTS manga_series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       titre TEXT NOT NULL,
       titre_alternatif TEXT,
@@ -60,6 +98,8 @@ function initDatabase(dbPath) {
       tags TEXT,
       relations TEXT,
       source_donnees TEXT DEFAULT 'nautiljon',
+      source_url TEXT,
+      source_id TEXT,
       
       -- Champs d'enrichissement manga (Jikan API)
       score_mal REAL,
@@ -72,12 +112,18 @@ function initDatabase(dbPath) {
       anime_adaptation_mal_id INTEGER,
       light_novel_mal_id INTEGER,
       manga_adaptation_mal_id INTEGER,
+      chapitres_mihon INTEGER DEFAULT 0,
+      nautiljon_url TEXT,
+      enriched_at DATETIME,
+      user_modified_fields TEXT,
+      maj_disponible BOOLEAN DEFAULT 0,
+      derniere_verif DATETIME,
       user_id_ajout INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS tomes (
+    CREATE TABLE IF NOT EXISTS manga_tomes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       serie_id INTEGER NOT NULL,
       numero INTEGER NOT NULL,
@@ -86,57 +132,62 @@ function initDatabase(dbPath) {
       date_achat DATE,
       couverture_url TEXT,
       type_tome TEXT DEFAULT 'Standard',
+      mihon INTEGER DEFAULT 0,
+      mihon_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE
+      FOREIGN KEY (serie_id) REFERENCES manga_series(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS tomes_proprietaires (
+    CREATE TABLE IF NOT EXISTS manga_manga_tomes_proprietaires (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      serie_id INTEGER NOT NULL,
       tome_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE CASCADE,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (serie_id) REFERENCES manga_series(id) ON DELETE CASCADE,
+      FOREIGN KEY (tome_id) REFERENCES manga_tomes(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(tome_id, user_id)
     );
 
-    CREATE TABLE IF NOT EXISTS lecture_tomes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tome_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      lu BOOLEAN NOT NULL DEFAULT 0,
-      date_lecture DATETIME,
-      FOREIGN KEY (tome_id) REFERENCES tomes(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(tome_id, user_id)
-    );
+    CREATE TRIGGER IF NOT EXISTS trg_manga_manga_tomes_proprietaires_updated_at
+    AFTER UPDATE ON manga_manga_tomes_proprietaires
+    FOR EACH ROW
+    BEGIN
+      UPDATE manga_manga_tomes_proprietaires
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
 
-    CREATE TABLE IF NOT EXISTS series_masquees (
+    CREATE TABLE IF NOT EXISTS manga_user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       serie_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
-      date_masquage DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (serie_id, user_id),
-      FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      statut_lecture TEXT NOT NULL DEFAULT 'À lire',
+      score REAL,
+      volumes_lus INTEGER DEFAULT 0,
+      chapitres_lus INTEGER DEFAULT 0,
+      date_debut TEXT,
+      date_fin TEXT,
+      tag TEXT,
+      tag_manual_override INTEGER NOT NULL DEFAULT 0,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_hidden INTEGER NOT NULL DEFAULT 0,
+      notes_privees TEXT,
+      tome_progress TEXT,
+      display_preferences TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (serie_id) REFERENCES manga_series(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(serie_id, user_id),
+      CHECK (statut_lecture IN ('À lire', 'En cours', 'Terminé', 'Abandonné', 'En pause'))
     );
 
-    CREATE TABLE IF NOT EXISTS anime_masquees (
-      anime_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      date_masquage DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (anime_id, user_id),
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS adulte_game_masquees (
-      adulte_game_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      date_masquage DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (adulte_game_id, user_id),
-      FOREIGN KEY (adulte_game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
+    -- ========================================
+    -- TABLES ANIMES
+    -- ========================================
 
     CREATE TABLE IF NOT EXISTS anime_series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,25 +239,35 @@ function initDatabase(dbPath) {
       relations TEXT,
       movie_relations TEXT,
       source_import TEXT DEFAULT 'manual',
+      maj_disponible BOOLEAN DEFAULT 0,
+      derniere_verif DATETIME,
+      enriched_at DATETIME,
+      user_modified_fields TEXT,
+      nautiljon_url TEXT,
       user_id_ajout INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id_ajout) REFERENCES users(id) ON DELETE SET NULL
     );
 
-    CREATE TABLE IF NOT EXISTS anime_episodes_vus (
+    CREATE TABLE IF NOT EXISTS anime_episodes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       anime_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      episode_numero INTEGER NOT NULL,
-      vu BOOLEAN NOT NULL DEFAULT 0,
-      date_visionnage DATETIME,
+      numero INTEGER NOT NULL,
+      titre TEXT,
+      synopsis TEXT,
+      date_diffusion TEXT,
+      duree INTEGER,
+      filler BOOLEAN DEFAULT 0,
+      recap BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(anime_id, user_id, episode_numero)
+      UNIQUE(anime_id, numero)
     );
 
-    CREATE TABLE IF NOT EXISTS anime_statut_utilisateur (
+    CREATE TABLE IF NOT EXISTS anime_user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       anime_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
       statut_visionnage TEXT NOT NULL DEFAULT 'À regarder',
@@ -214,13 +275,25 @@ function initDatabase(dbPath) {
       episodes_vus INTEGER DEFAULT 0,
       date_debut TEXT,
       date_fin TEXT,
-      date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (anime_id, user_id),
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_hidden INTEGER NOT NULL DEFAULT 0,
+      tag TEXT,
+      labels TEXT,
+      notes_privees TEXT,
+      episode_progress TEXT,
+      display_preferences TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      CHECK (statut_visionnage IN ('En cours', 'Terminé', 'Abandonné', 'À regarder', 'En pause'))
+      UNIQUE(anime_id, user_id),
+      CHECK (statut_visionnage IN ('À regarder', 'En cours', 'Terminé', 'Abandonné', 'En pause'))
     );
 
+    -- ========================================
+    -- TABLES FILMS
+    -- ========================================
+    
     CREATE TABLE IF NOT EXISTS movies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tmdb_id INTEGER NOT NULL UNIQUE,
@@ -253,11 +326,14 @@ function initDatabase(dbPath) {
       traductions TEXT,
       donnees_brutes TEXT,
       derniere_sync DATETIME,
+      enriched_at DATETIME,
+      user_modified_fields TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS movie_user_status (
+    CREATE TABLE IF NOT EXISTS movie_user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       movie_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
       statut_visionnage TEXT NOT NULL DEFAULT 'À regarder',
@@ -265,13 +341,22 @@ function initDatabase(dbPath) {
       date_visionnage TEXT,
       is_favorite INTEGER NOT NULL DEFAULT 0,
       is_hidden INTEGER NOT NULL DEFAULT 0,
-      date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (movie_id, user_id),
+      notes_privees TEXT,
+      user_images TEXT,
+      user_videos TEXT,
+      display_preferences TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(movie_id, user_id),
       CHECK (statut_visionnage IN ('À regarder', 'En cours', 'Terminé', 'Abandonné', 'En pause'))
     );
 
+    -- ========================================
+    -- TABLES SÉRIES TV
+    -- ========================================
+    
     CREATE TABLE IF NOT EXISTS tv_shows (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tmdb_id INTEGER NOT NULL UNIQUE,
@@ -306,6 +391,8 @@ function initDatabase(dbPath) {
       traductions TEXT,
       donnees_brutes TEXT,
       derniere_sync DATETIME,
+      enriched_at DATETIME,
+      user_modified_fields TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -351,17 +438,8 @@ function initDatabase(dbPath) {
       UNIQUE(show_id, saison_numero, episode_numero)
     );
 
-    CREATE TABLE IF NOT EXISTS tv_episode_progress (
-      episode_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      vu BOOLEAN NOT NULL DEFAULT 0,
-      date_visionnage DATETIME,
-      PRIMARY KEY (episode_id, user_id),
-      FOREIGN KEY (episode_id) REFERENCES tv_episodes(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS tv_show_user_status (
+    CREATE TABLE IF NOT EXISTS tv_show_user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       show_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
       statut_visionnage TEXT NOT NULL DEFAULT 'À regarder',
@@ -372,380 +450,259 @@ function initDatabase(dbPath) {
       date_fin TEXT,
       is_favorite INTEGER NOT NULL DEFAULT 0,
       is_hidden INTEGER NOT NULL DEFAULT 0,
-      date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (show_id, user_id),
+      notes_privees TEXT,
+      user_images TEXT,
+      user_videos TEXT,
+      episode_videos TEXT,
+      episode_progress TEXT,
+      display_preferences TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (show_id) REFERENCES tv_shows(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(show_id, user_id),
       CHECK (statut_visionnage IN ('À regarder', 'En cours', 'Terminé', 'Abandonné', 'En pause'))
     );
 
-    CREATE TABLE IF NOT EXISTS users (
+    -- ========================================
+    -- TABLES JEUX ADULTES
+    -- ========================================
+
+    CREATE TABLE IF NOT EXISTS adulte_game_games (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      emoji TEXT,
-      avatar_path TEXT,
-      color TEXT NOT NULL DEFAULT '#8b5cf6',
+      f95_thread_id INTEGER,
+      Lewdcorner_thread_id INTEGER,
+      titre TEXT NOT NULL,
+      game_version TEXT,
+      game_statut TEXT,
+      game_engine TEXT,
+      game_developer TEXT,
+      game_site TEXT DEFAULT 'F95Zone',
+      couverture_url TEXT,
+      tags TEXT,
+      lien_f95 TEXT,
+      lien_lewdcorner TEXT,
+      statut_traduction TEXT,
+      type_traduction TEXT,
+      traduction_fr_disponible BOOLEAN DEFAULT 0,
+      version_traduite TEXT,
+      lien_traduction TEXT,
+      traducteur TEXT,
+      derniere_sync_trad DATETIME,
+      traductions_multiples TEXT,
+      maj_disponible BOOLEAN DEFAULT 0,
+      derniere_verif DATETIME,
+      user_modified_fields TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    CREATE TABLE IF NOT EXISTS serie_statut_utilisateur (
-      serie_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      statut_lecture TEXT NOT NULL DEFAULT 'À lire',
-      score REAL,
-      volumes_lus INTEGER DEFAULT 0,
-      chapitres_lus INTEGER DEFAULT 0,
-      date_debut TEXT,
-      date_fin TEXT,
-      date_modification DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (serie_id, user_id),
-      FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      CHECK (statut_lecture IN ('En cours', 'Terminé', 'Abandonné', 'À lire', 'En pause'))
-    );
-
-    CREATE TABLE IF NOT EXISTS serie_tags (
+    CREATE TABLE IF NOT EXISTS adulte_game_user_data (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      serie_id INTEGER NOT NULL,
+      game_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
-      tag TEXT,
-      is_favorite INTEGER NOT NULL DEFAULT 0,
+      derniere_session DATETIME,
+      version_jouee TEXT,
+      completion_perso TEXT,
+      is_favorite BOOLEAN DEFAULT 0,
+      is_hidden BOOLEAN DEFAULT 0,
+      date_masquage DATETIME,
+      notes_privees TEXT,
+      chemin_executable TEXT,
+      labels TEXT,
+      display_preferences TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (serie_id) REFERENCES series(id) ON DELETE CASCADE,
+      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(serie_id, user_id),
-      CHECK (tag IS NULL OR tag IN ('a_lire', 'abandonne', 'en_pause', 'en_cours', 'lu'))
+      UNIQUE(game_id, user_id)
     );
 
-    CREATE TABLE IF NOT EXISTS anime_tags (
+    -- ========================================
+    -- TABLE PRÉFÉRENCES GLOBALES
+    -- ========================================
+
+    CREATE TABLE IF NOT EXISTS user_preferences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      anime_id INTEGER NOT NULL,
       user_id INTEGER NOT NULL,
-      tag TEXT,
-      is_favorite INTEGER NOT NULL DEFAULT 0,
+      content_type TEXT CHECK(content_type IN ('adulte_game', 'movies', 'mangas', 'animes', 'tv_shows') OR content_type IS NULL),
+      type TEXT NOT NULL CHECK(type IN ('display_settings', 'tag_preferences', 'blacklist')),
+      key TEXT NOT NULL,
+      value TEXT,
+      platform TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(anime_id, user_id),
-      CHECK (tag IS NULL OR tag IN ('a_regarder', 'abandonne'))
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IF NOT EXISTS idx_tomes_serie ON tomes(serie_id);
-    CREATE INDEX IF NOT EXISTS idx_series_statut ON series(statut);
-    CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_tome ON tomes_proprietaires(tome_id);
-    CREATE INDEX IF NOT EXISTS idx_tomes_proprietaires_user ON tomes_proprietaires(user_id);
-    CREATE INDEX IF NOT EXISTS idx_lecture_tomes_user ON lecture_tomes(user_id);
-    CREATE INDEX IF NOT EXISTS idx_lecture_tomes_tome ON lecture_tomes(tome_id);
+    -- ========================================
+    -- INDEX
+    -- ========================================
+
+    -- Index mangas
+    CREATE INDEX IF NOT EXISTS idx_manga_tomes_serie ON manga_tomes(serie_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_series_statut ON manga_series(statut);
+    CREATE INDEX IF NOT EXISTS idx_manga_manga_tomes_prop_tome ON manga_manga_tomes_proprietaires(tome_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_manga_tomes_prop_user ON manga_manga_tomes_proprietaires(user_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_manga_tomes_prop_serie ON manga_manga_tomes_proprietaires(serie_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_series_mal_id ON manga_series(mal_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_series_source ON manga_series(source_donnees);
+    CREATE INDEX IF NOT EXISTS idx_manga_user_data_serie ON manga_user_data(serie_id);
+    CREATE INDEX IF NOT EXISTS idx_manga_user_data_user ON manga_user_data(user_id);
+    
+    -- Index animes
     CREATE INDEX IF NOT EXISTS idx_anime_series_mal_id ON anime_series(mal_id);
     CREATE INDEX IF NOT EXISTS idx_anime_series_franchise ON anime_series(franchise_name);
     CREATE INDEX IF NOT EXISTS idx_anime_series_type ON anime_series(type);
     CREATE INDEX IF NOT EXISTS idx_anime_series_annee ON anime_series(annee);
-    CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_user ON anime_episodes_vus(user_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_episodes_vus_anime ON anime_episodes_vus(anime_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_statut_utilisateur_user ON anime_statut_utilisateur(user_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_statut_anime ON anime_statut_utilisateur(anime_id);
-    CREATE INDEX IF NOT EXISTS idx_serie_statut_utilisateur ON serie_statut_utilisateur(user_id);
-    CREATE INDEX IF NOT EXISTS idx_serie_statut_serie ON serie_statut_utilisateur(serie_id);
-    CREATE INDEX IF NOT EXISTS idx_serie_tags_serie ON serie_tags(serie_id);
-    CREATE INDEX IF NOT EXISTS idx_serie_tags_user ON serie_tags(user_id);
-    CREATE INDEX IF NOT EXISTS idx_serie_tags_tag ON serie_tags(tag);
-    CREATE INDEX IF NOT EXISTS idx_anime_tags_anime ON anime_tags(anime_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_tags_user ON anime_tags(user_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_tags_tag ON anime_tags(tag);
-    CREATE INDEX IF NOT EXISTS idx_series_mal_id ON series(mal_id);
-    CREATE INDEX IF NOT EXISTS idx_series_source ON series(source_donnees);
+    CREATE INDEX IF NOT EXISTS idx_anime_user_data_anime ON anime_user_data(anime_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_user_data_user ON anime_user_data(user_id);
+    CREATE INDEX IF NOT EXISTS idx_anime_episodes_anime ON anime_episodes(anime_id);
+    
+    -- Index films
     CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id ON movies(tmdb_id);
     CREATE INDEX IF NOT EXISTS idx_movies_statut ON movies(statut);
-    CREATE INDEX IF NOT EXISTS idx_movie_user_status_user ON movie_user_status(user_id);
+    CREATE INDEX IF NOT EXISTS idx_movie_user_data_movie ON movie_user_data(movie_id);
+    CREATE INDEX IF NOT EXISTS idx_movie_user_data_user ON movie_user_data(user_id);
+    
+    -- Index séries TV
     CREATE INDEX IF NOT EXISTS idx_tv_shows_tmdb_id ON tv_shows(tmdb_id);
     CREATE INDEX IF NOT EXISTS idx_tv_shows_statut ON tv_shows(statut);
     CREATE INDEX IF NOT EXISTS idx_tv_seasons_show ON tv_seasons(show_id);
     CREATE INDEX IF NOT EXISTS idx_tv_episodes_show ON tv_episodes(show_id);
     CREATE INDEX IF NOT EXISTS idx_tv_episodes_airdate ON tv_episodes(date_diffusion);
-    CREATE INDEX IF NOT EXISTS idx_tv_episode_progress_user ON tv_episode_progress(user_id);
-    CREATE INDEX IF NOT EXISTS idx_tv_show_user_status_user ON tv_show_user_status(user_id);
-
-    -- Préférences d'affichage mangas (local par manga)
-    CREATE TABLE IF NOT EXISTS manga_display_preferences (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      manga_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (manga_id) REFERENCES series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(manga_id, user_id, champ)
-    );
-
-    -- Préférences globales par utilisateur
-    CREATE TABLE IF NOT EXISTS user_manga_display_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, champ)
-    );
-
-    -- Préférences d'affichage animés (local par anime)
-    CREATE TABLE IF NOT EXISTS anime_display_preferences (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      anime_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(anime_id, user_id, champ)
-    );
-
-    -- Préférences globales par utilisateur (animés)
-    CREATE TABLE IF NOT EXISTS user_anime_display_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, champ)
-    );
-
-    -- Préférences d'affichage jeux adultes (local par jeu)
-    CREATE TABLE IF NOT EXISTS adulte_game_display_preferences (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(game_id, user_id, champ)
-    );
-
-    -- Préférences globales des jeux adultes par utilisateur
-    CREATE TABLE IF NOT EXISTS user_adulte_game_display_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      champ VARCHAR(50) NOT NULL,
-      visible BOOLEAN DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, champ)
-    );
-  `);
-
-  // ========================================
-  // TABLES JEUX ADULTES (ADULT GAMES)
-  // ========================================
-  
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS adulte_game_games (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      
-      -- Données F95Zone
-      f95_thread_id INTEGER,
-      titre TEXT NOT NULL,
-      version TEXT,
-      statut_jeu TEXT, -- TERMINÉ, ABANDONNÉ, EN COURS
-      moteur TEXT, -- RenPy, Unity, RPGM, Unreal, HTML, etc.
-      developpeur TEXT,
-      plateforme TEXT DEFAULT 'F95Zone', -- F95Zone, LewdCorner
-      couverture_url TEXT,
-      tags TEXT, -- JSON array
-      lien_f95 TEXT,
-      lien_traduction TEXT,
-      lien_jeu TEXT, -- Lien download/MEGA/etc
-      
-      -- Données utilisateur
-      statut_perso TEXT, -- Complété, En cours, À jouer, Abandonné
-      notes_privees TEXT,
-      chemin_executable TEXT, -- Pour lancer le jeu
-      derniere_session DATETIME,
-      version_jouee TEXT, -- Version détectée depuis le dossier de l'exécutable
-      
-      -- Informations de traduction
-      version_traduction TEXT,
-      statut_traduction TEXT, -- Traduction, Traduction (Mod inclus), Traduction intégré
-      type_traduction TEXT, -- Manuelle, Semi-automatique, Automatique, VO française
-      
-      -- Traduction française (Google Sheets sync)
-      traduction_fr_disponible BOOLEAN DEFAULT 0,
-      version_traduite TEXT,
-      traducteur TEXT,
-      f95_trad_id INTEGER,
-      statut_trad_fr TEXT, -- TERMINÉ, EN COURS
-      type_trad_fr TEXT, -- MOD, PATCH, STANDALONE
-      derniere_sync_trad DATETIME,
-      traductions_multiples TEXT, -- JSON array des traductions multiples
-      
-      -- Contrôle de version
-      version_disponible TEXT, -- Version détectée via API
-      maj_disponible BOOLEAN DEFAULT 0,
-      derniere_verif DATETIME,
-      
-      -- Métadonnées
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      
-      -- Contrainte unique composite (ID + plateforme)
-      UNIQUE(f95_thread_id, plateforme)
-    );
+    CREATE INDEX IF NOT EXISTS idx_tv_show_user_data_show ON tv_show_user_data(show_id);
+    CREATE INDEX IF NOT EXISTS idx_tv_show_user_data_user ON tv_show_user_data(user_id);
     
-    CREATE TABLE IF NOT EXISTS adulte_game_labels (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      label TEXT NOT NULL,
-      color TEXT DEFAULT '#8b5cf6',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(game_id, user_id, label)
-    );
-    
-    CREATE TABLE IF NOT EXISTS adulte_game_proprietaires (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(game_id, user_id)
-    );
-    
-    CREATE TABLE IF NOT EXISTS adulte_game_user_games (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_id INTEGER NOT NULL,
-      user_id INTEGER NOT NULL,
-      chemin_executable TEXT,
-      notes_privees TEXT,
-      statut_perso TEXT,
-      derniere_session DATETIME,
-      version_jouee TEXT,
-      is_favorite BOOLEAN DEFAULT 0,
-      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(game_id, user_id)
-    );
-    
-    CREATE TABLE IF NOT EXISTS adulte_game_blacklist (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      f95_thread_id INTEGER,
-      titre TEXT NOT NULL,
-      plateforme TEXT DEFAULT 'F95Zone',
-      traducteur TEXT,
-      user_id INTEGER NOT NULL,
-      date_blacklist DATETIME DEFAULT CURRENT_TIMESTAMP,
-      raison TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(f95_thread_id, plateforme, user_id)
-    );
-    
+    -- Index jeux adultes
     CREATE INDEX IF NOT EXISTS idx_adulte_game_f95_id ON adulte_game_games(f95_thread_id);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_statut ON adulte_game_games(statut_perso);
     CREATE INDEX IF NOT EXISTS idx_adulte_game_maj ON adulte_game_games(maj_disponible);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_user_games_user ON adulte_game_user_games(user_id);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_user_games_game ON adulte_game_user_games(game_id);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_blacklist_thread ON adulte_game_blacklist(f95_thread_id, plateforme);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_blacklist_user ON adulte_game_blacklist(user_id);
+    CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_game ON adulte_game_user_data(game_id);
+    CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_user ON adulte_game_user_data(user_id);
     
-    -- Préférences de tags jeux adultes par utilisateur
-    CREATE TABLE IF NOT EXISTS adulte_game_tag_preferences (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      tag TEXT NOT NULL,
-      preference TEXT NOT NULL DEFAULT 'neutral',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      UNIQUE(user_id, tag),
-      CHECK (preference IN ('liked', 'disliked', 'neutral'))
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_tag_preferences_user ON adulte_game_tag_preferences(user_id);
-    CREATE INDEX IF NOT EXISTS idx_adulte_game_tag_preferences_tag ON adulte_game_tag_preferences(tag);
+    -- Index préférences globales
+    CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_preferences_type ON user_preferences(type);
+    CREATE INDEX IF NOT EXISTS idx_user_preferences_content_type ON user_preferences(content_type);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_preferences_unique 
+    ON user_preferences(user_id, COALESCE(content_type, ''), type, key, COALESCE(platform, ''));
   `);
-  
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS migrations (
-      id TEXT PRIMARY KEY,
-      description TEXT,
-      applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+  } catch (schemaError) {
+    console.error('❌ Erreur lors de la création du schéma consolidé:', schemaError.message);
+    throw schemaError;
+  }
 
+  // Compatibilité pour les bases existantes: s'assurer que les nouvelles colonnes critiques existent
   try {
-    const appliedMigrations = new Set(
-      db.prepare('SELECT id FROM migrations').all().map(row => row.id)
-    );
+    ensureColumn(db, 'anime_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
+    ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
+    ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
+    ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+  } catch (compatibilityError) {
+    console.warn('⚠️ Erreur lors de la vérification des colonnes obligatoires:', compatibilityError.message);
+  }
 
-    for (const migration of migrations) {
-      if (!migration?.id || typeof migration.up !== 'function') {
-        continue;
-      }
-      if (appliedMigrations.has(migration.id)) {
-        continue;
-      }
-
-      console.log(`🛠️ Migration ${migration.id}...`);
-      const runMigration = db.transaction(() => {
-        migration.up(db);
-        db.prepare('INSERT INTO migrations (id, description) VALUES (?, ?)').run(
-          migration.id,
-          migration.description || null
-        );
-      });
-
-      runMigration();
-      console.log(`✅ Migration ${migration.id} appliquée`);
+  // Créer les contraintes UNIQUE via des index UNIQUE
+  try {
+    // Contraintes UNIQUE pour adulte_game_games
+    try {
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_adulte_game_unique_f95 
+        ON adulte_game_games(f95_thread_id, game_site) 
+        WHERE f95_thread_id IS NOT NULL
+      `);
+    } catch (e) {
+      // Index peut déjà exister, ignorer l'erreur
     }
-  } catch (error) {
-    console.error('❌ Erreur lors de l\'application des migrations:', error);
-  }
-  
-  // Garantir la présence des nouvelles colonnes sur les installations existantes
-  const animeSeriesColumns = db.prepare(`PRAGMA table_info(anime_series)`).all();
-  const hasRelationsColumn = animeSeriesColumns.some(column => column.name === 'relations');
-  const hasMovieRelationsColumn = animeSeriesColumns.some(column => column.name === 'movie_relations');
-
-  if (!hasRelationsColumn) {
-    db.prepare(`ALTER TABLE anime_series ADD COLUMN relations TEXT`).run();
-  }
-  if (!hasMovieRelationsColumn) {
-    db.prepare(`ALTER TABLE anime_series ADD COLUMN movie_relations TEXT`).run();
-  }
-
-  const movieStatusColumns = db.prepare(`PRAGMA table_info(movie_user_status)`).all();
-  if (!movieStatusColumns.some(column => column.name === 'is_favorite')) {
-    db.exec(`ALTER TABLE movie_user_status ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`);
-  }
-  if (!movieStatusColumns.some(column => column.name === 'is_hidden')) {
-    db.exec(`ALTER TABLE movie_user_status ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0`);
-  }
-
-  const tvShowStatusColumns = db.prepare(`PRAGMA table_info(tv_show_user_status)`).all();
-  if (!tvShowStatusColumns.some(column => column.name === 'is_favorite')) {
-    db.exec(`ALTER TABLE tv_show_user_status ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`);
-  }
-  if (!tvShowStatusColumns.some(column => column.name === 'is_hidden')) {
-    db.exec(`ALTER TABLE tv_show_user_status ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0`);
+    
+    try {
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_adulte_game_unique_lewdcorner 
+        ON adulte_game_games(Lewdcorner_thread_id, game_site) 
+        WHERE Lewdcorner_thread_id IS NOT NULL
+      `);
+    } catch (e) {
+      // Index peut déjà exister, ignorer l'erreur
+    }
+    
+    // Index sur Lewdcorner_thread_id
+    try {
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_adulte_game_lewdcorner_id 
+        ON adulte_game_games(Lewdcorner_thread_id)
+      `);
+    } catch (e) {
+      // Index peut déjà exister, ignorer l'erreur
+    }
+    
+    // Index sur game_site
+    try {
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_adulte_game_site 
+        ON adulte_game_games(game_site)
+      `);
+    } catch (e) {
+      // Index peut déjà exister, ignorer l'erreur
+    }
+  } catch (constraintError) {
+    console.warn('⚠️ Erreur lors de la création des contraintes UNIQUE:', constraintError.message);
   }
 
   console.log('✅ Schéma de base de données créé (Mangas, Animes, Films, Séries, Jeux adultes)');
-  
+
   return db;
 }
 
-module.exports = { initDatabase };
+/**
+ * Applique les migrations à toutes les bases de données utilisateur
+ * Assure que toutes les colonnes critiques existent dans toutes les bases
+ * @param {string} databasesPath - Chemin vers le dossier databases
+ * @returns {Object} Résultat avec le nombre de bases migrées
+ */
+function migrateAllDatabases(databasesPath) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  let migrated = 0;
+  const errors = [];
+  
+  if (!fs.existsSync(databasesPath)) {
+    return { success: true, migrated: 0, errors: [] };
+  }
+  
+  try {
+    const dbFiles = fs.readdirSync(databasesPath).filter(f =>
+      f.endsWith('.db') && !f.startsWith('temp_')
+    );
+    
+    for (const dbFile of dbFiles) {
+      try {
+        const dbPath = path.join(databasesPath, dbFile);
+        const db = new Database(dbPath);
+        
+        // Appliquer les migrations pour toutes les colonnes critiques
+        ensureColumn(db, 'anime_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
+        ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
+        ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
+        ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+
+        // Synchroniser les relations existantes pour assurer une navigation cohérente
+        propagateAllRelations(db);
+        
+        db.close();
+        migrated++;
+        console.log(`✅ Migration appliquée à ${dbFile}`);
+      } catch (error) {
+        errors.push({ file: dbFile, error: error.message });
+        console.warn(`⚠️ Erreur lors de la migration de ${dbFile}:`, error.message);
+      }
+    }
+  } catch (error) {
+    errors.push({ file: 'unknown', error: error.message });
+    console.warn('⚠️ Erreur lors de la migration des bases:', error.message);
+  }
+  
+  return { success: errors.length === 0, migrated, errors };
+}
+
+module.exports = { initDatabase, migrateAllDatabases };

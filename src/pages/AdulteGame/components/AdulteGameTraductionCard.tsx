@@ -10,6 +10,7 @@ interface Traduction {
 
 interface AdulteGameTraductionCardProps {
   version_traduite?: string | null;
+  version_actuelle?: string | null;
   type_trad_fr?: string | null;
   traducteur?: string | null;
   lien_traduction?: string | null;
@@ -18,6 +19,7 @@ interface AdulteGameTraductionCardProps {
 
 const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
   version_traduite,
+  version_actuelle,
   type_trad_fr,
   traducteur,
   lien_traduction,
@@ -123,58 +125,14 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
         </div>
       ) : (
         /* UNE SEULE TRADUCTION (affichage classique) */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Version traduite */}
-          {version_traduite && (
-            <div>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '6px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Version traduite
-              </div>
-              <div
-                style={{
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  color: 'var(--text)'
-                }}
-              >
-                {version_traduite}
-              </div>
-            </div>
-          )}
-
-          {/* Type de traduction */}
-          {type_trad_fr && (
-            <div>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '6px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}
-              >
-                <Languages size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Type de traduction
-              </div>
-              <div className="badge badge-primary">
-                {type_trad_fr}
-              </div>
-            </div>
-          )}
-
-          {/* Traducteur */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '20px 24px'
+          }}
+        >
+          {/* Ligne 1 : Traducteur | Type de traduction */}
           {traducteur && (
             <div>
               <div
@@ -202,7 +160,68 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
             </div>
           )}
 
-          {/* Lien du patch */}
+          {type_trad_fr && (
+            <div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                <Languages size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                Type de traduction
+              </div>
+              <div className="badge badge-primary">
+                {type_trad_fr}
+              </div>
+            </div>
+          )}
+
+          {/* Ligne 2 : Version traduite | Patch de traduction */}
+          {version_traduite && (
+            <div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                Version traduite
+              </div>
+              <div
+                style={{
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  color: (() => {
+                    if (!version_traduite) {
+                      return 'var(--text-secondary)';
+                    }
+                    // Si c'est "intégré", couleur neutre
+                    if (version_traduite.toLowerCase().includes('intégré')) {
+                      return 'var(--text)';
+                    }
+                    // Sinon, comparer avec la version actuelle
+                    if (version_actuelle && version_traduite !== version_actuelle) {
+                      return 'var(--error)';
+                    }
+                    return 'var(--success)';
+                  })()
+                }}
+              >
+                {version_traduite}
+              </div>
+            </div>
+          )}
+
           {lien_traduction && (
             <div>
               <div
@@ -226,7 +245,9 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '8px',
-                  textDecoration: 'none'
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  padding: '8px 16px'
                 }}
               >
                 <ExternalLink size={16} />

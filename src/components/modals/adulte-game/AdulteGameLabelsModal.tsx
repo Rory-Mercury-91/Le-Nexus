@@ -1,6 +1,7 @@
 import { Plus, Tag, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface AdulteGameLabelsModalProps {
   gameId: number;
@@ -41,6 +42,9 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
   const [filteredSuggestions, setFilteredSuggestions] = useState<LabelSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedExistingLabel, setSelectedExistingLabel] = useState<string>('');
+
+  // Désactiver le scroll du body quand la modale est ouverte
+  useDisableBodyScroll(true);
 
   useEffect(() => {
     loadLabels();
@@ -182,6 +186,10 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
       {/* Modal */}
       <div
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          // Permettre les événements clavier dans le modal
+          e.stopPropagation();
+        }}
         style={{
           position: 'fixed',
           top: '50%',
@@ -198,6 +206,7 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
           display: 'flex',
           flexDirection: 'column'
         }}
+        tabIndex={-1}
       >
         <h2
           style={{
@@ -218,9 +227,9 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
           {/* Liste des labels existants */}
           {labels.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {labels.map((label) => (
+              {labels.map((label, index) => (
                 <div
-                  key={label.id}
+                  key={`${label.label}-${index}`}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -287,12 +296,13 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
                     handleAddExistingLabel(value);
                   }
                 }}
-                disabled={loading}
                 className="select"
+                disabled={loading}
                 style={{
                   width: 'auto',
                   minWidth: '200px',
                   maxWidth: '300px',
+                  fontWeight: 600,
                   cursor: loading ? 'not-allowed' : 'pointer',
                   opacity: loading ? 0.5 : 1
                 }}
@@ -334,7 +344,11 @@ const AdulteGameLabelsModal: React.FC<AdulteGameLabelsModalProps> = ({ gameId, o
                     type="text"
                     value={newLabelText}
                     onChange={(e) => setNewLabelText(e.target.value)}
-                    onKeyDown={handleKeyDown}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      handleKeyDown(e);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                     placeholder="Entrez le nom du label..."
                     autoFocus
                     className="input"

@@ -1,13 +1,14 @@
 const { syncMovieFromTmdb } = require('../../services/movies/movie-sync-service');
 const { searchMovies } = require('../../apis/tmdb');
-const { getUserIdByName } = require('../common-helpers');
+const { getUserIdByName, safeJsonParse } = require('../common-helpers');
+const { createToggleFavoriteHandler, createToggleHiddenHandler, createSetStatusHandler } = require('../common/item-action-helpers');
 
-function ensureMovieStatusRow(db, movieId, userId) {
-  const existing = db.prepare('SELECT movie_id FROM movie_user_status WHERE movie_id = ? AND user_id = ?').get(movieId, userId);
+function ensureMovieUserDataRow(db, movieId, userId) {
+  const existing = db.prepare('SELECT id FROM movie_user_data WHERE movie_id = ? AND user_id = ?').get(movieId, userId);
   if (!existing) {
     db.prepare(`
-      INSERT INTO movie_user_status (movie_id, user_id, statut_visionnage, score, date_visionnage, is_favorite, is_hidden)
-      VALUES (?, ?, 'À regarder', NULL, NULL, 0, 0)
+      INSERT INTO movie_user_data (movie_id, user_id, statut_visionnage, score, date_visionnage, is_favorite, is_hidden, user_images, user_videos, notes_privees, display_preferences, created_at, updated_at)
+      VALUES (?, ?, 'À regarder', NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, datetime('now'), datetime('now'))
     `).run(movieId, userId);
   }
 }
@@ -105,30 +106,50 @@ function registerMovieHandlers(ipcMain, getDb, store) {
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-    const orderColumn = ['date_sortie', 'note_moyenne', 'popularite', 'created_at'].includes(orderBy) ? orderBy : 'date_sortie';
-    const sortDirection = sort === 'ASC' ? 'ASC' : 'DESC';
+    
+    // Mapping sécurisé des colonnes ORDER BY pour éviter l'injection SQL
+    const orderColumnMap = {
+      'date_sortie': 'm.date_sortie',
+      'note_moyenne': 'm.note_moyenne',
+      'popularite': 'm.popularite',
+      'created_at': 'm.created_at'
+    };
+    const sortDirectionMap = {
+      'ASC': 'ASC',
+      'DESC': 'DESC'
+    };
+    
+    const safeOrderColumn = orderColumnMap[orderBy] || orderColumnMap['date_sortie'];
+    const safeSortDirection = sortDirectionMap[sort] || 'DESC';
 
     const stmt = db.prepare(`
       SELECT
         m.*,
-        mus.statut_visionnage,
-        mus.score,
-        mus.date_visionnage,
-        COALESCE(mus.is_favorite, 0) AS is_favorite,
-        COALESCE(mus.is_hidden, 0) AS is_hidden
+        mud.statut_visionnage,
+        mud.score,
+        mud.date_visionnage,
+        COALESCE(mud.is_favorite, 0) AS is_favorite,
+        COALESCE(mud.is_hidden, 0) AS is_hidden,
+        mud.notes_privees,
+        mud.user_images,
+        mud.user_videos,
+        mud.display_preferences
       FROM movies m
-      LEFT JOIN movie_user_status mus ON m.id = mus.movie_id AND mus.user_id = ?
+      LEFT JOIN movie_user_data mud ON m.id = mud.movie_id AND mud.user_id = ?
       ${where}
-      ORDER BY ${orderColumn} ${sortDirection}
+      ORDER BY ${safeOrderColumn} ${safeSortDirection}
       LIMIT ?
       OFFSET ?
     `);
 
     return stmt.all(...params, limit, offset).map((movie) => ({
       ...movie,
-      genres: movie.genres ? JSON.parse(movie.genres) : [],
+      genres: safeJsonParse(movie.genres, []),
       is_favorite: Boolean(movie.is_favorite),
-      is_hidden: Boolean(movie.is_hidden)
+      is_hidden: Boolean(movie.is_hidden),
+      user_images: safeJsonParse(movie.user_images, []),
+      user_videos: safeJsonParse(movie.user_videos, []),
+      display_preferences: safeJsonParse(movie.display_preferences, {})
     }));
   });
 
@@ -141,26 +162,34 @@ function registerMovieHandlers(ipcMain, getDb, store) {
       row = db.prepare(`
         SELECT
           m.*,
-          mus.statut_visionnage,
-          mus.score,
-          mus.date_visionnage,
-          COALESCE(mus.is_favorite, 0) AS is_favorite,
-          COALESCE(mus.is_hidden, 0) AS is_hidden
+          mud.statut_visionnage,
+          mud.score,
+          mud.date_visionnage,
+          COALESCE(mud.is_favorite, 0) AS is_favorite,
+          COALESCE(mud.is_hidden, 0) AS is_hidden,
+          mud.notes_privees,
+          mud.user_images,
+          mud.user_videos,
+          mud.display_preferences
         FROM movies m
-        LEFT JOIN movie_user_status mus ON m.id = mus.movie_id AND mus.user_id = ?
+        LEFT JOIN movie_user_data mud ON m.id = mud.movie_id AND mud.user_id = ?
         WHERE m.id = ?
       `).get(userId || -1, movieId);
     } else if (tmdbId) {
       row = db.prepare(`
         SELECT
           m.*,
-          mus.statut_visionnage,
-          mus.score,
-          mus.date_visionnage,
-          COALESCE(mus.is_favorite, 0) AS is_favorite,
-          COALESCE(mus.is_hidden, 0) AS is_hidden
+          mud.statut_visionnage,
+          mud.score,
+          mud.date_visionnage,
+          COALESCE(mud.is_favorite, 0) AS is_favorite,
+          COALESCE(mud.is_hidden, 0) AS is_hidden,
+          mud.notes_privees,
+          mud.user_images,
+          mud.user_videos,
+          mud.display_preferences
         FROM movies m
-        LEFT JOIN movie_user_status mus ON m.id = mus.movie_id AND mus.user_id = ?
+        LEFT JOIN movie_user_data mud ON m.id = mud.movie_id AND mud.user_id = ?
         WHERE m.tmdb_id = ?
       `).get(userId || -1, tmdbId);
     }
@@ -171,109 +200,276 @@ function registerMovieHandlers(ipcMain, getDb, store) {
 
     return {
       ...row,
-      genres: row.genres ? JSON.parse(row.genres) : [],
-      mots_cles: row.mots_cles ? JSON.parse(row.mots_cles) : [],
-      langues_parlees: row.langues_parlees ? JSON.parse(row.langues_parlees) : [],
-      compagnies: row.compagnies ? JSON.parse(row.compagnies) : [],
-      pays_production: row.pays_production ? JSON.parse(row.pays_production) : [],
-      videos: row.videos ? JSON.parse(row.videos) : null,
-      images: row.images ? JSON.parse(row.images) : null,
-      fournisseurs: row.fournisseurs ? JSON.parse(row.fournisseurs) : null,
-      ids_externes: row.ids_externes ? JSON.parse(row.ids_externes) : null,
-      traductions: row.traductions ? JSON.parse(row.traductions) : null,
-      donnees_brutes: row.donnees_brutes ? JSON.parse(row.donnees_brutes) : null,
+      genres: safeJsonParse(row.genres, []),
+      mots_cles: safeJsonParse(row.mots_cles, []),
+      langues_parlees: safeJsonParse(row.langues_parlees, []),
+      compagnies: safeJsonParse(row.compagnies, []),
+      pays_production: safeJsonParse(row.pays_production, []),
+      videos: safeJsonParse(row.videos, null),
+      images: safeJsonParse(row.images, null),
+      fournisseurs: safeJsonParse(row.fournisseurs, null),
+      ids_externes: safeJsonParse(row.ids_externes, null),
+      traductions: safeJsonParse(row.traductions, null),
+      donnees_brutes: safeJsonParse(row.donnees_brutes, null),
       is_favorite: Boolean(row.is_favorite),
-      is_hidden: Boolean(row.is_hidden)
+      is_hidden: Boolean(row.is_hidden),
+      user_images: safeJsonParse(row.user_images, []),
+      user_videos: safeJsonParse(row.user_videos, []),
+      display_preferences: safeJsonParse(row.display_preferences, {})
     };
   });
 
-  ipcMain.handle('movies-set-status', (event, { movieId, statut, score, dateVisionnage }) => {
-    if (!movieId) {
-      throw new Error('movieId est requis');
-    }
-
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
-
-    ensureMovieStatusRow(db, movieId, userId);
-
-    const stmt = db.prepare(`
-      UPDATE movie_user_status
+  // Handlers génériques pour les actions communes
+  ipcMain.handle('movies-set-status', createSetStatusHandler({
+    getDb,
+    store,
+    itemIdParamName: 'movieId',
+    statusTableName: 'movie_user_data',
+    itemIdColumnName: 'movie_id',
+    ensureStatusRowFn: ensureMovieUserDataRow,
+    buildUpdateQuery: (tableName, itemIdColumnName) => `
+      UPDATE ${tableName}
       SET
         statut_visionnage = ?,
         score = ?,
         date_visionnage = ?,
-        date_modification = CURRENT_TIMESTAMP
-      WHERE movie_id = ? AND user_id = ?
-    `);
+        updated_at = CURRENT_TIMESTAMP
+      WHERE ${itemIdColumnName} = ? AND user_id = ?
+    `,
+    buildUpdateParams: (params, itemId, userId) => [
+      params.statut || 'À regarder',
+      params.score ?? null,
+      params.dateVisionnage || null,
+      itemId,
+      userId
+    ]
+  }));
 
-    stmt.run(
-      statut || 'À regarder',
-      score ?? null,
-      dateVisionnage || null,
-      userId,
-      movieId
-    );
+  ipcMain.handle('movies-toggle-favorite', createToggleFavoriteHandler({
+    getDb,
+    store,
+    itemIdParamName: 'movieId',
+    statusTableName: 'movie_user_data',
+    itemIdColumnName: 'movie_id',
+    ensureStatusRowFn: ensureMovieUserDataRow
+  }));
 
-    return { success: true, statut: statut || 'À regarder' };
+  ipcMain.handle('movies-toggle-hidden', createToggleHiddenHandler({
+    getDb,
+    store,
+    itemIdParamName: 'movieId',
+    statusTableName: 'movie_user_data',
+    itemIdColumnName: 'movie_id',
+    ensureStatusRowFn: ensureMovieUserDataRow
+  }));
+
+  // Créer un film manuellement
+  ipcMain.handle('create-movie', (event, movieData) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
+
+      // Utiliser le tmdb_id fourni, sinon générer un tmdb_id négatif unique pour les films manuels
+      let newTmdbId;
+      if (movieData.tmdb_id && movieData.tmdb_id > 0) {
+        // Si un tmdb_id positif est fourni, l'utiliser (vient de TMDB)
+        newTmdbId = movieData.tmdb_id;
+      } else {
+        // Sinon, générer un ID négatif unique pour les films manuels
+        const existingMax = db.prepare('SELECT MIN(tmdb_id) as min_id FROM movies WHERE tmdb_id < 0').get();
+        newTmdbId = existingMax?.min_id ? existingMax.min_id - 1 : -1;
+      }
+
+      const toJson = (value) => {
+        if (value === undefined || value === null) return null;
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return null;
+        }
+      };
+
+      // Vérifier si le film existe déjà avec ce tmdb_id
+      const existingMovie = db.prepare('SELECT id FROM movies WHERE tmdb_id = ?').get(newTmdbId);
+      if (existingMovie) {
+        // Si le film existe déjà, utiliser son ID
+        const movieId = existingMovie.id;
+        const currentUser = store.get('currentUser', '');
+        if (currentUser) {
+          const userId = getUserIdByName(db, currentUser);
+          if (userId) {
+            ensureMovieUserDataRow(db, movieId, userId);
+          }
+        }
+        return { success: true, movieId, alreadyExists: true };
+      }
+
+      const insertStmt = db.prepare(`
+        INSERT INTO movies (
+          tmdb_id, titre, titre_original, synopsis, statut, date_sortie, duree,
+          note_moyenne, popularite, genres, poster_path, backdrop_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      // Normaliser la popularité (remplacer virgule par point si nécessaire)
+      let popularite = movieData.popularite;
+      if (popularite != null && typeof popularite === 'string') {
+        popularite = parseFloat(popularite.replace(',', '.')) || null;
+      }
+
+      const result = insertStmt.run(
+        newTmdbId,
+        movieData.titre || '',
+        movieData.titre_original || null,
+        movieData.synopsis || null,
+        movieData.statut || null,
+        movieData.date_sortie || null,
+        movieData.duree || null,
+        movieData.note_moyenne || null,
+        popularite,
+        toJson(movieData.genres || []),
+        movieData.poster_path || null,
+        movieData.backdrop_path || null
+      );
+
+      // Vérifier si l'insertion a réussi
+      if (result.changes === 0) {
+        // L'insertion a échoué, probablement à cause d'une contrainte UNIQUE
+        // Vérifier à nouveau si le film existe maintenant
+        const existingMovie = db.prepare('SELECT id FROM movies WHERE tmdb_id = ?').get(newTmdbId);
+        if (existingMovie) {
+          const movieId = existingMovie.id;
+          const currentUser = store.get('currentUser', '');
+          if (currentUser) {
+            const userId = getUserIdByName(db, currentUser);
+            if (userId) {
+              ensureMovieUserDataRow(db, movieId, userId);
+            }
+          }
+          return { success: true, movieId, alreadyExists: true };
+        }
+        throw new Error('Échec de la création du film : aucune ligne insérée');
+      }
+
+      const movieId = result.lastInsertRowid;
+      if (!movieId || movieId === 0) {
+        throw new Error('Échec de la création du film : aucun ID retourné');
+      }
+      const currentUser = store.get('currentUser', '');
+      if (currentUser) {
+        const userId = getUserIdByName(db, currentUser);
+        if (userId) {
+          ensureMovieUserDataRow(db, movieId, userId);
+        }
+      }
+
+      return { success: true, movieId };
+    } catch (error) {
+      console.error('❌ Erreur create-movie:', error);
+      return { success: false, error: error.message };
+    }
   });
 
-  ipcMain.handle('movies-toggle-favorite', (event, { movieId }) => {
-    if (!movieId) {
-      throw new Error('movieId est requis');
-    }
+  // Mettre à jour un film manuellement
+  ipcMain.handle('update-movie', (event, { movieId, movieData }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
 
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
+      const toJson = (value) => {
+        if (value === undefined || value === null) return null;
+        try {
+          return JSON.stringify(value);
+        } catch {
+          return null;
+        }
+      };
 
-    ensureMovieStatusRow(db, movieId, userId);
-    const current = db.prepare('SELECT is_favorite FROM movie_user_status WHERE movie_id = ? AND user_id = ?').get(movieId, userId);
-    const newValue = current?.is_favorite === 1 ? 0 : 1;
-    db.prepare('UPDATE movie_user_status SET is_favorite = ?, date_modification = CURRENT_TIMESTAMP WHERE movie_id = ? AND user_id = ?')
-      .run(newValue, movieId, userId);
+      // Normaliser la popularité (remplacer virgule par point si nécessaire)
+      let popularite = movieData.popularite;
+      if (popularite != null && typeof popularite === 'string') {
+        popularite = parseFloat(popularite.replace(',', '.')) || null;
+      }
 
-    return { success: true, isFavorite: !!newValue };
+      const updateStmt = db.prepare(`
+        UPDATE movies SET
+          titre = ?,
+          titre_original = ?,
+          synopsis = ?,
+          statut = ?,
+          date_sortie = ?,
+          duree = ?,
+          note_moyenne = ?,
+          popularite = ?,
+          genres = ?,
+          poster_path = ?,
+          backdrop_path = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+
+      updateStmt.run(
+        movieData.titre || '',
+        movieData.titre_original || null,
+        movieData.synopsis || null,
+        movieData.statut || null,
+        movieData.date_sortie || null,
+        movieData.duree || null,
+        movieData.note_moyenne || null,
+        popularite,
+        toJson(movieData.genres || []),
+        movieData.poster_path || null,
+        movieData.backdrop_path || null,
+        movieId
+      );
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur update-movie:', error);
+      return { success: false, error: error.message };
+    }
   });
 
-  ipcMain.handle('movies-toggle-hidden', (event, { movieId }) => {
-    if (!movieId) {
-      throw new Error('movieId est requis');
-    }
+  // Supprimer un film
+  ipcMain.handle('delete-movie', (event, movieId) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        return { success: false, error: 'Base de données non initialisée' };
+      }
 
-    const db = getDb();
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) {
-      throw new Error('Aucun utilisateur sélectionné');
-    }
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) {
-      throw new Error('Utilisateur introuvable');
-    }
+      // Vérifier que le film existe
+      const movie = db.prepare('SELECT id, titre FROM movies WHERE id = ?').get(movieId);
+      if (!movie) {
+        return { success: false, error: 'Film introuvable' };
+      }
 
-    ensureMovieStatusRow(db, movieId, userId);
-    const current = db.prepare('SELECT is_hidden FROM movie_user_status WHERE movie_id = ? AND user_id = ?').get(movieId, userId);
-    const newValue = current?.is_hidden === 1 ? 0 : 1;
-    db.prepare('UPDATE movie_user_status SET is_hidden = ?, date_modification = CURRENT_TIMESTAMP WHERE movie_id = ? AND user_id = ?')
-      .run(newValue, movieId, userId);
+      // Supprimer le film (cascade supprimera les données utilisateur via FOREIGN KEY)
+      db.prepare('DELETE FROM movies WHERE id = ?').run(movieId);
 
-    return { success: true, isHidden: !!newValue };
+      console.log(`✅ Film supprimé (ID: ${movieId}, Titre: ${movie.titre})`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur delete-movie:', error);
+      return { success: false, error: error.message };
+    }
   });
 }
 
+const { registerMovieGalleryHandlers } = require('./movie-gallery-handlers');
+const { registerMovieVideoHandlers } = require('./movie-video-handlers');
+
+function registerAllMovieHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager) {
+  registerMovieHandlers(ipcMain, getDb, store);
+  registerMovieGalleryHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerMovieVideoHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+}
+
 module.exports = {
-  registerMovieHandlers
+  registerMovieHandlers,
+  registerAllMovieHandlers
 };

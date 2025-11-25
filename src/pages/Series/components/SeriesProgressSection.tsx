@@ -50,9 +50,28 @@ export default function SeriesProgressSection({
         gap: '16px'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '18px' }}>📺</span>
-        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>Votre progression</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '18px' }}>📺</span>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>Votre progression</h3>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => {
+            void onMarkAllEpisodes();
+          }}
+          disabled={allSeen || isMarkingAllEpisodes}
+          style={{ 
+            justifyContent: 'center', 
+            fontSize: '13px', 
+            padding: '8px 16px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          {isMarkingAllEpisodes ? 'Marquage en cours…' : '✓ Tout marquer comme vu'}
+        </button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--text)' }}>
@@ -125,18 +144,6 @@ export default function SeriesProgressSection({
           🎉 Tous les épisodes vus !
         </div>
       )}
-
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => {
-          void onMarkAllEpisodes();
-        }}
-        disabled={allSeen || isMarkingAllEpisodes}
-        style={{ width: '100%', justifyContent: 'center', fontSize: '13px', padding: '10px' }}
-      >
-        {isMarkingAllEpisodes ? 'Marquage en cours…' : '✓ Tout marquer comme vu'}
-      </button>
     </div>
   );
 }

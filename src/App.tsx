@@ -3,11 +3,13 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import ImportingOverlay from './components/common/ImportingOverlay';
 import ProtectedContent from './components/common/ProtectedContent';
 import UserSelector from './components/common/UserSelector';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Layout from './components/layout/Layout';
 import OnboardingWizard from './components/layout/OnboardingWizard';
 import SplashScreen from './components/layout/SplashScreen';
 import { AdulteGameLockProvider, useAdulteGameLock } from './hooks/useAdulteGameLock';
 import { useBackendLogger } from './hooks/useBackendLogger';
+import { GlobalProgressProvider } from './contexts/GlobalProgressContext';
 import AdulteGame from './pages/AdulteGame/AdulteGame';
 import AdulteGameDetail from './pages/AdulteGame/AdulteGameDetail';
 import AnimeDetail from './pages/Animes/AnimeDetail';
@@ -54,6 +56,40 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [checkingUsers, setCheckingUsers] = useState(true);
+  
+  // Pour l'onboarding : récupérer le baseDirectory et l'étape initiale
+  const [onboardingBaseDir, setOnboardingBaseDir] = useState<string | null>(null);
+  const [onboardingInitialStep, setOnboardingInitialStep] = useState(1);
+  
+  // Charger le baseDirectory quand l'onboarding est activé
+  useEffect(() => {
+    if (needsOnboarding) {
+      const loadBaseDirectory = async () => {
+        try {
+          const baseDir = await window.electronAPI.getBaseDirectory();
+          if (baseDir) {
+            setOnboardingBaseDir(baseDir);
+            // Si on vient du UserSelector, démarrer directement à l'étape 3
+            const fromUserSelector = sessionStorage.getItem('createNewProfileFromSelector');
+            if (fromUserSelector === 'true') {
+              setOnboardingInitialStep(3);
+              sessionStorage.removeItem('createNewProfileFromSelector');
+            } else {
+              setOnboardingInitialStep(1);
+            }
+          } else {
+            setOnboardingBaseDir(null);
+            setOnboardingInitialStep(1);
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement du baseDirectory:', error);
+          setOnboardingBaseDir(null);
+          setOnboardingInitialStep(1);
+        }
+      };
+      loadBaseDirectory();
+    }
+  }, [needsOnboarding]);
 
   // Ne plus charger automatiquement l'utilisateur au démarrage
   // Le UserSelector sera toujours affiché pour choisir qui utilise l'app
@@ -90,21 +126,38 @@ function App() {
 
         setNeedsOnboarding(effectiveUsers.length === 0);
 
-        // Si plusieurs utilisateurs existent, toujours afficher le sélecteur
-        // Si un seul utilisateur existe, charger automatiquement
-        if (effectiveUsers.length > 1) {
-          localStorage.removeItem('currentUser');
-          await window.electronAPI.setCurrentUser('');
-          setCurrentUser(null);
-        } else if (effectiveUsers.length === 1) {
-          // Un seul utilisateur : charger automatiquement (même s'il y a un utilisateur sauvegardé différent)
+        // Vérifier si on vient d'un changement d'utilisateur depuis les paramètres
+        // (détecté par la présence d'un flag dans sessionStorage)
+        const fromUserSwitch = sessionStorage.getItem('userSwitchFromSettings');
+        
+        if (effectiveUsers.length === 1) {
+          // Un seul utilisateur : charger automatiquement
           const singleUser = effectiveUsers[0].name;
           void handleUserSelected(singleUser);
-        } else if (effectiveUsers.length > 0) {
-          const savedUser = localStorage.getItem('currentUser');
-          if (savedUser && effectiveUsers.some(u => u.name === savedUser)) {
-            setCurrentUser(savedUser);
+        } else if (effectiveUsers.length > 1) {
+          // Plusieurs utilisateurs
+          if (fromUserSwitch) {
+            // On vient d'un changement depuis les paramètres : charger l'utilisateur sauvegardé
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser && effectiveUsers.some(u => u.name === savedUser)) {
+              await handleUserSelected(savedUser);
+              sessionStorage.removeItem('userSwitchFromSettings');
+            } else {
+              // Utilisateur sauvegardé invalide : afficher le sélecteur
+              localStorage.removeItem('currentUser');
+              await window.electronAPI.setCurrentUser('');
+              setCurrentUser(null);
+              sessionStorage.removeItem('userSwitchFromSettings');
+            }
           } else {
+            // Démarrage normal : toujours afficher le sélecteur (ne pas charger automatiquement)
+            localStorage.removeItem('currentUser');
+            await window.electronAPI.setCurrentUser('');
+            setCurrentUser(null);
+          }
+        } else if (effectiveUsers.length > 0) {
+          // Cas par défaut : afficher le sélecteur au démarrage
+          if (!fromUserSwitch) {
             localStorage.removeItem('currentUser');
             await window.electronAPI.setCurrentUser('');
             setCurrentUser(null);
@@ -191,18 +244,49 @@ function App() {
   if (needsOnboarding) {
     return (
       <OnboardingWizard
-        onComplete={() => {
-          setNeedsOnboarding(false);
-          // Forcer un rechargement pour afficher le UserSelector avec les nouveaux utilisateurs
-          window.location.reload();
+        onComplete={async () => {
+          // Vérifier si un utilisateur a été sélectionné dans l'onboarding
+          const savedUser = localStorage.getItem('currentUser');
+          if (savedUser) {
+            // Charger directement l'utilisateur sélectionné
+            await handleUserSelected(savedUser);
+            // Marquer l'onboarding comme terminé APRÈS avoir chargé l'utilisateur
+            setNeedsOnboarding(false);
+          } else {
+            // Sinon, marquer l'onboarding comme terminé et recharger pour afficher le UserSelector
+            setNeedsOnboarding(false);
+            window.location.reload();
+          }
         }}
+        initialStep={onboardingInitialStep}
+        initialBaseDirectory={onboardingBaseDir}
       />
     );
   }
 
   // Étape 2: Sélection utilisateur
   if (!currentUser) {
-    return <UserSelector onUserSelected={handleUserSelected} />;
+    return (
+      <UserSelector 
+        onUserSelected={handleUserSelected}
+        onCreateNewProfile={async () => {
+          // Vérifier si le baseDirectory est déjà configuré
+          const baseDir = await window.electronAPI.getBaseDirectory?.();
+          if (baseDir) {
+            // BaseDirectory déjà configuré : passer directement à l'étape 3
+            sessionStorage.setItem('createNewProfileFromSelector', 'true');
+            setOnboardingBaseDir(baseDir);
+            setOnboardingInitialStep(3);
+            setNeedsOnboarding(true);
+          } else {
+            // Pas de baseDirectory : passer à l'étape 2 pour le choisir
+            sessionStorage.setItem('createNewProfileFromSelector', 'true');
+            setNeedsOnboarding(true);
+          }
+        }}
+        showCreateButton={true}
+      />
+    );
   }
 
   // Étape 3: Chargement et fusion
@@ -212,10 +296,11 @@ function App() {
 
   // Étape 4: Application principale
   return (
-    <>
+    <ErrorBoundary>
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AdulteGameLockProvider>
-          <Layout currentUser={currentUser}>
+        <GlobalProgressProvider>
+          <AdulteGameLockProvider>
+            <Layout currentUser={currentUser}>
             <Routes>
               <Route path="/" element={<Dashboard key={refreshTrigger} />} />
               <Route path="/collection" element={<Collection key={refreshTrigger} />} />
@@ -244,12 +329,13 @@ function App() {
               />
               <Route path="/settings" element={<Settings />} />
             </Routes>
-          </Layout>
-        </AdulteGameLockProvider>
+            </Layout>
+          </AdulteGameLockProvider>
+        </GlobalProgressProvider>
       </HashRouter>
 
       {isImporting && <ImportingOverlay message={importMessage} />}
-    </>
+    </ErrorBoundary>
   );
 }
 

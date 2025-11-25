@@ -36,21 +36,45 @@ async function handleAddManga(req, res, mainWindow) {
     }
 
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // Préparer les options depuis le payload
+      const options = {};
+      if (data.targetSerieId || data._targetSerieId) {
+        options.targetSerieId = data.targetSerieId || data._targetSerieId;
+      }
+      if (data.forceCreate === true || data._forceCreate === true) {
+        options.forceCreate = true;
+      }
+      if (data.confirmMerge === true || data._confirmMerge === true) {
+        options.confirmMerge = true;
+      }
+      
+      // Ne pas forcer forceCreate: true par défaut, laisser le matching unifié fonctionner
       const result = await mainWindow.webContents.executeJavaScript(`
-        window.electronAPI.addMangaByMalId(${malId}, { forceCreate: true })
+        window.electronAPI.addMangaByMalId(${malId}, ${JSON.stringify(options)})
       `);
 
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('manga-import-complete');
-          mainWindow.webContents.send('refresh-manga-list');
-        }
-      }, 1000);
+      // Ne pas envoyer manga-import-complete immédiatement si requiresSelection
+      if (!result.requiresSelection) {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('manga-import-complete');
+            mainWindow.webContents.send('refresh-manga-list');
+          }
+        }, 1000);
+      }
 
       if (result.success) {
         sendSuccessResponse(res, {
           manga: result.manga,
           message: `${result.manga.titre} ajouté avec succès !`
+        });
+      } else if (result.requiresSelection && Array.isArray(result.candidates)) {
+        // Proposer un overlay de sélection côté navigateur (Tampermonkey)
+        sendSuccessResponse(res, {
+          requiresSelection: true,
+          candidates: result.candidates,
+          malId: malId,
+          message: result.error || 'Série similaire trouvée'
         });
       } else {
         sendErrorResponse(res, 400, result.error || 'Erreur lors de l\'import');

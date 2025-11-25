@@ -1,6 +1,6 @@
 /**
- * Service d'import de tomes uniquement
- * Gère la logique métier d'import de tomes pour une série existante
+ * Service d'import de manga_tomes uniquement
+ * Gère la logique métier d'import de manga_tomes pour une série existante
  * Utilisé par les routes HTTP (import-routes.js)
  */
 
@@ -11,7 +11,7 @@ const { setExclusiveSerieOwnership, setExclusiveSerieUserStatus } = require('../
 const { recordExtractedData } = require('../../utils/sync-error-reporter');
 
 /**
- * Fonction principale d'import de tomes uniquement
+ * Fonction principale d'import de manga_tomes uniquement
  */
 async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPathManager) {
   try {
@@ -38,45 +38,45 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
     // Chercher la série existante
     const serie = findSerieByTitle(db, mangaData.titre);
     if (!serie) {
-      const allSeries = db.prepare('SELECT titre FROM series ORDER BY titre LIMIT 10').all();
+      const allSeries = db.prepare('SELECT titre FROM manga_series ORDER BY titre LIMIT 10').all();
       const suggestions = allSeries.map(s => s.titre).join('", "');
       return sendErrorResponse(res, 404, `Série "${mangaData.titre}" introuvable. Séries existantes: "${suggestions}"...`);
     }
 
-    // Récupérer les tomes existants
-    const existingTomes = db.prepare('SELECT numero FROM tomes WHERE serie_id = ?').all(serie.id);
+    // Récupérer les manga_tomes existants
+    const existingTomes = db.prepare('SELECT numero FROM manga_tomes WHERE serie_id = ?').all(serie.id);
     const existingNumeros = new Set(existingTomes.map(t => t.numero));
 
-    // Filtrer les tomes à ajouter
-    const tomesToAdd = mangaData.volumes.filter(vol => 
+    // Filtrer les manga_tomes à ajouter
+    const manga_tomesToAdd = mangaData.volumes.filter(vol => 
       !existingNumeros.has(vol.numero) && vol.date_sortie
     );
     
-    const tomesIgnored = mangaData.volumes.filter(vol => 
+    const manga_tomesIgnored = mangaData.volumes.filter(vol => 
       !existingNumeros.has(vol.numero) && !vol.date_sortie
     ).length;
     
-    if (tomesIgnored > 0) {
+    if (manga_tomesIgnored > 0) {
       // Ignorés faute de date VF
     }
 
-    if (tomesToAdd.length === 0) {
+    if (manga_tomesToAdd.length === 0) {
       notifyImportComplete(mainWindow);
       return sendSuccessResponse(res, {
         serieId: serie.id,
-        tomesCreated: 0,
-        message: 'Tous les tomes sont déjà présents'
+        manga_tomesCreated: 0,
+        message: 'Tous les manga_tomes sont déjà présents'
       });
     }
 
-    // Ajouter les tomes manquants
+    // Ajouter les manga_tomes manquants
     const stmtTome = db.prepare(`
-      INSERT INTO tomes (serie_id, numero, prix, date_sortie, couverture_url)
+      INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, couverture_url)
       VALUES (?, ?, ?, ?, ?)
     `);
     
     const stmtProprietaire = db.prepare(`
-      INSERT INTO tomes_proprietaires (tome_id, user_id) VALUES (?, ?)
+      INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
     `);
 
     const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
@@ -84,9 +84,9 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
       throw new Error(`Utilisateur "${currentUser}" introuvable dans la BDD`);
     }
 
-    let tomesCreated = 0;
+    let manga_tomesCreated = 0;
     const autoDownload = store.get('autoDownloadCovers', false) === true;
-    for (const volume of tomesToAdd) {
+    for (const volume of manga_tomesToAdd) {
       try {
         let effectiveCover = null;
         const pm = getPathManager();
@@ -121,16 +121,16 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
           effectiveCover
         );
 
-        stmtProprietaire.run(result.lastInsertRowid, user.id);
-        db.prepare('DELETE FROM tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
+        stmtProprietaire.run(serie.id, result.lastInsertRowid, user.id);
+        db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
           .run(result.lastInsertRowid, user.id);
-        tomesCreated++;
+        manga_tomesCreated++;
       } catch (error) {
         console.error(`❌ Erreur tome ${volume.numero}:`, error.message);
       }
     }
 
-    if (tomesCreated > 0) {
+    if (manga_tomesCreated > 0) {
       setExclusiveSerieOwnership(db, serie.id, user.id);
       setExclusiveSerieUserStatus(db, serie.id, user.id);
     }
@@ -154,7 +154,7 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
           
           if (coverResult.success && coverResult.localPath) {
             db.prepare(`
-              UPDATE series
+              UPDATE manga_series
               SET couverture_url = ?,
                   source_donnees = 'mal+nautiljon',
                   updated_at = datetime('now')
@@ -172,19 +172,19 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
       mainWindow.webContents.send('manga-imported', {
         serieId: serie.id,
         titre: serie.titre,
-        tomesCreated
+        manga_tomesCreated
       });
     }
 
     notifyImportComplete(mainWindow);
     sendSuccessResponse(res, {
       serieId: serie.id,
-      tomesCreated,
-      volumesIgnored: tomesIgnored
+      manga_tomesCreated,
+      volumesIgnored: manga_tomesIgnored
     });
 
   } catch (error) {
-    console.error('Erreur import tomes:', error);
+    console.error('Erreur import manga_tomes:', error);
     notifyImportComplete(mainWindow);
     sendErrorResponse(res, 500, error.message);
   }

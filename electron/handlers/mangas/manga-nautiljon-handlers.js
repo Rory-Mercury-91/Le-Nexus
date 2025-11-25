@@ -1,3 +1,6 @@
+const notificationScheduler = require('../../services/schedulers/notification-scheduler');
+const { safeJsonParse } = require('../common-helpers');
+
 /**
  * Enregistre les handlers IPC pour la synchronisation Nautiljon
  */
@@ -47,6 +50,15 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
         restartScheduler(getDb(), store, mainWindow, getPathManager);
       }
       
+      const notificationConfig = store.get('notificationConfig', {});
+      if (notificationConfig && notificationConfig.enabled) {
+        notificationScheduler.init(notificationConfig, getDb(), store, {
+          getDb,
+          getMainWindow,
+          getPathManager
+        });
+      }
+      
       console.log(`✅ Sync auto Nautiljon ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h, tomes: ${includeTomes ? 'oui' : 'non'})`);
       
       return { success: true };
@@ -87,31 +99,27 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
       }
       
       // Récupérer toutes les séries avec URL Nautiljon
-      const seriesWithNautiljon = db.prepare(`
+      const manga_seriesWithNautiljon = db.prepare(`
         SELECT id, titre, relations 
-        FROM series 
+        FROM manga_series 
         WHERE relations IS NOT NULL AND relations != ''
       `).all();
       
-      const seriesToSync = [];
-      for (const serie of seriesWithNautiljon) {
-        try {
-          if (serie.relations) {
-            const relations = JSON.parse(serie.relations);
-            if (relations.nautiljon && relations.nautiljon.url) {
-              seriesToSync.push({
-                id: serie.id,
-                titre: serie.titre,
-                url: relations.nautiljon.url
-              });
-            }
+      const manga_seriesToSync = [];
+      for (const serie of manga_seriesWithNautiljon) {
+        if (serie.relations) {
+          const relations = safeJsonParse(serie.relations, {});
+          if (relations.nautiljon && relations.nautiljon.url) {
+            manga_seriesToSync.push({
+              id: serie.id,
+              titre: serie.titre,
+              url: relations.nautiljon.url
+            });
           }
-        } catch (e) {
-          // Ignorer les erreurs de parsing
         }
       }
       
-      if (seriesToSync.length === 0) {
+      if (manga_seriesToSync.length === 0) {
         return { success: true, synced: 0, message: 'Aucune série avec URL Nautiljon trouvée' };
       }
       
@@ -119,7 +127,7 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
       let synced = 0;
       let errors = 0;
       
-      for (const serie of seriesToSync) {
+      for (const serie of manga_seriesToSync) {
         try {
           const mangaData = await scrapeNautiljonPage(serie.url, includeTomes);
           await handleNautiljonImport(db, mangaData, getPathManager, store, includeTomes);
@@ -134,7 +142,7 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
         success: true,
         synced,
         errors,
-        total: seriesToSync.length
+        total: manga_seriesToSync.length
       };
     } catch (error) {
       console.error('❌ Erreur sync manuelle Nautiljon:', error);

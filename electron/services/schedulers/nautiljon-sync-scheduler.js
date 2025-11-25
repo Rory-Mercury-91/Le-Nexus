@@ -6,6 +6,7 @@
 const cron = require('node-cron');
 const { scrapeNautiljonPage } = require('../mangas/nautiljon-scraper');
 const { handleNautiljonImport } = require('../mangas/manga-import-service');
+const { generateReport } = require('../../utils/report-generator');
 
 const MIN_STARTUP_DELAY_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -13,6 +14,7 @@ let cronJob = null;
 let isRunning = false;
 
 async function performNautiljonSync(db, store, mainWindow, getPathManager) {
+  const syncStart = Date.now();
   const currentUser = store.get('currentUser', '');
   if (!currentUser) {
     console.log('⏭️  Aucun utilisateur actuel, synchronisation Nautiljon annulée');
@@ -24,36 +26,36 @@ async function performNautiljonSync(db, store, mainWindow, getPathManager) {
     return null;
   }
 
-  const seriesWithNautiljon = db
+  const manga_seriesWithNautiljon = db
     .prepare(
       `
         SELECT id, titre, relations 
-        FROM series 
+        FROM manga_series 
         WHERE relations IS NOT NULL AND relations != ''
       `
     )
     .all();
 
-  const seriesToSync = [];
-  for (const serie of seriesWithNautiljon) {
+  const manga_seriesToSync = [];
+  for (const serie of manga_seriesWithNautiljon) {
     try {
       if (!serie.relations) continue;
       const relations = JSON.parse(serie.relations);
       if (relations.nautiljon && relations.nautiljon.url) {
-        seriesToSync.push({
+        manga_seriesToSync.push({
           id: serie.id,
           titre: serie.titre,
           url: relations.nautiljon.url,
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Ignorer erreurs de parsing pour ne pas bloquer la synchronisation
     }
   }
 
-  console.log(`📚 ${seriesToSync.length} série(s) avec URL Nautiljon trouvée(s)`);
+  console.log(`📚 ${manga_seriesToSync.length} série(s) avec URL Nautiljon trouvée(s)`);
 
-  if (seriesToSync.length === 0) {
+  if (manga_seriesToSync.length === 0) {
     console.log('⏭️  Aucune série à synchroniser');
     return {
       synced: 0,
@@ -66,42 +68,58 @@ async function performNautiljonSync(db, store, mainWindow, getPathManager) {
   let synced = 0;
   let errors = 0;
   const includeTomes = store.get('nautiljon_auto_sync_include_tomes', false);
+  const reportData = {
+    updated: [],
+    failed: []
+  };
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('nautiljon-sync-started', {
-      total: seriesToSync.length,
+      total: manga_seriesToSync.length,
     });
   }
 
-  for (let i = 0; i < seriesToSync.length; i++) {
-    const serie = seriesToSync[i];
+  for (let i = 0; i < manga_seriesToSync.length; i++) {
+    const serie = manga_seriesToSync[i];
     try {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('nautiljon-sync-progress', {
           current: i + 1,
-          total: seriesToSync.length,
+          total: manga_seriesToSync.length,
           currentSerie: serie.titre,
         });
       }
 
       const mangaData = await scrapeNautiljonPage(serie.url, includeTomes);
-      await handleNautiljonImport(db, mangaData, getPathManager, store, includeTomes);
+      const result = await handleNautiljonImport(db, mangaData, getPathManager, store, includeTomes);
       synced++;
-      console.log(`✅ "${serie.titre}" synchronisé (${i + 1}/${seriesToSync.length})`);
+      reportData.updated.push({
+        titre: serie.titre,
+        serieId: serie.id,
+        url: serie.url
+      });
+      console.log(`✅ "${serie.titre}" synchronisé (${i + 1}/${manga_seriesToSync.length})`);
 
-      if (i < seriesToSync.length - 1) {
+      if (i < manga_seriesToSync.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     } catch (error) {
       errors++;
+      reportData.failed.push({
+        titre: serie.titre,
+        error: error.message || String(error),
+        serieId: serie.id,
+        url: serie.url
+      });
       console.error(`❌ Erreur synchronisation "${serie.titre}":`, error.message);
     }
   }
 
+  const durationMs = Date.now() - syncStart;
   const result = {
     synced,
     errors,
-    total: seriesToSync.length,
+    total: manga_seriesToSync.length,
     timestamp: new Date().toISOString(),
   };
 
@@ -112,6 +130,26 @@ async function performNautiljonSync(db, store, mainWindow, getPathManager) {
   }
 
   console.log(`✅ Synchronisation Nautiljon terminée: ${synced} série(s) synchronisée(s), ${errors} erreur(s)`);
+
+  // Générer le rapport d'état
+  if (getPathManager) {
+    generateReport(getPathManager, {
+      type: 'nautiljon-sync',
+      stats: {
+        total: manga_seriesToSync.length,
+        updated: synced,
+        errors: errors
+      },
+      updated: reportData.updated,
+      failed: reportData.failed,
+      metadata: {
+        user: currentUser,
+        duration: durationMs,
+        includeTomes: includeTomes
+      }
+    });
+  }
+
   return result;
 }
 

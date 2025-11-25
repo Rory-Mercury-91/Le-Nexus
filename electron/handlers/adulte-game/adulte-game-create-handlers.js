@@ -45,35 +45,66 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
             }
           }
         } catch (error) {
-          // Ignorer silencieusement l'erreur de récupération
+          // Logger l'erreur mais continuer sans bloquer la création du jeu
+          console.warn('⚠️ Impossible de récupérer le développeur depuis F95Zone:', error.message);
+        }
+      }
+      
+      // Déterminer les IDs selon la plateforme
+      let f95_thread_id = null;
+      let Lewdcorner_thread_id = null;
+      let lien_f95 = null;
+      let lien_lewdcorner = null;
+      const game_site = gameData.plateforme || gameData.game_site || 'F95Zone';
+      
+      if (game_site === 'F95Zone' || game_site === 'F95z') {
+        f95_thread_id = gameData.f95_thread_id || null;
+        if (f95_thread_id) {
+          lien_f95 = gameData.lien_f95 || `https://f95zone.to/threads/${f95_thread_id}/`;
+        } else if (gameData.lien_f95) {
+          lien_f95 = gameData.lien_f95;
+          // Extraire l'ID depuis le lien si possible
+          const match = gameData.lien_f95.match(/threads\/(\d+)/);
+          if (match) {
+            f95_thread_id = parseInt(match[1]);
+          }
+        }
+      } else if (game_site === 'LewdCorner' || game_site === 'lewdcorner') {
+        Lewdcorner_thread_id = gameData.f95_thread_id || gameData.Lewdcorner_thread_id || null;
+        if (Lewdcorner_thread_id) {
+          lien_lewdcorner = gameData.lien_lewdcorner || `https://lewdcorner.com/threads/${Lewdcorner_thread_id}/`;
+        } else if (gameData.lien_f95 && gameData.lien_f95.includes('lewdcorner')) {
+          lien_lewdcorner = gameData.lien_f95;
+          const match = gameData.lien_f95.match(/threads\/(\d+)/);
+          if (match) {
+            Lewdcorner_thread_id = parseInt(match[1]);
+          }
         }
       }
       
       const result = db.prepare(`
         INSERT INTO adulte_game_games (
-          f95_thread_id, titre, version, statut_jeu, moteur, developpeur,
-          couverture_url, tags, lien_f95, lien_traduction, lien_jeu,
-          version_traduction, statut_traduction, type_traduction,
-          version_disponible, maj_disponible,
-          derniere_verif, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          f95_thread_id, Lewdcorner_thread_id, titre, game_version, game_statut, 
+          game_engine, game_developer, game_site, couverture_url, tags, 
+          lien_f95, lien_lewdcorner, statut_traduction, type_traduction,
+          maj_disponible, derniere_verif, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       `).run(
-        gameData.f95_thread_id || null,
+        f95_thread_id,
+        Lewdcorner_thread_id,
         gameData.titre,
-        gameData.version || null,
-        gameData.statut_jeu || 'EN COURS',
-        gameData.moteur || null,
+        gameData.version || gameData.game_version || null,
+        gameData.statut_jeu || gameData.game_statut || 'EN COURS',
+        gameData.moteur || gameData.game_engine || null,
         developpeurValue,
+        game_site,
         gameData.couverture_url || null,
         gameData.tags ? JSON.stringify(gameData.tags) : null,
-        gameData.lien_f95 || null,
-        gameData.lien_traduction || null,
-        gameData.lien_jeu || null,
-        gameData.version_traduction || null,
+        lien_f95,
+        lien_lewdcorner,
         gameData.statut_traduction || null,
         gameData.type_traduction || null,
-        gameData.version_disponible || null,
-        gameData.maj_disponible || 0,
+        0, // maj_disponible toujours à 0 lors de la création (seules les mises à jour réelles le mettent à 1)
         gameData.derniere_verif || null
       );
       
@@ -85,28 +116,32 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
         throw new Error('Utilisateur non trouvé');
       }
       
+      // Créer l'entrée dans adulte_game_user_data pour les propriétaires
       const proprietaires = gameData.proprietaires || [currentUser];
       for (const userName of proprietaires) {
         const propUserId = getUserIdByName(db, userName);
         if (propUserId) {
+          // Créer ou mettre à jour l'entrée utilisateur
           db.prepare(`
-            INSERT INTO adulte_game_proprietaires (game_id, user_id)
-            VALUES (?, ?)
-          `).run(gameId, propUserId);
+            INSERT INTO adulte_game_user_data (
+              game_id, user_id, completion_perso, notes_privees, 
+              chemin_executable, derniere_session, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            ON CONFLICT(game_id, user_id) DO UPDATE SET
+              completion_perso = COALESCE(excluded.completion_perso, completion_perso),
+              notes_privees = COALESCE(excluded.notes_privees, notes_privees),
+              chemin_executable = COALESCE(excluded.chemin_executable, chemin_executable),
+              updated_at = datetime('now')
+          `).run(
+            gameId,
+            propUserId,
+            gameData.statut_perso || gameData.completion_perso || 'À jouer',
+            gameData.notes_privees || null,
+            gameData.chemin_executable || null,
+            gameData.derniere_session || null
+          );
         }
       }
-      
-      db.prepare(`
-        INSERT INTO adulte_game_user_games (game_id, user_id, statut_perso, notes_privees, chemin_executable, derniere_session)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
-        gameId,
-        userId,
-        gameData.statut_perso || 'À jouer',
-        gameData.notes_privees || null,
-        gameData.chemin_executable || null,
-        gameData.derniere_session || null
-      );
       
       console.log(`✅ Jeu adulte créé: "${gameData.titre}" (ID: ${gameId})`);
       
@@ -139,18 +174,12 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
         ? jsonData.tags.split(',').map(t => t.trim()).filter(t => t)
         : (Array.isArray(jsonData.tags) ? jsonData.tags : []);
       
-      let f95_thread_id = null;
-      let lien_f95 = null;
+      // Déterminer la plateforme
       let plateforme = 'F95Zone';
-      
-      if (jsonData.domain === 'F95z' || jsonData.domain === 'F95Zone') {
-        f95_thread_id = jsonData.id;
-        lien_f95 = jsonData.link || `https://f95zone.to/threads/${jsonData.id}`;
-        plateforme = 'F95Zone';
-      } else if (jsonData.domain === 'LewdCorner') {
-        f95_thread_id = jsonData.id;
-        lien_f95 = jsonData.link || `https://lewdcorner.com/threads/${jsonData.id}`;
+      if (jsonData.domain === 'LewdCorner') {
         plateforme = 'LewdCorner';
+      } else if (jsonData.domain === 'F95z' || jsonData.domain === 'F95Zone') {
+        plateforme = 'F95Zone';
       }
       
       let couverture_url = null;
@@ -173,13 +202,13 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
               const autoDownload = store.get('autoDownloadCovers', false) === true;
               if (autoDownload) {
                 console.log(`📥 Téléchargement de l'image...`);
-                const result = await coverManager.downloadCover(
+                  const result = await coverManager.downloadCover(
                   pathManager,
                   jsonData.image, 
                   titre,
                   'adulte-game', 
                   null,
-                  lien_f95
+                  lien_f95_for_image
                 );
                 
                 if (result.success) {
@@ -202,24 +231,46 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
         }
       }
       
+      // Déterminer les IDs selon la plateforme
+      let f95_thread_id = null;
+      let Lewdcorner_thread_id = null;
+      let lien_f95 = null;
+      let lien_lewdcorner = null;
+      
+      if (plateforme === 'F95Zone' || plateforme === 'F95z') {
+        f95_thread_id = jsonData.id;
+        lien_f95 = jsonData.link || `https://f95zone.to/threads/${jsonData.id}/`;
+      } else if (plateforme === 'LewdCorner') {
+        Lewdcorner_thread_id = jsonData.id;
+        lien_lewdcorner = jsonData.link || `https://lewdcorner.com/threads/${jsonData.id}/`;
+      }
+      
+      // Utiliser lien_f95 pour la logique de téléchargement d'image (compatibilité)
+      const lien_f95_for_image = lien_f95 || lien_lewdcorner;
+      
       const existing = db.prepare(`
         SELECT id FROM adulte_game_games 
-        WHERE (f95_thread_id = ? AND plateforme = ?) OR (titre = ? AND lien_f95 = ?)
+        WHERE (f95_thread_id = ? AND game_site = ?) 
+           OR (Lewdcorner_thread_id = ? AND game_site = ?)
+           OR (titre = ? AND (lien_f95 = ? OR lien_lewdcorner = ?))
         LIMIT 1
-      `).get(f95_thread_id, plateforme, titre, lien_f95);
+      `).get(f95_thread_id, plateforme, Lewdcorner_thread_id, plateforme, titre, lien_f95, lien_lewdcorner);
       
       if (existing) {
         db.prepare(`
           UPDATE adulte_game_games SET
             titre = ?,
-            version = ?,
-            statut_jeu = ?,
-            moteur = ?,
-            developpeur = COALESCE(?, developpeur),
-            plateforme = ?,
+            game_version = ?,
+            game_statut = ?,
+            game_engine = ?,
+            game_developer = COALESCE(?, game_developer),
+            game_site = ?,
             couverture_url = COALESCE(?, couverture_url),
             tags = ?,
-            lien_f95 = ?,
+            lien_f95 = COALESCE(?, lien_f95),
+            lien_lewdcorner = COALESCE(?, lien_lewdcorner),
+            f95_thread_id = COALESCE(?, f95_thread_id),
+            Lewdcorner_thread_id = COALESCE(?, Lewdcorner_thread_id),
             updated_at = datetime('now')
           WHERE id = ?
         `).run(
@@ -232,6 +283,9 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
           couverture_url,
           JSON.stringify(tags),
           lien_f95,
+          lien_lewdcorner,
+          f95_thread_id,
+          Lewdcorner_thread_id,
           existing.id
         );
         
@@ -240,12 +294,13 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
       } else {
         const result = db.prepare(`
           INSERT INTO adulte_game_games (
-            f95_thread_id, titre, version, statut_jeu, moteur, developpeur, plateforme,
-            couverture_url, tags, lien_f95,
-            statut_perso, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+            f95_thread_id, Lewdcorner_thread_id, titre, game_version, game_statut, 
+            game_engine, game_developer, game_site, couverture_url, tags, 
+            lien_f95, lien_lewdcorner, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).run(
           f95_thread_id,
+          Lewdcorner_thread_id,
           titre,
           version,
           statut_jeu,
@@ -255,7 +310,7 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
           couverture_url,
           JSON.stringify(tags),
           lien_f95,
-          'À jouer'
+          lien_lewdcorner
         );
         
         const gameId = result.lastInsertRowid;
@@ -263,9 +318,11 @@ function registerAdulteGameCreateHandlers(ipcMain, getDb, store, getPathManager)
         const { getUserIdByName } = require('./adulte-game-helpers');
         const userId = getUserIdByName(db, currentUser);
         if (userId) {
+          // Créer l'entrée dans adulte_game_user_data
           db.prepare(`
-            INSERT INTO adulte_game_proprietaires (game_id, user_id)
-            VALUES (?, ?)
+            INSERT INTO adulte_game_user_data (
+              game_id, user_id, completion_perso, created_at, updated_at
+            ) VALUES (?, ?, 'À jouer', datetime('now'), datetime('now'))
           `).run(gameId, userId);
         }
         

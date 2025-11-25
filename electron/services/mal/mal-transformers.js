@@ -8,7 +8,7 @@
  */
 function convertMALPublicationStatus(malStatus) {
   if (!malStatus) return null;
-  
+
   const statusMap = {
     // Formats MAL standards
     'Finished': 'Terminée',
@@ -23,7 +23,7 @@ function convertMALPublicationStatus(malStatus) {
     'discontinued': 'Abandonnée',
     'not_yet_published': 'Annoncée'
   };
-  
+
   return statusMap[malStatus] || malStatus; // Retourne la valeur originale si non trouvée
 }
 
@@ -60,7 +60,7 @@ function convertMALUserStatus(malStatus) {
  */
 function convertMALAnimeStatus(malStatus) {
   if (!malStatus) return null;
-  
+
   const statusMap = {
     // Formats MAL standards
     'Currently Airing': 'En cours de diffusion',
@@ -75,7 +75,7 @@ function convertMALAnimeStatus(malStatus) {
     'finished airing': 'Terminé',
     'not yet aired': 'Pas encore diffusé'
   };
-  
+
   return statusMap[malStatus] || malStatus; // Retourne la valeur originale si non trouvée
 }
 
@@ -104,18 +104,34 @@ function transformMangaData(malEntry) {
   const isR18 =
     (genres && (genres.includes('Hentai') || genres.includes('Erotica'))) ||
     mediaType === 'doujinshi';
-  
+
   // Log pour déboguer les données de progression
   if (listStatus.status) {
     console.log(`📚 MAL manga ${manga.id} (${manga.title}): status="${listStatus.status}", volumes_read=${listStatus.num_volumes_read || 0}, chapters_read=${listStatus.num_chapters_read || 0}`);
   }
-  
+
+  // Préparer les titres alternatifs (synonyms depuis MAL)
+  let titresAlternatifs = null;
+  if (manga.alternative_titles?.synonyms && Array.isArray(manga.alternative_titles.synonyms) && manga.alternative_titles.synonyms.length > 0) {
+    titresAlternatifs = JSON.stringify(manga.alternative_titles.synonyms);
+  }
+
+  // Déterminer le media_type pour le matching
+  let normalizedMediaType = null;
+  if (mediaType === 'manga') normalizedMediaType = 'Manga';
+  else if (mediaType === 'light_novel' || mediaType === 'novel') normalizedMediaType = 'Light Novel';
+  else if (mediaType === 'manhwa') normalizedMediaType = 'Manhwa';
+  else if (mediaType === 'manhua') normalizedMediaType = 'Manhua';
+  else if (mediaType) normalizedMediaType = mediaType.charAt(0).toUpperCase() + mediaType.slice(1);
+
   return {
     mal_id: manga.id,
     titre: manga.title || null,
     titre_romaji: manga.alternative_titles?.en || null,
     titre_anglais: manga.alternative_titles?.en || null,
     titre_natif: manga.alternative_titles?.ja || null,
+    titres_alternatifs: titresAlternatifs, // Pour le matching
+    media_type: normalizedMediaType, // Pour le matching
     couverture_url: manga.main_picture?.large || manga.main_picture?.medium || null,
     description: manga.synopsis || null,
     statut_publication: convertMALPublicationStatus(manga.status), // Traduit en français
@@ -159,7 +175,7 @@ function transformAnimeData(malEntry) {
   };
 
   const normalizedMediaType = mediaTypeMap[mediaType] || (anime.media_type ? anime.media_type.toString() : 'TV');
-  
+
   return {
     mal_id: anime.id,
     titre: anime.title || null,

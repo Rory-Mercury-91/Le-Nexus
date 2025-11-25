@@ -2,6 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 const { getUserIdByName, getPaths: getPathsHelper } = require('./settings-helpers');
+const { safeJsonParse } = require('../common-helpers');
+const {
+  createGetJsonDisplayOverridesHandler,
+  createSaveJsonDisplayOverridesHandler,
+  createDeleteJsonDisplayOverridesHandler
+} = require('../common/display-overrides-helpers');
+const {
+  createGetGlobalDisplaySettingsHandler,
+  createSaveGlobalDisplaySettingsHandler
+} = require('../common/display-settings-helpers');
 
 /**
  * Enregistre les handlers IPC pour la gestion des bases de données
@@ -22,12 +32,12 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       const currentUser = store.get('currentUser', '');
       if (!currentUser) {
         console.log('⚠️ Aucun utilisateur connecté, pas de fusion');
-        return { merged: false, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0 };
+        return { merged: false, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0 };
       }
 
       const dbFolder = getPaths().databases;
       if (!fs.existsSync(dbFolder)) {
-        return { merged: false, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0 };
+        return { merged: false, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0 };
       }
 
       const currentUserDbFile = `${currentUser.toLowerCase()}.db`;
@@ -36,7 +46,7 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       // Vérifier que la base utilisateur existe (elle doit avoir été créée dans set-current-user)
       if (!fs.existsSync(currentUserDbPath)) {
         console.warn(`⚠️ Base utilisateur introuvable: ${currentUserDbFile}. La fusion ne peut pas être effectuée.`);
-        return { merged: false, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0, error: 'Base utilisateur introuvable' };
+        return { merged: false, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0, error: 'Base utilisateur introuvable' };
       }
       
       // Vérifier si un enrichissement est en cours avant de fermer la connexion
@@ -45,7 +55,7 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       
       if (isAnimeEnrichmentRunning() || isMangaEnrichmentRunning()) {
         console.log('⏸️  Enrichissement en cours, report de la synchronisation des bases de données');
-        return { merged: false, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0, skipped: true, reason: 'enrichment-in-progress' };
+        return { merged: false, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0, skipped: true, reason: 'enrichment-in-progress' };
       }
       
       // S'assurer que la base utilisateur est chargée
@@ -104,11 +114,11 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       
       if (files.length === 0) {
         console.log('ℹ️ Aucune autre base à fusionner');
-        return { merged: true, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0 };
+        return { merged: true, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0 };
       }
 
-      let seriesCount = 0;
-      let tomesCount = 0;
+      let manga_seriesCount = 0;
+      let manga_tomesCount = 0;
       let animesCount = 0;
       let gamesCount = 0;
 
@@ -120,138 +130,306 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
 
         try {
           // === FUSION DES MANGAS ===
-          const series = userDb.prepare('SELECT * FROM series').all();
-          series.forEach(serie => {
-            // Vérifier par titre ou mal_id pour éviter les doublons
-            const existing = targetDb.prepare('SELECT id FROM series WHERE titre = ? OR mal_id = ?').get(serie.titre, serie.mal_id || -1);
-            if (!existing) {
-              // Insertion complète avec tous les champs
-              const insertSerie = targetDb.prepare(`
-                INSERT INTO series (
-                  titre, titre_alternatif, statut, type_volume, type_contenu, couverture_url, description,
-                  statut_publication, statut_publication_vf, annee_publication, annee_vf, genres,
-                  nb_chapitres, nb_chapitres_vf, chapitres_lus, langue_originale, demographie,
-                  editeur, editeur_vo, rating, mal_id, titre_romaji, titre_natif, titre_anglais,
-                  titres_alternatifs, nb_volumes, nb_volumes_vf, date_debut, date_fin, media_type,
-                  themes, auteurs, volumes_lus, statut_lecture, score_utilisateur,
-                  date_debut_lecture, date_fin_lecture, tags, relations, source_donnees,
-                  score_mal, rank_mal, popularity_mal, serialization, background
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `);
-              insertSerie.run(
-                serie.titre, serie.titre_alternatif, serie.statut, serie.type_volume, serie.type_contenu || 'volume',
-                serie.couverture_url, serie.description, serie.statut_publication, serie.statut_publication_vf,
-                serie.annee_publication, serie.annee_vf, serie.genres, serie.nb_chapitres, serie.nb_chapitres_vf,
-                serie.chapitres_lus || 0, serie.langue_originale, serie.demographie, serie.editeur, serie.editeur_vo,
-                serie.rating, serie.mal_id, serie.titre_romaji, serie.titre_natif, serie.titre_anglais,
-                serie.titres_alternatifs, serie.nb_volumes, serie.nb_volumes_vf, serie.date_debut, serie.date_fin,
-                serie.media_type, serie.themes, serie.auteurs, serie.volumes_lus || 0, serie.statut_lecture,
-                serie.score_utilisateur, serie.date_debut_lecture, serie.date_fin_lecture, serie.tags,
-                serie.relations, serie.source_donnees || 'nautiljon', serie.score_mal, serie.rank_mal,
-                serie.popularity_mal, serie.serialization, serie.background
-              );
-              seriesCount++;
+          // Récupérer les colonnes de la source et de la destination
+          const sourceColumns = userDb.pragma('table_info(manga_series)').map(col => col.name).filter(name => name !== 'id');
+          const targetColumns = targetDb.pragma('table_info(manga_series)').map(col => col.name).filter(name => name !== 'id');
+          
+          console.log(`  📊 ${file} - Source: ${sourceColumns.length} colonnes, Destination: ${targetColumns.length} colonnes`);
+          
+          // Utiliser seulement les colonnes communes (colonnes qui existent dans les deux tables)
+          const commonColumns = sourceColumns.filter(col => targetColumns.includes(col));
+          
+          // Vérifier que nous avons bien des colonnes communes
+          if (commonColumns.length === 0) {
+            console.warn(`  ⚠️ Aucune colonne commune trouvée pour la table manga_series entre ${file} et la base cible`);
+            return;
+          }
+          
+          console.log(`  📊 ${file} - Colonnes communes: ${commonColumns.length}`);
+          
+          // Vérifier que titre et mal_id sont disponibles pour la vérification des doublons
+          const hasTitre = commonColumns.includes('titre');
+          const hasMalId = commonColumns.includes('mal_id');
+          
+          if (!hasTitre && !hasMalId) {
+            console.warn(`  ⚠️ Impossible de vérifier les doublons pour ${file}: ni titre ni mal_id ne sont disponibles`);
+            return;
+          }
+          
+          // Construire la requête SELECT avec seulement les colonnes communes
+          // Utiliser des guillemets pour protéger les noms de colonnes
+          const selectColumns = commonColumns.map(col => `"${col}"`).join(', ');
+          let manga_series = [];
+          try {
+            manga_series = userDb.prepare(`SELECT ${selectColumns} FROM manga_series`).all();
+          } catch (selectError) {
+            console.error(`  ❌ Erreur lors de la sélection des séries depuis ${file}:`, selectError.message);
+            console.error(`    → Colonnes demandées: ${selectColumns}`);
+            throw selectError; // Re-lancer pour être capturé par le catch global
+          }
+          
+          manga_series.forEach((serie, index) => {
+            try {
+              // Vérifier par titre ou mal_id pour éviter les doublons
+              const serieTitre = hasTitre ? serie.titre : null;
+              const serieMalId = hasMalId ? serie.mal_id : null;
+              
+              let existing = null;
+              if (hasTitre && hasMalId) {
+                existing = targetDb.prepare('SELECT id FROM manga_series WHERE titre = ? OR mal_id = ?').get(serieTitre || '', serieMalId || -1);
+              } else if (hasTitre) {
+                existing = targetDb.prepare('SELECT id FROM manga_series WHERE titre = ?').get(serieTitre || '');
+              } else if (hasMalId) {
+                existing = targetDb.prepare('SELECT id FROM manga_series WHERE mal_id = ?').get(serieMalId || -1);
+              }
+              
+              if (!existing) {
+                const placeholders = commonColumns.map(() => '?').join(', ');
+                // Extraire les valeurs dans le même ordre que commonColumns
+                const values = commonColumns.map(col => {
+                  const value = serie[col];
+                  // Gérer les valeurs undefined/null correctement
+                  return value !== undefined && value !== null ? value : null;
+                });
+                
+                // Vérifier que le nombre de valeurs correspond au nombre de colonnes
+                if (values.length !== commonColumns.length) {
+                  console.warn(`  ⚠️ [${file}] Série ${index + 1}/${manga_series.length}: Nombre de valeurs (${values.length}) ne correspond pas au nombre de colonnes (${commonColumns.length})`);
+                  console.warn(`    → Titre: "${serieTitre || 'sans titre'}"`);
+                  return;
+                }
+                
+                // Utiliser des guillemets pour protéger les noms de colonnes dans l'INSERT
+                const quotedColumns = commonColumns.map(col => `"${col}"`).join(', ');
+                const insertSerie = targetDb.prepare(`
+                  INSERT INTO manga_series (${quotedColumns})
+                  VALUES (${placeholders})
+                `);
+                insertSerie.run(...values);
+                manga_seriesCount++;
+              }
+            } catch (insertError) {
+              console.warn(`  ⚠️ [${file}] Erreur insertion série ${index + 1}/${manga_series.length}:`, insertError.message);
+              // Si l'erreur est "X values for Y columns", logger plus de détails
+              if (insertError.message.includes('values for') && insertError.message.includes('columns')) {
+                console.warn(`    → Colonnes communes: ${commonColumns.length}, Valeurs extraites: ${commonColumns.map(col => serie[col] !== undefined ? '✓' : '✗').join(' ')}`);
+                console.warn(`    → Colonnes: ${commonColumns.join(', ')}`);
+              }
             }
           });
 
-          // Fusion des tomes
-          const tomes = userDb.prepare('SELECT * FROM tomes').all();
-          tomes.forEach(tome => {
+          // Fusion des manga_tomes
+          const manga_tomes = userDb.prepare('SELECT * FROM manga_tomes').all();
+          manga_tomes.forEach(tome => {
             // Trouver la série correspondante dans la base de destination
-            const sourceSerie = userDb.prepare('SELECT titre, mal_id FROM series WHERE id = ?').get(tome.serie_id);
+            const sourceSerie = userDb.prepare('SELECT titre, mal_id FROM manga_series WHERE id = ?').get(tome.serie_id);
             if (sourceSerie) {
-              const targetSerie = targetDb.prepare('SELECT id FROM series WHERE titre = ? OR mal_id = ?').get(sourceSerie.titre, sourceSerie.mal_id || -1);
+              const targetSerie = targetDb.prepare('SELECT id FROM manga_series WHERE titre = ? OR mal_id = ?').get(sourceSerie.titre, sourceSerie.mal_id || -1);
               if (targetSerie) {
-                const existing = targetDb.prepare('SELECT id FROM tomes WHERE serie_id = ? AND numero = ?').get(targetSerie.id, tome.numero);
+                const existing = targetDb.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? AND numero = ?').get(targetSerie.id, tome.numero);
                 if (!existing) {
                   const insertTome = targetDb.prepare(`
-                    INSERT INTO tomes (serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome)
+                    INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                   `);
                   insertTome.run(targetSerie.id, tome.numero, tome.prix || 0, tome.date_sortie, tome.date_achat, tome.couverture_url, tome.type_tome || 'Standard');
-                  tomesCount++;
+                  manga_tomesCount++;
                 }
               }
             }
           });
 
           // === FUSION DES ANIMES ===
-          const animes = userDb.prepare('SELECT * FROM anime_series').all();
-          animes.forEach(anime => {
-            // Vérifier par mal_id ou titre pour éviter les doublons
-            const existing = targetDb.prepare('SELECT id FROM anime_series WHERE mal_id = ? OR (mal_id IS NULL AND titre = ?)').get(anime.mal_id || -1, anime.titre);
-            if (!existing) {
-              const insertAnime = targetDb.prepare(`
-                INSERT INTO anime_series (
-                  mal_id, mal_url, titre, titre_romaji, titre_natif, titre_anglais, titres_alternatifs,
-                  type, source, nb_episodes, couverture_url, description, statut_diffusion,
-                  en_cours_diffusion, date_debut, date_fin, duree, annee, saison_diffusion,
-                  genres, themes, demographics, studios, producteurs, diffuseurs, rating,
-                  score, rank_mal, popularity_mal, scored_by, favorites, background,
-                  liens_externes, liens_streaming, franchise_name, franchise_order,
-                  prequel_mal_id, sequel_mal_id, source_import, user_id_ajout
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `);
-              insertAnime.run(
-                anime.mal_id, anime.mal_url, anime.titre, anime.titre_romaji, anime.titre_natif,
-                anime.titre_anglais, anime.titres_alternatifs, anime.type, anime.source,
-                anime.nb_episodes || 0, anime.couverture_url, anime.description, anime.statut_diffusion,
-                anime.en_cours_diffusion || 0, anime.date_debut, anime.date_fin, anime.duree,
-                anime.annee, anime.saison_diffusion, anime.genres, anime.themes, anime.demographics,
-                anime.studios, anime.producteurs, anime.diffuseurs, anime.rating, anime.score,
-                anime.rank_mal, anime.popularity_mal, anime.scored_by, anime.favorites,
-                anime.background, anime.liens_externes, anime.liens_streaming, anime.franchise_name,
-                anime.franchise_order || 1, anime.prequel_mal_id, anime.sequel_mal_id,
-                anime.source_import || 'manual', anime.user_id_ajout
-              );
-              animesCount++;
+          // Récupérer les colonnes de la source et de la destination
+          const animeSourceColumns = userDb.pragma('table_info(anime_series)').map(col => col.name).filter(name => name !== 'id');
+          const animeTargetColumns = targetDb.pragma('table_info(anime_series)').map(col => col.name).filter(name => name !== 'id');
+          
+          // Utiliser seulement les colonnes communes
+          const animeCommonColumns = animeSourceColumns.filter(col => animeTargetColumns.includes(col));
+          
+          // Initialiser animes avant le if pour qu'il soit accessible après
+          let animes = [];
+          
+          // Vérifier que nous avons bien des colonnes communes
+          if (animeCommonColumns.length === 0) {
+            console.warn(`  ⚠️ Aucune colonne commune trouvée pour la table anime_series entre ${file} et la base cible`);
+          } else {
+            // Construire la requête SELECT avec seulement les colonnes communes
+            const animeSelectColumns = animeCommonColumns.map(col => `"${col}"`).join(', ');
+            try {
+              animes = userDb.prepare(`SELECT ${animeSelectColumns} FROM anime_series`).all();
+            } catch (selectError) {
+              console.error(`  ❌ Erreur lors de la sélection des animes depuis ${file}:`, selectError.message);
+              console.error(`    → Colonnes demandées: ${animeSelectColumns}`);
+              throw selectError;
             }
-          });
+            
+            // Vérifier que mal_id ou titre sont disponibles pour la vérification des doublons
+            const hasAnimeMalId = animeCommonColumns.includes('mal_id');
+            const hasAnimeTitre = animeCommonColumns.includes('titre');
+            
+            animes.forEach((anime, index) => {
+              try {
+                // Vérifier par mal_id ou titre pour éviter les doublons
+                const animeMalId = hasAnimeMalId ? anime.mal_id : null;
+                const animeTitre = hasAnimeTitre ? anime.titre : null;
+                
+                let existing = null;
+                if (hasAnimeMalId && animeMalId) {
+                  // Si mal_id existe, vérifier par mal_id (plus fiable)
+                  existing = targetDb.prepare('SELECT id FROM anime_series WHERE mal_id = ?').get(animeMalId);
+                } else if (hasAnimeTitre && animeTitre) {
+                  // Sinon, vérifier par titre
+                  existing = targetDb.prepare('SELECT id FROM anime_series WHERE titre = ?').get(animeTitre);
+                }
+                
+                if (!existing) {
+                  const placeholders = animeCommonColumns.map(() => '?').join(', ');
+                  // Extraire les valeurs dans le même ordre que animeCommonColumns
+                  const values = animeCommonColumns.map(col => {
+                    const value = anime[col];
+                    // Gérer les valeurs undefined/null correctement
+                    return value !== undefined && value !== null ? value : null;
+                  });
+                  
+                  // Vérifier que le nombre de valeurs correspond au nombre de colonnes
+                  if (values.length !== animeCommonColumns.length) {
+                    console.warn(`  ⚠️ [${file}] Anime ${index + 1}/${animes.length}: Nombre de valeurs (${values.length}) ne correspond pas au nombre de colonnes (${animeCommonColumns.length})`);
+                    return;
+                  }
+                  
+                  // Utiliser des guillemets pour protéger les noms de colonnes dans l'INSERT
+                  const quotedAnimeColumns = animeCommonColumns.map(col => `"${col}"`).join(', ');
+                  try {
+                    const insertAnime = targetDb.prepare(`
+                      INSERT INTO anime_series (${quotedAnimeColumns})
+                      VALUES (${placeholders})
+                    `);
+                    insertAnime.run(...values);
+                    animesCount++;
+                  } catch (insertError) {
+                    // Si l'erreur est une contrainte UNIQUE, c'est normal (doublon)
+                    if (insertError.message.includes('UNIQUE constraint')) {
+                      // Ignorer silencieusement, c'est un doublon
+                      return;
+                    }
+                    // Sinon, re-lancer l'erreur pour qu'elle soit capturée par le catch externe
+                    throw insertError;
+                  }
+                }
+              } catch (insertError) {
+                console.warn(`  ⚠️ [${file}] Erreur insertion anime ${index + 1}/${animes.length}:`, insertError.message);
+                // Si l'erreur est "X values for Y columns", logger plus de détails
+                if (insertError.message.includes('values for') && insertError.message.includes('columns')) {
+                  console.warn(`    → Colonnes communes: ${animeCommonColumns.length}, Valeurs extraites: ${animeCommonColumns.map(col => anime[col] !== undefined ? '✓' : '✗').join(' ')}`);
+                  console.warn(`    → Colonnes: ${animeCommonColumns.join(', ')}`);
+                }
+              }
+            });
+          }
 
           // === FUSION DES JEUX ADULTES ===
           const games = userDb.prepare('SELECT * FROM adulte_game_games').all();
           games.forEach(game => {
-            // Vérifier par f95_thread_id + plateforme pour éviter les doublons
-            const existing = targetDb.prepare('SELECT id FROM adulte_game_games WHERE f95_thread_id = ? AND plateforme = ?').get(game.f95_thread_id, game.plateforme || 'F95Zone');
+            // Vérifier par f95_thread_id/Lewdcorner_thread_id + game_site pour éviter les doublons
+            // Gérer à la fois l'ancien schéma (plateforme) et le nouveau (game_site)
+            const gameSite = game.game_site || game.plateforme || 'F95Zone';
+            const f95Id = game.f95_thread_id;
+            const lewdcornerId = game.Lewdcorner_thread_id;
+            
+            let existing = null;
+            if (f95Id) {
+              existing = targetDb.prepare(`
+                SELECT id FROM adulte_game_games 
+                WHERE f95_thread_id = ? AND game_site = ?
+              `).get(f95Id, gameSite);
+            }
+            if (!existing && lewdcornerId) {
+              existing = targetDb.prepare(`
+                SELECT id FROM adulte_game_games 
+                WHERE Lewdcorner_thread_id = ? AND game_site = ?
+              `).get(lewdcornerId, gameSite);
+            }
+            // Fallback pour l'ancien schéma
+            if (!existing && game.f95_thread_id && game.plateforme) {
+              existing = targetDb.prepare(`
+                SELECT id FROM adulte_game_games 
+                WHERE f95_thread_id = ? AND (game_site = ? OR plateforme = ?)
+              `).get(game.f95_thread_id, game.plateforme, game.plateforme);
+            }
             if (!existing) {
+              // Récupérer les colonnes de la source et de la destination
+              const sourceColumns = userDb.pragma('table_info(adulte_game_games)').map(col => col.name).filter(name => name !== 'id');
+              const targetColumns = targetDb.pragma('table_info(adulte_game_games)').map(col => col.name).filter(name => name !== 'id');
+              
+              // Mapper les anciennes colonnes vers les nouvelles
+              const columnMapping = {
+                'version': 'game_version',
+                'statut_jeu': 'game_statut',
+                'moteur': 'game_engine',
+                'plateforme': 'game_site',
+                'developer': 'game_developer'
+              };
+              
+              // Mapper les colonnes source vers les colonnes destination
+              const mappedSourceColumns = sourceColumns.map(col => columnMapping[col] || col);
+              
+              // Utiliser seulement les colonnes communes (après mapping)
+              const commonColumns = mappedSourceColumns.filter(col => targetColumns.includes(col));
+              
+              // Récupérer les colonnes source correspondantes
+              const sourceColsForCommon = commonColumns.map(targetCol => {
+                const sourceCol = Object.keys(columnMapping).find(key => columnMapping[key] === targetCol) || targetCol;
+                return sourceCol;
+              });
+              
+              const placeholders = commonColumns.map(() => '?').join(', ');
+              const values = sourceColsForCommon.map((sourceCol, idx) => {
+                const targetCol = commonColumns[idx];
+                // Mapper les valeurs pour les colonnes renommées
+                if (sourceCol === 'plateforme' && targetCol === 'game_site') {
+                  return game[sourceCol] || 'F95Zone';
+                }
+                return game[sourceCol] !== undefined ? game[sourceCol] : null;
+              });
+              
+              // Utiliser INSERT OR IGNORE pour éviter les erreurs UNIQUE constraint
               const insertGame = targetDb.prepare(`
-                INSERT INTO adulte_game_games (
-                  f95_thread_id, titre, version, statut_jeu, moteur, plateforme, couverture_url,
-                  tags, lien_f95, lien_traduction, lien_jeu, statut_perso, notes_privees,
-                  chemin_executable, derniere_session, version_jouee, version_traduction,
-                  statut_traduction, type_traduction, traduction_fr_disponible, version_traduite,
-                  traducteur, f95_trad_id, statut_trad_fr, type_trad_fr, derniere_sync_trad,
-                  traductions_multiples, version_disponible, maj_disponible, derniere_verif
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR IGNORE INTO adulte_game_games (${commonColumns.join(', ')})
+                VALUES (${placeholders})
               `);
-              insertGame.run(
-                game.f95_thread_id, game.titre, game.version, game.statut_jeu, game.moteur,
-                game.plateforme || 'F95Zone', game.couverture_url, game.tags, game.lien_f95,
-                game.lien_traduction, game.lien_jeu, game.statut_perso, game.notes_privees,
-                game.chemin_executable, game.derniere_session, game.version_jouee,
-                game.version_traduction, game.statut_traduction, game.type_traduction,
-                game.traduction_fr_disponible || 0, game.version_traduite, game.traducteur,
-                game.f95_trad_id, game.statut_trad_fr, game.type_trad_fr, game.derniere_sync_trad,
-                game.traductions_multiples, game.version_disponible, game.maj_disponible || 0,
-                game.derniere_verif
-              );
-              gamesCount++;
+              const result = insertGame.run(...values);
+              if (result.changes > 0) {
+                gamesCount++;
+              }
             }
           });
 
-          console.log(`  ✓ ${file}: ${series.length} séries, ${tomes.length} tomes, ${animes.length} animes, ${games.length} jeux`);
+          console.log(`  ✓ ${file}: ${manga_seriesCount} séries, ${manga_tomesCount} manga_tomes, ${animesCount} animes, ${gamesCount} jeux`);
         } catch (error) {
           console.error(`  ❌ Erreur fusion ${file}:`, error.message);
+          // Logger plus de détails pour les erreurs de colonnes
+          if (error.message.includes('values for') && error.message.includes('columns')) {
+            console.error(`    → Détails de l'erreur:`, error);
+            // Essayer de déterminer quelle table cause le problème
+            try {
+              const sourceSeriesCols = userDb.pragma('table_info(manga_series)').map(col => col.name).filter(name => name !== 'id');
+              const targetSeriesCols = targetDb.pragma('table_info(manga_series)').map(col => col.name).filter(name => name !== 'id');
+              console.error(`    → Table manga_series - Source: ${sourceSeriesCols.length} colonnes, Destination: ${targetSeriesCols.length} colonnes`);
+            } catch (e) {
+              console.error(`    → Impossible de vérifier les colonnes:`, e.message);
+            }
+          }
         } finally {
           userDb.close();
         }
       });
 
-      console.log(`✅ Fusion terminée: ${seriesCount} séries, ${tomesCount} tomes, ${animesCount} animes, ${gamesCount} jeux`);
-      return { merged: true, seriesCount, tomesCount, animesCount, gamesCount };
+      console.log(`✅ Fusion terminée: ${manga_seriesCount} séries, ${manga_tomesCount} manga_tomes, ${animesCount} animes, ${gamesCount} jeux`);
+      return { merged: true, manga_seriesCount, manga_tomesCount, animesCount, gamesCount };
     } catch (error) {
       console.error('Erreur merge-database:', error);
-      return { merged: false, seriesCount: 0, tomesCount: 0, animesCount: 0, gamesCount: 0, error: error.message };
+      return { merged: false, manga_seriesCount: 0, manga_tomesCount: 0, animesCount: 0, gamesCount: 0, error: error.message };
     }
   }
 
@@ -385,255 +563,126 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     };
   });
 
-  // Préférences affichage manga
-  ipcMain.handle('get-manga-display-settings', () => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM user_manga_display_settings WHERE user_id = ?').all(userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  // Préférences affichage manga (globales - utilisent user_preferences avec content_type='mangas')
+  const defaultMangaDisplay = {
+    // Définir les champs par défaut selon les besoins
+    // Pour l'instant, on garde une structure flexible
+  };
 
-  ipcMain.handle('save-manga-display-settings', (event, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-    const stmt = db.prepare(`INSERT INTO user_manga_display_settings (user_id, champ, visible) VALUES (?, ?, ?)
-                             ON CONFLICT(user_id, champ) DO UPDATE SET visible=excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
+  ipcMain.handle('get-manga-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'mangas',
+    defaultDisplay: defaultMangaDisplay,
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('get-manga-display-overrides', (event, mangaId) => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM manga_display_preferences WHERE manga_id = ? AND user_id = ?').all(mangaId, userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  ipcMain.handle('save-manga-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'mangas',
+    getDb,
+    store,
+    useVisibleFormat: true
+  }));
 
-  ipcMain.handle('save-manga-display-overrides', (event, mangaId, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-    const stmt = db.prepare(`INSERT INTO manga_display_preferences (manga_id, user_id, champ, visible) VALUES (?, ?, ?, ?)
-                             ON CONFLICT(manga_id, user_id, champ) DO UPDATE SET visible=excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(mangaId, userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
+  // Handlers pour les overrides locaux des mangas (stockés dans manga_user_data.display_preferences JSON)
+  const { ensureMangaUserDataRow } = require('../mangas/manga-helpers');
+  
+  ipcMain.handle('get-manga-display-overrides', createGetJsonDisplayOverridesHandler({
+    tableName: 'manga_user_data',
+    itemIdColumnName: 'serie_id',
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('delete-manga-display-overrides', (event, mangaId, champKeys) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-    
-    if (!Array.isArray(champKeys) || champKeys.length === 0) {
-      return { success: true };
-    }
-    
-    const placeholders = champKeys.map(() => '?').join(',');
-    const stmt = db.prepare(`DELETE FROM manga_display_preferences 
-                             WHERE manga_id = ? AND user_id = ? AND champ IN (${placeholders})`);
-    stmt.run(mangaId, userId, ...champKeys);
-    return { success: true };
-  });
+  ipcMain.handle('save-manga-display-overrides', createSaveJsonDisplayOverridesHandler({
+    tableName: 'manga_user_data',
+    itemIdColumnName: 'serie_id',
+    getDb,
+    store,
+    ensureRowExists: ensureMangaUserDataRow
+  }));
 
-  // Préférences affichage anime
-  ipcMain.handle('get-anime-display-settings', () => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM user_anime_display_settings WHERE user_id = ?').all(userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  ipcMain.handle('delete-manga-display-overrides', createDeleteJsonDisplayOverridesHandler({
+    tableName: 'manga_user_data',
+    itemIdColumnName: 'serie_id',
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('save-anime-display-settings', (event, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-    const stmt = db.prepare(`INSERT INTO user_anime_display_settings (user_id, champ, visible) VALUES (?, ?, ?)
-                             ON CONFLICT(user_id, champ) DO UPDATE SET visible=excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
+  // Préférences affichage anime (globales - utilisent user_preferences avec content_type='animes')
+  ipcMain.handle('get-anime-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'animes',
+    defaultDisplay: {},
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('get-anime-display-overrides', (event, animeId) => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM anime_display_preferences WHERE anime_id = ? AND user_id = ?').all(animeId, userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  ipcMain.handle('save-anime-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'animes',
+    getDb,
+    store,
+    useVisibleFormat: true
+  }));
 
-  ipcMain.handle('save-anime-display-overrides', (event, animeId, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-    const stmt = db.prepare(`INSERT INTO anime_display_preferences (anime_id, user_id, champ, visible) VALUES (?, ?, ?, ?)
-                             ON CONFLICT(anime_id, user_id, champ) DO UPDATE SET visible=excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(animeId, userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
+  // Handlers pour les overrides locaux des animés (stockés dans anime_user_data.display_preferences JSON)
+  ipcMain.handle('get-anime-display-overrides', createGetJsonDisplayOverridesHandler({
+    tableName: 'anime_user_data',
+    itemIdColumnName: 'anime_id',
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('delete-anime-display-overrides', (event, animeId, champKeys) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
+  ipcMain.handle('save-anime-display-overrides', createSaveJsonDisplayOverridesHandler({
+    tableName: 'anime_user_data',
+    itemIdColumnName: 'anime_id',
+    getDb,
+    store,
+    ensureRowExists: require('../animes/anime-helpers').ensureAnimeUserDataRow
+  }));
 
-    if (!Array.isArray(champKeys) || champKeys.length === 0) {
-      return { success: true };
-    }
-
-    const placeholders = champKeys.map(() => '?').join(',');
-    const stmt = db.prepare(`DELETE FROM anime_display_preferences 
-                             WHERE anime_id = ? AND user_id = ? AND champ IN (${placeholders})`);
-    stmt.run(animeId, userId, ...champKeys);
-    return { success: true };
-  });
+  ipcMain.handle('delete-anime-display-overrides', createDeleteJsonDisplayOverridesHandler({
+    tableName: 'anime_user_data',
+    itemIdColumnName: 'anime_id',
+    getDb,
+    store
+  }));
 
   // Préférences affichage jeux adultes
-  ipcMain.handle('get-adulte-game-display-settings', () => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM user_adulte_game_display_settings WHERE user_id = ?').all(userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  ipcMain.handle('get-adulte-game-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'adulte_game',
+    defaultDisplay: {},
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('save-adulte-game-display-settings', (event, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
+  ipcMain.handle('save-adulte-game-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'adulte_game',
+    getDb,
+    store,
+    useVisibleFormat: true
+  }));
 
-    const stmt = db.prepare(`INSERT INTO user_adulte_game_display_settings (user_id, champ, visible)
-                             VALUES (?, ?, ?)
-                             ON CONFLICT(user_id, champ) DO UPDATE SET visible = excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
+  // Handlers pour les overrides locaux des jeux adultes (stockés dans adulte_game_user_data.display_preferences)
+  ipcMain.handle('get-adulte-game-display-overrides', createGetJsonDisplayOverridesHandler({
+    tableName: 'adulte_game_user_data',
+    itemIdColumnName: 'game_id',
+    getDb,
+    store
+  }));
 
-  ipcMain.handle('get-adulte-game-display-overrides', (event, gameId) => {
-    const db = getDb();
-    if (!db) return {};
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return {};
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return {};
-    const rows = db.prepare('SELECT champ, visible FROM adulte_game_display_preferences WHERE game_id = ? AND user_id = ?').all(gameId, userId);
-    const prefs = {};
-    rows.forEach(r => { prefs[r.champ] = !!r.visible; });
-    return prefs;
-  });
+  ipcMain.handle('save-adulte-game-display-overrides', createSaveJsonDisplayOverridesHandler({
+    tableName: 'adulte_game_user_data',
+    itemIdColumnName: 'game_id',
+    getDb,
+    store,
+    useInsertOnConflict: true // Utilise INSERT ... ON CONFLICT pour créer la ligne si elle n'existe pas
+  }));
 
-  ipcMain.handle('save-adulte-game-display-overrides', (event, gameId, prefs) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-
-    const stmt = db.prepare(`INSERT INTO adulte_game_display_preferences (game_id, user_id, champ, visible)
-                             VALUES (?, ?, ?, ?)
-                             ON CONFLICT(game_id, user_id, champ) DO UPDATE SET visible = excluded.visible`);
-    const tx = db.transaction(() => {
-      Object.entries(prefs || {}).forEach(([champ, visible]) => {
-        stmt.run(gameId, userId, champ, visible ? 1 : 0);
-      });
-    });
-    tx();
-    return { success: true };
-  });
-
-  ipcMain.handle('delete-adulte-game-display-overrides', (event, gameId, champKeys) => {
-    const db = getDb();
-    if (!db) return { success: false, error: 'DB' };
-    const currentUser = store.get('currentUser', '');
-    if (!currentUser) return { success: false, error: 'No user' };
-    const userId = getUserIdByName(db, currentUser);
-    if (!userId) return { success: false, error: 'User not found' };
-
-    if (!Array.isArray(champKeys) || champKeys.length === 0) {
-      return { success: true };
-    }
-
-    const placeholders = champKeys.map(() => '?').join(',');
-    const stmt = db.prepare(`DELETE FROM adulte_game_display_preferences
-                             WHERE game_id = ? AND user_id = ? AND champ IN (${placeholders})`);
-    stmt.run(gameId, userId, ...champKeys);
-    return { success: true };
-  });
+  ipcMain.handle('delete-adulte-game-display-overrides', createDeleteJsonDisplayOverridesHandler({
+    tableName: 'adulte_game_user_data',
+    itemIdColumnName: 'game_id',
+    getDb,
+    store
+  }));
 
   // Sauvegarder la base de données pour l'utilisateur actuel
   ipcMain.handle('save-user-database', () => {
@@ -716,7 +765,8 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         } else {
           // Fusionner les données
           console.log('ℹ️ Base utilisateur existante, fusion des données...');
-          // TODO: Implémenter la fusion complète ici si nécessaire
+          // Note: La fusion complète est gérée par le scheduler de synchronisation automatique
+          // qui s'exécute périodiquement et au démarrage de l'application
           sourceDb.close();
         }
         
@@ -725,6 +775,131 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       return { success: false };
     } catch (error) {
       console.error('Erreur import-database:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Analyser une base de données (pour vérification)
+  ipcMain.handle('analyze-database', async (event, dbPath) => {
+    try {
+      const Database = require('better-sqlite3');
+      const db = new Database(dbPath, { readonly: true });
+
+      const analysis = {
+        tables: [],
+        obsoleteTables: [],
+        newTables: [],
+        stats: {},
+        structure: {}
+      };
+
+      // 1. Lister toutes les tables
+      const tables = db.prepare(`
+        SELECT name FROM sqlite_master 
+        WHERE type='table' 
+        ORDER BY name
+      `).all();
+
+      tables.forEach(table => {
+        try {
+          const count = db.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get();
+          analysis.tables.push({ name: table.name, count: count.count });
+        } catch (e) {
+          analysis.tables.push({ name: table.name, count: 0, error: e.message });
+        }
+      });
+
+      // 2. Vérifier les tables obsolètes
+      const obsoleteTables = [
+        'adulte_game_user_games',
+        'adulte_game_proprietaires',
+        'adulte_game_labels',
+        'adulte_game_masquees',
+        'adulte_game_display_preferences',
+        'user_adulte_game_display_settings',
+        'adulte_game_tag_preferences',
+        'adulte_game_blacklist'
+      ];
+
+      obsoleteTables.forEach(tableName => {
+        const exists = db.prepare(`
+          SELECT name FROM sqlite_master 
+          WHERE type='table' AND name=?
+        `).get(tableName);
+        
+        if (exists) {
+          analysis.obsoleteTables.push(tableName);
+        }
+      });
+
+      // 3. Vérifier les nouvelles tables
+      const newTables = ['adulte_game_games', 'adulte_game_user_data', 'user_preferences'];
+      newTables.forEach(tableName => {
+        const exists = db.prepare(`
+          SELECT name FROM sqlite_master 
+          WHERE type='table' AND name=?
+        `).get(tableName);
+        
+        if (exists) {
+          try {
+            const count = db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get();
+            analysis.newTables.push({ name: tableName, count: count.count });
+          } catch (e) {
+            analysis.newTables.push({ name: tableName, count: 0, error: e.message });
+          }
+        }
+      });
+
+      // 4. Statistiques principales
+      try {
+        analysis.stats.manga_series = db.prepare('SELECT COUNT(*) as count FROM manga_series').get().count;
+      } catch (e) { analysis.stats.manga_series = 0; }
+      
+      try {
+        analysis.stats.manga_tomes = db.prepare('SELECT COUNT(*) as count FROM manga_tomes').get().count;
+      } catch (e) { analysis.stats.manga_tomes = 0; }
+      
+      try {
+        analysis.stats.animes = db.prepare('SELECT COUNT(*) as count FROM anime_series').get().count;
+      } catch (e) { analysis.stats.animes = 0; }
+      
+      try {
+        analysis.stats.games = db.prepare('SELECT COUNT(*) as count FROM adulte_game_games').get().count;
+      } catch (e) { analysis.stats.games = 0; }
+      
+      try {
+        analysis.stats.users = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+      } catch (e) { analysis.stats.users = 0; }
+
+      // 5. Structure des tables principales
+      try {
+        const manga_seriesColumns = db.pragma('table_info(manga_series)');
+        analysis.structure.manga_series = {
+          columnCount: manga_seriesColumns.length,
+          columns: manga_seriesColumns.map(c => c.name)
+        };
+      } catch (e) { analysis.structure.manga_series = { error: e.message }; }
+
+      try {
+        const animeColumns = db.pragma('table_info(anime_series)');
+        analysis.structure.anime_series = {
+          columnCount: animeColumns.length,
+          columns: animeColumns.map(c => c.name)
+        };
+      } catch (e) { analysis.structure.anime_series = { error: e.message }; }
+
+      try {
+        const gameColumns = db.pragma('table_info(adulte_game_games)');
+        analysis.structure.adulte_game_games = {
+          columnCount: gameColumns.length,
+          columns: gameColumns.map(c => c.name)
+        };
+      } catch (e) { analysis.structure.adulte_game_games = { error: e.message }; }
+
+      db.close();
+      return { success: true, analysis };
+    } catch (error) {
+      console.error('Erreur analyze-database:', error);
       return { success: false, error: error.message };
     }
   });
@@ -744,37 +919,17 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
         return { success: false, error: 'Utilisateur non trouvé' };
       }
 
-      const deleteLectureTomes = db.prepare('DELETE FROM lecture_tomes WHERE user_id = ?');
-      const resultTomes = deleteLectureTomes.run(userId);
-      console.log(`  ✓ ${resultTomes.changes} entrées lecture_tomes supprimées`);
+      const deleteMangaUserData = db.prepare('DELETE FROM manga_user_data WHERE user_id = ?');
+      const resultMangaUserData = deleteMangaUserData.run(userId);
+      console.log(`  ✓ ${resultMangaUserData.changes} données utilisateur mangas supprimées`);
 
-      const deleteLectureEpisodes = db.prepare('DELETE FROM anime_episodes_vus WHERE user_id = ?');
-      const resultEpisodes = deleteLectureEpisodes.run(userId);
-      console.log(`  ✓ ${resultEpisodes.changes} entrées anime_episodes_vus supprimées`);
+      const deleteAnimeUserData = db.prepare('DELETE FROM anime_user_data WHERE user_id = ?');
+      const resultAnimeUserData = deleteAnimeUserData.run(userId);
+      console.log(`  ✓ ${resultAnimeUserData.changes} données utilisateur animes supprimées`);
 
-      const deleteSerieTags = db.prepare('DELETE FROM serie_tags WHERE user_id = ?');
-      const resultSerieTags = deleteSerieTags.run(userId);
-      console.log(`  ✓ ${resultSerieTags.changes} tags mangas supprimés`);
-
-      const deleteAnimeTags = db.prepare('DELETE FROM anime_tags WHERE user_id = ?');
-      const resultAnimeTags = deleteAnimeTags.run(userId);
-      console.log(`  ✓ ${resultAnimeTags.changes} tags animes supprimés`);
-
-      const deleteAnimeStatuts = db.prepare('DELETE FROM anime_statut_utilisateur WHERE user_id = ?');
-      const resultAnimeStatuts = deleteAnimeStatuts.run(userId);
-      console.log(`  ✓ ${resultAnimeStatuts.changes} statuts de visionnage supprimés`);
-
-      const deleteSeriesMasquees = db.prepare('DELETE FROM series_masquees WHERE user_id = ?');
-      const resultSeriesMasquees = deleteSeriesMasquees.run(userId);
-      console.log(`  ✓ ${resultSeriesMasquees.changes} séries masquées supprimées`);
-
-      const deleteAnimeMasquees = db.prepare('DELETE FROM anime_masquees WHERE user_id = ?');
-      const resultAnimeMasquees = deleteAnimeMasquees.run(userId);
-      console.log(`  ✓ ${resultAnimeMasquees.changes} animes masqués supprimés`);
-
-      const deleteAdulteGameMasquees = db.prepare('DELETE FROM adulte_game_masquees WHERE user_id = ?');
+      const deleteAdulteGameMasquees = db.prepare('UPDATE adulte_game_user_data SET is_hidden = 0 WHERE user_id = ? AND is_hidden = 1');
       const resultAdulteGameMasquees = deleteAdulteGameMasquees.run(userId);
-      console.log(`  ✓ ${resultAdulteGameMasquees.changes} jeux adultes masqués supprimés`);
+      console.log(`  ✓ ${resultAdulteGameMasquees.changes} jeux adultes masqués réinitialisés`);
 
       const dbFolder = getPaths().databases;
       const userDbPath = path.join(dbFolder, `${userName.toLowerCase()}.db`);

@@ -13,8 +13,8 @@ function normalizeTitle(title) {
     .normalize('NFKC') // Unifie les variantes (chiffres, katakana, etc.)
     .normalize('NFD') // Décompose les caractères accentués
     .replace(/[\u0300-\u036f]/g, '') // Supprime les diacritiques (accents)
-    .replace(/[-\s'’]/g, '') // Supprime tirets, espaces, apostrophes
-    .replace(/[!?.,;:]/g, '') // Supprime ponctuation
+    .replace(/[-\s'']/g, '') // Supprime tirets, espaces, apostrophes
+    .replace(/[!?.,;:[\](){}]/g, '') // Supprime ponctuation et crochets/parenthèses
     .replace(/[ō]/g, 'o') // Normalise caractères japonais romanisés
     .replace(/[ū]/g, 'u')
     .replace(/[ā]/g, 'a')

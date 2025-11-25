@@ -26,6 +26,7 @@ const { startScheduler, syncOnStartup } = require('./services/schedulers/mal-syn
 const { startScheduler: startNautiljonScheduler } = require('./services/schedulers/nautiljon-sync-scheduler');
 const { startDatabaseSyncScheduler } = require('./services/schedulers/database-sync-scheduler');
 const sessionTracker = require('./services/adulte-game/session-tracker');
+const { startStreamingServer, getStreamingUrl, needsTranscoding } = require('./services/video-streaming-server');
 
 // Handlers
 const { registerMangaHandlers } = require('./handlers/mangas/manga-handlers');
@@ -33,12 +34,13 @@ const { registerAnimeHandlers } = require('./handlers/animes/anime-handlers');
 const { registerStatisticsHandlers } = require('./handlers/statistics/statistics-handlers');
 const { registerSettingsHandlers } = require('./handlers/settings/settings-handlers');
 const { registerSearchHandlers } = require('./handlers/search/search-handlers');
-const { registerMovieHandlers } = require('./handlers/movies/movie-handlers');
-const { registerTvHandlers } = require('./handlers/tv/tv-handlers');
+const { registerAllMovieHandlers } = require('./handlers/movies/movie-handlers');
+const { registerAllTvHandlers } = require('./handlers/tv/tv-handlers');
 const { registerUserHandlers } = require('./handlers/users/user-handlers');
 const { registerMalSyncHandlers } = require('./handlers/mal/mal-sync-handlers');
 const { registerAdulteGameHandlers } = require('./handlers/adulte-game/adulte-game-handlers');
 const { registerExportHandlers } = require('./handlers/common/export-handlers');
+const { registerImageDownloadHandlers } = require('./handlers/common/image-download-handlers');
 
 // Configuration
 // IMPORTANT : Forcer le même chemin userData en dev et production pour que les cookies soient au même endroit
@@ -66,10 +68,6 @@ const store = new Store();
 const userDataPath = app.getPath('userData');
 const { PathManager } = require('./utils/paths');
 const sessionLogger = require('./utils/session-logger');
-
-// Tracker IPC pour coverage en temps réel
-const ipcTracker = require('./utils/ipc-tracker');
-const { wrapIpcMain } = require('./utils/ipc-tracker-wrapper');
 
 // Variables globales
 let mainWindow;
@@ -165,7 +163,9 @@ function createWindow() {
       // Vider le cache en mode dev pour éviter les erreurs de cache
       cache: isDev ? false : true,
       // Utiliser une session persistante pour conserver les cookies
-      session: persistentSession
+      session: persistentSession,
+      // Autoriser l'autoplay avec son
+      autoplayPolicy: 'no-user-gesture-required'
     },
     autoHideMenuBar: true,
     icon: windowIconPath
@@ -176,6 +176,42 @@ function createWindow() {
     // Ouvrir dans le navigateur par défaut de l'utilisateur
     shell.openExternal(url);
     return { action: 'deny' }; // Empêcher l'ouverture dans Electron
+  });
+
+  // Handler pour ouvrir un fichier local avec l'application par défaut du système
+  ipcMain.handle('open-path', async (event, filePath) => {
+    try {
+      if (!filePath) {
+        return { success: false, error: 'Chemin de fichier requis' };
+      }
+      
+      // Convertir le protocole manga:// en chemin de fichier si nécessaire
+      let actualPath = filePath;
+      if (filePath.startsWith('manga://')) {
+        const urlPath = filePath.replace('manga://', '');
+        try {
+          actualPath = decodeURIComponent(urlPath);
+        } catch (e) {
+          actualPath = urlPath;
+        }
+      }
+      
+      // Vérifier que le fichier existe
+      if (!fs.existsSync(actualPath)) {
+        return { success: false, error: 'Fichier introuvable' };
+      }
+      
+      // Ouvrir avec l'application par défaut du système
+      const result = await shell.openPath(actualPath);
+      if (result) {
+        // Si result n'est pas vide, c'est une erreur
+        return { success: false, error: result };
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur open-path:', error);
+      return { success: false, error: error.message };
+    }
   });
 
   // Restaurer l'état maximisé/plein écran
@@ -265,7 +301,8 @@ function createWindow() {
 
   // Charger l'application
   if (isDev) {
-    mainWindow.loadURL('http://localhost:3000');
+    const { URLS } = require('./config/constants');
+    mainWindow.loadURL(URLS.DEV_SERVER);
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
@@ -410,15 +447,82 @@ function registerMangaProtocol(targetSession = null) {
   ses.protocol.registerFileProtocol('manga', (request, callback) => {
     try {
       // Extraire le chemin du fichier depuis l'URL manga://
-      const url = request.url.replace('manga://', '');
+      let url = request.url.replace('manga://', '');
+      
+      // Si l'URL est déjà encodée, la décoder
+      if (url.includes('%')) {
+        url = decodeURIComponent(url);
+      }
 
-      // Décoder l'URL pour gérer les espaces et caractères spéciaux
-      const decodedPath = decodeURIComponent(url);
+      console.log(`📁 [manga://] Accès à: ${url}`);
 
-      console.log(`📁 [manga://] Accès à: ${decodedPath}`);
+      // Vérifier que le fichier existe
+      const fs = require('fs');
+      if (!fs.existsSync(url)) {
+        console.error(`❌ Fichier introuvable: ${url}`);
+        callback({ error: -2 }); // FILE_NOT_FOUND
+        return;
+      }
 
-      // Retourner le chemin du fichier
-      callback({ path: decodedPath });
+      // Déterminer le mime type basé sur l'extension
+      const path = require('path');
+      let ext = path.extname(url).toLowerCase();
+      
+      // Si pas d'extension, détecter depuis les magic bytes
+      if (!ext) {
+        try {
+          const buffer = fs.readFileSync(url, { start: 0, end: 12 });
+          // MKV/WebM: 1A 45 DF A3
+          if (buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3) {
+            ext = '.mkv';
+          }
+          // AVI: RIFF...AVI 
+          else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && 
+                   buffer[8] === 0x41 && buffer[9] === 0x56 && buffer[10] === 0x49 && buffer[11] === 0x20) {
+            ext = '.avi';
+          }
+          // MP4: ftyp
+          else if ((buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) ||
+                   (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0x00 && buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70)) {
+            ext = '.mp4';
+          }
+          // Images
+          else if (buffer[0] === 0xFF && buffer[1] === 0xD8) {
+            ext = '.jpg';
+          }
+          else if (buffer[0] === 0x89 && buffer[1] === 0x50) {
+            ext = '.png';
+          }
+          else if (buffer[0] === 0x47 && buffer[1] === 0x49) {
+            ext = '.gif';
+          }
+          else if (buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+            ext = '.webp';
+          }
+        } catch (detectError) {
+          console.warn('[manga://] Impossible de détecter le type de fichier:', detectError);
+        }
+      }
+      
+      const mimeTypes = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.ogg': 'video/ogg',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.m4v': 'video/x-m4v',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp'
+      };
+      const mimeType = mimeTypes[ext] || 'application/octet-stream';
+
+      // Retourner le chemin du fichier avec le mime type
+      callback({ path: url, mimeType });
     } catch (error) {
       console.error('❌ Erreur protocole manga:', error);
       callback({ error: -2 }); // FILE_NOT_FOUND
@@ -434,6 +538,96 @@ app.whenReady().then(async () => {
   // Les cookies seront stockés dans userData/Partitions/persist_lenexus/Cookies
   // Ce chemin est indépendant du baseDirectory personnalisé choisi par l'utilisateur
   const persistentSession = session.fromPartition('persist:lenexus');
+
+  // Configurer les permissions globales de la session pour autoriser l'autoplay avec son
+  persistentSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    // Autoriser automatiquement les permissions audio/vidéo
+    if (permission === 'media' || permission === 'autoplay-media' || permission === 'microphone' || permission === 'camera') {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  persistentSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    // Autoriser les permissions média pour tous les sites
+    if (permission === 'media' || permission === 'autoplay-media' || permission === 'microphone' || permission === 'camera') {
+      return true;
+    }
+    return false;
+  });
+
+  // Configurer les en-têtes HTTP pour améliorer la compatibilité avec YouTube
+  // L'erreur 153 de YouTube est souvent liée à des problèmes d'en-têtes Referer
+  // L'erreur 4 est liée aux Permissions-Policy avec 'ch-ua-form-factors' non reconnu
+  persistentSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    // Si c'est une requête vers YouTube, ajouter un Referer valide
+    if (details.url.includes('youtube.com') || details.url.includes('youtu.be')) {
+      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+      details.requestHeaders['Origin'] = 'https://www.youtube.com';
+      // Ne pas supprimer Sec-CH-UA-Form-Factors car il peut être nécessaire
+      // delete details.requestHeaders['Sec-CH-UA-Form-Factors'];
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+  
+  // Intercepter les erreurs de console liées aux Permissions-Policy pour les ignorer (non bloquantes)
+  persistentSession.webRequest.onErrorOccurred((details) => {
+    // Ignorer silencieusement les erreurs liées aux Permissions-Policy pour YouTube
+    if (details.url.includes('youtube.com') || details.url.includes('youtu.be')) {
+      if (details.error && details.error.includes('Permissions-Policy')) {
+        // Erreur connue et non bloquante, ne pas logger
+        return;
+      }
+    }
+  });
+
+  // Intercepter les en-têtes de réponse pour filtrer les Permissions-Policy non reconnus
+  // Note: En production Electron, les iframes YouTube peuvent avoir des problèmes avec certains en-têtes
+  // On filtre uniquement les directives problématiques sans casser les fonctionnalités YouTube
+  persistentSession.webRequest.onHeadersReceived((details, callback) => {
+    let responseHeaders = details.responseHeaders || {};
+    
+    // Si c'est une réponse de YouTube embed, filtrer uniquement les Permissions-Policy problématiques
+    if ((details.url.includes('youtube.com') || details.url.includes('youtu.be')) && details.url.includes('/embed/')) {
+      // Ne filtrer que si c'est une page embed (pas les API ou autres endpoints)
+      if (responseHeaders['Permissions-Policy']) {
+        const policies = Array.isArray(responseHeaders['Permissions-Policy']) 
+          ? responseHeaders['Permissions-Policy'] 
+          : [responseHeaders['Permissions-Policy']];
+        
+        const cleanedPolicies = policies.map(policy => {
+          if (typeof policy === 'string') {
+            // Supprimer uniquement les directives contenant 'ch-ua-form-factors' qui causent l'erreur 4
+            // Garder toutes les autres directives importantes pour YouTube
+            return policy.split(',').map(part => {
+              const trimmed = part.trim();
+              // Si la directive contient ch-ua-form-factors ET qu'elle est dans la partie droite (=value), l'exclure
+              if (trimmed.includes('ch-ua-form-factors') && !trimmed.startsWith('ch-ua-form-factors=')) {
+                // C'est une directive qui permet 'ch-ua-form-factors' dans sa valeur, on la supprime
+                return '';
+              }
+              // Si c'est la directive elle-même (ch-ua-form-factors=...), on la supprime aussi
+              if (trimmed.trim().startsWith('ch-ua-form-factors=')) {
+                return '';
+              }
+              return trimmed;
+            }).filter(p => p.length > 0).join(', ');
+          }
+          return policy;
+        }).filter(p => p && (typeof p === 'string' ? p.length > 0 : true));
+        
+        if (cleanedPolicies.length > 0) {
+          responseHeaders['Permissions-Policy'] = cleanedPolicies;
+        } else {
+          // Si on a supprimé toutes les directives, garder un Permissions-Policy minimal pour éviter les erreurs
+          responseHeaders['Permissions-Policy'] = 'autoplay=(self), encrypted-media=(self), picture-in-picture=(self)';
+        }
+      }
+    }
+    
+    callback({ responseHeaders });
+  });
 
   // Log pour information sur les cookies et les chemins
   const cookiesPath = path.join(userDataPath, 'Partitions', 'persist_lenexus', 'Cookies');
@@ -480,6 +674,70 @@ app.whenReady().then(async () => {
     console.error(`   ⚠️  Erreur vérification cookies F95Zone: ${error.message}`);
   }
 
+  // Précharger YouTube pour établir une session et récupérer les cookies nécessaires
+  // Cela permet d'éviter l'erreur 4 lors du chargement d'embeds YouTube
+  async function preloadYouTubeSession() {
+    try {
+      // Vérifier si on a déjà des cookies YouTube
+      const youtubeCookies = await persistentSession.cookies.get({ domain: 'youtube.com' });
+      const youtubeCookiesWww = await persistentSession.cookies.get({ domain: '.youtube.com' });
+      const allYoutubeCookies = [...youtubeCookies, ...youtubeCookiesWww];
+      
+      // Si on a déjà des cookies YouTube récents (moins de 24h), on peut sauter le préchargement
+      const recentCookies = allYoutubeCookies.filter(c => {
+        const cookieAge = Date.now() - (c.expirationDate ? c.expirationDate * 1000 : 0);
+        return cookieAge < 24 * 60 * 60 * 1000; // 24 heures
+      });
+      
+      if (recentCookies.length > 0) {
+        console.log('✅ Cookies YouTube déjà présents, pas besoin de préchargement');
+        return;
+      }
+      
+      // Charger YouTube dans une fenêtre cachée pour établir une session
+      console.log('🔄 Préchargement de YouTube pour établir une session...');
+      const hiddenWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          session: persistentSession
+        }
+      });
+      
+      // Charger la page d'accueil YouTube avec un User-Agent standard
+      hiddenWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await hiddenWindow.loadURL('https://www.youtube.com/');
+      
+      // Attendre que la page soit chargée (mais pas trop longtemps)
+      await new Promise((resolve) => {
+        hiddenWindow.webContents.once('did-finish-load', () => {
+          // Attendre un peu plus pour que les cookies soient établis
+          setTimeout(() => {
+            hiddenWindow.close();
+            console.log('✅ Session YouTube établie');
+            resolve();
+          }, 2000);
+        });
+        
+        // Timeout de sécurité
+        setTimeout(() => {
+          hiddenWindow.close();
+          console.log('⚠️ Timeout lors du préchargement YouTube (mais ce n\'est pas critique)');
+          resolve();
+        }, 10000);
+      });
+    } catch (error) {
+      console.warn('⚠️ Erreur lors du préchargement YouTube (non bloquant):', error.message);
+      // Ne pas bloquer l'application si le préchargement échoue
+    }
+  }
+  
+  // Précharger YouTube en arrière-plan (non bloquant)
+  preloadYouTubeSession().catch(err => {
+    console.warn('⚠️ Erreur préchargement YouTube:', err.message);
+  });
+
   // Log pour information (seulement si baseDirectory est défini)
   const storedBaseDirectory = store.get('baseDirectory');
   if (storedBaseDirectory) {
@@ -495,7 +753,7 @@ app.whenReady().then(async () => {
   // Message de bienvenue
   console.log('\n╔════════════════════════════════════════════════════╗');
   console.log('║                                                    ║');
-  console.log('║              🌐 Bienvenue dans Nexus ! 🌐           ║');
+  console.log('║              🌐 Bienvenue dans Nexus ! 🌐          ║');
   console.log('║                                                    ║');
   console.log('║        Votre collection de mangas & animes         ║');
   console.log('║           organisée avec passion ! ✨              ║');
@@ -531,28 +789,15 @@ app.whenReady().then(async () => {
   const getMainWindow = () => mainWindow;
   const getDb = () => db;
   const setDb = (newDb) => { db = newDb; };
+  const setPathManager = (newPathManager) => { pathManager = newPathManager; };
 
-  // Exporter pour que les handlers puissent recharger la base de données
+  // Exporter pour que les handlers puissent recharger la base de données et le PathManager
   // Ces fonctions seront disponibles après l'initialisation
   global.getDbMain = getDb;
   global.setDbMain = setDb;
+  global.setPathManagerMain = setPathManager;
 
   // Enregistrer tous les handlers IPC AVANT de créer la fenêtre
-
-  // Activer le suivi IPC en temps réel (activé par défaut pour les essais)
-  // IMPORTANT : Wrapper ipcMain AVANT l'enregistrement des handlers
-  // Peut être désactivé via Settings → Apparence → Suivi IPC
-  const enableIPCTracking = store.get('enableIPCTracking', true); // Activé par défaut
-  if (enableIPCTracking) {
-    const trackerPath = path.join(userDataPath, 'ipc-coverage.json');
-    ipcTracker.enable(trackerPath);
-    console.log('📊 Suivi IPC activé - Coverage en temps réel');
-    // Wrapper ipcMain pour intercepter tous les appels
-    // DOIT être appelé AVANT l'enregistrement des handlers
-    wrapIpcMain(ipcMain);
-  } else {
-    console.log('ℹ️  Suivi IPC désactivé (activer via Settings → Apparence → Suivi IPC)');
-  }
 
   // Initialiser automatiquement les configurations d'enrichissement si elles n'existent pas
   if (!store.has('animeEnrichmentConfig')) {
@@ -618,14 +863,94 @@ app.whenReady().then(async () => {
     console.log('✅ Configuration enrichissement manga initialisée par défaut');
   }
 
-  registerMangaHandlers(ipcMain, getDb, getPathManager, store, getMainWindow);
+  registerMangaHandlers(ipcMain, getDb, getPathManager, store, getMainWindow, dialog);
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
   registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager);
-  registerMovieHandlers(ipcMain, getDb, store);
-  registerTvHandlers(ipcMain, getDb, store);
+  registerAllMovieHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerAllTvHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerImageDownloadHandlers(ipcMain, dialog, getMainWindow);
   registerExportHandlers(ipcMain, getDb, app, getPathManager, store);
+  
+  // Démarrer le serveur de streaming vidéo pour transcoder les MKV
+  try {
+    startStreamingServer();
+    console.log('✅ Serveur de streaming vidéo démarré');
+  } catch (error) {
+    console.error('❌ Erreur démarrage serveur de streaming:', error);
+  }
+
+  // Télécharger/mettre à jour l'index des sources au démarrage (en arrière-plan)
+  // Attendre que le baseDirectory soit défini (ou utiliser userData comme fallback)
+  const downloadIndexIfReady = async () => {
+    try {
+      // Vérifier si PathManager est disponible
+      const pm = getPathManager();
+      if (!pm) {
+        // Si PathManager n'est pas encore disponible (premier lancement),
+        // utiliser userData comme emplacement temporaire pour le cache
+        console.log('ℹ️ PathManager non disponible, utilisation de userData pour le cache de l\'index');
+        const { ensureSourceIndex } = require('./services/mihon-source-index-manager');
+        
+        // Créer un PathManager temporaire avec userData pour pouvoir télécharger l'index
+        const tempPathManager = new PathManager(userDataPath);
+        try {
+          tempPathManager.initializeStructure();
+        } catch (error) {
+          console.warn('⚠️ Impossible d\'initialiser structure temporaire:', error.message);
+        }
+        
+        const indexResult = await ensureSourceIndex(() => tempPathManager, (progress) => {
+          if (progress.step === 'downloading') {
+            console.log(`📥 ${progress.message} (${Math.round(progress.progress || 0)}%)`);
+          }
+        }, store);
+        
+        if (indexResult.success) {
+          const sourceNames = {
+            'current': '✅ Index actuel (téléchargé depuis GitHub)',
+            'previous': '✅ Index précédent (cache de secours)',
+            'embedded': '✅ Index embarqué (fallback final)'
+          };
+          console.log(`${sourceNames[indexResult.source] || '✅ Index disponible'}`);
+          console.log(`   📊 Source: ${indexResult.source}`);
+        } else {
+          console.warn(`⚠️ Index des sources non disponible: ${indexResult.error || 'Inconnu'}`);
+        }
+        return;
+      }
+      
+      // PathManager disponible, télécharger normalement
+      const { ensureSourceIndex } = require('./services/mihon-source-index-manager');
+      console.log('🔄 Vérification de l\'index des sources...');
+      
+      const indexResult = await ensureSourceIndex(getPathManager, (progress) => {
+        if (progress.step === 'downloading') {
+          console.log(`📥 ${progress.message} (${Math.round(progress.progress || 0)}%)`);
+        }
+      }, store);
+      
+      if (indexResult.success) {
+        const sourceNames = {
+          'current': '✅ Index actuel (téléchargé depuis GitHub)',
+          'previous': '✅ Index précédent (cache de secours)',
+          'embedded': '✅ Index embarqué (fallback final)'
+        };
+        console.log(`${sourceNames[indexResult.source] || '✅ Index disponible'}`);
+        console.log(`   📊 Source: ${indexResult.source}`);
+      } else {
+        console.warn(`⚠️ Index des sources non disponible: ${indexResult.error || 'Inconnu'}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la vérification de l\'index des sources:', error);
+    }
+  };
+
+  // Essayer immédiatement, puis réessayer après le chargement du baseDirectory
+  setTimeout(downloadIndexIfReady, 2000);
+  
+  // Réessayer après que le baseDirectory soit chargé (dans le code ci-dessous)
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, (dbPath) => {
     const resolvePaths = () => {
       try {
@@ -693,6 +1018,23 @@ app.whenReady().then(async () => {
   registerSearchHandlers(ipcMain, shell, getDb, store);
   registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathManager, store);
 
+  // Handler pour le plein écran de la fenêtre
+  ipcMain.handle('toggle-fullscreen', () => {
+    if (mainWindow) {
+      const isFullScreen = mainWindow.isFullScreen();
+      mainWindow.setFullScreen(!isFullScreen);
+      return { success: true, isFullScreen: !isFullScreen };
+    }
+    return { success: false, error: 'Fenêtre non disponible' };
+  });
+
+  ipcMain.handle('is-fullscreen', () => {
+    if (mainWindow) {
+      return { success: true, isFullScreen: mainWindow.isFullScreen() };
+    }
+    return { success: false, isFullScreen: false };
+  });
+
 
 
   // Créer la fenêtre principale (nécessaire pour les dialogs)
@@ -711,6 +1053,11 @@ app.whenReady().then(async () => {
     console.log('ℹ️ Premier lancement - aucune base de données créée (attente du choix de l\'emplacement)');
     db = null; // Pas de base de données pour l'instant
   } else {
+    // Si baseDirectory vient d'être défini, essayer de télécharger l'index maintenant
+    // (en plus de la tentative initiale)
+    setTimeout(() => {
+      downloadIndexIfReady();
+    }, 1000);
     console.log('📁 Base directory utilisé:', baseDirectory);
 
     // Initialiser le gestionnaire de chemins
@@ -729,6 +1076,12 @@ app.whenReady().then(async () => {
 
     console.log(`🔍 Initialisation au démarrage`);
     console.log(`📁 Dossier databases: ${paths.databases}`);
+
+    // Appliquer les migrations à toutes les bases trouvées AVANT de les utiliser
+    if (fs.existsSync(paths.databases)) {
+      const { migrateAllDatabases } = require('./services/database');
+      migrateAllDatabases(paths.databases);
+    }
 
     // Lister toutes les bases utilisateur disponibles
     let dbFiles = [];
@@ -760,10 +1113,9 @@ app.whenReady().then(async () => {
 
 
   // Démarrer le serveur d'import (pour le script Tampermonkey)
-  // Port changé de 51234 à 40000 car 51234 est dans la plage réservée par Windows (51201-51300)
-  const IMPORT_PORT = 40000;
+  const { PORTS } = require('./config/constants');
   try {
-    importServer = createImportServer(IMPORT_PORT, getDb, store, mainWindow, getPathManager);
+    importServer = createImportServer(PORTS.IMPORT_SERVER, getDb, store, mainWindow, getPathManager);
   } catch (error) {
     console.warn('⚠️ Serveur d\'import non démarré:', error.message);
   }
@@ -819,6 +1171,10 @@ app.on('window-all-closed', () => {
 // Sauvegarder la base de données avant de quitter
 app.on('before-quit', async (event) => {
   try {
+    // Arrêter le serveur de streaming
+    const { stopStreamingServer } = require('./services/video-streaming-server');
+    stopStreamingServer();
+    
     // Fusionner les bases de données avant de quitter
     if (global.performDatabaseMerge) {
       console.log('🔄 Fusion des bases de données avant fermeture...');

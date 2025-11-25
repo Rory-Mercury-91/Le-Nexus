@@ -1,8 +1,16 @@
 import { Grid3x3 } from 'lucide-react';
-import { cloneElement, isValidElement } from 'react';
+import { cloneElement, isValidElement, useMemo } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 
 type ViewMode = 'grid' | 'list' | 'images';
+
+// Interface pour les propriétés optionnelles des items
+interface ItemWithStatus {
+  statut_visionnage?: string;
+  statut_lecture?: string;
+  statut_perso?: string;
+  is_favorite?: boolean | number;
+}
 
 interface CollectionViewProps<T> {
   items: T[];
@@ -17,6 +25,13 @@ interface CollectionViewProps<T> {
   imageMinWidth?: number;
 }
 
+// Fonction helper pour générer une clé unique pour un item
+function generateItemKey<T extends { id: number | string }>(item: T & Partial<ItemWithStatus>): string {
+  const status = item.statut_visionnage || item.statut_lecture || item.statut_perso;
+  const favorite = item.is_favorite ? 'fav' : 'no-fav';
+  return status ? `${item.id}-${status}-${favorite}` : String(item.id);
+}
+
 export default function CollectionView<T extends { id: number | string }>({
   items,
   viewMode,
@@ -29,18 +44,44 @@ export default function CollectionView<T extends { id: number | string }>({
   gridMinWidth = 360,
   imageMinWidth = 200
 }: CollectionViewProps<T>) {
+  // Mémoriser les styles pour éviter les recalculs
+  const gridStyle = useMemo(() => ({
+    display: 'grid' as const,
+    gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`,
+    gap: '12px',
+    overflow: 'visible' as const,
+    position: 'relative' as const
+  }), [gridMinWidth]);
+
+  const listStyle = useMemo(() => ({
+    display: 'flex' as const,
+    flexDirection: 'column' as const,
+    gap: '12px'
+  }), []);
+
+  const imagesStyle = useMemo(() => ({
+    display: 'grid' as const,
+    gridTemplateColumns: `repeat(auto-fill, minmax(${imageMinWidth}px, 1fr))`,
+    gap: '16px',
+    padding: '20px',
+    overflow: 'visible' as const,
+    position: 'relative' as const
+  }), [imageMinWidth]);
+
+  const emptyStateStyle = useMemo(() => ({
+    textAlign: 'center' as const,
+    padding: '60px 20px',
+    background: 'var(--surface)',
+    borderRadius: '16px'
+  }), []);
+
   if (loading) {
     return <LoadingSpinner />;
   }
 
   if (items.length === 0) {
     return (
-      <div style={{
-        textAlign: 'center',
-        padding: '60px 20px',
-        background: 'var(--surface)',
-        borderRadius: '16px'
-      }}>
+      <div style={emptyStateStyle}>
         {emptyIcon || <Grid3x3 size={64} style={{ color: 'var(--text-secondary)', margin: '0 auto 24px' }} />}
         <p style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>
           {emptyMessage}
@@ -53,18 +94,9 @@ export default function CollectionView<T extends { id: number | string }>({
     <div>
       {/* Contenu selon le mode de vue */}
       {viewMode === 'grid' && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`,
-          gap: '12px',
-          overflow: 'visible',
-          position: 'relative'
-        }}>
+        <div style={gridStyle}>
           {items.map((item) => {
-            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
-            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
-              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
-              : item.id;
+            const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
             return (
               <div key={itemKey} data-scroll-id={String(item.id)}>
                 {renderCard(item, onUpdate)}
@@ -74,18 +106,10 @@ export default function CollectionView<T extends { id: number | string }>({
         </div>
       )}
 
-
       {viewMode === 'list' && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px'
-        }}>
+        <div style={listStyle}>
           {items.map((item) => {
-            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
-            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
-              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
-              : item.id;
+            const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
             return (
               <div key={itemKey} data-scroll-id={String(item.id)}>
                 {renderListItem ? renderListItem(item, onUpdate) : renderCard(item, onUpdate)}
@@ -95,26 +119,15 @@ export default function CollectionView<T extends { id: number | string }>({
         </div>
       )}
 
-
       {/* Mode Images uniquement */}
       {viewMode === 'images' && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${imageMinWidth}px, 1fr))`,
-          gap: '16px',
-          padding: '20px',
-          overflow: 'visible',
-          position: 'relative'
-        }}>
+        <div style={imagesStyle}>
           {items.map((item) => {
-            // Créer une clé unique basée sur l'id et les propriétés qui peuvent changer
-            const itemKey = (item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso
-              ? `${item.id}-${(item as any).statut_visionnage || (item as any).statut_lecture || (item as any).statut_perso}-${(item as any).is_favorite || false}`
-              : item.id;
+            const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
             const card = renderCard(item, onUpdate);
             // Cloner l'élément et ajouter imageOnly pour mode images
             const enhancedCard = isValidElement(card)
-              ? cloneElement(card as React.ReactElement<any>, { 
+              ? cloneElement(card as React.ReactElement<{ imageOnly?: boolean }>, { 
                   imageOnly: true
                 })
               : card;

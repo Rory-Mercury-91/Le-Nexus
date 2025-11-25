@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import CustomizeAdulteGameDisplayModal from '../../components/modals/adulte-game/CustomizeAdulteGameDisplayModal';
-import { ADULTE_GAME_DISPLAY_DEFAULTS, AdulteGameFieldKey } from '../../components/modals/adulte-game/displayConfig';
+import { useCallback, useEffect, useState } from 'react';
+import { ADULTE_GAME_DISPLAY_CATEGORIES, ADULTE_GAME_DISPLAY_DEFAULTS } from '../../components/modals/adulte-game/displayConfig';
 import EditAdulteGameModal from '../../components/modals/adulte-game/EditAdulteGameModal';
-import ConfirmModal from '../../components/modals/common/ConfirmModal';
+import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import { useToast } from '../../hooks/common/useToast';
 import { useAdulteGameDetail } from '../../hooks/details/useAdulteGameDetail';
 import {
@@ -19,9 +18,6 @@ export default function AdulteGameDetail() {
   const { showToast } = useToast();
   const [tagPreferences, setTagPreferences] = useState<Record<string, 'liked' | 'disliked' | 'neutral'>>({});
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [showDisplayModal, setShowDisplayModal] = useState(false);
-  const [globalDisplayPrefs, setGlobalDisplayPrefs] = useState<Record<AdulteGameFieldKey, boolean>>({ ...ADULTE_GAME_DISPLAY_DEFAULTS });
-  const [localDisplayOverrides, setLocalDisplayOverrides] = useState<Record<AdulteGameFieldKey, boolean>>({} as Record<AdulteGameFieldKey, boolean>);
 
   useEffect(() => {
     loadCurrentUser();
@@ -89,17 +85,17 @@ export default function AdulteGameDetail() {
       console.error('Erreur toggle préférence tag:', error);
     }
   };
+
   const {
     game,
     loading,
     availableVersions,
     canPlay,
     isUpdating,
-    showDeleteConfirm,
     showEditModal,
-    setShowDeleteConfirm,
     setShowEditModal,
     handleCheckUpdate,
+    handleForceCheckUpdate,
     handlePlay,
     handleLaunchVersion,
     handleEdit,
@@ -108,8 +104,45 @@ export default function AdulteGameDetail() {
     handleNotesChange,
     loadGame,
     navigate,
-    ToastContainer
+    ToastContainer,
+    ConfirmDialog
   } = useAdulteGameDetail();
+
+  // Gestion des préférences d'affichage
+  const [displayPrefs, setDisplayPrefs] = useState<Record<string, boolean>>(ADULTE_GAME_DISPLAY_DEFAULTS);
+  const [showDisplaySettingsModal, setShowDisplaySettingsModal] = useState(false);
+
+  const refreshDisplayPrefs = useCallback(async () => {
+    try {
+      const defaults = { ...ADULTE_GAME_DISPLAY_DEFAULTS };
+      const globalPrefs = await window.electronAPI.getAdulteGameDisplaySettings?.() || {};
+
+      if (game?.id) {
+        const localOverrides = await window.electronAPI.getAdulteGameDisplayOverrides?.(game.id) || {};
+        setDisplayPrefs({ ...defaults, ...globalPrefs, ...localOverrides });
+      } else {
+        setDisplayPrefs({ ...defaults, ...globalPrefs });
+      }
+    } catch (err) {
+      console.error('Erreur chargement préférences:', err);
+      setDisplayPrefs(ADULTE_GAME_DISPLAY_DEFAULTS);
+    }
+  }, [game?.id]);
+
+  useEffect(() => {
+    if (game?.id) {
+      refreshDisplayPrefs();
+    }
+  }, [game?.id, refreshDisplayPrefs]);
+
+  const handleOpenDisplaySettings = useCallback(() => {
+    setShowDisplaySettingsModal(true);
+  }, []);
+
+  const handleCloseDisplaySettings = useCallback(async () => {
+    setShowDisplaySettingsModal(false);
+    await refreshDisplayPrefs();
+  }, [refreshDisplayPrefs]);
 
   const handleLabelsUpdated = useCallback(() => {
     if (!game?.id) {
@@ -123,53 +156,14 @@ export default function AdulteGameDetail() {
     );
   }, [game?.id]);
 
-  const loadGlobalDisplayPrefs = useCallback(async () => {
-    try {
-      const prefs = await window.electronAPI.getAdulteGameDisplaySettings?.();
-      if (prefs) {
-        setGlobalDisplayPrefs({ ...ADULTE_GAME_DISPLAY_DEFAULTS, ...prefs });
-      } else {
-        setGlobalDisplayPrefs({ ...ADULTE_GAME_DISPLAY_DEFAULTS });
-      }
-    } catch (error) {
-      console.error('Erreur chargement préférences globales jeux adultes:', error);
-    }
-  }, []);
-
-  const loadLocalDisplayOverrides = useCallback(async (id: number) => {
-    try {
-      const overrides = await window.electronAPI.getAdulteGameDisplayOverrides?.(id) || {};
-      setLocalDisplayOverrides(overrides as Record<AdulteGameFieldKey, boolean>);
-    } catch (error) {
-      console.error('Erreur chargement préférences locales jeu adulte:', error);
-      setLocalDisplayOverrides({} as Record<AdulteGameFieldKey, boolean>);
-    }
-  }, []);
-
+  // Écouter les changements de display settings
   useEffect(() => {
-    loadGlobalDisplayPrefs();
-  }, [loadGlobalDisplayPrefs]);
-
-  useEffect(() => {
-    if (game?.id) {
-      loadLocalDisplayOverrides(game.id);
-    }
-  }, [game?.id, loadLocalDisplayOverrides]);
-
-  useEffect(() => {
-    const handler = () => loadGlobalDisplayPrefs();
+    const handler = () => {
+      refreshDisplayPrefs();
+    };
     window.addEventListener('adulte-game-display-settings-updated', handler);
     return () => window.removeEventListener('adulte-game-display-settings-updated', handler);
-  }, [loadGlobalDisplayPrefs]);
-
-  const displayPrefs = useMemo(() => {
-    const computed: Record<AdulteGameFieldKey, boolean> = { ...ADULTE_GAME_DISPLAY_DEFAULTS };
-    (Object.keys(computed) as AdulteGameFieldKey[]).forEach((key) => {
-      const globalValue = globalDisplayPrefs[key] ?? ADULTE_GAME_DISPLAY_DEFAULTS[key];
-      computed[key] = localDisplayOverrides[key] ?? globalValue;
-    });
-    return computed;
-  }, [globalDisplayPrefs, localDisplayOverrides]);
+  }, [refreshDisplayPrefs]);
 
   // Loading state
   if (loading) {
@@ -223,14 +217,15 @@ export default function AdulteGameDetail() {
       <AdulteGameHeader
         onBack={() => navigate('/adulte-game')}
         onCheckUpdate={handleCheckUpdate}
+        onForceCheckUpdate={handleForceCheckUpdate}
         onPlay={handlePlay}
         onPlayVersion={handleLaunchVersion}
         availableVersions={availableVersions}
         onEdit={handleEdit}
-        onDelete={() => setShowDeleteConfirm(true)}
+        onDelete={handleDelete}
         isUpdating={isUpdating}
         canPlay={canPlay}
-        onCustomizeDisplay={() => setShowDisplayModal(true)}
+        onCustomizeDisplay={handleOpenDisplaySettings}
       />
 
       <div style={{ width: '100%', minHeight: '100vh', background: 'var(--background)' }}>
@@ -238,15 +233,17 @@ export default function AdulteGameDetail() {
         <div style={{ height: '70px' }} />
 
         {/* Bannière */}
-        <AdulteGameBanner
-          coverUrl={game.couverture_url}
-          title={game.titre}
-          gameId={game.id}
-          onCoverUpdated={loadGame}
-        />
+        <div style={{ padding: '40px 20px 0', maxWidth: '1600px', margin: '0 auto' }}>
+          <AdulteGameBanner
+            coverUrl={game.couverture_url}
+            title={game.titre}
+            gameId={game.id}
+            onCoverUpdated={loadGame}
+          />
+        </div>
 
-        {/* Contenu principal */}
-        <div style={{ padding: '30px', maxWidth: '1600px', margin: '0 auto' }}>
+        {/* Contenu principal - Padding aligné avec MangaDetail */}
+        <div style={{ padding: '20px 20px 80px', maxWidth: '1600px', margin: '0 auto' }}>
           {/* Ligne 1 : Informations principales + Paramètres personnels */}
           {(displayPrefs.main_info || displayPrefs.user_params) && (
             <div
@@ -321,6 +318,7 @@ export default function AdulteGameDetail() {
                 {showTranslation && (
                   <AdulteGameTraductionCard
                     version_traduite={game.version_traduite}
+                    version_actuelle={game.version}
                     type_trad_fr={game.type_trad_fr}
                     traducteur={game.traducteur}
                     lien_traduction={game.lien_traduction}
@@ -357,30 +355,36 @@ export default function AdulteGameDetail() {
         />
       )}
 
-      {showDeleteConfirm && (
-        <ConfirmModal
-          title="Supprimer le jeu"
-          message={`Êtes-vous sûr de vouloir supprimer "${game.titre}" ?`}
-          confirmText="Supprimer"
-          cancelText="Annuler"
-          onConfirm={() => {
-            setShowDeleteConfirm(false);
-            handleDelete();
+      {showDisplaySettingsModal && game && (
+        <DisplaySettingsModal
+          title="Affichage du jeu"
+          description="Les modifications locales surchargent les paramètres globaux pour ce jeu."
+          fields={ADULTE_GAME_DISPLAY_CATEGORIES as DisplayFieldCategory[]}
+          mode="global-local"
+          itemId={game.id}
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getAdulteGameDisplaySettings?.();
+            return prefs || ADULTE_GAME_DISPLAY_DEFAULTS;
           }}
-          onCancel={() => setShowDeleteConfirm(false)}
+          loadLocalOverrides={async (itemId) => {
+            const overrides = await window.electronAPI.getAdulteGameDisplayOverrides?.(itemId);
+            return overrides || {};
+          }}
+          saveLocalOverrides={async (itemId, overrides) => {
+            await window.electronAPI.saveAdulteGameDisplayOverrides?.(itemId, overrides);
+          }}
+          deleteLocalOverrides={async (itemId, keys) => {
+            await window.electronAPI.deleteAdulteGameDisplayOverrides?.(itemId, keys);
+          }}
+          onSave={() => {
+            handleCloseDisplaySettings();
+          }}
+          onClose={handleCloseDisplaySettings}
+          showToast={showToast}
         />
       )}
 
-      {showDisplayModal && (
-        <CustomizeAdulteGameDisplayModal
-          gameId={game.id}
-          onClose={() => setShowDisplayModal(false)}
-          onSave={() => {
-            loadGlobalDisplayPrefs();
-            loadLocalDisplayOverrides(game.id);
-          }}
-        />
-      )}
+      <ConfirmDialog />
     </>
   );
 }

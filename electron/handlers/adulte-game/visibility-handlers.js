@@ -21,9 +21,14 @@ function registerVisibilityHandlers(ipcMain, getDb, store) {
         return { success: false, error: 'Utilisateur non trouvé' };
       }
 
+      // Mettre à jour ou créer l'entrée dans adulte_game_user_data
       db.prepare(`
-        INSERT OR REPLACE INTO adulte_game_masquees (adulte_game_id, user_id, date_masquage)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO adulte_game_user_data (game_id, user_id, is_hidden, date_masquage, created_at, updated_at)
+        VALUES (?, ?, 1, CURRENT_TIMESTAMP, datetime('now'), datetime('now'))
+        ON CONFLICT(game_id, user_id) DO UPDATE SET
+          is_hidden = 1,
+          date_masquage = CURRENT_TIMESTAMP,
+          updated_at = datetime('now')
       `).run(adulteGameId, userId);
 
       console.log(`✅ Jeu adulte ${adulteGameId} masqué pour ${currentUser}`);
@@ -47,7 +52,12 @@ function registerVisibilityHandlers(ipcMain, getDb, store) {
         return { success: false, error: 'Utilisateur non trouvé' };
       }
 
-      db.prepare('DELETE FROM adulte_game_masquees WHERE adulte_game_id = ? AND user_id = ?').run(adulteGameId, userId);
+      // Mettre à jour is_hidden dans adulte_game_user_data
+      db.prepare(`
+        UPDATE adulte_game_user_data
+        SET is_hidden = 0, date_masquage = NULL, updated_at = datetime('now')
+        WHERE game_id = ? AND user_id = ?
+      `).run(adulteGameId, userId);
 
       console.log(`✅ Jeu adulte ${adulteGameId} démasqué pour ${currentUser}`);
       return { success: true };
@@ -68,8 +78,11 @@ function registerVisibilityHandlers(ipcMain, getDb, store) {
 
       if (!userId) return false;
 
-      const result = db.prepare('SELECT 1 FROM adulte_game_masquees WHERE adulte_game_id = ? AND user_id = ?').get(adulteGameId, userId);
-      return !!result;
+      const result = db.prepare(`
+        SELECT is_hidden FROM adulte_game_user_data 
+        WHERE game_id = ? AND user_id = ?
+      `).get(adulteGameId, userId);
+      return result ? result.is_hidden === 1 : false;
     } catch (error) {
       console.error('❌ Erreur is-adulte-game-masquee:', error);
       return false;

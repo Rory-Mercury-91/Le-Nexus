@@ -172,7 +172,7 @@ function parseNautiljonData(mangaData) {
     auteurs: mangaData._auteurs || null,
     serialization: mangaData._prepublication || null,
     couverture_url: mangaData.couverture_url || null,
-    nautiljon_url: mangaData._url || mangaData._source || null,
+    nautiljon_url: mangaData.nautiljon_url || mangaData._url || null,
     volumes: Array.isArray(mangaData.volumes) ? mangaData.volumes : []
   };
 }

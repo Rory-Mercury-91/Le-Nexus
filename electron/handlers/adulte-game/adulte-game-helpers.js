@@ -17,8 +17,9 @@ function parseTags(tags) {
     if (Array.isArray(tags)) {
       return tags;
     }
+    const { safeJsonParse } = require('../common-helpers');
     if (typeof tags === 'string' && tags.trim().startsWith('[')) {
-      return JSON.parse(tags);
+      return safeJsonParse(tags, []);
     }
     if (typeof tags === 'string') {
       return tags.split(',').map(t => t.trim()).filter(t => t.length > 0);

@@ -62,8 +62,8 @@ export default function CardFooter({ title, isFavorite, onToggleFavorite, action
             height: '28px',
             borderRadius: '50%',
             background: isFavorite ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
-            border: isFavorite ? '2px solid #ef4444' : '2px solid var(--border)',
-            color: isFavorite ? '#ef4444' : 'var(--text-secondary)',
+            border: isFavorite ? '2px solid var(--error)' : '2px solid var(--border)',
+            color: isFavorite ? 'var(--error)' : 'var(--text-secondary)',
             cursor: 'pointer',
             transition: 'all 0.2s',
             padding: 0
@@ -77,7 +77,7 @@ export default function CardFooter({ title, isFavorite, onToggleFavorite, action
             e.currentTarget.style.background = isFavorite ? 'rgba(239, 68, 68, 0.1)' : 'transparent';
           }}
         >
-          <Heart size={14} fill={isFavorite ? '#ef4444' : 'none'} strokeWidth={2.5} />
+          <Heart size={14} fill={isFavorite ? 'var(--error)' : 'none'} strokeWidth={2.5} />
         </button>
       </div>
     </div>

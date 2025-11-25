@@ -102,10 +102,7 @@ export default function AdulteGameTranslatorsSettings({
             className="input"
             style={{
               width: '100%',
-              paddingLeft: '40px',
-              background: 'var(--surface)',
-              borderColor: 'var(--border)',
-              color: 'var(--text)'
+              paddingLeft: '40px'
             }}
           />
         </div>

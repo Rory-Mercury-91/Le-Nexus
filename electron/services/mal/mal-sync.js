@@ -10,6 +10,7 @@ const { updateMangaUserStatus, updateAnimeUserStatus } = require('./mal-user-sta
 const { getValidAccessToken } = require('./mal-token');
 const { translateSynopsisInBackground } = require('./mal-translation');
 const sessionLogger = require('../../utils/session-logger');
+const { generateReport } = require('../../utils/report-generator');
 
 /**
  * Effectue une synchronisation complète avec MyAnimeList
@@ -42,42 +43,76 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
     let mangasSynced = 0;
     let mangasUpdated = 0;
     let mangasCreated = 0;
+    const mangaReportData = {
+      created: [],
+      updated: [],
+      failed: []
+    };
     const startTime = Date.now();
+    
+    const MANGA_BATCH_SIZE = 5;
+    const MANGA_BATCH_DELAY_MS = 35;
     
     for (let i = 0; i < mangas.length; i++) {
       const malManga = mangas[i];
+      const mangaNode = malManga.node || malManga;
       
       try {
         const mangaData = transformMangaData(malManga);
         
-        // Vérifier si la série existe
-        const existingSerie = db.prepare('SELECT id FROM series WHERE mal_id = ?').get(mangaData.mal_id);
+        // Vérifier si la série existe et récupérer ses informations
+        const existingSerie = db.prepare('SELECT id, source_url FROM manga_series WHERE mal_id = ?').get(mangaData.mal_id);
         const isUpdate = !!existingSerie;
         
         // syncMangaSeries attend l'entrée complète (avec node et list_status)
-        const serieId = await syncMangaSeries(db, currentUser, malManga);
+        const mangaSyncResult = await syncMangaSeries(db, currentUser, malManga);
+        const serieId = mangaSyncResult.id;
         updateMangaUserStatus(db, currentUser, serieId, mangaData);
+        
+        // Récupérer les informations complètes de la série après sync pour le rapport
+        const serieInfo = db.prepare('SELECT source_url FROM manga_series WHERE id = ?').get(serieId);
         
         mangasSynced++;
         if (isUpdate) {
           mangasUpdated++;
+          mangaReportData.updated.push({
+            titre: mangaNode.title,
+            serieId: serieId,
+            mal_id: mangaData.mal_id,
+            source_url: serieInfo?.source_url || null,
+            changes: mangaSyncResult.changes || []
+          });
         } else {
           mangasCreated++;
+          mangaReportData.created.push({
+            titre: mangaNode.title,
+            serieId: serieId,
+            mal_id: mangaData.mal_id,
+            source_url: serieInfo?.source_url || null
+          });
         }
       } catch (error) {
         console.error(`❌ Erreur sync manga ${malManga.id}:`, error.message);
+        mangaReportData.failed.push({
+          titre: mangaNode.title || 'Sans titre',
+          error: error.message || String(error),
+          mal_id: mangaNode.id
+        });
       }
       
-      // Notifier la progression avec les statistiques
-      if (onProgress) {
+      const shouldEmitBatch = ((i + 1) % MANGA_BATCH_SIZE === 0) || i === mangas.length - 1;
+      
+      // Notifier la progression avec les statistiques par lot
+      if (onProgress && shouldEmitBatch) {
         const elapsedMs = Date.now() - startTime;
-        const remainingCount = mangas.length - (i + 1);
-        const speed = (i + 1) / (elapsedMs / 60000); // items par minute
+        const processedCount = i + 1;
+        const remainingCount = mangas.length - processedCount;
+        const speed = processedCount / (elapsedMs / 60000); // items par minute
         const etaMs = isFinite(speed) && speed > 0 ? (remainingCount / speed) * 60000 : null;
         
         onProgress({
           type: 'manga',
-          current: i + 1,
+          current: processedCount,
           total: mangas.length,
           item: (malManga.node || malManga).title,
           imported: mangasCreated,
@@ -88,9 +123,8 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
         });
       }
       
-      // Permettre à l'event loop de traiter les événements de l'interface tous les 5 items
-      if ((i + 1) % 5 === 0) {
-        await new Promise(resolve => setImmediate(resolve));
+      if (shouldEmitBatch && (i + 1) % MANGA_BATCH_SIZE === 0) {
+        await new Promise(resolve => setTimeout(resolve, MANGA_BATCH_DELAY_MS));
       }
     }
     
@@ -98,6 +132,11 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
     let animesSynced = 0;
     let animesUpdated = 0;
     let animesCreated = 0;
+    const animeReportData = {
+      created: [],
+      updated: [],
+      failed: []
+    };
     const animeStartTime = Date.now();
     
     const ANIME_BATCH_SIZE = 5;
@@ -105,26 +144,44 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
 
     for (let i = 0; i < animes.length; i++) {
       const malAnime = animes[i];
+      const animeNode = malAnime.node || malAnime;
       
       try {
         const animeData = transformAnimeData(malAnime);
         
-        // Vérifier si l'anime existe
+        // Vérifier si l'anime existe et récupérer ses informations
         const existingAnime = db.prepare('SELECT id FROM anime_series WHERE mal_id = ?').get(animeData.mal_id);
         const isUpdate = !!existingAnime;
         
         // syncAnimeSeries attend l'entrée complète (avec node et list_status)
-        const animeId = await syncAnimeSeries(db, currentUser, malAnime);
+        const animeSyncResult = await syncAnimeSeries(db, currentUser, malAnime);
+        const animeId = animeSyncResult.id;
         updateAnimeUserStatus(db, currentUser, animeId, animeData);
         
         animesSynced++;
         if (isUpdate) {
           animesUpdated++;
+          animeReportData.updated.push({
+            titre: animeNode.title,
+            animeId: animeId,
+            mal_id: animeData.mal_id,
+            changes: animeSyncResult.changes || []
+          });
         } else {
           animesCreated++;
+          animeReportData.created.push({
+            titre: animeNode.title,
+            animeId: animeId,
+            mal_id: animeData.mal_id
+          });
         }
       } catch (error) {
         console.error(`❌ Erreur sync anime ${malAnime.id}:`, error.message);
+        animeReportData.failed.push({
+          titre: animeNode.title || 'Sans titre',
+          error: error.message || String(error),
+          mal_id: animeNode.id
+        });
       }
       
       const shouldEmitBatch = ((i + 1) % ANIME_BATCH_SIZE === 0) || i === animes.length - 1;
@@ -180,14 +237,14 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
     console.log(`   📚 Mangas: ${mangasCreated} créé(s), ${mangasUpdated} mis à jour, ${mangasSynced} total`);
     console.log(`   🎬 Animes: ${animesCreated} créé(s), ${animesUpdated} mis à jour, ${animesSynced} total`);
     
-    // Démarrer l'enrichissement des mangas et animes en arrière-plan (sans bloquer)
+    // Démarrer l'enrichissement des mangas et animes en arrière-plan (séquentiellement, non-bloquant)
     if (getDb) {
       // Enrichissement des mangas
       const { processEnrichmentQueue: processMangaEnrichmentQueue } = require('../mangas/manga-enrichment-queue');
       const mangaEnrichmentConfig = store.get('mangaEnrichmentConfig', {});
       if (mangaEnrichmentConfig.enabled) {
         console.log('🚀 Démarrage de l\'enrichissement des mangas en arrière-plan...');
-        // Lancer l'enrichissement de manière asynchrone sans attendre
+        // Lancer l'enrichissement manga, puis l'anime après (séquentiel mais non-bloquant)
         processMangaEnrichmentQueue(
           getDb,
           currentUser,
@@ -196,27 +253,45 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
           getMainWindow // Passer getMainWindow pour envoyer les événements IPC
         ).then((stats) => {
           console.log(`✅ Enrichissement manga terminé: ${stats.enriched} enrichis, ${stats.errors} erreurs`);
+          
+          // Enrichissement des animes (après les mangas)
+          const { processEnrichmentQueue: processAnimeEnrichmentQueue } = require('../animes/anime-enrichment-queue');
+          const animeEnrichmentConfig = store.get('animeEnrichmentConfig', {});
+          if (animeEnrichmentConfig.enabled) {
+            console.log('🚀 Démarrage de l\'enrichissement des animes en arrière-plan...');
+            return processAnimeEnrichmentQueue(
+              getDb,
+              currentUser,
+              null, // Ne pas utiliser le callback onProgress de mal-sync, utiliser les événements IPC directs
+              getMainWindow, // Passer getMainWindow pour envoyer les événements IPC
+              getPathManager // Passer getPathManager pour générer le rapport
+            );
+          }
+        }).then((stats) => {
+          if (stats) {
+            console.log(`✅ Enrichissement anime terminé: ${stats.enriched} enrichis, ${stats.errors} erreurs`);
+          }
         }).catch((error) => {
-          console.error('❌ Erreur enrichissement manga:', error);
+          console.error('❌ Erreur enrichissement:', error);
         });
-      }
-      
-      // Enrichissement des animes
-      const { processEnrichmentQueue: processAnimeEnrichmentQueue } = require('../animes/anime-enrichment-queue');
-      const animeEnrichmentConfig = store.get('animeEnrichmentConfig', {});
-      if (animeEnrichmentConfig.enabled) {
-        console.log('🚀 Démarrage de l\'enrichissement des animes en arrière-plan...');
-        // Lancer l'enrichissement de manière asynchrone sans attendre
-        processAnimeEnrichmentQueue(
-          getDb,
-          currentUser,
-          null, // Ne pas utiliser le callback onProgress de mal-sync, utiliser les événements IPC directs
-          getMainWindow // Passer getMainWindow pour envoyer les événements IPC
-        ).then((stats) => {
-          console.log(`✅ Enrichissement anime terminé: ${stats.enriched} enrichis, ${stats.errors} erreurs`);
-        }).catch((error) => {
-          console.error('❌ Erreur enrichissement anime:', error);
-        });
+      } else {
+        // Si l'enrichissement manga est désactivé, lancer directement l'enrichissement anime
+        const { processEnrichmentQueue: processAnimeEnrichmentQueue } = require('../animes/anime-enrichment-queue');
+        const animeEnrichmentConfig = store.get('animeEnrichmentConfig', {});
+        if (animeEnrichmentConfig.enabled) {
+          console.log('🚀 Démarrage de l\'enrichissement des animes en arrière-plan...');
+          processAnimeEnrichmentQueue(
+            getDb,
+            currentUser,
+            null,
+            getMainWindow,
+            getPathManager
+          ).then((stats) => {
+            console.log(`✅ Enrichissement anime terminé: ${stats.enriched} enrichis, ${stats.errors} erreurs`);
+          }).catch((error) => {
+            console.error('❌ Erreur enrichissement anime:', error);
+          });
+        }
       }
     }
     
@@ -234,6 +309,36 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
         updated: animesUpdated
       }
     });
+
+    // Générer le rapport d'état
+    if (getPathManager) {
+      generateReport(getPathManager, {
+        type: 'mal-sync',
+        stats: {
+          total: mangas.length + animes.length,
+          created: mangasCreated + animesCreated,
+          updated: mangasUpdated + animesUpdated,
+          errors: mangaReportData.failed.length + animeReportData.failed.length
+        },
+        created: [...mangaReportData.created, ...animeReportData.created],
+        updated: [...mangaReportData.updated, ...animeReportData.updated],
+        failed: [...mangaReportData.failed, ...animeReportData.failed],
+        metadata: {
+          user: currentUser,
+          duration: durationMs,
+          mangas: {
+            total: mangasSynced,
+            created: mangasCreated,
+            updated: mangasUpdated
+          },
+          animes: {
+            total: animesSynced,
+            created: animesCreated,
+            updated: animesUpdated
+          }
+        }
+      });
+    }
 
     return {
       success: true,
@@ -265,7 +370,7 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
  * @param {string} currentUser - Nom de l'utilisateur actuel
  * @returns {Promise<Object>} Résultat de la synchronisation des statuts
  */
-async function performStatusSync(db, store, currentUser) {
+async function performStatusSync(db, store, currentUser, getPathManager = null) {
   const syncStart = Date.now();
   const resultSummary = {
     mangas: {
@@ -276,6 +381,11 @@ async function performStatusSync(db, store, currentUser) {
       updated: 0,
       missing: 0
     }
+  };
+  const reportData = {
+    updated: [],
+    missing: [],
+    failed: []
   };
 
   try {
@@ -290,7 +400,7 @@ async function performStatusSync(db, store, currentUser) {
     const mangas = await getUserMangaList(accessToken);
     const animes = await getUserAnimeList(accessToken);
 
-    const getSerieByMalId = db.prepare('SELECT id FROM series WHERE mal_id = ?');
+    const getSerieByMalId = db.prepare('SELECT id FROM manga_series WHERE mal_id = ?');
     const getAnimeByMalId = db.prepare('SELECT id FROM anime_series WHERE mal_id = ?');
 
     let processedMangas = 0;
@@ -300,6 +410,10 @@ async function performStatusSync(db, store, currentUser) {
 
       if (!existingSerie) {
         resultSummary.mangas.missing += 1;
+        reportData.missing.push({
+          titre: mangaNode.title || 'Sans titre',
+          mal_id: mangaNode.id
+        });
         continue;
       }
 
@@ -307,8 +421,18 @@ async function performStatusSync(db, store, currentUser) {
         const mangaData = transformMangaData(malManga);
         updateMangaUserStatus(db, currentUser, existingSerie.id, mangaData);
         resultSummary.mangas.updated += 1;
+        reportData.updated.push({
+          titre: mangaNode.title || 'Sans titre',
+          serieId: existingSerie.id,
+          mal_id: mangaNode.id
+        });
       } catch (error) {
         console.error(`❌ Erreur mise à jour statut manga ${mangaNode.id}:`, error);
+        reportData.failed.push({
+          titre: mangaNode.title || 'Sans titre',
+          error: error.message || String(error),
+          mal_id: mangaNode.id
+        });
       }
 
       processedMangas += 1;
@@ -324,6 +448,10 @@ async function performStatusSync(db, store, currentUser) {
 
       if (!existingAnime) {
         resultSummary.animes.missing += 1;
+        reportData.missing.push({
+          titre: animeNode.title || 'Sans titre',
+          mal_id: animeNode.id
+        });
         continue;
       }
 
@@ -331,8 +459,18 @@ async function performStatusSync(db, store, currentUser) {
         const animeData = transformAnimeData(malAnime);
         updateAnimeUserStatus(db, currentUser, existingAnime.id, animeData);
         resultSummary.animes.updated += 1;
+        reportData.updated.push({
+          titre: animeNode.title || 'Sans titre',
+          animeId: existingAnime.id,
+          mal_id: animeNode.id
+        });
       } catch (error) {
         console.error(`❌ Erreur mise à jour statut anime ${animeNode.id}:`, error);
+        reportData.failed.push({
+          titre: animeNode.title || 'Sans titre',
+          error: error.message || String(error),
+          mal_id: animeNode.id
+        });
       }
 
       processedAnimes += 1;
@@ -357,6 +495,26 @@ async function performStatusSync(db, store, currentUser) {
     });
 
     console.log(`✅ Statuts MAL synchronisés (mangas: ${resultSummary.mangas.updated}, animes: ${resultSummary.animes.updated})`);
+
+    // Générer le rapport d'état
+    if (getPathManager) {
+      generateReport(getPathManager, {
+        type: 'mal-status-sync',
+        stats: {
+          total: mangas.length + animes.length,
+          updated: resultSummary.mangas.updated + resultSummary.animes.updated,
+          missing: resultSummary.mangas.missing + resultSummary.animes.missing,
+          errors: reportData.failed.length
+        },
+        updated: reportData.updated,
+        failed: reportData.failed,
+        metadata: {
+          user: currentUser,
+          duration: durationMs,
+          missing: reportData.missing
+        }
+      });
+    }
 
     return {
       success: true,

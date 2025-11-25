@@ -1,0 +1,90 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Déclenche sur les tags de version (ex: v1.0.0, v1.2.3)
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Extract version from tag
+        id: extract_version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          # Enlever le préfixe 'v' si présent (ex: v1.0.0 -> 1.0.0)
+          $version = $tag -replace '^v', ''
+          Write-Host "Version extraite du tag: $version"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+      
+      - name: Update package.json version
+        shell: pwsh
+        run: |
+          $version = "${{ steps.extract_version.outputs.version }}"
+          $packageJson = Get-Content package.json | ConvertFrom-Json
+          $packageJson.version = $version
+          $packageJson | ConvertTo-Json -Depth 100 | Set-Content package.json
+          Write-Host "Version mise à jour dans package.json: $version"
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build:win:clean
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: List build artifacts
+        shell: pwsh
+        run: |
+          Write-Host "=== Contenu du dossier dist ==="
+          if (Test-Path "dist") {
+            Get-ChildItem -Path "dist" -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
+          } else {
+            Write-Host "Le dossier dist n'existe pas"
+          }
+          
+          Write-Host "`n=== Contenu du dossier release (si existe) ==="
+          if (Test-Path "release") {
+            Get-ChildItem -Path "release" -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
+          }
+      
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            dist/**/*.exe
+            dist/**/*.zip
+            release/**/*.exe
+            release/**/*.zip
+          if-no-files-found: warn
+          retention-days: 30
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/**/*.exe
+            dist/**/*.zip
+            release/**/*.exe
+            release/**/*.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

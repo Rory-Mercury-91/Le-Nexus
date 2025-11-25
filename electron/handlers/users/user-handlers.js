@@ -81,12 +81,9 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
           }
         }
 
-        // 3) Fallback : si aucune entrée n'a été trouvée ou si certaines bases n'ont pas de table users,
-        // ajouter un placeholder basé sur le nom du fichier
-        dbFiles.forEach(file => {
-          const name = path.basename(file, '.db');
-          pushUser({ name });
-        });
+        // 3) Fallback supprimé : on ne crée plus d'utilisateurs basés sur les noms de fichiers
+        // car cela recréait des utilisateurs supprimés. Seuls les utilisateurs présents
+        // dans la table users de chaque base sont retournés.
       }
 
       return usersAggregate;
@@ -200,48 +197,172 @@ function registerUserHandlers(ipcMain, dialog, getMainWindow, getDb, getPathMana
   
   /**
    * Supprimer un utilisateur
+   * Cherche l'utilisateur dans toutes les bases de données par son nom et le supprime
    */
-  ipcMain.handle('users:delete', (event, userId) => {
+  ipcMain.handle('users:delete', (event, userName) => {
     try {
-      const db = getDb();
+      const Database = require('better-sqlite3');
+      const { initDatabase } = require('../../services/database');
+      const paths = getPathsLocal();
       
-      // Récupérer l'utilisateur avant de le supprimer
-      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
-      if (!user) {
-        return { success: false, error: 'Utilisateur introuvable' };
+      // Chercher l'utilisateur dans toutes les bases par son nom
+      let user = null;
+      let userDb = null;
+      let userDbPath = null;
+      
+      // 1) Chercher dans la base actuellement chargée
+      const currentDb = getDb();
+      if (currentDb) {
+        try {
+          user = currentDb.prepare('SELECT * FROM users WHERE name = ?').get(userName);
+          if (user) {
+            userDb = currentDb;
+          }
+        } catch (error) {
+          console.warn('⚠️ Erreur lecture base actuelle:', error.message);
+        }
       }
       
-      // Vérifier qu'il reste au moins 2 utilisateurs
-      const usersCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-      if (usersCount <= 1) {
+      // 2) Si pas trouvé, chercher dans toutes les bases databases/*.db
+      if (!user && paths.databases && fs.existsSync(paths.databases)) {
+        const dbFiles = fs.readdirSync(paths.databases).filter(file =>
+          file.endsWith('.db') && !file.startsWith('temp_')
+        );
+        
+        for (const file of dbFiles) {
+          userDbPath = path.join(paths.databases, file);
+          try {
+            const tempDb = new Database(userDbPath, { readonly: true });
+            const foundUser = tempDb.prepare('SELECT * FROM users WHERE name = ?').get(userName);
+            tempDb.close();
+            
+            if (foundUser) {
+              user = foundUser;
+              userDb = initDatabase(userDbPath);
+              break;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Erreur lecture base ${file}:`, error.message);
+          }
+        }
+      }
+      
+      if (!user || !userDb) {
+        return { success: false, error: `Utilisateur "${userName}" introuvable` };
+      }
+      
+      const userId = user.id;
+      
+      // Vérifier qu'il reste au moins 2 utilisateurs (compter dans toutes les bases)
+      let totalUsersCount = 0;
+      
+      // Compter dans la base actuelle
+      if (currentDb) {
+        try {
+          totalUsersCount += currentDb.prepare('SELECT COUNT(*) as count FROM users').get().count;
+        } catch (error) {
+          console.warn('⚠️ Erreur comptage base actuelle:', error.message);
+        }
+      }
+      
+      // Compter dans les autres bases
+      if (paths.databases && fs.existsSync(paths.databases)) {
+        const dbFiles = fs.readdirSync(paths.databases).filter(file =>
+          file.endsWith('.db') && !file.startsWith('temp_')
+        );
+        
+        const seenNames = new Set();
+        for (const file of dbFiles) {
+          const dbPath = path.join(paths.databases, file);
+          try {
+            const tempDb = new Database(dbPath, { readonly: true });
+            const users = tempDb.prepare('SELECT name FROM users').all();
+            tempDb.close();
+            
+            users.forEach(u => {
+              const key = (u.name || '').toLowerCase();
+              if (!seenNames.has(key)) {
+                seenNames.add(key);
+                totalUsersCount++;
+              }
+            });
+          } catch (error) {
+            console.warn(`⚠️ Erreur comptage base ${file}:`, error.message);
+          }
+        }
+      }
+      
+      if (totalUsersCount <= 1) {
+        // Fermer la base si on l'a ouverte
+        if (userDbPath && userDb !== currentDb) {
+          try {
+            userDb.close();
+          } catch (error) {
+            console.warn(`⚠️ Erreur fermeture base utilisateur: ${error.message}`);
+          }
+        }
         return { success: false, error: 'Impossible de supprimer le dernier utilisateur' };
       }
       
-
-      
       // Supprimer les données de l'utilisateur (via user_id maintenant)
-      db.prepare('DELETE FROM lecture_tomes WHERE user_id = ?').run(userId);
-      db.prepare('DELETE FROM series_masquees WHERE user_id = ?').run(userId);
-      db.prepare('DELETE FROM anime_episodes_vus WHERE user_id = ?').run(userId);
-      db.prepare('DELETE FROM anime_statut_utilisateur WHERE user_id = ?').run(userId);
-      
-      // Pour les tomes, on ne supprime que les entrées de lecture, pas les tomes eux-mêmes
-      // car ils peuvent appartenir à plusieurs utilisateurs
+      userDb.prepare('DELETE FROM manga_user_data WHERE user_id = ?').run(userId);
+      userDb.prepare('DELETE FROM anime_user_data WHERE user_id = ?').run(userId);
+      userDb.prepare('DELETE FROM movie_user_data WHERE user_id = ?').run(userId);
+      userDb.prepare('DELETE FROM tv_show_user_data WHERE user_id = ?').run(userId);
+      userDb.prepare('DELETE FROM adulte_game_user_data WHERE user_id = ?').run(userId);
+      userDb.prepare('DELETE FROM user_preferences WHERE user_id = ?').run(userId);
       
       // Supprimer l'avatar si existant
       if (user.avatar_path && fs.existsSync(user.avatar_path)) {
         try {
           fs.unlinkSync(user.avatar_path);
-
         } catch (error) {
           console.warn(`⚠️ Impossible de supprimer l'avatar: ${error.message}`);
         }
       }
       
-      // Supprimer l'utilisateur de la table
-      db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+      // Supprimer l'utilisateur de sa base
+      userDb.prepare('DELETE FROM users WHERE id = ?').run(userId);
       
-
+      // Supprimer aussi de la base actuellement chargée si différente
+      if (currentDb && userDb !== currentDb) {
+        try {
+          const userInCurrent = currentDb.prepare('SELECT * FROM users WHERE name = ?').get(userName);
+          if (userInCurrent) {
+            currentDb.prepare('DELETE FROM users WHERE name = ?').run(userName);
+          }
+        } catch (error) {
+          console.warn('⚠️ Erreur suppression base actuelle:', error.message);
+        }
+      }
+      
+      // Fermer la base avant de supprimer le fichier
+      if (userDbPath && userDb !== currentDb) {
+        try {
+          userDb.close();
+        } catch (error) {
+          console.warn(`⚠️ Erreur fermeture base utilisateur: ${error.message}`);
+        }
+      }
+      
+      // Supprimer le fichier de base de données de l'utilisateur si c'est une base dédiée
+      if (userDbPath && paths.databases && fs.existsSync(userDbPath)) {
+        try {
+          // Vérifier que le fichier correspond bien à l'utilisateur (nom du fichier = nom utilisateur en minuscule)
+          const expectedFileName = `${userName.toLowerCase()}.db`;
+          const actualFileName = path.basename(userDbPath);
+          
+          if (actualFileName === expectedFileName) {
+            fs.unlinkSync(userDbPath);
+            console.log(`✅ Fichier de base de données supprimé: ${userDbPath}`);
+          } else {
+            console.warn(`⚠️ Nom de fichier ne correspond pas (${actualFileName} vs ${expectedFileName}), suppression non effectuée`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erreur suppression fichier base ${userDbPath}:`, error.message);
+        }
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'utilisateur:', error);
