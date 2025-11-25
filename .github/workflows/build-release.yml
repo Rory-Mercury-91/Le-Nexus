@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: write  # Nécessaire pour créer des releases
       id-token: write  # Nécessaire pour l'authentification
+      pull-requests: write  # Nécessaire pour certaines actions GitHub
     
     steps:
       - name: Checkout code
@@ -136,13 +137,10 @@ jobs:
           retention-days: 30
       
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/*.exe
-            dist/*.zip
-            dist_electron/*.exe
-            dist_electron/*.zip
           fail_on_unmatched_files: false
           draft: false
           prerelease: false
