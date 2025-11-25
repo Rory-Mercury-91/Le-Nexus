@@ -100,8 +100,8 @@ jobs:
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
           # Lire le changelog et le résumé depuis les fichiers
-          CHANGELOG_RAW=$(cat changelog_short.txt)
-          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt | sed 's/### //' || echo "• Nouvelle version disponible")
+          CHANGELOG_RAW=$(cat changelog_short.txt 2>/dev/null || echo "")
+          SUMMARY_RAW=$(awk 'BEGIN { count=0 } /^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt 2>/dev/null | sed 's/### //' || echo "• Nouvelle version disponible")
           
           # Utiliser les notes de release si disponibles
           if [ -f release_notes.txt ]; then
