@@ -26,4 +26,3 @@ if [ ! -s changelog_extract.txt ]; then
 fi
 
 head -c 1000 changelog_extract.txt > changelog_short.txt
-

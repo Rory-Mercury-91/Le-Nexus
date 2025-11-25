@@ -60,7 +60,8 @@ jobs:
         run: |
           # Lire le changelog et le résumé depuis les fichiers
           CHANGELOG_RAW=$(cat changelog_short.txt)
-          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt | sed 's/### //')
+          chmod +x .github/scripts/extract-summary.sh
+          SUMMARY_RAW=$(.github/scripts/extract-summary.sh)
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
