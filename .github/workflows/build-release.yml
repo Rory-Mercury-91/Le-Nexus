@@ -9,6 +9,8 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
+    permissions:
+      contents: write  # Nécessaire pour créer des releases
     
     steps:
       - name: Checkout code
@@ -50,27 +52,31 @@ jobs:
       - name: List build artifacts
         shell: pwsh
         run: |
-          Write-Host "=== Contenu du dossier dist ==="
-          if (Test-Path "dist") {
-            Get-ChildItem -Path "dist" -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
-          } else {
-            Write-Host "Le dossier dist n'existe pas"
+          Write-Host "=== Recherche des fichiers de build ==="
+          
+          # Chercher dans tous les dossiers possibles
+          $searchPaths = @("dist_electron", "dist", "release", "out")
+          
+          foreach ($searchPath in $searchPaths) {
+            if (Test-Path $searchPath) {
+              Write-Host "`n=== Contenu du dossier $searchPath ==="
+              Get-ChildItem -Path $searchPath -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
+            }
           }
           
-          Write-Host "`n=== Contenu du dossier release (si existe) ==="
-          if (Test-Path "release") {
-            Get-ChildItem -Path "release" -Recurse -File | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}} | Format-Table -AutoSize
-          }
+          # Chercher les fichiers .exe dans tout le projet
+          Write-Host "`n=== Fichiers .exe trouvés ==="
+          Get-ChildItem -Path . -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -notmatch 'node_modules' } | Select-Object FullName, @{Name="Size(MB)";Expression={[math]::Round($_.Length/1MB,2)}}
       
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: |
+            dist_electron/**/*.exe
+            dist_electron/**/*.zip
             dist/**/*.exe
             dist/**/*.zip
-            release/**/*.exe
-            release/**/*.zip
           if-no-files-found: warn
           retention-days: 30
       
@@ -78,13 +84,12 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/**/*.exe
-            dist/**/*.zip
-            release/**/*.exe
-            release/**/*.zip
+            dist_electron/**/*.exe
+            dist_electron/**/*.zip
           draft: false
           prerelease: false
           generate_release_notes: true
           tag_name: ${{ github.ref_name }}
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
