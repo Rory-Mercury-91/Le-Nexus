@@ -140,7 +140,8 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $version = "${{ steps.extract_version.outputs.version }}"
           $repo = "${{ github.repository }}"
-          $token = "${{ secrets.GITHUB_TOKEN }}"
+          # Utiliser PAT si disponible, sinon GITHUB_TOKEN
+          $token = "${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}"
           
           Write-Host "=== Création de la release pour le tag: $tag ==="
           
