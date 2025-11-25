@@ -46,6 +46,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Create secrets.js from GitHub Secrets
+        shell: pwsh
+        run: |
+          $secretsContent = @"
+          /**
+           * Fichier de configuration contenant les secrets de l'application
+           * Généré automatiquement lors du build depuis GitHub Secrets
+           * ⚠️ Ce fichier ne doit JAMAIS être commité dans Git
+           */
+          
+          module.exports = {
+            GOOGLE_SHEETS_API_KEY: '${{ secrets.GOOGLE_SHEETS_API_KEY }}'
+          };
+          "@
+          
+          $secretsPath = "electron/config/secrets.js"
+          $secretsContent | Out-File -FilePath $secretsPath -Encoding utf8 -NoNewline
+          Write-Host "✅ Fichier secrets.js créé depuis GitHub Secrets"
+      
       - name: Build application
         run: npm run build:win:clean
         env:

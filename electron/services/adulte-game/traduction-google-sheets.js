@@ -4,12 +4,18 @@
  */
 
 const { google } = require('googleapis');
+const { GOOGLE_SHEETS_CONFIG } = require('../../config/constants');
 
 // Configuration Google Sheets API
-// IMPORTANT: La clé API est récupérée depuis le store ou une variable d'environnement
-// pour éviter d'exposer des secrets dans le code source
+// IMPORTANT: La clé API est injectée lors du build depuis GitHub Secrets
+// et stockée dans electron/config/secrets.js (non versionné)
 function getGoogleSheetsApiKey() {
-  // 1. Chercher dans le store (si disponible)
+  // 1. Utiliser la clé depuis les constantes (injectée lors du build)
+  if (GOOGLE_SHEETS_CONFIG.API_KEY) {
+    return GOOGLE_SHEETS_CONFIG.API_KEY;
+  }
+  
+  // 2. Fallback: Chercher dans le store (pour override utilisateur si nécessaire)
   try {
     const Store = require('electron-store');
     const store = new Store();
@@ -21,17 +27,17 @@ function getGoogleSheetsApiKey() {
     // Store non disponible, continuer
   }
   
-  // 2. Chercher dans les variables d'environnement
+  // 3. Fallback: Variable d'environnement (pour dev local)
   const envKey = process.env.GOOGLE_SHEETS_API_KEY;
   if (envKey && envKey.trim()) {
     return envKey.trim();
   }
   
-  // 3. Aucune clé trouvée - retourner null pour générer une erreur claire
+  // 4. Aucune clé trouvée - retourner null pour générer une erreur claire
   return null;
 }
 
-const SPREADSHEET_ID = '1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs';
+const SPREADSHEET_ID = GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID;
 const SHEET_NAME = 'Jeux'; // Nom de l'onglet (à ajuster si nécessaire)
 const RANGE = 'A2:N'; // De la ligne 2 (après l'en-tête) jusqu'à la colonne N (image URL)
 const TRADUCTEURS_SHEET_NAME = 'Traducteurs/Relecteurs'; // Onglet des traducteurs

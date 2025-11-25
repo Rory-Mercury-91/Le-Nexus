@@ -39,3 +39,6 @@ Thumbs.db
 # Electron builder
 dist_electron/
 release/
+
+# Secrets de configuration (injectés lors du build depuis GitHub Secrets)
+electron/config/secrets.js

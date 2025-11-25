@@ -24,8 +24,34 @@ const MAL_CONFIG = {
   DEFAULT_REDIRECT_URI: URLS.OAUTH_CALLBACK
 };
 
+// Configuration Google Sheets API
+// La clé est injectée lors du build depuis GitHub Secrets
+// Pour le développement local, utiliser la variable d'environnement GOOGLE_SHEETS_API_KEY
+let GOOGLE_SHEETS_API_KEY = null;
+
+// Charger depuis le fichier secrets.js si disponible (injecté lors du build)
+try {
+  const secrets = require('./secrets');
+  if (secrets && secrets.GOOGLE_SHEETS_API_KEY) {
+    GOOGLE_SHEETS_API_KEY = secrets.GOOGLE_SHEETS_API_KEY;
+  }
+} catch (error) {
+  // Fichier secrets.js n'existe pas (mode dev ou build local), c'est normal
+}
+
+// Fallback sur variable d'environnement (pour dev local)
+if (!GOOGLE_SHEETS_API_KEY) {
+  GOOGLE_SHEETS_API_KEY = process.env.GOOGLE_SHEETS_API_KEY || null;
+}
+
+const GOOGLE_SHEETS_CONFIG = {
+  API_KEY: GOOGLE_SHEETS_API_KEY,
+  SPREADSHEET_ID: '1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs'
+};
+
 module.exports = {
   PORTS,
   URLS,
-  MAL_CONFIG
+  MAL_CONFIG,
+  GOOGLE_SHEETS_CONFIG
 };
