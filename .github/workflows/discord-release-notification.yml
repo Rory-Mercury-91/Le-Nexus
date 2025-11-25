@@ -2,7 +2,11 @@ name: Discord Release Notification
 
 on:
   release:
-    types: [published]
+    types: [published, created]
+  workflow_run:
+    workflows: ["Build and Release"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       tag_name:
@@ -20,9 +24,16 @@ jobs:
       - name: Extract Version
         id: version
         run: |
-          # Utiliser le tag de l'événement release ou l'input manuel
+          # Utiliser le tag de l'événement release, workflow_run ou l'input manuel
           if [ "${{ github.event_name }}" == "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
+            # Extraire le tag du workflow qui s'est terminé
+            VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oP 'v\d+\.\d+\.\d+' || echo "v1.0.0")
+            # Si pas trouvé, utiliser le dernier tag
+            if [ "$VERSION" == "v1.0.0" ]; then
+              VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            fi
           else
             VERSION="${{ github.event.inputs.tag_name }}"
           fi

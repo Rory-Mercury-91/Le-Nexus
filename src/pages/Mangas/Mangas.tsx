@@ -189,9 +189,9 @@ export default function Mangas() {
     false,
     { storage: 'session' }
   );
-  const [showMihonOnly, setShowMihonOnly] = usePersistentState<boolean>(
-    'collection.mangas.filters.showMihonOnly',
-    false,
+  const [mihonFilter, setMihonFilter] = usePersistentState<string>(
+    'collection.mangas.filters.mihonFilter',
+    'all',
     { storage: 'session' }
   );
 
@@ -456,8 +456,8 @@ export default function Mangas() {
     setShowFavoriteOnly(false);
     setShowHidden(false);
     setShowMajOnly(false);
-    setShowMihonOnly(false);
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setShowMihonOnly]);
+    setMihonFilter('all');
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setMihonFilter]);
 
 
   // Fonction pour détecter et extraire l'ID depuis une URL MAL
@@ -482,7 +482,7 @@ export default function Mangas() {
 
   const {
     sortedItems: sortedSeries,
-    hasActiveFilters
+    hasActiveFilters: hasActiveFiltersBase
   } = useCollectionFilters({
     items: series,
     search: searchTerm,
@@ -503,12 +503,40 @@ export default function Mangas() {
       getIsFavorite: (s) => !!s.is_favorite,
       getStatus: (s) => getSerieStatusLabel(s),
       customFilter: (serie) => {
-        // Filtre Mihon
-        if (showMihonOnly) {
+        // Filtre Mihon/Source
+        if (mihonFilter !== 'all') {
           const hasTomesMihon = serie.tomes?.some(tome => tome.mihon === 1);
           const hasChapitresMihon = serie.chapitres_mihon === 1;
-          if (!(hasTomesMihon || hasChapitresMihon)) {
-            return false;
+          const isMihon = hasTomesMihon || hasChapitresMihon;
+          const sourceDonnees = serie.source_donnees;
+          const isMal = sourceDonnees === 'mal' || sourceDonnees === 'mal+nautiljon';
+          const isNautiljon = sourceDonnees === 'nautiljon' || sourceDonnees === 'mal+nautiljon';
+          
+          switch (mihonFilter) {
+            case 'mihon':
+              if (!isMihon) return false;
+              break;
+            case 'not_mihon':
+              if (isMihon) return false;
+              // Affiche uniquement MyAnimeList et Nautiljon
+              if (!isMal && !isNautiljon) return false;
+              break;
+            case 'mal':
+              if (!isMal) return false;
+              break;
+            case 'not_mal':
+              if (isMal) return false;
+              // Affiche uniquement Mihon et Nautiljon
+              if (!isMihon && !isNautiljon) return false;
+              break;
+            case 'nautiljon':
+              if (!isNautiljon) return false;
+              break;
+            case 'not_nautiljon':
+              if (isNautiljon) return false;
+              // Affiche uniquement Mihon et MyAnimeList
+              if (!isMihon && !isMal) return false;
+              break;
           }
         }
 
@@ -569,6 +597,10 @@ export default function Mangas() {
       defaultSort: 'title-asc'
     }
   });
+
+  // Calculer hasActiveFilters en incluant le filtre Mihon et autres filtres
+  const hasActiveFilters = hasActiveFiltersBase || mihonFilter !== 'all' || 
+    !!filters.type_volume || !!filters.tag || !!filters.source_id;
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
   const detectedMalId = searchTerm ? detectMalUrlOrId(searchTerm) : { id: null };
@@ -849,6 +881,21 @@ export default function Mangas() {
                 ))}
               </select>
 
+              <select
+                className="select"
+                value={mihonFilter}
+                onChange={(e) => setMihonFilter(e.target.value)}
+                style={{ width: 'auto', flex: '0 0 auto' }}
+              >
+                <option value="all">🔍 Tout</option>
+                <option value="mihon">Mihon</option>
+                <option value="not_mihon">Pas sur Mihon</option>
+                <option value="mal">My Anime List</option>
+                <option value="not_mal">Pas sur MyAnimeList</option>
+                <option value="nautiljon">Nautiljon</option>
+                <option value="not_nautiljon">Pas sur Nautiljon</option>
+              </select>
+
               {availableSites.length > 0 && (
                 <select
                   className="select"
@@ -889,24 +936,6 @@ export default function Mangas() {
                 onChange={setShowHidden}
                 label="👁️ Lectures masquées"
                 icon="👁️"
-                activeColor="#f59e0b"
-              />
-
-              <FilterToggle
-                checked={showMihonOnly}
-                onChange={setShowMihonOnly}
-                label="Mihon"
-                icon={
-                  <img
-                    src={logoMihon}
-                    alt="Mihon"
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      objectFit: 'contain'
-                    }}
-                  />
-                }
                 activeColor="#f59e0b"
               />
             </div>
