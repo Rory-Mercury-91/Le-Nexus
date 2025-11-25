@@ -67,17 +67,6 @@ jobs:
           # Limiter à 1000 caractères pour Discord field (limite: 1024)
           head -c 1000 changelog_extract.txt > changelog_short.txt
 
-      - name: Get Release Notes
-        id: release_notes
-        if: github.event_name == 'release'
-        run: |
-          # Utiliser les notes de release GitHub si disponibles
-          if [ -n "${{ github.event.release.body }}" ]; then
-            echo "${{ github.event.release.body }}" | head -c 1000 > release_notes.txt
-          else
-            echo "Aucune note de release disponible." > release_notes.txt
-          fi
-
       - name: Send Discord Notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}
