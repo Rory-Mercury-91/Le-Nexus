@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Déclenche sur les tags de version (ex: v1.0.0, v1.2.3)
+  workflow_dispatch:  # Permet de déclencher manuellement le workflow
 
 jobs:
   build-windows:
