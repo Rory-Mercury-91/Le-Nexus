@@ -24,39 +24,30 @@ jobs:
       - name: Extract Version
         id: version
         run: |
-          # Utiliser le tag de l'événement release, workflow_run ou l'input manuel
-          if [ "${{ github.event_name }}" == "release" ]; then
+          if [ "${{ github.event_name }}" = "release" ]; then
             VERSION="${{ github.event.release.tag_name }}"
-          elif [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # Extraire le tag du workflow qui s'est terminé
-            VERSION=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oP 'v\d+\.\d+\.\d+' || echo "v1.0.0")
-            # Si pas trouvé, utiliser le dernier tag
-            if [ "$VERSION" == "v1.0.0" ]; then
-              VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
-            fi
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
           else
             VERSION="${{ github.event.inputs.tag_name }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+          VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
+          echo "version_number=$VERSION_NUM" >> $GITHUB_OUTPUT
 
       - name: Extract Changelog
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
           
-          # Vérifier si CHANGELOG.md existe
           if [ ! -f CHANGELOG.md ]; then
-            echo "CHANGELOG.md n'existe pas, utilisation des notes de release GitHub" > changelog_extract.txt
-            echo "Contenu disponible dans les prochaines releases." >> changelog_extract.txt
+            echo "Contenu disponible dans les prochaines releases." > changelog_extract.txt
           else
-            # Extraire la section du CHANGELOG pour cette version
-            # Recherche flexible : accepte "## YYYY-MM-DD (vX.Y.Z)" ou "## YYYY-MM-DD (X.Y.Z)"
-            awk -v ver="$VERSION" 'BEGIN { 
-              gsub(/^v/, "", ver)
-            }
-            /^## [0-9]{4}-[0-9]{2}-[0-9]{2} / {
-              if (match($0, /\(v?([0-9]+\.[0-9]+\.[0-9]+)\)/, arr)) {
+            awk -v ver="$VERSION_NUM" '
+            BEGIN { started=0 }
+            /^## [0-9]{4}-[0-9]{2}-[0-9]{2}/ {
+              if (match($0, /v?([0-9]+\.[0-9]+\.[0-9]+)/, arr)) {
                 if (arr[1] == ver) {
                   started = 1
                   next
@@ -65,16 +56,14 @@ jobs:
                 }
               }
             }
-            started { print }' CHANGELOG.md > changelog_extract.txt
+            started { print }
+            ' CHANGELOG.md > changelog_extract.txt
           fi
           
-          # Vérifier si le changelog a été extrait
           if [ ! -s changelog_extract.txt ]; then
-            echo "ATTENTION: Changelog vide pour $VERSION" >&2
             echo "Contenu disponible dans les prochaines releases." > changelog_extract.txt
           fi
           
-          # Limiter à 1000 caractères pour Discord field (limite: 1024)
           head -c 1000 changelog_extract.txt > changelog_short.txt
 
       - name: Get Release Notes
@@ -96,7 +85,6 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          # Lire le changelog et le résumé depuis les fichiers
           if [ -f changelog_short.txt ]; then
             CHANGELOG_RAW=$(cat changelog_short.txt)
           else
@@ -112,7 +100,6 @@ jobs:
             SUMMARY_RAW="• Nouvelle version disponible"
           fi
           
-          # Utiliser les notes de release si disponibles
           if [ -f release_notes.txt ]; then
             RELEASE_NOTES=$(cat release_notes.txt)
           else
