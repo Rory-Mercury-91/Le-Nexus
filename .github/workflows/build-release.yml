@@ -14,6 +14,7 @@ jobs:
       contents: write  # Nécessaire pour créer des releases
       id-token: write  # Nécessaire pour l'authentification
       pull-requests: write  # Nécessaire pour certaines actions GitHub
+      packages: write  # Nécessaire pour uploader des assets
     
     steps:
       - name: Checkout code
@@ -175,7 +176,26 @@ jobs:
           }
           
           Write-Host "📤 Création de la release..."
-          $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
+          Write-Host "   Repository: $repo"
+          Write-Host "   Tag: $tag"
+          Write-Host "   Commit: ${{ github.sha }}"
+          
+          try {
+            $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
+          } catch {
+            Write-Host "❌ Erreur lors de la création de la release:"
+            Write-Host "   Status: $($_.Exception.Response.StatusCode.value__)"
+            if ($_.Exception.Response) {
+              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+              $responseBody = $reader.ReadToEnd()
+              Write-Host "   Réponse: $responseBody"
+            }
+            Write-Host "`n💡 Vérifiez que:"
+            Write-Host "   1. Les permissions du workflow sont sur 'Read and write permissions'"
+            Write-Host "   2. Le dépôt n'a pas de restrictions sur les releases"
+            Write-Host "   3. Le GITHUB_TOKEN a les permissions nécessaires"
+            exit 1
+          }
           
           $releaseId = $releaseResponse.id
           Write-Host "✅ Release créée avec l'ID: $releaseId"
