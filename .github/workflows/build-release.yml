@@ -182,10 +182,9 @@ jobs:
           
           # Upload du fichier
           $uploadUrl = $releaseResponse.upload_url -replace '\{.*$', "?name=$($exeFile.Name)"
-          Write-Host "📤 Upload du fichier: $($exeFile.Name)"
+          Write-Host "📤 Upload du fichier: $($exeFile.Name) ($([math]::Round($exeFile.Length/1MB,2)) MB)"
           
           $fileBytes = [System.IO.File]::ReadAllBytes($exeFile.FullName)
-          $boundary = [System.Guid]::NewGuid().ToString()
           
           $uploadHeaders = @{
             "Authorization" = "token $token"
@@ -194,10 +193,15 @@ jobs:
           }
           
           try {
-            $uploadResponse = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $uploadHeaders -Body $fileBytes -ContentType "application/octet-stream"
-            Write-Host "✅ Fichier uploadé avec succès!"
+            $uploadResponse = Invoke-RestMethod -Uri $uploadUrl -Method Post -Headers $uploadHeaders -Body $fileBytes
+            Write-Host "✅ Fichier uploadé avec succès: $($uploadResponse.browser_download_url)"
           } catch {
             Write-Host "⚠️ Erreur lors de l'upload: $($_.Exception.Message)"
+            if ($_.Exception.Response) {
+              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+              $responseBody = $reader.ReadToEnd()
+              Write-Host "   Détails: $responseBody"
+            }
             Write-Host "   Mais la release a été créée: $($releaseResponse.html_url)"
           }
         env:
