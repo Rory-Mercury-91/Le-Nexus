@@ -6,7 +6,31 @@
 const { google } = require('googleapis');
 
 // Configuration Google Sheets API
-const GOOGLE_SHEETS_API_KEY = 'AIzaSyDf-okvwDpqO2XuY18z6ckx1io8d6k8aBk';
+// IMPORTANT: La clé API est récupérée depuis le store ou une variable d'environnement
+// pour éviter d'exposer des secrets dans le code source
+function getGoogleSheetsApiKey() {
+  // 1. Chercher dans le store (si disponible)
+  try {
+    const Store = require('electron-store');
+    const store = new Store();
+    const storedKey = store.get('googleSheets.apiKey', '');
+    if (storedKey && storedKey.trim()) {
+      return storedKey.trim();
+    }
+  } catch (error) {
+    // Store non disponible, continuer
+  }
+  
+  // 2. Chercher dans les variables d'environnement
+  const envKey = process.env.GOOGLE_SHEETS_API_KEY;
+  if (envKey && envKey.trim()) {
+    return envKey.trim();
+  }
+  
+  // 3. Aucune clé trouvée - retourner null pour générer une erreur claire
+  return null;
+}
+
 const SPREADSHEET_ID = '1ELRF0kpF8SoUlslX5ZXZoG4WXeWST6lN9bLws32EPfs';
 const SHEET_NAME = 'Jeux'; // Nom de l'onglet (à ajuster si nécessaire)
 const RANGE = 'A2:N'; // De la ligne 2 (après l'en-tête) jusqu'à la colonne N (image URL)
@@ -20,8 +44,14 @@ async function fetchGoogleSheet() {
   try {
     console.log('📥 Téléchargement Google Sheet via API...');
     
+    // Récupérer la clé API
+    const apiKey = getGoogleSheetsApiKey();
+    if (!apiKey) {
+      throw new Error('Clé API Google Sheets non configurée. Veuillez la configurer dans les paramètres de l\'application ou via la variable d\'environnement GOOGLE_SHEETS_API_KEY.');
+    }
+    
     // Initialiser l'API Google Sheets
-    const sheets = google.sheets({ version: 'v4', auth: GOOGLE_SHEETS_API_KEY });
+    const sheets = google.sheets({ version: 'v4', auth: apiKey });
     
     // Récupérer les valeurs ET les formules
     const response = await sheets.spreadsheets.get({
@@ -123,8 +153,14 @@ async function fetchTraducteurs() {
   try {
     console.log('📥 Téléchargement liste des traducteurs depuis Google Sheet...');
     
+    // Récupérer la clé API
+    const apiKey = getGoogleSheetsApiKey();
+    if (!apiKey) {
+      throw new Error('Clé API Google Sheets non configurée. Veuillez la configurer dans les paramètres de l\'application ou via la variable d\'environnement GOOGLE_SHEETS_API_KEY.');
+    }
+    
     // Initialiser l'API Google Sheets
-    const sheets = google.sheets({ version: 'v4', auth: GOOGLE_SHEETS_API_KEY });
+    const sheets = google.sheets({ version: 'v4', auth: apiKey });
     
     // Récupérer la colonne A de l'onglet Traducteurs
     const response = await sheets.spreadsheets.values.get({
@@ -151,5 +187,6 @@ async function fetchTraducteurs() {
 
 module.exports = {
   fetchGoogleSheet,
-  fetchTraducteurs
+  fetchTraducteurs,
+  getGoogleSheetsApiKey // Exporter pour permettre la vérification de la configuration
 };
