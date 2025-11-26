@@ -457,8 +457,8 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
     }
   });
 
-  // Posséder tous les manga_tomes d'une série
-  ipcMain.handle('posseder-tous-les-manga_tomes', (event, serieId) => {
+  // Posséder tous les tomes d'une série
+  ipcMain.handle('posseder-tous-les-tomes', (event, serieId) => {
     try {
       const db = getDb();
       if (!db) {

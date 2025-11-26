@@ -88,8 +88,10 @@ function handleGetSeries(db, store, filters = {}) {
         OR s.titre_alternatif LIKE ?
         OR s.description LIKE ?
         OR s.auteurs LIKE ?
+        OR s.genres LIKE ?
+        OR s.themes LIKE ?
       )`;
-      params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
   }
 
@@ -538,6 +540,46 @@ function registerMangaSeriesReadHandlers(ipcMain, getDb, store, getPathManager =
     } catch (error) {
       console.error('Erreur get-available-sources:', error);
       return { success: false, error: error.message, sources: [] };
+    }
+  });
+
+  // Récupérer tous les genres uniques
+  ipcMain.handle('get-all-manga-genres', async () => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      const series = db.prepare('SELECT genres FROM manga_series WHERE genres IS NOT NULL AND genres <> \'\' AND LENGTH(genres) > 0').all();
+      const allGenres = new Set();
+      series.forEach(serie => {
+        if (serie.genres) {
+          const genres = serie.genres.split(',').map(g => g.trim()).filter(Boolean);
+          genres.forEach(genre => allGenres.add(genre));
+        }
+      });
+      return Array.from(allGenres).sort();
+    } catch (error) {
+      console.error('❌ Erreur get-all-manga-genres:', error);
+      throw error;
+    }
+  });
+
+  // Récupérer tous les thèmes uniques
+  ipcMain.handle('get-all-manga-themes', async () => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      const series = db.prepare('SELECT themes FROM manga_series WHERE themes IS NOT NULL AND themes <> \'\' AND LENGTH(themes) > 0').all();
+      const allThemes = new Set();
+      series.forEach(serie => {
+        if (serie.themes) {
+          const themes = serie.themes.split(',').map(t => t.trim()).filter(Boolean);
+          themes.forEach(theme => allThemes.add(theme));
+        }
+      });
+      return Array.from(allThemes).sort();
+    } catch (error) {
+      console.error('❌ Erreur get-all-manga-themes:', error);
+      throw error;
     }
   });
 }

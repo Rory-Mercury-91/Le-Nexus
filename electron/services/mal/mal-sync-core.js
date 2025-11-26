@@ -5,6 +5,7 @@
 
 const { transformMangaData, transformAnimeData } = require('./mal-transformers');
 const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
+const { isNautiljonSource } = require('../mangas/manga-import-merger');
 
 function upsertMangaUserStatus(db, serieId, userId, mangaData) {
   if (!serieId || !userId) {
@@ -123,6 +124,9 @@ async function syncMangaSeries(db, currentUser, malEntry) {
   if (existingSerie) {
     const ownerId = userId || existingSerie.user_id_ajout || null;
 
+    // Vérifier si la source actuelle est Nautiljon (les données Nautiljon prévalent)
+    const isNautiljon = isNautiljonSource(existingSerie.source_donnees);
+    
     // Récupérer les champs modifiés par l'utilisateur
     const userModifiedFields = existingSerie.user_modified_fields || null;
 
@@ -131,6 +135,15 @@ async function syncMangaSeries(db, currentUser, malEntry) {
       if (newValue === undefined) {
         return;
       }
+      
+      // Ne pas écraser les données si la source est Nautiljon (sauf pour les champs spécifiques MAL)
+      // Les champs spécifiques MAL (rank_mal, popularity_mal, statut_lecture) peuvent toujours être mis à jour
+      const malSpecificFields = ['rank_mal', 'popularity_mal', 'statut_lecture'];
+      if (isNautiljon && !malSpecificFields.includes(field)) {
+        console.log(`⏭️ [MAL Sync] Champ ${field} ignoré (source Nautiljon prévaut) pour série ID ${existingSerie.id}`);
+        return;
+      }
+      
       const currentValue = existingSerie[field];
       if ((currentValue ?? null) === (newValue ?? null)) {
         return;
@@ -145,11 +158,31 @@ async function syncMangaSeries(db, currentUser, malEntry) {
       }
     };
 
-    // Mettre à jour la série existante en respectant les champs protégés
+    // Fusionner les titres alternatifs de MAL avec ceux existants (si pas modifiés par l'utilisateur)
+    let mergedAltTitles = null;
+    if (mangaData.titres_alternatifs && !isFieldUserModified(userModifiedFields, 'titres_alternatifs')) {
+      const { collectAlternativeTitles } = require('../mangas/manga-import-merger');
+      const altTitles = collectAlternativeTitles(existingSerie, { titres_alternatifs: mangaData.titres_alternatifs });
+      if (altTitles.length > 0) {
+        mergedAltTitles = JSON.stringify(altTitles);
+      } else if (existingSerie.titres_alternatifs) {
+        mergedAltTitles = existingSerie.titres_alternatifs;
+      } else {
+        mergedAltTitles = mangaData.titres_alternatifs;
+      }
+    } else if (existingSerie.titres_alternatifs) {
+      // Conserver les titres alternatifs modifiés par l'utilisateur
+      mergedAltTitles = existingSerie.titres_alternatifs;
+    } else if (mangaData.titres_alternatifs) {
+      mergedAltTitles = mangaData.titres_alternatifs;
+    }
+
+    // Mettre à jour la série existante en respectant les champs protégés et la priorité Nautiljon
     trackProtectedChange('titre', mangaData.titre);
     trackProtectedChange('titre_romaji', mangaData.titre_romaji);
     trackProtectedChange('titre_anglais', mangaData.titre_anglais);
     trackProtectedChange('titre_natif', mangaData.titre_natif);
+    trackProtectedChange('titres_alternatifs', mergedAltTitles);
     trackProtectedChange('couverture_url', mangaData.couverture_url);
     trackProtectedChange('description', mangaData.description);
     trackProtectedChange('statut', mangaData.statut);
@@ -159,6 +192,7 @@ async function syncMangaSeries(db, currentUser, malEntry) {
     trackProtectedChange('nb_volumes', mangaData.nb_volumes);
     trackProtectedChange('nb_chapitres', mangaData.nb_chapitres);
     trackProtectedChange('rating', mangaData.rating);
+    // Ces champs peuvent toujours être mis à jour car spécifiques à MAL
     trackProtectedChange('rank_mal', mangaData.rank);
     trackProtectedChange('popularity_mal', mangaData.popularite);
     trackProtectedChange('statut_lecture', mangaData.statut_lecture);

@@ -221,7 +221,9 @@ async function syncTraductions(db, traducteurs, options = {}) {
     const reportData = {
       created: [],
       updated: [],
-      failed: []
+      failed: [],
+      ignored: [],
+      matched: []
     };
     
     // ÉTAPE 1 : Synchronisation TOUTES PLATEFORMES (LewdCorner, F95Zone, autres)
@@ -508,11 +510,14 @@ async function syncTraductions(db, traducteurs, options = {}) {
           created: created,
           updated: updated + additionalUpdated,
           errors: reportData.failed.length,
-          matched: filteredData.length
+          matched: matched,
+          ignored: (reportData.ignored || []).length
         },
         created: reportData.created,
         updated: reportData.updated,
         failed: reportData.failed,
+        ignored: reportData.ignored || [],
+        matched: reportData.matched || [],
         metadata: {
           traducteurs: traducteurs || [],
           duration: durationMs,
@@ -564,7 +569,8 @@ async function syncTraductionsForExistingGames(db, options = {}) {
       discordMentions = {},
       notifyGameUpdates = true,
       notifyTranslationUpdates = true,
-      getPathManager = null
+      getPathManager = null,
+      skipReport = false
     } = options;
     const mentionMap = buildMentionMap(discordMentions);
     
@@ -598,8 +604,12 @@ async function syncTraductionsForExistingGames(db, options = {}) {
     let matched = 0;
     let updated = 0;
     const reportData = {
+      created: [],
       updated: [],
-      failed: []
+      failed: [],
+      ignored: [],
+      matched: [],
+      notFound: []
     };
     
     // Pour chaque jeu existant, chercher ses traductions dans le sheet
@@ -621,6 +631,14 @@ async function syncTraductionsForExistingGames(db, options = {}) {
       
       if (gameTranslations.length === 0) {
         // Aucune traduction trouvée pour ce jeu
+        reportData.notFound = reportData.notFound || [];
+        reportData.notFound.push({
+          titre: game.titre,
+          id: game.id,
+          f95_thread_id: gameThreadId,
+          plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone'),
+          reason: 'Aucune traduction trouvée dans le Google Sheet'
+        });
         continue;
       }
       
@@ -639,6 +657,18 @@ async function syncTraductionsForExistingGames(db, options = {}) {
       
       const traductions = buildTranslationsArray(gameTranslations, existingTranslations);
       
+      // Ajouter au rapport des matches
+      reportData.matched = reportData.matched || [];
+      reportData.matched.push({
+        titre: game.titre,
+        id: game.id,
+        f95_thread_id: gameThreadId,
+        plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone'),
+        traducteur: activeEntry.traducteur || null,
+        traductions: traductions.length,
+        matchMethod: 'f95_thread_id'
+      });
+      
       // Filtrer l'URL de couverture si c'est LewdCorner
       const imageUrl = filterCoverImageUrl(activeEntry.imageUrl || null);
       
@@ -653,7 +683,10 @@ async function syncTraductionsForExistingGames(db, options = {}) {
           f95_thread_id: gameThreadId,
           plateforme: game.plateforme || (gamePlatformKey === 'lewdcorner' ? 'LewdCorner' : 'F95Zone'),
           traducteur: activeEntry.traducteur || null,
-          traductions: traductions.length
+          traductions: traductions.length,
+          version: activeEntry.version || null,
+          version_traduite: activeEntry.versionTraduite || null,
+          lien_traduction: activeEntry.lienTraduction || null
         });
         console.log(`✅ "${game.titre}" : ${traductions.length} traduction(s) synchronisée(s) (${gameTranslations.length} trouvée(s), traducteur: ${activeEntry.traducteur})`);
 
@@ -701,8 +734,8 @@ async function syncTraductionsForExistingGames(db, options = {}) {
     
     const durationMs = Date.now() - syncStart;
     
-    // Générer le rapport d'état
-    if (getPathManager) {
+    // Générer le rapport d'état uniquement si skipReport est false
+    if (getPathManager && !skipReport) {
       generateReport(getPathManager, {
         type: 'adulte-game-sync-existing',
         stats: {
@@ -710,11 +743,14 @@ async function syncTraductionsForExistingGames(db, options = {}) {
           matched: matched,
           updated: updated,
           errors: reportData.failed.length,
-          notFound: adulteGames.length - matched
+          notFound: (reportData.notFound || []).length,
+          ignored: (reportData.ignored || []).length
         },
-        created: [],
+        created: reportData.created,
         updated: reportData.updated,
         failed: reportData.failed,
+        ignored: reportData.ignored || [],
+        matched: reportData.matched || [],
         metadata: {
           duration: durationMs
         }
@@ -725,7 +761,9 @@ async function syncTraductionsForExistingGames(db, options = {}) {
       success: true,
       matched,
       updated,
-      notFound: adulteGames.length - matched
+      notFound: (reportData.notFound || []).length,
+      total: adulteGames.length,
+      reportData: reportData // Retourner les données du rapport pour accumulation
     };
   } catch (error) {
     console.error('❌ Erreur sync traductions pour jeux existants:', error);

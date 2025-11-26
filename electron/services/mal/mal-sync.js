@@ -46,7 +46,9 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
     const mangaReportData = {
       created: [],
       updated: [],
-      failed: []
+      failed: [],
+      ignored: [],
+      matched: []
     };
     const startTime = Date.now();
     
@@ -135,7 +137,9 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
     const animeReportData = {
       created: [],
       updated: [],
-      failed: []
+      failed: [],
+      ignored: [],
+      matched: []
     };
     const animeStartTime = Date.now();
     
@@ -310,7 +314,7 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
       }
     });
 
-    // Générer le rapport d'état
+    // Générer le rapport d'état unifié
     if (getPathManager) {
       generateReport(getPathManager, {
         type: 'mal-sync',
@@ -318,11 +322,15 @@ async function performFullSync(db, store, currentUser, onProgress = null, getDb 
           total: mangas.length + animes.length,
           created: mangasCreated + animesCreated,
           updated: mangasUpdated + animesUpdated,
-          errors: mangaReportData.failed.length + animeReportData.failed.length
+          errors: mangaReportData.failed.length + animeReportData.failed.length,
+          matched: mangasSynced + animesSynced,
+          ignored: (mangaReportData.ignored || []).length + (animeReportData.ignored || []).length
         },
         created: [...mangaReportData.created, ...animeReportData.created],
         updated: [...mangaReportData.updated, ...animeReportData.updated],
         failed: [...mangaReportData.failed, ...animeReportData.failed],
+        ignored: [...(mangaReportData.ignored || []), ...(animeReportData.ignored || [])],
+        matched: [...(mangaReportData.matched || []), ...(animeReportData.matched || [])],
         metadata: {
           user: currentUser,
           duration: durationMs,
@@ -385,7 +393,9 @@ async function performStatusSync(db, store, currentUser, getPathManager = null) 
   const reportData = {
     updated: [],
     missing: [],
-    failed: []
+    failed: [],
+    ignored: [],
+    matched: []
   };
 
   try {
@@ -504,10 +514,14 @@ async function performStatusSync(db, store, currentUser, getPathManager = null) 
           total: mangas.length + animes.length,
           updated: resultSummary.mangas.updated + resultSummary.animes.updated,
           missing: resultSummary.mangas.missing + resultSummary.animes.missing,
-          errors: reportData.failed.length
+          errors: reportData.failed.length,
+          ignored: (reportData.ignored || []).length,
+          matched: (reportData.matched || []).length
         },
         updated: reportData.updated,
         failed: reportData.failed,
+        ignored: reportData.ignored || [],
+        matched: reportData.matched || [],
         metadata: {
           user: currentUser,
           duration: durationMs,

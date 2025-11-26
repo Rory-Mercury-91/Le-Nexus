@@ -14,6 +14,7 @@ const {
   markEntityAsEnriched,
   updateFieldIfNotUserModified
 } = require('../../utils/enrichment-helpers');
+const { isNautiljonSource } = require('./manga-import-merger');
 const {
   propagateMangaRelations,
   propagateAllMangaRelations
@@ -184,6 +185,10 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       return { success: true, skipped: true, message: 'Déjà enrichi' };
     }
 
+    // Récupérer les informations nécessaires pour la logique de fusion
+    let userModifiedFields = manga.user_modified_fields || null;
+    let isNautiljon = isNautiljonSource(manga.source_donnees);
+
     const store = new Store();
     const groqApiKey = store.get('groqApiKey', '');
 
@@ -236,7 +241,44 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       // Extraire les champs configurés
       const fields = enrichmentConfig.fields || {};
 
-      // Titres alternatifs
+      // Titre principal : mettre à jour seulement si la source n'est pas Nautiljon
+      // Pour les manhwa/manhua, le titre principal MAL est souvent en anglais (title_english)
+      // Pour les mangas japonais, le titre principal est souvent title (en japonais ou romaji)
+      // Priorité : titre_english > title (car title_english est souvent le titre principal pour manhwa/manhua)
+      if (!isNautiljon) {
+        // Déterminer le titre principal MAL selon le type de média
+        const mediaType = jikanData.type?.toLowerCase() || manga.media_type?.toLowerCase() || '';
+        const isManhwaManhua = mediaType.includes('manhwa') || mediaType.includes('manhua') || 
+                                manga.media_type === 'Manhwa' || manga.media_type === 'Manhua';
+        
+        // Pour manhwa/manhua : utiliser title_english (souvent le titre principal)
+        // Pour mangas : utiliser title (titre principal MAL, souvent en japonais/romaji)
+        const malMainTitle = isManhwaManhua 
+          ? (jikanData.title_english || jikanData.title)
+          : (jikanData.title || jikanData.title_english);
+        
+        if (malMainTitle && malMainTitle !== manga.titre) {
+          // Vérifier que le titre n'est pas modifié par l'utilisateur
+          const { isFieldUserModified } = require('../../utils/enrichment-helpers');
+          if (!isFieldUserModified(userModifiedFields, 'titre')) {
+            // Sauvegarder l'ancien titre principal pour l'ajouter aux alternatifs
+            const oldTitle = manga.titre;
+            enrichedData.titre = malMainTitle;
+            console.log(`📝 Titre principal mis à jour depuis MAL: "${oldTitle}" → "${malMainTitle}"`);
+            
+            // Ajouter l'ancien titre principal aux alternatifs s'il n'est pas déjà présent
+            // On le fera lors de la fusion des titres alternatifs plus bas
+            if (oldTitle && oldTitle !== malMainTitle) {
+              // Stocker temporairement l'ancien titre pour l'ajouter aux alternatifs
+              enrichedData._oldTitle = oldTitle;
+            }
+          } else {
+            console.log(`⏭️ Titre principal conservé (modifié par l'utilisateur): "${manga.titre}"`);
+          }
+        }
+      }
+
+      // Titres secondaires
       if (fields.titre_romaji && jikanData.title) enrichedData.titre_romaji = jikanData.title;
       if (fields.titre_natif && jikanData.title_japanese) enrichedData.titre_natif = jikanData.title_japanese;
       if (fields.titre_anglais && jikanData.title_english) enrichedData.titre_anglais = jikanData.title_english;
@@ -247,26 +289,35 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
         // Normaliser pour comparaison (identique à celle utilisée dans prepareMergedAltTitles)
         const normalizeForDedup = (str) => {
           if (!str) return '';
+          // Ne PAS normaliser en NFD pour les caractères coréens/japonais/chinois (cela les casse)
+          // Utiliser NFKC seulement pour normaliser les caractères latins
           let normalized = str
             .normalize('NFKC')
             .toLowerCase()
             .trim();
+          // Supprimer seulement les accents des caractères latins (pas les caractères asiatiques)
+          normalized = normalized.replace(/[\u0300-\u036f]/g, '');
+          // Supprimer espaces et ponctuation
           normalized = normalized
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
-          normalized = normalized
-            .replace(/[\s\u2000-\u200B\u2028\u2029]+/g, '')
+            .replace(/[\s\u2000-\u200B\u2028\u2029]+/g, '') // Supprimer TOUS les espaces pour comparaison stricte
             .replace(/[.,;:!?()[\]{}'"`~\-_=+*&^%$#@]/g, '')
             .replace(/[！？。、，；：（）【】「」『』]/g, '');
-          normalized = normalized.replace(/[^\w\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf\u3400-\u4dbf]/g, '');
+          // Conserver les caractères alphanumériques ET tous les caractères asiatiques (japonais, chinois, coréen)
+          // Ne PAS utiliser [^\w...] car cela supprime les caractères coréens
+          // Au lieu de cela, construire une regex positive qui garde ce qu'on veut
+          normalized = normalized.replace(/[^\p{L}\p{N}]/gu, ''); // Garde lettres et chiffres Unicode (inclut coréen)
           return normalized;
         };
 
         const allAltTitles = [];
         const seenNormalized = new Set();
+        
+        // Construire la liste des titres principaux (sans l'ancien titre si il a été remplacé)
+        // On utilise le nouveau titre principal (enrichedData.titre) si disponible, sinon l'ancien (manga.titre)
+        const currentMainTitle = enrichedData.titre || manga.titre;
         const normalizedMainTitles = new Set(
           [
-            manga.titre,
+            currentMainTitle, // Seulement le titre principal actuel (nouveau ou ancien)
             manga.titre_romaji,
             manga.titre_natif,
             manga.titre_anglais
@@ -279,6 +330,21 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
             .filter(Boolean)
             .map(title => normalizeForDedup(title))
         );
+        
+        // Ajouter l'ancien titre principal aux alternatifs s'il a été remplacé
+        if (enrichedData._oldTitle) {
+          const oldTitleNormalized = normalizeForDedup(enrichedData._oldTitle);
+          // Vérifier que l'ancien titre n'est pas dans les titres principaux actuels ni déjà dans les alternatifs
+          if (!normalizedMainTitles.has(oldTitleNormalized) && !seenNormalized.has(oldTitleNormalized)) {
+            seenNormalized.add(oldTitleNormalized);
+            allAltTitles.push(enrichedData._oldTitle);
+            console.log(`📝 Ancien titre principal ajouté aux alternatifs: "${enrichedData._oldTitle}"`);
+          } else {
+            console.log(`⏭️ Ancien titre principal "${enrichedData._oldTitle}" déjà présent dans les titres principaux ou alternatifs, ignoré`);
+          }
+          // Nettoyer la variable temporaire
+          delete enrichedData._oldTitle;
+        }
 
         // Ajouter les titres alternatifs existants depuis Nautiljon (titre_alternatif)
         if (manga.titre_alternatif) {
@@ -313,9 +379,41 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
           allAltTitles.push(titleStr);
         }
 
+        // Nettoyer les alternatifs : retirer les titres qui sont maintenant dans les champs principaux
+        // (utile si un titre était dans les alternatifs mais est maintenant dans titre_natif, etc.)
+        // IMPORTANT : Ne pas retirer l'ancien titre principal qui vient d'être ajouté
+        const finalTitreNatif = enrichedData.titre_natif || manga.titre_natif;
+        const finalMainTitles = new Set([
+          enrichedData.titre || manga.titre, // Nouveau titre principal (pas l'ancien)
+          enrichedData.titre_romaji || manga.titre_romaji,
+          finalTitreNatif,
+          enrichedData.titre_anglais || manga.titre_anglais
+        ].filter(Boolean).map(t => {
+          const normalized = normalizeForDedup(t);
+          if (finalTitreNatif && t === finalTitreNatif) {
+            console.log(`🔍 [Enrichissement] DEBUG: Normalisation titre natif "${t}" → "${normalized}"`);
+          }
+          return normalized;
+        }));
+        
+        const cleanedAltTitles = allAltTitles.filter(alt => {
+          const altNormalized = normalizeForDedup(alt);
+          const shouldKeep = !finalMainTitles.has(altNormalized);
+          if (!shouldKeep) {
+            console.log(`🧹 [Enrichissement] Titre retiré des alternatifs (présent dans titres principaux): "${alt}"`);
+          } else if (finalTitreNatif) {
+            // Debug : vérifier si le titre natif est dans les alternatifs
+            const natifNormalized = normalizeForDedup(finalTitreNatif);
+            if (natifNormalized === altNormalized) {
+              console.log(`⚠️ [Enrichissement] DEBUG: Titre natif trouvé dans alternatifs mais pas retiré! Alt: "${alt}", Natif: "${finalTitreNatif}", Normalized alt: "${altNormalized}", Normalized natif: "${natifNormalized}", Match: ${natifNormalized === altNormalized}`);
+            }
+          }
+          return shouldKeep;
+        });
+
         // Stocker dans titres_alternatifs au format JSON array
-        if (allAltTitles.length > 0) {
-          enrichedData.titres_alternatifs = JSON.stringify(allAltTitles);
+        if (cleanedAltTitles.length > 0) {
+          enrichedData.titres_alternatifs = JSON.stringify(cleanedAltTitles);
         }
       }
 
@@ -629,7 +727,9 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
 
     // Recharger le manga pour avoir les dernières valeurs de user_modified_fields
     const currentManga = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(mangaId);
-    const userModifiedFields = currentManga?.user_modified_fields || null;
+    // Réassigner userModifiedFields et isNautiljon avec les dernières valeurs (peuvent avoir changé)
+    userModifiedFields = currentManga?.user_modified_fields || null;
+    isNautiljon = isNautiljonSource(currentManga?.source_donnees);
 
     // Détecter les changements critiques pour signaler une mise à jour
     const currentNbVolumes = currentManga?.nb_volumes || 0;
@@ -673,13 +773,19 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
     let updatedFieldsCount = 0;
 
     // Mettre à jour la description si elle a changé et n'est pas protégée (ou si force)
+    // Ne pas écraser si la source est Nautiljon (sauf si force)
     if (description !== undefined && description !== manga.description) {
-      if (updateFieldIfNotUserModified(db, 'manga_series', mangaId, 'description', description, userModifiedFields, force)) {
-        updatedFieldsCount++;
+      if (!isNautiljon || force) {
+        if (updateFieldIfNotUserModified(db, 'manga_series', mangaId, 'description', description, userModifiedFields, force)) {
+          updatedFieldsCount++;
+        }
+      } else {
+        console.log(`⏭️ [Enrichissement] Description ignorée (source Nautiljon prévaut) pour manga ID ${mangaId}`);
       }
     }
 
     // Mettre à jour chaque champ enrichi s'il n'est pas protégé (ou si force)
+    // Ne pas écraser si la source est Nautiljon (sauf si force)
     Object.entries(enrichedData).forEach(([key, value]) => {
       if (value === undefined) {
         return;
@@ -692,6 +798,12 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       }
       const currentValue = manga[key];
       if (currentValue === value) {
+        return;
+      }
+
+      // Ne pas écraser les données Nautiljon (sauf si force)
+      if (isNautiljon && !force) {
+        console.log(`⏭️ [Enrichissement] Champ ${key} ignoré (source Nautiljon prévaut) pour manga ID ${mangaId}`);
         return;
       }
 
@@ -862,8 +974,11 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
       errors: 0
     };
     const reportData = {
-      enriched: [],
-      failed: []
+      created: [],
+      updated: [],
+      failed: [],
+      ignored: [],
+      matched: []
     };
 
     for (let i = 0; i < mangasToEnrich.length; i++) {
@@ -915,9 +1030,10 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
 
       if (result?.success) {
         stats.enriched++;
-        reportData.enriched.push({
+        reportData.updated.push({
           titre: manga.titre,
           id: manga.id,
+          serieId: manga.id,
           mal_id: manga.mal_id
         });
       } else {
@@ -926,6 +1042,7 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
           titre: manga.titre,
           error: result?.error || 'Erreur inconnue',
           id: manga.id,
+          serieId: manga.id,
           mal_id: manga.mal_id
         });
       }
@@ -984,12 +1101,17 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
         type: 'enrichment-manga',
         stats: {
           total: mangasToEnrich.length,
-          enriched: stats.enriched,
+          updated: stats.enriched, // Enrichi = mis à jour
           errors: stats.errors,
-          skipped: mangasToEnrich.length - stats.processed
+          skipped: mangasToEnrich.length - stats.processed,
+          ignored: (reportData.ignored || []).length,
+          matched: (reportData.matched || []).length
         },
-        updated: reportData.enriched, // Utiliser "updated" car enrichi = mis à jour
+        created: reportData.created,
+        updated: reportData.updated,
         failed: reportData.failed,
+        ignored: reportData.ignored || [],
+        matched: reportData.matched || [],
         metadata: {
           user: currentUser,
           duration: durationMs,

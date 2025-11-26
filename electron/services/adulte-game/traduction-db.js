@@ -69,35 +69,32 @@ async function searchTranslationForGame(db, gameId) {
       imageUrl = null;
     }
     
-    // Mettre à jour la BDD avec les infos du jeu ET de traduction
+    // Récupérer les champs modifiés par l'utilisateur pour respecter la protection
+    const current = db.prepare('SELECT user_modified_fields FROM adulte_game_games WHERE id = ?').get(gameId);
+    const userModifiedFields = current?.user_modified_fields || null;
+    const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
+    
+    // Mettre à jour tous les champs en respectant user_modified_fields
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'titre', activeEntry.nom, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_version', activeEntry.version, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_statut', activeEntry.statut, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_engine', activeEntry.moteur, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'tags', activeEntry.tags ? (Array.isArray(activeEntry.tags) ? JSON.stringify(activeEntry.tags) : activeEntry.tags) : null, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'couverture_url', imageUrl, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'version_traduite', activeEntry.versionTraduite, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'lien_traduction', activeEntry.lienTraduction, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'traducteur', activeEntry.traducteur, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'type_traduction', activeEntry.typeTraduction, userModifiedFields);
+    
+    // Toujours mettre à jour ces champs (non protégés)
     db.prepare(`
       UPDATE adulte_game_games
-      SET titre = ?,
-          game_version = ?,
-          game_statut = ?,
-          game_engine = ?,
-          tags = ?,
-          couverture_url = COALESCE(?, couverture_url),
-          traduction_fr_disponible = 1,
-          version_traduite = ?,
-          lien_traduction = ?,
-          traducteur = ?,
-          type_traduction = ?,
+      SET traduction_fr_disponible = 1,
           traductions_multiples = ?,
           derniere_sync_trad = datetime('now'),
           updated_at = datetime('now')
       WHERE id = ?
     `).run(
-      activeEntry.nom,
-      activeEntry.version,
-      activeEntry.statut,
-      activeEntry.moteur,
-      activeEntry.tags ? (Array.isArray(activeEntry.tags) ? activeEntry.tags.join(',') : activeEntry.tags) : null,
-      imageUrl,
-      activeEntry.versionTraduite,
-      activeEntry.lienTraduction || null,
-      activeEntry.traducteur || null,
-      activeEntry.typeTraduction || null,
       JSON.stringify(traductions),
       gameId
     );

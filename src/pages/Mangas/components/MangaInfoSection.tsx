@@ -17,7 +17,7 @@ interface MangaInfoSectionProps {
 
 export default function MangaInfoSection({ serie, shouldShow, onLabelsChange }: MangaInfoSectionProps) {
   // Organiser les titres : titre français en priorité, titre original et titres alternatifs
-  const { mainTitle, originalTitle, alternativeTitles } = organizeMangaTitles(serie);
+  const { mainTitle, originalTitle, romajiTitle, englishTitle, alternativeTitles } = organizeMangaTitles(serie);
   const { devMode } = useDevMode();
   const [exporting, setExporting] = useState(false);
 
@@ -79,6 +79,11 @@ export default function MangaInfoSection({ serie, shouldShow, onLabelsChange }: 
         </div>
         {originalTitle && (
           <p className="detail-page-subtitle">{originalTitle}</p>
+        )}
+        {(romajiTitle || englishTitle) && (
+          <p className="detail-page-subtitle" style={{ marginTop: '4px' }}>
+            {[romajiTitle, englishTitle].filter(Boolean).join(' // ')}
+          </p>
         )}
         {shouldShow('titres_alternatifs') && alternativeTitles.length > 0 && (
           <p className="detail-page-subtitle" style={{ marginTop: '4px' }}>

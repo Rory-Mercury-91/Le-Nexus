@@ -90,6 +90,7 @@ function registerMovieHandlers(ipcMain, getDb, store) {
 
     const {
       search,
+      genres,
       orderBy = 'date_sortie',
       sort = 'DESC',
       limit = filters.limit ?? 500,
@@ -103,6 +104,13 @@ function registerMovieHandlers(ipcMain, getDb, store) {
       clauses.push('(LOWER(titre) LIKE ? OR LOWER(titre_original) LIKE ? OR tmdb_id = ?)');
       const like = `%${search.toLowerCase()}%`;
       params.push(like, like, Number.isNaN(Number(search)) ? -1 : Number(search));
+    }
+
+    // Filtre par genres (les genres sont stockés en JSON, on cherche le nom dans le JSON)
+    if (genres && Array.isArray(genres) && genres.length > 0) {
+      const genreConditions = genres.map(() => 'm.genres LIKE ?').join(' AND ');
+      clauses.push(`(${genreConditions})`);
+      genres.forEach(genre => params.push(`%"name":"${genre}"%`));
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -456,6 +464,36 @@ function registerMovieHandlers(ipcMain, getDb, store) {
     } catch (error) {
       console.error('❌ Erreur delete-movie:', error);
       return { success: false, error: error.message };
+    }
+  });
+
+  // Récupérer tous les genres uniques
+  ipcMain.handle('get-all-movie-genres', async () => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      const movies = db.prepare('SELECT genres FROM movies WHERE genres IS NOT NULL AND genres <> \'\' AND LENGTH(genres) > 0').all();
+      const allGenres = new Set();
+      movies.forEach(movie => {
+        if (movie.genres) {
+          try {
+            const genres = safeJsonParse(movie.genres, []);
+            if (Array.isArray(genres)) {
+              genres.forEach(genre => {
+                if (genre && genre.name) {
+                  allGenres.add(genre.name);
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('⚠️ Erreur parsing genres pour film:', e);
+          }
+        }
+      });
+      return Array.from(allGenres).sort();
+    } catch (error) {
+      console.error('❌ Erreur get-all-movie-genres:', error);
+      throw error;
     }
   });
 }

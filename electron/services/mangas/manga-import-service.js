@@ -31,10 +31,48 @@ async function handleImportManga(req, res, getDb, store, mainWindow, getPathMana
 
     // Parser et valider les données
     const mangaData = parseNautiljonData(rawMangaData);
-    console.log(`📦 [IMPORT] Volumes reçus: ${mangaData.volumes ? mangaData.volumes.length : 0} volume(s)`);
+    
+    // Logs détaillés des données parsées depuis Nautiljon
+    console.log('📋 ========== DONNÉES PARSÉES DEPUIS NAUTILJON ==========');
+    console.log(`📖 Titre: ${mangaData.titre || 'N/A'}`);
+    console.log(`📖 Titre VO: ${mangaData.titre_vo || 'N/A'}`);
+    console.log(`📖 Titre natif: ${mangaData.titre_natif || 'N/A'}`);
+    console.log(`📖 Titre original: ${mangaData.titre_original || 'N/A'}`);
+    console.log(`🏷️ Titres alternatifs: ${mangaData.titres_alternatifs ? (() => {
+      try {
+        const parsed = JSON.parse(mangaData.titres_alternatifs);
+        return Array.isArray(parsed) ? parsed.join(', ') : mangaData.titres_alternatifs;
+      } catch {
+        return mangaData.titres_alternatifs;
+      }
+    })() : 'N/A'}`);
+    console.log(`📝 Description: ${mangaData.description ? (mangaData.description.length > 100 ? mangaData.description.substring(0, 100) + '...' : mangaData.description) : 'N/A'}`);
+    console.log(`📊 Statut publication VO: ${mangaData.statut_publication_vo || 'N/A'}`);
+    console.log(`📊 Statut publication VF: ${mangaData.statut_publication || 'N/A'}`);
+    console.log(`📅 Année publication VO: ${mangaData.annee_publication_vo || 'N/A'}`);
+    console.log(`📅 Année publication VF: ${mangaData.annee_publication || 'N/A'}`);
+    console.log(`📚 Nombre de volumes VO: ${mangaData.nb_volumes_vo !== undefined ? mangaData.nb_volumes_vo : 'N/A'}`);
+    console.log(`📚 Nombre de volumes VF: ${mangaData.nb_volumes !== undefined ? mangaData.nb_volumes : 'N/A'}`);
+    console.log(`📖 Nombre de chapitres VO: ${mangaData.nb_chapitres_vo !== undefined ? mangaData.nb_chapitres_vo : 'N/A'}`);
+    console.log(`📖 Nombre de chapitres VF: ${mangaData.nb_chapitres !== undefined ? mangaData.nb_chapitres : 'N/A'}`);
+    console.log(`🏷️ Genres: ${mangaData.genres || 'N/A'}`);
+    console.log(`🎭 Thèmes: ${mangaData.themes || 'N/A'}`);
+    console.log(`👥 Démographie: ${mangaData.demographie || 'N/A'}`);
+    console.log(`🏢 Éditeur: ${mangaData.editeur || 'N/A'}`);
+    console.log(`🏢 Éditeur VO: ${mangaData.editeur_vo || 'N/A'}`);
+    console.log(`⭐ Rating: ${mangaData.rating || 'N/A'}`);
+    console.log(`📖 Type média: ${mangaData.media_type || 'N/A'}`);
+    console.log(`📦 Type volume: ${mangaData.type_volume || 'N/A'}`);
+    console.log(`📦 Type contenu: ${mangaData.type_contenu || 'N/A'}`);
+    console.log(`✍️ Auteurs: ${mangaData.auteurs || 'N/A'}`);
+    console.log(`📰 Prépublication: ${mangaData.serialization || 'N/A'}`);
+    console.log(`🖼️ URL couverture: ${mangaData.couverture_url || 'N/A'}`);
+    console.log(`🔗 URL Nautiljon: ${mangaData.nautiljon_url || mangaData._url || 'N/A'}`);
+    console.log(`📦 Volumes reçus: ${mangaData.volumes ? mangaData.volumes.length : 0} volume(s)`);
     if (mangaData.volumes && mangaData.volumes.length > 0) {
-      console.log(`📦 [IMPORT] Exemple de volume:`, JSON.stringify(mangaData.volumes[0], null, 2));
+      console.log(`📦 Exemple de volume:`, JSON.stringify(mangaData.volumes[0], null, 2));
     }
+    console.log('===================================================================');
     const { db, currentUser } = validateDbAndUser(getDb, store);
 
     // Vérifier si l'utilisateur a forcé la création ou confirmé une fusion
@@ -158,10 +196,49 @@ async function handleImportManga(req, res, getDb, store, mainWindow, getPathMana
                       : 'nautiljon';
 
       const currentData = fullSerie;
-      mergedData = mergeSerieData(currentData, mangaData);
       
-      // Récupérer les champs modifiés par l'utilisateur
+      // Récupérer les champs modifiés par l'utilisateur AVANT la fusion
       const userModifiedFields = fullSerie.user_modified_fields || null;
+      
+      // Passer userModifiedFields à mergeSerieData pour respecter les modifications utilisateur
+      mergedData = mergeSerieData(currentData, mangaData, userModifiedFields);
+      
+      // Logs détaillés des données fusionnées
+      console.log('💾 ========== DONNÉES FUSIONNÉES (NAUTILJON) ==========');
+      console.log(`📖 Titre: ${mergedData.titre || 'N/A'}`);
+      console.log(`📖 Titre VO: ${mergedData.titre_vo || 'N/A'}`);
+      console.log(`📖 Titre natif: ${mergedData.titre_natif || 'N/A'}`);
+      console.log(`📖 Titre anglais: ${mergedData.titre_anglais || 'N/A'}`);
+      console.log(`🏷️ Titres alternatifs: ${mergedData.titres_alternatifs ? (() => {
+        try {
+          const parsed = JSON.parse(mergedData.titres_alternatifs);
+          return Array.isArray(parsed) ? parsed.join(', ') : mergedData.titres_alternatifs;
+        } catch {
+          return mergedData.titres_alternatifs;
+        }
+      })() : 'N/A'}`);
+      console.log(`📝 Description: ${mergedData.description ? (mergedData.description.length > 100 ? mergedData.description.substring(0, 100) + '...' : mergedData.description) : 'N/A'}`);
+      console.log(`📊 Statut publication: ${mergedData.statut_publication || 'N/A'}`);
+      console.log(`📊 Statut publication VF: ${mergedData.statut_publication_vf || 'N/A'}`);
+      console.log(`📅 Année publication: ${mergedData.annee_publication || 'N/A'}`);
+      console.log(`📅 Année VF: ${mergedData.annee_vf || 'N/A'}`);
+      console.log(`📚 Nombre de volumes: ${mergedData.nb_volumes !== undefined ? mergedData.nb_volumes : 'N/A'}`);
+      console.log(`📚 Nombre de volumes VF: ${mergedData.nb_volumes_vf !== undefined ? mergedData.nb_volumes_vf : 'N/A'}`);
+      console.log(`📖 Nombre de chapitres: ${mergedData.nb_chapitres !== undefined ? mergedData.nb_chapitres : 'N/A'}`);
+      console.log(`📖 Nombre de chapitres VF: ${mergedData.nb_chapitres_vf !== undefined ? mergedData.nb_chapitres_vf : 'N/A'}`);
+      console.log(`🏷️ Genres: ${mergedData.genres || 'N/A'}`);
+      console.log(`🎭 Thèmes: ${mergedData.themes || 'N/A'}`);
+      console.log(`👥 Démographie: ${mergedData.demographie || 'N/A'}`);
+      console.log(`🏢 Éditeur: ${mergedData.editeur || 'N/A'}`);
+      console.log(`🏢 Éditeur VO: ${mergedData.editeur_vo || 'N/A'}`);
+      console.log(`⭐ Rating: ${mergedData.rating || 'N/A'}`);
+      console.log(`📖 Type média: ${mergedData.media_type || 'N/A'}`);
+      console.log(`📦 Type volume: ${mergedData.type_volume || 'N/A'}`);
+      console.log(`📦 Type contenu: ${mergedData.type_contenu || 'N/A'}`);
+      console.log(`✍️ Auteurs: ${mergedData.auteurs || 'N/A'}`);
+      console.log(`📰 Prépublication: ${mergedData.serialization || 'N/A'}`);
+      console.log(`🖼️ URL couverture: ${mergedData.couverture_url || 'N/A'}`);
+      console.log('=======================================================');
       
       // Utiliser updateFieldIfNotUserModified pour respecter les champs protégés
       const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
@@ -463,7 +540,33 @@ async function handleNautiljonImport(db, rawMangaData, getPathManager, store, in
                   : 'nautiljon';
   
   const currentData = fullSerie;
-  const mergedData = mergeSerieData(currentData, mangaData);
+  
+  // Récupérer les champs modifiés par l'utilisateur AVANT la fusion
+  const userModifiedFields = fullSerie.user_modified_fields || null;
+  
+  // Passer userModifiedFields à mergeSerieData pour respecter les modifications utilisateur
+  const mergedData = mergeSerieData(currentData, mangaData, userModifiedFields);
+  
+  // Logs détaillés des données fusionnées
+  console.log('💾 ========== DONNÉES FUSIONNÉES (NAUTILJON - IMPORT TOMES) ==========');
+  console.log(`📖 Titre: ${mergedData.titre || 'N/A'}`);
+  console.log(`📖 Titre VO: ${mergedData.titre_vo || 'N/A'}`);
+  console.log(`📖 Titre natif: ${mergedData.titre_natif || 'N/A'}`);
+  console.log(`🏷️ Titres alternatifs: ${mergedData.titres_alternatifs ? (() => {
+    try {
+      const parsed = JSON.parse(mergedData.titres_alternatifs);
+      return Array.isArray(parsed) ? parsed.join(', ') : mergedData.titres_alternatifs;
+    } catch {
+      return mergedData.titres_alternatifs;
+    }
+  })() : 'N/A'}`);
+  console.log(`📚 Nombre de volumes: ${mergedData.nb_volumes !== undefined ? mergedData.nb_volumes : 'N/A'}`);
+  console.log(`📚 Nombre de volumes VF: ${mergedData.nb_volumes_vf !== undefined ? mergedData.nb_volumes_vf : 'N/A'}`);
+  console.log(`📖 Nombre de chapitres: ${mergedData.nb_chapitres !== undefined ? mergedData.nb_chapitres : 'N/A'}`);
+  console.log(`📖 Nombre de chapitres VF: ${mergedData.nb_chapitres_vf !== undefined ? mergedData.nb_chapitres_vf : 'N/A'}`);
+  console.log(`📊 Statut publication: ${mergedData.statut_publication || 'N/A'}`);
+  console.log(`📊 Statut publication VF: ${mergedData.statut_publication_vf || 'N/A'}`);
+  console.log('=======================================================');
   
   // Détecter les changements critiques pour signaler une mise à jour
   const currentNbVolumes = fullSerie.nb_volumes || 0;
@@ -516,9 +619,6 @@ async function handleNautiljonImport(db, rawMangaData, getPathManager, store, in
   if (nbChapitresVfChanged) {
     console.log(`  ✅ Nombre de chapitres VF augmenté: ${currentNbChapitresVf} → ${newNbChapitresVf} (mise à jour signalée)`);
   }
-  
-  // Récupérer les champs modifiés par l'utilisateur
-  const userModifiedFields = fullSerie.user_modified_fields || null;
   
   // Utiliser updateFieldIfNotUserModified pour respecter les champs protégés
   const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');

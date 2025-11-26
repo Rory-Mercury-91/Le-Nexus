@@ -257,12 +257,16 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
 
       if (isFromNautiljon && animeData.genres !== undefined && animeData.genres !== null) {
         updates.push('genres = ?');
-        values.push(animeData.genres);
+        // Normaliser le séparateur " - " en ", " pour Nautiljon
+        const normalizedGenres = animeData.genres.replace(/\s*-\s*/g, ', ');
+        values.push(normalizedGenres);
       }
 
       if (isFromNautiljon && animeData.themes !== undefined && animeData.themes !== null) {
         updates.push('themes = ?');
-        values.push(animeData.themes);
+        // Normaliser le séparateur " - " en ", " pour Nautiljon
+        const normalizedThemes = animeData.themes.replace(/\s*-\s*/g, ', ');
+        values.push(normalizedThemes);
       }
 
       if (isFromNautiljon && animeData.studios !== undefined && animeData.studios !== null) {
@@ -650,8 +654,9 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
         animeData.statut_diffusion || 'En cours',
         animeData.type || 'TV',
         animeData.nb_episodes || 0,
-        animeData.genres || null,
-        animeData.themes || null,
+        // Normaliser le séparateur " - " en ", " pour Nautiljon
+        animeData.genres ? animeData.genres.replace(/\s*-\s*/g, ', ') : null,
+        animeData.themes ? animeData.themes.replace(/\s*-\s*/g, ', ') : null,
         animeData.studios || null,
         animeData.diffuseurs || null,
         animeData.rating || null,

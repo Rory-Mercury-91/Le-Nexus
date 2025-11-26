@@ -338,11 +338,13 @@ export function createMangaEditConfig(serie: Serie): EditMalItemModalConfig<Seri
   ];
 
   // Fusionner tous les titres alternatifs en un seul champ
+  // IMPORTANT: Ne pas inclure les titres principaux (titre_romaji, titre_natif, titre_anglais)
+  // car ils sont déjà affichés dans leurs champs dédiés
   const getTitresAlternatifs = (item: Serie): string => {
     const allTitles: string[] = [];
-    if (item.titre_romaji) allTitles.push(item.titre_romaji);
-    if (item.titre_natif) allTitles.push(item.titre_natif);
-    if (item.titre_anglais) allTitles.push(item.titre_anglais);
+    
+    // Ne PAS ajouter titre_romaji, titre_natif, titre_anglais car ce sont des titres principaux
+    // Seulement les titres alternatifs depuis titres_alternatifs
     if (item.titres_alternatifs) {
       try {
         const parsed = JSON.parse(item.titres_alternatifs);
@@ -353,6 +355,7 @@ export function createMangaEditConfig(serie: Serie): EditMalItemModalConfig<Seri
         // Ignorer si ce n'est pas du JSON valide
       }
     }
+    
     const uniqueTitles = Array.from(new Set(allTitles.map(t => t.toLowerCase().trim())))
       .map(normalized => allTitles.find(t => t.toLowerCase().trim() === normalized))
       .filter(Boolean) as string[];

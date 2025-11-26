@@ -711,8 +711,11 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
       errors: 0
     };
     const reportData = {
-      enriched: [],
-      failed: []
+      created: [],
+      updated: [],
+      failed: [],
+      ignored: [],
+      matched: []
     };
 
     for (let i = 0; i < animesToEnrich.length; i++) {
@@ -775,9 +778,10 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
 
       if (result?.success) {
         stats.enriched++;
-        reportData.enriched.push({
+        reportData.updated.push({
           titre: anime.titre,
           id: anime.id,
+          animeId: anime.id,
           mal_id: anime.mal_id
         });
       } else {
@@ -786,6 +790,7 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
           titre: anime.titre,
           error: result?.error || 'Erreur inconnue',
           id: anime.id,
+          animeId: anime.id,
           mal_id: anime.mal_id
         });
       }
@@ -844,12 +849,17 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
         type: 'enrichment-anime',
         stats: {
           total: animesToEnrich.length,
-          enriched: stats.enriched,
+          updated: stats.enriched, // Enrichi = mis à jour
           errors: stats.errors,
-          skipped: animesToEnrich.length - stats.processed
+          skipped: animesToEnrich.length - stats.processed,
+          ignored: (reportData.ignored || []).length,
+          matched: (reportData.matched || []).length
         },
-        updated: reportData.enriched, // Utiliser "updated" car enrichi = mis à jour
+        created: reportData.created,
+        updated: reportData.updated,
         failed: reportData.failed,
+        ignored: reportData.ignored || [],
+        matched: reportData.matched || [],
         metadata: {
           user: currentUser,
           duration: durationMs,

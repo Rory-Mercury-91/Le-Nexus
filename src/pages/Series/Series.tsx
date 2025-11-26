@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TvShowCard from '../../components/cards/TvShowCard';
@@ -74,6 +74,13 @@ export default function Series() {
   );
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, handleViewModeChange] = useCollectionViewMode('series');
+  const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
+    'collection.series.filters.selectedGenres',
+    [],
+    { storage: 'session' }
+  );
+  const [availableGenres, setAvailableGenres] = useState<string[]>([]);
+  const [showGenresFilter, setShowGenresFilter] = useState(false);
 
   useScrollRestoration('collection.series.scroll', !loading);
 
@@ -85,7 +92,11 @@ export default function Series() {
   const loadSeries = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await window.electronAPI.getTvShows();
+      const filters: any = {};
+      if (selectedGenres.length > 0) {
+        filters.genres = selectedGenres;
+      }
+      const result = await window.electronAPI.getTvShows(filters);
       const parsed = (result || []).map((show: TvShowListItem) => ({
         ...show,
         genres: show.genres || [],
@@ -93,6 +104,14 @@ export default function Series() {
         dernier_episode: show.dernier_episode || null
       }));
       setSeries(parsed);
+
+      // Charger tous les genres disponibles
+      try {
+        const allGenres = await window.electronAPI.getAllTvGenres();
+        setAvailableGenres(allGenres);
+      } catch (error) {
+        console.error('Erreur chargement genres:', error);
+      }
     } catch (error: any) {
       console.error('Erreur chargement séries:', error);
       showToast({
@@ -104,7 +123,7 @@ export default function Series() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, selectedGenres]);
 
   const seriesStats = useMemo<ProgressionStats>(() => {
     const totalSeries = series.length;
@@ -193,6 +212,16 @@ export default function Series() {
     }
   };
 
+  const handleGenreToggle = useCallback((genre: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  }, [setSelectedGenres]);
+
   const {
     sortedItems: sortedSeries,
     hasActiveFilters
@@ -214,6 +243,16 @@ export default function Series() {
       getIsFavorite: (s) => !!s.is_favorite,
       getStatus: (s) => s.statut_visionnage || 'À regarder',
       getHasUpdates: (s) => !!s.maj_disponible
+    },
+    customFilter: (show) => {
+      // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
+      if (selectedGenres.length > 0) {
+        if (!show.genres || !Array.isArray(show.genres)) return false;
+        const showGenreNames = show.genres.map((g: any) => g.name || g).filter(Boolean);
+        const hasAllGenres = selectedGenres.every(genre => showGenreNames.includes(genre));
+        if (!hasAllGenres) return false;
+      }
+      return true;
     },
     sortConfig: {
       sortOptions: {
@@ -272,7 +311,8 @@ export default function Series() {
     setShowFavoriteOnly(false);
     setShowHidden(false);
     setShowMajOnly(false);
-  }, [setSearch, setStatusFilter, setShowFavoriteOnly, setShowHidden, setShowMajOnly]);
+    setSelectedGenres([]);
+  }, [setSearch, setStatusFilter, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setSelectedGenres]);
 
 
   return (
@@ -380,6 +420,71 @@ export default function Series() {
                 activeColor="#fb923c"
               />
             </div>
+
+            {availableGenres.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowGenresFilter(!showGenresFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    📺 Filtrer par genres
+                    {selectedGenres.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedGenres.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showGenresFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showGenresFilter && (
+                  <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {availableGenres.map(genre => {
+                      const isSelected = selectedGenres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          onClick={() => handleGenreToggle(genre)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(34, 197, 94, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(34, 197, 94, 0.15)',
+                            color: isSelected ? 'white' : '#86efac',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
           </CollectionFiltersBar>
 

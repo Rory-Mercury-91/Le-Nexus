@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MovieCard from '../../components/cards/MovieCard';
@@ -74,18 +74,37 @@ export default function Movies() {
   );
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, handleViewModeChange] = useCollectionViewMode('movies');
+  const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
+    'collection.movies.filters.selectedGenres',
+    [],
+    { storage: 'session' }
+  );
+  const [availableGenres, setAvailableGenres] = useState<string[]>([]);
+  const [showGenresFilter, setShowGenresFilter] = useState(false);
 
   useScrollRestoration('collection.movies.scroll', !loading);
 
   const loadMovies = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await window.electronAPI.getMovies();
+      const filters: any = {};
+      if (selectedGenres.length > 0) {
+        filters.genres = selectedGenres;
+      }
+      const result = await window.electronAPI.getMovies(filters);
       const parsed = (result || []).map((movie: MovieListItem) => ({
         ...movie,
         genres: movie.genres || []
       }));
       setMovies(parsed);
+
+      // Charger tous les genres disponibles
+      try {
+        const allGenres = await window.electronAPI.getAllMovieGenres();
+        setAvailableGenres(allGenres);
+      } catch (error) {
+        console.error('Erreur chargement genres:', error);
+      }
     } catch (error: any) {
       console.error('Erreur lors du chargement des films:', error);
       showToast({
@@ -97,7 +116,7 @@ export default function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, selectedGenres]);
 
   const movieStats = useMemo<ProgressionStats>(() => {
     const total = movies.length;
@@ -224,6 +243,16 @@ export default function Movies() {
     };
   }, [movies, updateMovieInState]);
 
+  const handleGenreToggle = useCallback((genre: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  }, [setSelectedGenres]);
+
   const {
     sortedItems: sortedMovies,
     hasActiveFilters
@@ -248,6 +277,16 @@ export default function Movies() {
         const status = m.statut_visionnage || 'À regarder';
         return status !== 'Terminé';
       }
+    },
+    customFilter: (movie) => {
+      // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
+      if (selectedGenres.length > 0) {
+        if (!movie.genres || !Array.isArray(movie.genres)) return false;
+        const movieGenreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean);
+        const hasAllGenres = selectedGenres.every(genre => movieGenreNames.includes(genre));
+        if (!hasAllGenres) return false;
+      }
+      return true;
     },
     sortConfig: {
       sortOptions: {
@@ -302,11 +341,12 @@ export default function Movies() {
     setShowFavoriteOnly(false);
     setShowHidden(false);
     setShowWatchlistOnly(false);
+    setSelectedGenres([]);
     setTimeout(() => {
       const input = document.querySelector<HTMLInputElement>('input[type="text"][placeholder^="Rechercher"]');
       input?.dispatchEvent(new Event('input', { bubbles: true }));
     }, 0);
-  }, [setSearch, setStatusFilter, setShowFavoriteOnly, setShowHidden, setShowWatchlistOnly]);
+  }, [setSearch, setStatusFilter, setShowFavoriteOnly, setShowHidden, setShowWatchlistOnly, setSelectedGenres]);
 
 
   return (
@@ -413,6 +453,71 @@ export default function Movies() {
                 activeColor="#fb923c"
               />
             </div>
+
+            {availableGenres.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowGenresFilter(!showGenresFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--hover)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🎬 Filtrer par genres
+                    {selectedGenres.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedGenres.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showGenresFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showGenresFilter && (
+                  <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {availableGenres.map(genre => {
+                      const isSelected = selectedGenres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          onClick={() => handleGenreToggle(genre)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(34, 197, 94, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(34, 197, 94, 0.15)',
+                            color: isSelected ? 'white' : '#86efac',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
           </CollectionFiltersBar>
 

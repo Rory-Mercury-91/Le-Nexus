@@ -30,6 +30,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addMangaLabel: (serieId, label, color) => ipcRenderer.invoke('add-manga-label', serieId, label, color),
   removeMangaLabel: (serieId, label) => ipcRenderer.invoke('remove-manga-label', serieId, label),
 
+  // Genres et thèmes de séries
+  getAllMangaGenres: () => ipcRenderer.invoke('get-all-manga-genres'),
+  getAllMangaThemes: () => ipcRenderer.invoke('get-all-manga-themes'),
+
   // Tomes
   createTome: (tome) => ipcRenderer.invoke('create-tome', tome),
   updateTome: (id, tome) => ipcRenderer.invoke('update-tome', id, tome),
@@ -117,6 +121,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addAnimeLabel: (animeId, label, color) => ipcRenderer.invoke('add-anime-label', animeId, label, color),
   removeAnimeLabel: (animeId, label) => ipcRenderer.invoke('remove-anime-label', animeId, label),
 
+  // Genres et thèmes d'animes
+  getAllAnimeGenres: () => ipcRenderer.invoke('get-all-anime-genres'),
+  getAllAnimeThemes: () => ipcRenderer.invoke('get-all-anime-themes'),
+
   // Animes
   createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),
   addAnimeByMalId: (malIdOrUrl, options = {}) => ipcRenderer.invoke('add-anime-by-mal-id', malIdOrUrl, options),
@@ -196,6 +204,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateMovie: (movieId, movieData) => ipcRenderer.invoke('update-movie', { movieId, movieData }),
   deleteMovie: (movieId) => ipcRenderer.invoke('delete-movie', movieId),
 
+  // Genres de films
+  getAllMovieGenres: () => ipcRenderer.invoke('get-all-movie-genres'),
+
   // Galerie d'images utilisateur
   addMovieUserImageUrl: (movieId, imageUrl) => ipcRenderer.invoke('add-movie-user-image-url', movieId, imageUrl),
   addMovieUserImageFile: (movieId, title) => ipcRenderer.invoke('add-movie-user-image-file', movieId, title),
@@ -228,6 +239,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTvEpisode: (payload) => ipcRenderer.invoke('tv-update-episode', payload),
   deleteTvEpisode: (showId, episodeId) => ipcRenderer.invoke('tv-delete-episode', { showId, episodeId }),
   reorderTvEpisodes: (payload) => ipcRenderer.invoke('tv-reorder-episodes', payload),
+
+  // Genres de séries TV
+  getAllTvGenres: () => ipcRenderer.invoke('get-all-tv-genres'),
   updateTvSeasonPoster: (payload) => ipcRenderer.invoke('tv-update-season-poster', payload),
   deleteTvShow: (showId) => ipcRenderer.invoke('delete-tv-show', showId),
   markTvEpisode: (payload) => ipcRenderer.invoke('tv-mark-episode', payload),

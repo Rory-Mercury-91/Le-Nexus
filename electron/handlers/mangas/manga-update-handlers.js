@@ -67,6 +67,30 @@ function handleUpdateSerie(db, getPathManager, store, id, serie) {
         return undefined; // Retourner undefined pour ignorer ce champ
       }
       
+      // Pour titres_alternatifs, s'assurer que c'est un JSON array valide
+      if (fieldName === 'titres_alternatifs') {
+        if (value === null || value === '') return null;
+        // Si c'est déjà une chaîne JSON valide, la retourner telle quelle
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+              return value; // Déjà au bon format
+            }
+          } catch {
+            // Ce n'est pas du JSON, on le convertit en array
+          }
+          // Si ce n'est pas du JSON, c'est probablement une chaîne séparée par " // "
+          const titles = value.split(' // ').map(t => t.trim()).filter(Boolean);
+          return titles.length > 0 ? JSON.stringify(titles) : null;
+        }
+        // Si c'est un array, le convertir en JSON
+        if (Array.isArray(value)) {
+          return value.length > 0 ? JSON.stringify(value) : null;
+        }
+        return null;
+      }
+      
       if (value === null || value === '') return null;
       // Gérer chapitres_mihon (par défaut 0)
       if (fieldName === 'chapitres_mihon' && value === undefined) return 0;

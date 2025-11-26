@@ -115,6 +115,20 @@ export default function Animes() {
   const [availableLabels, setAvailableLabels] = useState<Array<{ label: string; color: string }>>([]);
   const [animeLabels, setAnimeLabels] = useState<Record<number, Array<{ label: string; color: string }>>>({});
   const [showLabelsFilter, setShowLabelsFilter] = useState(false);
+  const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
+    'collection.animes.filters.selectedGenres',
+    [],
+    { storage: 'session' }
+  );
+  const [selectedThemes, setSelectedThemes] = usePersistentState<string[]>(
+    'collection.animes.filters.selectedThemes',
+    [],
+    { storage: 'session' }
+  );
+  const [availableGenres, setAvailableGenres] = useState<string[]>([]);
+  const [availableThemes, setAvailableThemes] = useState<string[]>([]);
+  const [showGenresFilter, setShowGenresFilter] = useState(false);
+  const [showThemesFilter, setShowThemesFilter] = useState(false);
 
   const filtersNormalizedRef = useRef(false);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -212,6 +226,16 @@ export default function Animes() {
         setAvailableLabels(allLabels);
       } catch (error) {
         console.error('Erreur chargement labels:', error);
+      }
+
+      // Charger tous les genres et thèmes disponibles
+      try {
+        const allGenres = await window.electronAPI.getAllAnimeGenres();
+        setAvailableGenres(allGenres);
+        const allThemes = await window.electronAPI.getAllAnimeThemes();
+        setAvailableThemes(allThemes);
+      } catch (error) {
+        console.error('Erreur chargement genres/thèmes:', error);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des animes:', error);
@@ -354,7 +378,9 @@ export default function Animes() {
     setShowFavoriteOnly(false);
     setShowMajOnly(false);
     setSelectedLabels([]);
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setSelectedLabels]);
+    setSelectedGenres([]);
+    setSelectedThemes([]);
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setSelectedLabels, setSelectedGenres, setSelectedThemes]);
 
   const handleLabelToggle = useCallback((label: string) => {
     setSelectedLabels(prev => {
@@ -365,6 +391,26 @@ export default function Animes() {
       }
     });
   }, [setSelectedLabels]);
+
+  const handleGenreToggle = useCallback((genre: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  }, [setSelectedGenres]);
+
+  const handleThemeToggle = useCallback((theme: string) => {
+    setSelectedThemes(prev => {
+      if (prev.includes(theme)) {
+        return prev.filter(t => t !== theme);
+      } else {
+        return [...prev, theme];
+      }
+    });
+  }, [setSelectedThemes]);
 
   useEffect(() => {
     if (searchDebounceRef.current) {
@@ -578,6 +624,29 @@ export default function Animes() {
         );
       },
       customFilter: (anime) => {
+        // Filtre par genres
+        if (selectedGenres.length > 0) {
+          if (!anime.genres) return false;
+          const animeGenres = anime.genres.split(',').map(g => g.trim()).filter(Boolean);
+          const hasAllGenres = selectedGenres.every(genre => animeGenres.includes(genre));
+          if (!hasAllGenres) return false;
+        }
+
+        // Filtre par thèmes
+        if (selectedThemes.length > 0) {
+          if (!anime.themes) return false;
+          const animeThemes = anime.themes.split(',').map(t => t.trim()).filter(Boolean);
+          const hasAllThemes = selectedThemes.every(theme => animeThemes.includes(theme));
+          if (!hasAllThemes) return false;
+        }
+
+        // Filtre par labels
+        if (selectedLabels.length > 0) {
+          const labels = animeLabels[anime.id] || [];
+          const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
+          if (!hasAnyLabel) return false;
+        }
+
         // Si un toggle exclusif est activé, ignorer tous les autres filtres
         if (showFavoriteOnly) {
           return Boolean(anime.is_favorite);
@@ -810,7 +879,7 @@ export default function Animes() {
 
           {/* Recherche et filtres avec composants réutilisables */}
           <CollectionFiltersBar
-            hasActiveFilters={hasActiveFiltersBase || selectedLabels.length > 0}
+            hasActiveFilters={hasActiveFiltersBase || selectedLabels.length > 0 || selectedGenres.length > 0 || selectedThemes.length > 0}
             onClearFilters={clearFilters}
           >
             <CollectionSearchBar
@@ -900,6 +969,132 @@ export default function Animes() {
                 activeColor="#fb923c"
               />
             </div>
+
+            {/* Filtre par genres */}
+            {availableGenres.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowGenresFilter(!showGenresFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showGenresFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🎭 Filtrer par genres
+                    {selectedGenres.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedGenres.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showGenresFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showGenresFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableGenres.map(genre => {
+                      const isSelected = selectedGenres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          onClick={() => handleGenreToggle(genre)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(34, 197, 94, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(34, 197, 94, 0.15)',
+                            color: isSelected ? 'white' : '#86efac',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filtre par thèmes */}
+            {availableThemes.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowThemesFilter(!showThemesFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showThemesFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🎨 Filtrer par thèmes
+                    {selectedThemes.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedThemes.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showThemesFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showThemesFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableThemes.map(theme => {
+                      const isSelected = selectedThemes.includes(theme);
+                      return (
+                        <button
+                          key={theme}
+                          onClick={() => handleThemeToggle(theme)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(168, 85, 247, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(168, 85, 247, 0.15)',
+                            color: isSelected ? 'white' : '#c4b5fd',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {theme}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Filtre par labels */}
             {availableLabels.length > 0 && (
@@ -1071,7 +1266,7 @@ export default function Animes() {
             emptyMessage={
               showAddFromMal
                 ? ''
-                : ((hasActiveFiltersBase || selectedLabels.length > 0)
+                : ((hasActiveFiltersBase || selectedLabels.length > 0 || selectedGenres.length > 0 || selectedThemes.length > 0)
                   ? 'Aucun animé ne correspond à vos filtres'
                   : 'Aucun animé dans votre collection')
             }

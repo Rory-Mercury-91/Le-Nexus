@@ -63,14 +63,18 @@ function rotateReports(reportsDir, prefix, maxReports = 10) {
 
 /**
  * Génère un rapport d'état et le sauvegarde avec rotation automatique
+ * Format standardisé basé sur le rapport Mihon pour tous les types d'opérations
  * @param {Object} options - Options de génération du rapport
  * @param {Function} getPathManager - Fonction pour obtenir le PathManager
- * @param {string} options.type - Type d'opération ('mihon-import', 'mal-sync', 'enrichment-manga', 'enrichment-anime', 'nautiljon-import', 'nautiljon-sync')
+ * @param {string} options.type - Type d'opération ('mihon-import', 'mal-sync', 'enrichment-manga', 'enrichment-anime', 'nautiljon-import', 'nautiljon-sync', etc.)
  * @param {string} options.sourceFile - Nom du fichier source (optionnel)
- * @param {Object} options.stats - Statistiques globales
+ * @param {Object} options.stats - Statistiques globales { total, created, updated, errors, skipped, matched, ignored, ... }
  * @param {Array} options.created - Liste des éléments créés (optionnel)
  * @param {Array} options.updated - Liste des éléments mis à jour (optionnel)
  * @param {Array} options.failed - Liste des erreurs (optionnel)
+ * @param {Array} options.ignored - Liste des éléments ignorés (optionnel)
+ * @param {Array} options.matched - Liste des correspondances/matchs (optionnel)
+ * @param {Array} options.potentialMatches - Liste des matches potentiels non fusionnés (optionnel)
  * @param {Object} options.metadata - Métadonnées supplémentaires (optionnel)
  * @param {number} options.maxReports - Nombre maximum de rapports à conserver (défaut: 10)
  * @returns {string|null} Chemin du rapport généré, ou null en cas d'erreur
@@ -83,6 +87,8 @@ function generateReport(getPathManager, options) {
     created = [],
     updated = [],
     failed = [],
+    ignored = [],
+    matched = [],
     potentialMatches = [],
     metadata = {},
     maxReports = 10
@@ -206,6 +212,9 @@ function generateReport(getPathManager, options) {
     if (stats.matched !== undefined) {
       reportLines.push(`Correspondances: ${stats.matched}`);
     }
+    if (stats.ignored !== undefined) {
+      reportLines.push(`Ignorés: ${stats.ignored}`);
+    }
     if (stats.synced !== undefined) {
       reportLines.push(`Synchronisés: ${stats.synced}`);
     }
@@ -217,6 +226,9 @@ function generateReport(getPathManager, options) {
     }
     if (stats.scraped !== undefined) {
       reportLines.push(`Scrapés: ${stats.scraped}`);
+    }
+    if (stats.notFound !== undefined) {
+      reportLines.push(`Non trouvés: ${stats.notFound}`);
     }
     if (metadata.duration !== undefined) {
       const duration = Math.round(metadata.duration / 1000);
@@ -342,6 +354,64 @@ function generateReport(getPathManager, options) {
         }
         if (item.minor) {
           reportLines.push(`   ℹ️ Changements mineurs (pas de signalement)`);
+        }
+        reportLines.push('');
+      });
+    }
+
+    // Détails des correspondances/matchs
+    if (matched.length > 0) {
+      reportLines.push('CORRESPONDANCES/MATCHS:');
+      reportLines.push('-'.repeat(80));
+      matched.forEach((item, index) => {
+        reportLines.push(`${index + 1}. ${item.titre || item.name || item.title || 'Sans titre'}`);
+        if (item.serieId) reportLines.push(`   ID série: ${item.serieId}`);
+        if (item.animeId) reportLines.push(`   ID anime: ${item.animeId}`);
+        if (item.id) reportLines.push(`   ID: ${item.id}`);
+        if (item.mal_id) reportLines.push(`   MAL ID: ${item.mal_id}`);
+        if (item.matchMethod) {
+          const methodLabels = {
+            'mal_id': 'par MAL ID',
+            'title_exact': 'par titre exact',
+            'title_similarity': 'par similarité de titre',
+            'f95_thread_id': 'par F95 Thread ID',
+            'user_selection': 'sélection utilisateur'
+          };
+          reportLines.push(`   📍 Méthode de matching: ${methodLabels[item.matchMethod] || item.matchMethod}`);
+        }
+        if (item.similarity !== null && item.similarity !== undefined) {
+          reportLines.push(`   📊 Similarité: ${item.similarity.toFixed(2)}%`);
+        }
+        if (item.source_url) {
+          try {
+            const url = new URL(item.source_url);
+            reportLines.push(`   Site: ${url.hostname}`);
+          } catch (e) {
+            reportLines.push(`   Site: ${item.source_url}`);
+          }
+        }
+        reportLines.push('');
+      });
+    }
+
+    // Détails des éléments ignorés
+    if (ignored.length > 0) {
+      reportLines.push('ÉLÉMENTS IGNORÉS:');
+      reportLines.push('-'.repeat(80));
+      ignored.forEach((item, index) => {
+        reportLines.push(`${index + 1}. ${item.titre || item.name || item.title || 'Sans titre'}`);
+        if (item.reason) reportLines.push(`   Raison: ${item.reason}`);
+        if (item.serieId) reportLines.push(`   ID série: ${item.serieId}`);
+        if (item.animeId) reportLines.push(`   ID anime: ${item.animeId}`);
+        if (item.id) reportLines.push(`   ID: ${item.id}`);
+        if (item.mal_id) reportLines.push(`   MAL ID: ${item.mal_id}`);
+        if (item.source_url) {
+          try {
+            const url = new URL(item.source_url);
+            reportLines.push(`   Site: ${url.hostname}`);
+          } catch (e) {
+            reportLines.push(`   Site: ${item.source_url}`);
+          }
         }
         reportLines.push('');
       });

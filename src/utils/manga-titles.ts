@@ -45,7 +45,9 @@ function hasJapaneseOrChinese(title: string): boolean {
 export function organizeMangaTitles(serie: Serie): {
   mainTitle: string; // Titre français (priorité) ou titre principal
   originalTitle: string | null; // Titre original (japonais/chinois)
-  alternativeTitles: string[]; // Tous les autres titres dédupliqués
+  romajiTitle: string | null; // Titre romaji
+  englishTitle: string | null; // Titre anglais
+  alternativeTitles: string[]; // Tous les autres titres dédupliqués (sans les titres principaux)
 } {
   const allTitles: string[] = [];
   const seenNormalized = new Set<string>();
@@ -145,27 +147,64 @@ export function organizeMangaTitles(serie: Serie): {
   
   const originalTitleNormalized = originalTitle ? normalizeTitle(originalTitle) : null;
   
-  // Collecter tous les autres titres comme titres alternatifs (en excluant le titre principal et le titre original)
-  for (const title of uniqueTitles) {
-    const normalized = normalizeTitle(title);
-    // Exclure le titre principal et le titre original
-    if (normalized !== mainTitleNormalized && normalized !== originalTitleNormalized) {
-      alternativeTitles.push(title);
+  // Créer un Set des titres principaux normalisés pour exclusion
+  const mainTitlesNormalized = new Set<string>();
+  mainTitlesNormalized.add(mainTitleNormalized);
+  if (originalTitleNormalized) {
+    mainTitlesNormalized.add(originalTitleNormalized);
+  }
+  // Ajouter aussi titre_romaji, titre_natif, titre_anglais s'ils existent
+  if (serie.titre_romaji) {
+    mainTitlesNormalized.add(normalizeTitle(serie.titre_romaji));
+  }
+  if (serie.titre_natif) {
+    mainTitlesNormalized.add(normalizeTitle(serie.titre_natif));
+  }
+  if (serie.titre_anglais) {
+    mainTitlesNormalized.add(normalizeTitle(serie.titre_anglais));
+  }
+  
+  // Collecter uniquement les titres depuis titres_alternatifs (pas les titres principaux)
+  // Les titres principaux (titre, titre_romaji, titre_natif, titre_anglais) sont déjà affichés séparément
+  if (serie.titres_alternatifs) {
+    let others: string[] = [];
+    try {
+      const parsed = JSON.parse(serie.titres_alternatifs) as unknown;
+      if (Array.isArray(parsed)) {
+        others = parsed
+          .map((t) => (typeof t === 'string' ? t : String(t)).trim())
+          .filter((t): t is string => t.length > 0);
+      } else {
+        others = serie.titres_alternatifs
+          .split(/[,/|]+/)
+          .map((t: string) => t.trim())
+          .filter(Boolean);
+      }
+    } catch {
+      others = serie.titres_alternatifs
+        .split(/[,/|]+/)
+        .map((t: string) => t.trim())
+        .filter(Boolean);
+    }
+    
+    // Ajouter uniquement les titres qui ne sont pas dans les titres principaux
+    for (const title of others) {
+      const normalized = normalizeTitle(title);
+      if (!mainTitlesNormalized.has(normalized)) {
+        alternativeTitles.push(title);
+      }
     }
   }
   
-  // Si on a un titre original et qu'il n'est pas déjà dans les alternatifs, l'ajouter en premier
-  if (originalTitle && originalTitleNormalized !== mainTitleNormalized) {
-    // Vérifier qu'il n'est pas déjà présent (au cas où)
-    const alreadyInAlts = alternativeTitles.some(t => normalizeTitle(t) === originalTitleNormalized);
-    if (!alreadyInAlts) {
-      alternativeTitles.unshift(originalTitle);
-    }
-  }
+  // Extraire titre_romaji et titre_anglais séparément
+  const romajiTitle = serie.titre_romaji || null;
+  const englishTitle = serie.titre_anglais || null;
   
   return {
     mainTitle,
     originalTitle,
+    romajiTitle,
+    englishTitle,
     alternativeTitles
   };
 }

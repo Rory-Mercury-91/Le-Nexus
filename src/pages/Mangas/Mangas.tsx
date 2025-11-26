@@ -202,6 +202,20 @@ export default function Mangas() {
   const [availableLabels, setAvailableLabels] = useState<Array<{ label: string; color: string }>>([]);
   const [serieLabels, setSerieLabels] = useState<Record<number, Array<{ label: string; color: string }>>>({});
   const [showLabelsFilter, setShowLabelsFilter] = useState(false);
+  const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
+    'collection.mangas.filters.selectedGenres',
+    [],
+    { storage: 'session' }
+  );
+  const [selectedThemes, setSelectedThemes] = usePersistentState<string[]>(
+    'collection.mangas.filters.selectedThemes',
+    [],
+    { storage: 'session' }
+  );
+  const [availableGenres, setAvailableGenres] = useState<string[]>([]);
+  const [availableThemes, setAvailableThemes] = useState<string[]>([]);
+  const [showGenresFilter, setShowGenresFilter] = useState(false);
+  const [showThemesFilter, setShowThemesFilter] = useState(false);
 
   // Récupération des sites disponibles depuis l'index des sources
   // Cette liste est basée sur TOUTES les séries de la base, pas seulement celles filtrées
@@ -411,6 +425,16 @@ export default function Mangas() {
       } catch (error) {
         console.error('Erreur chargement labels:', error);
       }
+
+      // Charger tous les genres et thèmes disponibles
+      try {
+        const allGenres = await window.electronAPI.getAllMangaGenres();
+        setAvailableGenres(allGenres);
+        const allThemes = await window.electronAPI.getAllMangaThemes();
+        setAvailableThemes(allThemes);
+      } catch (error) {
+        console.error('Erreur chargement genres/thèmes:', error);
+      }
     } catch (error) {
       console.error('Erreur chargement séries:', error);
       setSeries([]);
@@ -510,6 +534,26 @@ export default function Mangas() {
     });
   }, [setSelectedLabels]);
 
+  const handleGenreToggle = useCallback((genre: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  }, [setSelectedGenres]);
+
+  const handleThemeToggle = useCallback((theme: string) => {
+    setSelectedThemes(prev => {
+      if (prev.includes(theme)) {
+        return prev.filter(t => t !== theme);
+      } else {
+        return [...prev, theme];
+      }
+    });
+  }, [setSelectedThemes]);
+
 
   // Fonction pour détecter et extraire l'ID depuis une URL MAL
   const detectMalUrlOrId = (input: string): { id: string | null } => {
@@ -554,6 +598,29 @@ export default function Mangas() {
       getIsFavorite: (s) => !!s.is_favorite,
       getStatus: (s) => getSerieStatusLabel(s),
       customFilter: (serie) => {
+        // Filtre par genres
+        if (selectedGenres.length > 0) {
+          if (!serie.genres) return false;
+          const serieGenres = serie.genres.split(',').map(g => g.trim()).filter(Boolean);
+          const hasAllGenres = selectedGenres.every(genre => serieGenres.includes(genre));
+          if (!hasAllGenres) return false;
+        }
+
+        // Filtre par thèmes
+        if (selectedThemes.length > 0) {
+          if (!serie.themes) return false;
+          const serieThemes = serie.themes.split(',').map(t => t.trim()).filter(Boolean);
+          const hasAllThemes = selectedThemes.every(theme => serieThemes.includes(theme));
+          if (!hasAllThemes) return false;
+        }
+
+        // Filtre par labels
+        if (selectedLabels.length > 0) {
+          const labels = serieLabels[serie.id] || [];
+          const hasAnyLabel = selectedLabels.some(label => labels.some(l => l.label === label));
+          if (!hasAnyLabel) return false;
+        }
+
         // Filtre Mihon/Source
         if (mihonFilter !== 'all') {
           const hasTomesMihon = serie.tomes?.some(tome => tome.mihon === 1);
@@ -658,7 +725,8 @@ export default function Mangas() {
 
   // Calculer hasActiveFilters en incluant le filtre Mihon et autres filtres
   const hasActiveFilters = hasActiveFiltersBase || mihonFilter !== 'all' || 
-    !!filters.type_volume || !!filters.tag || !!filters.source_id || selectedLabels.length > 0;
+    !!filters.type_volume || !!filters.tag || !!filters.source_id || 
+    selectedLabels.length > 0 || selectedGenres.length > 0 || selectedThemes.length > 0;
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
   const detectedMalId = searchTerm ? detectMalUrlOrId(searchTerm) : { id: null };
@@ -997,6 +1065,132 @@ export default function Mangas() {
                 activeColor="#f59e0b"
               />
             </div>
+
+            {/* Filtre par genres */}
+            {availableGenres.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowGenresFilter(!showGenresFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showGenresFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🎭 Filtrer par genres
+                    {selectedGenres.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedGenres.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showGenresFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showGenresFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableGenres.map(genre => {
+                      const isSelected = selectedGenres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          onClick={() => handleGenreToggle(genre)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(34, 197, 94, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(34, 197, 94, 0.15)',
+                            color: isSelected ? 'white' : '#86efac',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filtre par thèmes */}
+            {availableThemes.length > 0 && (
+              <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+                <button
+                  onClick={() => setShowThemesFilter(!showThemesFilter)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginBottom: showThemesFilter ? '12px' : '0'
+                  }}
+                >
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    🎨 Filtrer par thèmes
+                    {selectedThemes.length > 0 && (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: 'var(--primary)', color: 'white', fontWeight: '600' }}>
+                        {selectedThemes.length}
+                      </span>
+                    )}
+                  </h3>
+                  <ChevronDown
+                    size={20}
+                    style={{
+                      color: 'var(--text-secondary)',
+                      transform: showThemesFilter ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}
+                  />
+                </button>
+                {showThemesFilter && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', maxHeight: '200px', overflowY: 'auto', padding: '4px' }}>
+                    {availableThemes.map(theme => {
+                      const isSelected = selectedThemes.includes(theme);
+                      return (
+                        <button
+                          key={theme}
+                          onClick={() => handleThemeToggle(theme)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '13px',
+                            fontWeight: isSelected ? '600' : '500',
+                            border: isSelected ? '2px solid var(--primary)' : '2px solid rgba(168, 85, 247, 0.3)',
+                            background: isSelected ? 'var(--primary)' : 'rgba(168, 85, 247, 0.15)',
+                            color: isSelected ? 'white' : '#c4b5fd',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {theme}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Filtre par labels */}
             {availableLabels.length > 0 && (

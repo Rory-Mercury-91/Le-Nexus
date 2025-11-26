@@ -114,69 +114,71 @@ function updateGameWithTranslation(db, gameId, activeEntry, traductions, imageUr
       console.log(`  ✅ Statut changé: ${currentStatus || 'Aucun'} → ${activeEntry.statut} (mise à jour signalée)`);
     }
     
+    // Récupérer les champs modifiés par l'utilisateur pour respecter la protection
+    const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
+    const userModifiedFields = current?.user_modified_fields || null;
+    
+    // Mettre à jour tous les champs en respectant user_modified_fields
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'titre', activeEntry.nom, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_version', normalizedVersion, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_statut', activeEntry.statut, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_engine', activeEntry.moteur, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'tags', JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []), userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'couverture_url', effectiveImageUrl, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'version_traduite', activeEntry.versionTraduite, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'lien_traduction', activeEntry.lienTraduction, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'statut_traduction', activeEntry.typeTraduction ? 'TERMINÉ' : null, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'type_traduction', activeEntry.typeTraduction, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'traducteur', activeEntry.traducteur, userModifiedFields);
+    
+    // Toujours mettre à jour ces champs (non protégés)
     db.prepare(`
       UPDATE adulte_game_games SET
-        titre = ?,
-        game_version = ?,
-        game_statut = ?,
-        game_engine = ?,
-        tags = ?,
-        couverture_url = COALESCE(?, couverture_url),
         traduction_fr_disponible = 1,
-        version_traduite = ?,
-        statut_traduction = ?,
-        type_traduction = ?,
-        traducteur = ?,
         traductions_multiples = ?,
         maj_disponible = ?,
         derniere_sync_trad = datetime('now'),
         updated_at = datetime('now')
       WHERE id = ?
     `).run(
-      activeEntry.nom,
-      normalizedVersion,
-      activeEntry.statut,
-      activeEntry.moteur,
-      JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []),
-      effectiveImageUrl,
-      activeEntry.versionTraduite,
-      activeEntry.typeTraduction ? 'TERMINÉ' : null, // statut_traduction
-      activeEntry.typeTraduction,
-      activeEntry.traducteur,
       JSON.stringify(traductions),
       majDisponibleValue,
       gameId
     );
   } catch (e) {
     // En cas d'erreur de lecture, on continue avec l'imageUrl fournie et sans détection de changement
+    // Récupérer les champs modifiés par l'utilisateur pour respecter la protection
+    const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
+    let userModifiedFields = null;
+    try {
+      const current = db.prepare('SELECT user_modified_fields FROM adulte_game_games WHERE id = ?').get(gameId);
+      userModifiedFields = current?.user_modified_fields || null;
+    } catch (err) {
+      // Ignorer l'erreur
+    }
+    
+    // Mettre à jour tous les champs en respectant user_modified_fields
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'titre', activeEntry.nom, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_version', normalizedVersion, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_statut', activeEntry.statut, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_engine', activeEntry.moteur, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'tags', JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []), userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'couverture_url', effectiveImageUrl, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'version_traduite', activeEntry.versionTraduite, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'lien_traduction', activeEntry.lienTraduction, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'statut_traduction', activeEntry.typeTraduction ? 'TERMINÉ' : null, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'type_traduction', activeEntry.typeTraduction, userModifiedFields);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'traducteur', activeEntry.traducteur, userModifiedFields);
+    
+    // Toujours mettre à jour ces champs (non protégés)
     db.prepare(`
       UPDATE adulte_game_games SET
-        titre = ?,
-        game_version = ?,
-        game_statut = ?,
-        game_engine = ?,
-        tags = ?,
-        couverture_url = COALESCE(?, couverture_url),
         traduction_fr_disponible = 1,
-        version_traduite = ?,
-        statut_traduction = ?,
-        type_traduction = ?,
-        traducteur = ?,
         traductions_multiples = ?,
         derniere_sync_trad = datetime('now'),
         updated_at = datetime('now')
       WHERE id = ?
     `).run(
-      activeEntry.nom,
-      normalizedVersion,
-      activeEntry.statut,
-      activeEntry.moteur,
-      JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []),
-      effectiveImageUrl,
-      activeEntry.versionTraduite,
-      activeEntry.typeTraduction ? 'TERMINÉ' : null, // statut_traduction
-      activeEntry.typeTraduction,
-      activeEntry.traducteur,
       JSON.stringify(traductions),
       gameId
     );
@@ -227,6 +229,7 @@ function createGameWithTranslation(db, gameThreadId, activeEntry, plateforme, th
         couverture_url,
         traduction_fr_disponible,
         version_traduite,
+        lien_traduction,
         statut_traduction,
         type_traduction,
         traducteur,
@@ -234,7 +237,7 @@ function createGameWithTranslation(db, gameThreadId, activeEntry, plateforme, th
         derniere_sync_trad,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
     `).run(
       f95_thread_id,
       Lewdcorner_thread_id,
@@ -248,6 +251,7 @@ function createGameWithTranslation(db, gameThreadId, activeEntry, plateforme, th
       JSON.stringify(activeEntry.tags ? activeEntry.tags.split(',').map(t => t.trim()) : []),
       imageUrl,
       activeEntry.versionTraduite,
+      activeEntry.lienTraduction || null,
       activeEntry.typeTraduction ? 'TERMINÉ' : null, // statut_traduction
       activeEntry.typeTraduction,
       activeEntry.traducteur,
@@ -304,15 +308,16 @@ function updateExistingGameTranslations(db, gameId, activeEntry, traductions, im
   // Utiliser la version telle quelle (sans normalisation) pour supporter "Final", "Completed", etc.
   const versionToUpdate = activeEntry.version ? activeEntry.version.trim() : null;
   
-  // Protection couverture: ne pas écraser une image locale ni un champ protégé par l'utilisateur
+  // Récupérer les champs modifiés par l'utilisateur pour respecter la protection
+  let userModifiedFields = null;
   let effectiveImageUrl = imageUrl || null;
   try {
     const current = db.prepare('SELECT couverture_url, user_modified_fields FROM adulte_game_games WHERE id = ?').get(gameId);
     const currentCover = current?.couverture_url || '';
-    const userModified = current?.user_modified_fields || null;
+    userModifiedFields = current?.user_modified_fields || null;
     const { isFieldUserModified } = require('../../utils/enrichment-helpers');
     const isLocalCover = currentCover && !currentCover.includes('://') && !currentCover.startsWith('data:');
-    const isUserProtected = isFieldUserModified(userModified, 'couverture_url');
+    const isUserProtected = isFieldUserModified(userModifiedFields, 'couverture_url');
     if (isLocalCover || isUserProtected) {
       effectiveImageUrl = null;
     }
@@ -320,64 +325,53 @@ function updateExistingGameTranslations(db, gameId, activeEntry, traductions, im
     // Ignorer et utiliser imageUrl tel quel
   }
   
-  // Construire la requête dynamiquement pour forcer la mise à jour de la version si elle existe
-  const updateFields = [];
-  const updateParams = [];
+  // Utiliser updateFieldIfNotUserModified pour respecter les champs protégés
+  const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
   
+  // Mettre à jour tous les champs en respectant user_modified_fields
   if (activeEntry.nom) {
-    updateFields.push('titre = ?');
-    updateParams.push(activeEntry.nom);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'titre', activeEntry.nom, userModifiedFields);
   }
   
   if (versionToUpdate !== null) {
-    updateFields.push('game_version = ?');
-    updateParams.push(versionToUpdate);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_version', versionToUpdate, userModifiedFields);
   }
   
   if (activeEntry.statut) {
-    updateFields.push('game_statut = ?');
-    updateParams.push(activeEntry.statut);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_statut', activeEntry.statut, userModifiedFields);
   }
   
   if (activeEntry.moteur) {
-    updateFields.push('game_engine = ?');
-    updateParams.push(activeEntry.moteur);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'game_engine', activeEntry.moteur, userModifiedFields);
   }
   
   if (activeEntry.tags) {
-    updateFields.push('tags = ?');
-    updateParams.push(JSON.stringify(activeEntry.tags.split(',').map(t => t.trim())));
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'tags', JSON.stringify(activeEntry.tags.split(',').map(t => t.trim())), userModifiedFields);
   }
   
   if (effectiveImageUrl) {
-    updateFields.push('couverture_url = ?');
-    updateParams.push(effectiveImageUrl);
+    updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'couverture_url', effectiveImageUrl, userModifiedFields);
   }
   
-  // Toujours mettre à jour les champs de traduction
-  updateFields.push('traduction_fr_disponible = 1');
-  updateFields.push('version_traduite = ?');
-  updateParams.push(activeEntry.versionTraduite || null);
-  updateFields.push('statut_traduction = ?');
-  updateParams.push(activeEntry.typeTraduction ? 'TERMINÉ' : null);
-  updateFields.push('type_traduction = ?');
-  updateParams.push(activeEntry.typeTraduction || null);
-  updateFields.push('traducteur = ?');
-  updateParams.push(activeEntry.traducteur || null);
-  updateFields.push('traductions_multiples = ?');
-  updateParams.push(JSON.stringify(traductions));
-  updateFields.push('derniere_sync_trad = datetime(\'now\')');
-  updateFields.push('updated_at = datetime(\'now\')');
+  // Toujours mettre à jour les champs de traduction (non protégés)
+  updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'version_traduite', activeEntry.versionTraduite, userModifiedFields);
+  updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'lien_traduction', activeEntry.lienTraduction, userModifiedFields);
+  updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'statut_traduction', activeEntry.typeTraduction ? 'TERMINÉ' : null, userModifiedFields);
+  updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'type_traduction', activeEntry.typeTraduction, userModifiedFields);
+  updateFieldIfNotUserModified(db, 'adulte_game_games', gameId, 'traducteur', activeEntry.traducteur, userModifiedFields);
   
-  updateParams.push(gameId);
-  
-  if (updateFields.length > 0) {
-    db.prepare(`
-      UPDATE adulte_game_games
-      SET ${updateFields.join(', ')}
-      WHERE id = ?
-    `).run(...updateParams);
-  }
+  // Toujours mettre à jour ces champs (non protégés)
+  db.prepare(`
+    UPDATE adulte_game_games
+    SET traduction_fr_disponible = 1,
+        traductions_multiples = ?,
+        derniere_sync_trad = datetime('now'),
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(
+    JSON.stringify(traductions),
+    gameId
+  );
 }
 
 /**

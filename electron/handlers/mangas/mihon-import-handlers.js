@@ -467,6 +467,11 @@ async function importMihonBackup(db, getPathManager, store, filePath, progressCa
 
       // Créer ou mettre à jour la série
       if (serieId) {
+        // Récupérer la série existante pour vérifier la source
+        const existingSerie = db.prepare('SELECT source_donnees FROM manga_series WHERE id = ?').get(serieId);
+        const { isNautiljonSource } = require('../../services/mangas/manga-import-merger');
+        const isNautiljon = existingSerie && isNautiljonSource(existingSerie.source_donnees);
+        
         // Mettre à jour la série existante
         const updateFields = [];
         const updateValues = [];
@@ -475,18 +480,26 @@ async function importMihonBackup(db, getPathManager, store, filePath, progressCa
           updateFields.push('mal_id = ?');
           updateValues.push(serieData.mal_id);
         }
-        if (serieData.couverture_url) {
-          updateFields.push('couverture_url = ?');
-          updateValues.push(serieData.couverture_url);
+        
+        // Ne pas écraser les données si la source est Nautiljon (sauf pour les champs spécifiques Mihon)
+        if (!isNautiljon) {
+          if (serieData.couverture_url) {
+            updateFields.push('couverture_url = ?');
+            updateValues.push(serieData.couverture_url);
+          }
+          if (serieData.description) {
+            updateFields.push('description = ?');
+            updateValues.push(serieData.description);
+          }
+          if (serieData.genres) {
+            updateFields.push('genres = ?');
+            updateValues.push(serieData.genres);
+          }
+        } else {
+          console.log(`⏭️ [Mihon Import] Champs ignorés (source Nautiljon prévaut) pour série ID ${serieId}`);
         }
-        if (serieData.description) {
-          updateFields.push('description = ?');
-          updateValues.push(serieData.description);
-        }
-        if (serieData.genres) {
-          updateFields.push('genres = ?');
-          updateValues.push(serieData.genres);
-        }
+        
+        // Ces champs peuvent toujours être mis à jour car spécifiques à Mihon
         if (serieData.source_url) {
           updateFields.push('source_url = ?');
           updateValues.push(serieData.source_url);
@@ -495,9 +508,11 @@ async function importMihonBackup(db, getPathManager, store, filePath, progressCa
           updateFields.push('source_id = ?');
           updateValues.push(serieData.source_id);
         }
-        // Toujours mettre à jour source_donnees pour les imports Mihon
-        updateFields.push('source_donnees = ?');
-        updateValues.push(serieData.source_donnees || 'mihon_import');
+        // Toujours mettre à jour source_donnees pour les imports Mihon (mais préserver Nautiljon si présent)
+        if (!isNautiljon) {
+          updateFields.push('source_donnees = ?');
+          updateValues.push(serieData.source_donnees || 'mihon_import');
+        }
         updateFields.push('chapitres_mihon = 1');
         updateFields.push('nb_chapitres = ?');
         updateValues.push(serieData.nb_chapitres || 0);

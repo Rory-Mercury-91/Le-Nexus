@@ -138,10 +138,15 @@ async function performNautiljonSync(db, store, mainWindow, getPathManager) {
       stats: {
         total: manga_seriesToSync.length,
         updated: synced,
-        errors: errors
+        errors: errors,
+        ignored: ignored,
+        matched: synced
       },
+      created: reportData.created,
       updated: reportData.updated,
       failed: reportData.failed,
+      ignored: reportData.ignored,
+      matched: reportData.matched,
       metadata: {
         user: currentUser,
         duration: durationMs,

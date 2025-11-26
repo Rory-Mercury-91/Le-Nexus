@@ -175,7 +175,8 @@ async function performAdulteGameUpdatesCheck(db, store, gameId = null, event = n
             discordMentions,
             notifyGameUpdates,
             notifyTranslationUpdates,
-            getPathManager
+            getPathManager,
+            skipReport: true // Ne pas générer de rapport séparé, on l'intégrera dans le rapport unifié
           });
           if (syncResult.success) {
             sheetResult = syncResult;
@@ -242,10 +243,13 @@ async function performAdulteGameUpdatesCheck(db, store, gameId = null, event = n
       
       let updatedCount = 0;
       let scrapedCount = 0;
+      let ignoredCount = 0;
       const reportData = {
+        created: [],
         updated: [],
         failed: [],
-        sheetSynced: []
+        ignored: [],
+        matched: []
       };
       
       for (let i = 0; i < games.length; i++) {
@@ -291,21 +295,45 @@ async function performAdulteGameUpdatesCheck(db, store, gameId = null, event = n
           if (!resolvedPlatform) {
             const reason = source ? `source ${source}` : 'plateforme inconnue';
             console.log(`⏭️ ${game.titre}: plateforme non déterminée (${reason}), vérification ignorée`);
+            ignoredCount++;
+            reportData.ignored.push({
+              titre: game.titre,
+              id: game.id,
+              reason: `Plateforme non déterminée (${reason})`
+            });
             continue;
           }
 
           if (resolvedPlatform === PLATFORM_LEWDCORNER) {
             console.log(`⏭️ ${game.titre}: plateforme LewdCorner détectée (${source || 'données'}), mise à jour via Google Sheet uniquement`);
+            ignoredCount++;
+            reportData.ignored.push({
+              titre: game.titre,
+              id: game.id,
+              reason: 'Plateforme LewdCorner (mise à jour via Google Sheet uniquement)'
+            });
             continue;
           }
 
           if (resolvedPlatform !== PLATFORM_F95) {
             console.log(`ℹ️ ${game.titre}: plateforme ${resolvedPlatform} non prise en charge pour le scraping automatique`);
+            ignoredCount++;
+            reportData.ignored.push({
+              titre: game.titre,
+              id: game.id,
+              reason: `Plateforme ${resolvedPlatform} non prise en charge`
+            });
             continue;
           }
 
           if (!baseUrl) {
             console.log(`⚠️ ${game.titre}: URL de base manquante pour la plateforme ${resolvedPlatform}, vérification ignorée`);
+            ignoredCount++;
+            reportData.ignored.push({
+              titre: game.titre,
+              id: game.id,
+              reason: `URL de base manquante pour ${resolvedPlatform}`
+            });
             continue;
           }
 
@@ -711,24 +739,44 @@ async function performAdulteGameUpdatesCheck(db, store, gameId = null, event = n
         sheetSynced: sheetResult.matched
       };
       
-      // Générer le rapport d'état
+      // Générer le rapport d'état unifié (Google Sheet + Scraping)
       if (getPathManager && !gameId) {
         const durationMs = Date.now() - startTime;
+        
+        // Récupérer les données de synchronisation Google Sheet si disponibles
+        const sheetReportData = sheetResult?.reportData || { created: [], updated: [], failed: [], ignored: [], matched: [], notFound: [] };
+        
+        // Fusionner les données du Google Sheet avec les données du scraping
+        const unifiedReportData = {
+          created: [...(sheetReportData.created || []), ...reportData.created],
+          updated: [...(sheetReportData.updated || []), ...reportData.updated],
+          failed: [...(sheetReportData.failed || []), ...reportData.failed],
+          ignored: [...(sheetReportData.ignored || []), ...reportData.ignored],
+          matched: [...(sheetReportData.matched || []), ...reportData.matched],
+          notFound: [...(sheetReportData.notFound || [])]
+        };
+        
         generateReport(getPathManager, {
           type: 'adulte-game-updates-check',
           stats: {
-            total: games.length,
+            total: games.length + (sheetResult?.total || 0),
             checked: games.length,
-            updated: updatedCount,
-            sheetSynced: sheetResult.matched,
+            updated: updatedCount + (sheetResult?.updated || 0),
+            matched: (sheetResult?.matched || 0),
+            ignored: ignoredCount + (sheetReportData.ignored?.length || 0),
+            sheetSynced: sheetResult?.matched || 0,
             scraped: scrapedCount,
-            errors: reportData.failed.length
+            errors: unifiedReportData.failed.length,
+            notFound: (sheetReportData.notFound?.length || 0)
           },
-          created: [],
-          updated: reportData.updated,
-          failed: reportData.failed,
+          created: unifiedReportData.created,
+          updated: unifiedReportData.updated,
+          failed: unifiedReportData.failed,
+          ignored: unifiedReportData.ignored,
+          matched: unifiedReportData.matched,
           metadata: {
-            duration: durationMs
+            duration: durationMs,
+            phases: ['Google Sheet', 'Scraping F95Zone']
           }
         });
       }

@@ -52,7 +52,7 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         `).all(userId, numericId);
       }
       
-      // Si pas de résultat par ID ou recherche textuelle, chercher par titre
+      // Si pas de résultat par ID ou recherche textuelle, chercher par titre/genres/thèmes
       if (mangas.length === 0) {
         mangas = db.prepare(`
           SELECT s.id, s.titre, s.auteurs, s.type_volume, s.couverture_url
@@ -68,9 +68,11 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
             OR s.titre_alternatif LIKE ?
             OR s.description LIKE ? 
             OR s.auteurs LIKE ?
+            OR s.genres LIKE ?
+            OR s.themes LIKE ?
           )
           LIMIT 10
-        `).all(userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
+        `).all(userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
       }
 
       mangas.forEach(manga => {
@@ -105,7 +107,7 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         `).all(userId, userId, numericId);
       }
       
-      // Si pas de résultat par ID ou recherche textuelle, chercher par titre
+      // Si pas de résultat par ID ou recherche textuelle, chercher par titre/genres/thèmes
       if (animes.length === 0) {
         animes = db.prepare(`
           SELECT 
@@ -125,9 +127,11 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
             OR a.titre_anglais LIKE ?
             OR a.titres_alternatifs LIKE ?
             OR a.description LIKE ?
+            OR a.genres LIKE ?
+            OR a.themes LIKE ?
           )
           LIMIT 10
-        `).all(userId, userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
+        `).all(userId, userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
       }
 
       animes.forEach(anime => {

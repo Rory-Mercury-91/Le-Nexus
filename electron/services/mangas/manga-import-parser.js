@@ -88,24 +88,48 @@ function parseNautiljonData(mangaData) {
     return values;
   };
 
+  // Parser "Titre original" de Nautiljon (format: "romanji / natif" ou "romanji / natif / autre")
+  // Exemple: "8Seokeul Mabeopsaui Hwansaeng / 8서클 마법사의 환생"
   const originalParts = splitCandidates(mangaData.titre_original);
 
   let titreVoPrimary = mangaData.titre_vo || null;
   let titreNatif = mangaData.titre_natif || null;
 
+  // Parser titre_vo si fourni (peut aussi contenir plusieurs parties séparées par /)
   const voParts = splitCandidates(mangaData.titre_vo);
 
   if (voParts.length > 0) {
-    titreVoPrimary = voParts[0];
+    titreVoPrimary = voParts[0]; // Premier = romaji
     if (!titreNatif && voParts.length > 1) {
-      titreNatif = voParts[voParts.length - 1];
+      // Dernier = natif (si contient des caractères non-latins)
+      const lastPart = voParts[voParts.length - 1];
+      // Vérifier si c'est du texte natif (japonais, coréen, chinois)
+      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uAC00-\uD7AF]/.test(lastPart)) {
+        titreNatif = lastPart;
+      }
     }
   }
 
+  // Parser titre_original (format Nautiljon: "romanji / natif")
   if (originalParts.length > 0) {
+    // Premier élément = romaji (latin)
     titreVoPrimary = titreVoPrimary || originalParts[0];
+    
+    // Chercher le natif (dernier élément avec caractères non-latins)
     if (originalParts.length > 1) {
-      titreNatif = titreNatif || originalParts[originalParts.length - 1];
+      // Parcourir de la fin pour trouver le natif
+      for (let i = originalParts.length - 1; i >= 1; i--) {
+        const part = originalParts[i];
+        // Vérifier si c'est du texte natif (japonais, coréen, chinois)
+        if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uAC00-\uD7AF]/.test(part)) {
+          titreNatif = titreNatif || part;
+          break;
+        }
+      }
+      // Si aucun natif trouvé, prendre le dernier élément
+      if (!titreNatif) {
+        titreNatif = originalParts[originalParts.length - 1];
+      }
     }
   }
 
@@ -158,7 +182,7 @@ function parseNautiljonData(mangaData) {
     statut_publication_vo: mangaData.statut_publication_vo || null, // Statut VO extrait depuis "Nb volumes VO : X (En cours)"
     annee_publication: mangaData.annee_publication || null,
     annee_publication_vo: mangaData.annee_publication_vo || null,
-    genres: mangaData.genres || null,
+    genres: mangaData.genres ? mangaData.genres.replace(/\s*-\s*/g, ', ') : null,
     nb_chapitres_vo: mangaData.nb_chapitres_vo || null,
     nb_chapitres: mangaData.nb_chapitres || null,
     nb_volumes_vo: mangaData.nb_volumes_vo,

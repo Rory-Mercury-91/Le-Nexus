@@ -52,9 +52,18 @@ function handleGetAnimeSeries(db, store, filters = {}) {
   }
 
   if (filters.search) {
-    query += ` AND (a.titre LIKE ? OR a.titre_anglais LIKE ? OR a.titre_romaji LIKE ?)`;
+    query += ` AND (
+      a.titre LIKE ? 
+      OR a.titre_anglais LIKE ? 
+      OR a.titre_romaji LIKE ?
+      OR a.titre_natif LIKE ?
+      OR a.titres_alternatifs LIKE ?
+      OR a.description LIKE ?
+      OR a.genres LIKE ?
+      OR a.themes LIKE ?
+    )`;
     const searchPattern = `%${filters.search}%`;
-    params.push(searchPattern, searchPattern, searchPattern);
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
   }
 
   if (filters.tag) {
@@ -237,6 +246,46 @@ function registerAnimeSeriesReadHandlers(ipcMain, getDb, store) {
     } catch (error) {
       console.error('Erreur get-anime-by-mal-id:', error);
       return null;
+    }
+  });
+
+  // Récupérer tous les genres uniques
+  ipcMain.handle('get-all-anime-genres', async () => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      const animes = db.prepare('SELECT genres FROM anime_series WHERE genres IS NOT NULL AND genres <> \'\' AND LENGTH(genres) > 0').all();
+      const allGenres = new Set();
+      animes.forEach(anime => {
+        if (anime.genres) {
+          const genres = anime.genres.split(',').map(g => g.trim()).filter(Boolean);
+          genres.forEach(genre => allGenres.add(genre));
+        }
+      });
+      return Array.from(allGenres).sort();
+    } catch (error) {
+      console.error('❌ Erreur get-all-anime-genres:', error);
+      throw error;
+    }
+  });
+
+  // Récupérer tous les thèmes uniques
+  ipcMain.handle('get-all-anime-themes', async () => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      const animes = db.prepare('SELECT themes FROM anime_series WHERE themes IS NOT NULL AND themes <> \'\' AND LENGTH(themes) > 0').all();
+      const allThemes = new Set();
+      animes.forEach(anime => {
+        if (anime.themes) {
+          const themes = anime.themes.split(',').map(t => t.trim()).filter(Boolean);
+          themes.forEach(theme => allThemes.add(theme));
+        }
+      });
+      return Array.from(allThemes).sort();
+    } catch (error) {
+      console.error('❌ Erreur get-all-anime-themes:', error);
+      throw error;
     }
   });
 }
