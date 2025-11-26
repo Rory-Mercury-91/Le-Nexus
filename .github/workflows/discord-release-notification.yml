@@ -73,17 +73,18 @@ jobs:
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/$REPO/releases/tags/$VERSION")
           
-          ASSET_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url' | head -n 1)
-          ASSET_NAME=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".exe")) | .name' | head -n 1)
+          ASSET_URL=$(echo "$RESPONSE" | jq -r '.assets[]? | select(.name | endswith(".exe")) | .browser_download_url' | head -n 1)
+          ASSET_NAME=$(echo "$RESPONSE" | jq -r '.assets[]? | select(.name | endswith(".exe")) | .name' | head -n 1)
           
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            ASSET_NAME="Nexus Setup $VERSION_NUMBER.exe"
-            ENCODED_NAME=${ASSET_NAME// /%20}
+            ASSET_NAME="Nexus-$VERSION_NUMBER.exe"
+            ENCODED_NAME=$ASSET_NAME
             ASSET_URL="https://github.com/$REPO/releases/download/$VERSION/$ENCODED_NAME"
           fi
           
           echo "download_url=$ASSET_URL" >> $GITHUB_OUTPUT
           echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
+          echo "Asset détecté: $ASSET_NAME -> $ASSET_URL"
 
       - name: Send Discord Notification
         env:

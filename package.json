@@ -23,6 +23,7 @@
   "build": {
     "appId": "com.lenexus.app",
     "productName": "Nexus",
+    "artifactName": "Nexus-${version}.${ext}",
     "files": [
       "dist/**/*",
       "electron/**/*",
