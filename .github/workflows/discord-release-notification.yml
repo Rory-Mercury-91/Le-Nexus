@@ -98,7 +98,7 @@ jobs:
                   },
                   {
                     "name": "⬇️ Téléchargements",
-                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus%20Setup%20" + $version_num + ".exe)"),
+                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus.Setup." + $version_num + ".exe)"),
                     "inline": false
                   },
                   {
