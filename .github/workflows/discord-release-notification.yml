@@ -59,11 +59,38 @@ jobs:
           # Limiter à 1000 caractères pour Discord field (limite: 1024)
           head -c 1000 changelog_extract.txt > changelog_short.txt
 
+      - name: Fetch Release Asset
+        id: asset
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER="${{ steps.version.outputs.version_number }}"
+          REPO="${{ github.repository }}"
+          
+          RESPONSE=$(curl -s \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/tags/$VERSION")
+          
+          ASSET_URL=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".exe")) | .browser_download_url' | head -n 1)
+          ASSET_NAME=$(echo "$RESPONSE" | jq -r '.assets[] | select(.name | endswith(".exe")) | .name' | head -n 1)
+          
+          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            ASSET_NAME="Nexus Setup $VERSION_NUMBER.exe"
+            ENCODED_NAME=${ASSET_NAME// /%20}
+            ASSET_URL="https://github.com/$REPO/releases/download/$VERSION/$ENCODED_NAME"
+          fi
+          
+          echo "download_url=$ASSET_URL" >> $GITHUB_OUTPUT
+          echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
+
       - name: Send Discord Notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}
           VERSION: ${{ steps.version.outputs.version }}
           VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
+          ASSET_URL: ${{ steps.asset.outputs.download_url }}
         run: |
           # Lire le changelog et le résumé depuis les fichiers
           CHANGELOG_RAW=$(cat changelog_short.txt)
@@ -77,6 +104,7 @@ jobs:
             --arg version_num "$VERSION_NUMBER" \
             --arg summary "$SUMMARY_RAW" \
             --arg changelog "$CHANGELOG_RAW" \
+            --arg asset_url "$ASSET_URL" \
             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
             '{
               "username": $username,
@@ -98,7 +126,7 @@ jobs:
                   },
                   {
                     "name": "⬇️ Téléchargements",
-                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](https://github.com/Rory-Mercury-91/Le-Nexus/releases/download/" + $version + "/Nexus.Setup." + $version_num + ".exe)"),
+                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](" + $asset_url + ")"),
                     "inline": false
                   },
                   {
