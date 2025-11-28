@@ -33,35 +33,45 @@ jobs:
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+          
+          echo "🔍 Extraction du changelog pour la version: $VERSION_NUM"
           
           # Extraire la section du CHANGELOG pour cette version
-          # Supporte X.Y.Z et X.Y.Z-suffix (beta, rc, etc.)
-          awk -v ver="${VERSION#v}" '
+          # Format attendu: ## [X.Y.Z] - YYYY-MM-DD
+          awk -v ver="$VERSION_NUM" '
             /^## \[/ {
-              # Extraire la version entre crochets (avec support des suffixes)
-              match($0, /\[([0-9]+\.[0-9]+\.[0-9]+[^\]]*)\]/, arr)
-              if (arr[1] == ver) {
-                started = 1
-                next
-              } else if (started) {
-                exit
+              # Extraire la version entre crochets
+              if (match($0, /\[([0-9]+\.[0-9]+\.[0-9]+[^\]]*)\]/, arr)) {
+                if (arr[1] == ver) {
+                  started = 1
+                  next
+                } else if (started) {
+                  exit
+                }
               }
             }
+            started && /^## \[/ { exit }
             started { print }
           ' CHANGELOG.md > changelog_extract.txt
           
           # Vérifier si le changelog a été extrait
           if [ ! -s changelog_extract.txt ]; then
-            echo "⚠️ ATTENTION: Changelog vide pour $VERSION" >&2
-            echo "📝 Contenu disponible dans les prochaines releases." > changelog_extract.txt
+            echo "⚠️ ATTENTION: Changelog vide pour $VERSION_NUM" >&2
+            echo "📝 Nouvelles fonctionnalités et corrections de bugs." > changelog_extract.txt
+          else
+            echo "✅ Changelog extrait ($(wc -l < changelog_extract.txt) lignes)"
           fi
           
-          # Limiter à 1000 caractères avec indicateur de troncature
+          # Limiter à 900 caractères pour laisser de la marge (Discord limite à 1024)
           CHANGELOG_SIZE=$(wc -c < changelog_extract.txt)
-          if [ $CHANGELOG_SIZE -gt 1000 ]; then
-            head -c 997 changelog_extract.txt > changelog_short.txt
+          echo "📏 Taille du changelog: $CHANGELOG_SIZE caractères"
+          
+          if [ $CHANGELOG_SIZE -gt 900 ]; then
+            head -c 897 changelog_extract.txt > changelog_short.txt
             echo "..." >> changelog_short.txt
             echo "truncated=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Changelog tronqué à 900 caractères"
           else
             cp changelog_extract.txt changelog_short.txt
             echo "truncated=false" >> $GITHUB_OUTPUT
@@ -70,7 +80,9 @@ jobs:
       - name: Extract Summary
         id: summary
         run: |
-          # Extraire les 3 premières catégories principales (max 500 caractères)
+          echo "🔍 Extraction du résumé..."
+          
+          # Extraire les 3 premières catégories principales
           SUMMARY=$(awk '
             /^### / {
               if (count++ < 3) {
@@ -78,13 +90,18 @@ jobs:
                 print "• " $0
               }
             }
-          ' changelog_extract.txt | head -c 500)
+          ' changelog_extract.txt)
           
-          if [ -z "$SUMMARY" ]; then
+          # Limiter à 400 caractères pour le summary
+          if [ -n "$SUMMARY" ]; then
+            SUMMARY=$(echo "$SUMMARY" | head -c 400)
+            echo "✅ Résumé extrait: ${#SUMMARY} caractères"
+          else
             SUMMARY="✨ Nouvelles fonctionnalités et améliorations"
+            echo "⚠️ Résumé par défaut utilisé"
           fi
           
-          # Échapper pour utilisation dans jq
+          # Sauvegarder dans un fichier
           echo "$SUMMARY" > summary.txt
 
       - name: Fetch Release Asset
@@ -144,15 +161,23 @@ jobs:
           fi
           
           # Limiter la longueur des champs (Discord limite à 1024 caractères par field value)
-          # Summary : max 1000 caractères
-          if [ ${#SUMMARY_RAW} -gt 1000 ]; then
-            SUMMARY_RAW="${SUMMARY_RAW:0:997}..."
+          # On limite à 900 pour avoir de la marge
+          
+          # Summary : max 400 caractères
+          if [ ${#SUMMARY_RAW} -gt 400 ]; then
+            SUMMARY_RAW="${SUMMARY_RAW:0:397}..."
+            echo "⚠️ Summary tronqué à 400 caractères"
           fi
           
-          # Changelog : max 1000 caractères (déjà limité précédemment, mais on vérifie)
-          if [ ${#CHANGELOG_RAW} -gt 1000 ]; then
-            CHANGELOG_RAW="${CHANGELOG_RAW:0:997}..."
+          # Changelog : max 900 caractères
+          if [ ${#CHANGELOG_RAW} -gt 900 ]; then
+            CHANGELOG_RAW="${CHANGELOG_RAW:0:897}..."
+            echo "⚠️ Changelog tronqué à 900 caractères"
           fi
+          
+          echo "📏 Tailles finales:"
+          echo "   Summary: ${#SUMMARY_RAW} caractères"
+          echo "   Changelog: ${#CHANGELOG_RAW} caractères"
           
           # Préparer le message de téléchargement
           if [ "$ASSET_EXISTS" = "true" ]; then
