@@ -112,16 +112,46 @@ jobs:
           $version = "${{ steps.extract_version.outputs.version }}"
           $repo = "${{ github.repository }}"
           
-          # Utiliser GH_PAT en priorité, sinon GITHUB_TOKEN
-          if ($env:GH_TOKEN) {
+          # Vérifier et sélectionner le token
+          $usePAT = $false
+          if ($env:GH_TOKEN -and $env:GH_TOKEN -ne "") {
             $token = $env:GH_TOKEN
+            $usePAT = $true
             Write-Host "🔑 Utilisation de GH_PAT"
-          } else {
-            $token = $env:GITHUB_TOKEN
-            Write-Host "🔑 Utilisation de GITHUB_TOKEN"
+            # Vérifier que le token n'est pas vide
+            if ($token.Length -lt 10) {
+              Write-Host "⚠️ GH_PAT semble invalide (trop court), basculement vers GITHUB_TOKEN"
+              $usePAT = $false
+            }
+          }
+          
+          if (-not $usePAT) {
+            if ($env:GITHUB_TOKEN -and $env:GITHUB_TOKEN -ne "") {
+              $token = $env:GITHUB_TOKEN
+              Write-Host "🔑 Utilisation de GITHUB_TOKEN"
+            } else {
+              Write-Host "❌ Aucun token disponible (ni GH_PAT ni GITHUB_TOKEN)"
+              exit 1
+            }
+          }
+          
+          # Vérifier que le token fonctionne en testant l'API
+          Write-Host "🔍 Vérification du token..."
+          $testHeaders = @{
+            "Authorization" = "Bearer $token"
+            "Accept" = "application/vnd.github+json"
+          }
+          
+          try {
+            $testResponse = Invoke-RestMethod -Uri "https://api.github.com/user" -Method Get -Headers $testHeaders
+            Write-Host "✅ Token valide (utilisateur: $($testResponse.login))"
+          } catch {
+            Write-Host "⚠️ Erreur lors de la vérification du token: $($_.Exception.Message)"
+            Write-Host "   Tentative de création de la release quand même..."
           }
           
           Write-Host "=== Création de la release pour le tag: $tag ==="
+          Write-Host "📦 Repository: $repo"
           
           # Trouver le fichier .exe
           $exeFile = Get-ChildItem -Path "dist" -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object {
@@ -177,29 +207,64 @@ jobs:
             draft = $false
             prerelease = $false
             target_commitish = "${{ github.sha }}"
-          } | ConvertTo-Json
+          } | ConvertTo-Json -Depth 10
           
+          # Utiliser Bearer pour l'authentification (format moderne)
           $headers = @{
-            "Authorization" = "token $token"
-            "Accept" = "application/vnd.github.v3+json"
+            "Authorization" = "Bearer $token"
+            "Accept" = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
           }
           
           Write-Host "📤 Création de la release..."
+          Write-Host "   URL: https://api.github.com/repos/$repo/releases"
+          Write-Host "   Tag: $tag"
           
           try {
             $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
             $releaseId = $releaseResponse.id
             Write-Host "✅ Release créée avec l'ID: $releaseId"
+            Write-Host "   URL: $($releaseResponse.html_url)"
           } catch {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+            $errorMessage = $_.Exception.Message
+            
+            # Essayer de récupérer plus de détails depuis la réponse
+            if ($_.Exception.Response) {
+              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+              $responseBody = $reader.ReadToEnd()
+              Write-Host "   Réponse complète: $responseBody"
+            }
+            
             Write-Host "❌ Erreur lors de la création de la release:"
-            Write-Host "   Status: $($_.Exception.Response.StatusCode.value__)"
-            Write-Host "   Message: $($_.Exception.Message)"
+            Write-Host "   Status: $statusCode"
+            Write-Host "   Message: $errorMessage"
             Write-Host ""
             Write-Host "💡 Vérifiez que:"
-            Write-Host "   1. Le secret GH_PAT existe et a les permissions 'repo'"
+            Write-Host "   1. Le secret GH_PAT existe et a les permissions 'repo' (scope complet)"
             Write-Host "   2. Les permissions du workflow sont sur 'Read and write permissions'"
-            Write-Host "   3. Une release v$version n'existe pas déjà"
-            exit 1
+            Write-Host "   3. Une release $tag n'existe pas déjà"
+            Write-Host "   4. Le token n'a pas expiré"
+            
+            # Si c'est une 404 et qu'on utilise GH_PAT, essayer avec GITHUB_TOKEN
+            if ($statusCode -eq 404 -and $usePAT -and $env:GITHUB_TOKEN) {
+              Write-Host ""
+              Write-Host "🔄 Tentative avec GITHUB_TOKEN en fallback..."
+              $token = $env:GITHUB_TOKEN
+              $headers["Authorization"] = "Bearer $token"
+              
+              try {
+                $releaseResponse = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases" -Method Post -Headers $headers -Body $releaseBody -ContentType "application/json"
+                $releaseId = $releaseResponse.id
+                Write-Host "✅ Release créée avec GITHUB_TOKEN (ID: $releaseId)"
+                Write-Host "   URL: $($releaseResponse.html_url)"
+              } catch {
+                Write-Host "❌ Échec également avec GITHUB_TOKEN: $($_.Exception.Message)"
+                exit 1
+              }
+            } else {
+              exit 1
+            }
           }
           
           # Upload du fichier
@@ -209,8 +274,8 @@ jobs:
           $fileBytes = [System.IO.File]::ReadAllBytes($exeFile.FullName)
           
           $uploadHeaders = @{
-            "Authorization" = "token $token"
-            "Accept" = "application/vnd.github.v3+json"
+            "Authorization" = "Bearer $token"
+            "Accept" = "application/vnd.github+json"
             "Content-Type" = "application/octet-stream"
           }
           
