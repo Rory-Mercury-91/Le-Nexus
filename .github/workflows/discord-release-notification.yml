@@ -134,6 +134,26 @@ jobs:
           CHANGELOG_RAW=$(cat changelog_short.txt)
           SUMMARY_RAW=$(cat summary.txt)
           
+          # Vérifier que les fichiers ne sont pas vides
+          if [ -z "$CHANGELOG_RAW" ] || [ "$CHANGELOG_RAW" = "" ]; then
+            CHANGELOG_RAW="📝 Contenu disponible dans les prochaines releases."
+          fi
+          
+          if [ -z "$SUMMARY_RAW" ] || [ "$SUMMARY_RAW" = "" ]; then
+            SUMMARY_RAW="✨ Nouvelles fonctionnalités et améliorations"
+          fi
+          
+          # Limiter la longueur des champs (Discord limite à 1024 caractères par field value)
+          # Summary : max 1000 caractères
+          if [ ${#SUMMARY_RAW} -gt 1000 ]; then
+            SUMMARY_RAW="${SUMMARY_RAW:0:997}..."
+          fi
+          
+          # Changelog : max 1000 caractères (déjà limité précédemment, mais on vérifie)
+          if [ ${#CHANGELOG_RAW} -gt 1000 ]; then
+            CHANGELOG_RAW="${CHANGELOG_RAW:0:997}..."
+          fi
+          
           # Préparer le message de téléchargement
           if [ "$ASSET_EXISTS" = "true" ]; then
             DOWNLOAD_MSG="**Windows** : [💾 Télécharger l'installateur]($ASSET_URL)"
@@ -141,12 +161,21 @@ jobs:
             DOWNLOAD_MSG="**Windows** : ⏳ L'installateur sera disponible sous peu\n[📦 Voir la page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION)"
           fi
           
-          # Ajouter un lien vers le changelog complet si tronqué
+          # Ajouter un lien vers le changelog complet si tronqué (mais limiter la longueur totale)
           if [ "$TRUNCATED" = "true" ]; then
-            CHANGELOG_RAW="${CHANGELOG_RAW}\n\n_[📖 Voir le changelog complet](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md)_"
+            CHANGELOG_WITH_LINK="${CHANGELOG_RAW}\n\n_[📖 Voir le changelog complet](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md)_"
+            # S'assurer que le total ne dépasse pas 1024
+            if [ ${#CHANGELOG_WITH_LINK} -gt 1024 ]; then
+              # Tronquer le changelog pour laisser de la place au lien
+              MAX_CHANGELOG=$((1024 - 100))
+              CHANGELOG_RAW="${CHANGELOG_RAW:0:$MAX_CHANGELOG}..."
+              CHANGELOG_WITH_LINK="${CHANGELOG_RAW}\n\n_[📖 Voir le changelog complet](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md)_"
+            else
+              CHANGELOG_RAW="$CHANGELOG_WITH_LINK"
+            fi
           fi
           
-          # Construire le JSON avec jq
+          # Construire le JSON avec jq (échapper correctement les caractères spéciaux)
           jq -n \
             --arg username "Nexus Release Bot" \
             --arg avatar "https://github.com/Rory-Mercury-91.png" \
@@ -193,7 +222,20 @@ jobs:
               }]
             }' > discord_payload.json
           
-          echo "✅ Payload Discord préparé"
+          # Valider le JSON
+          if ! jq empty discord_payload.json 2>/dev/null; then
+            echo "❌ Erreur: Le JSON généré est invalide"
+            cat discord_payload.json
+            exit 1
+          fi
+          
+          # Afficher la taille des champs pour debugging
+          echo "📊 Tailles des champs:"
+          echo "   Summary: ${#SUMMARY_RAW} caractères"
+          echo "   Changelog: ${#CHANGELOG_RAW} caractères"
+          echo "   Download: ${#DOWNLOAD_MSG} caractères"
+          
+          echo "✅ Payload Discord préparé et validé"
 
       - name: Send Discord Notification
         env:
@@ -201,16 +243,45 @@ jobs:
         run: |
           echo "📤 Envoi de la notification Discord..."
           
+          # Vérifier que le webhook est défini
+          if [ -z "$DISCORD_WEBHOOK" ] || [ "$DISCORD_WEBHOOK" = "" ]; then
+            echo "⚠️ DISCORD_WEBHOOK_URL_NEXUS n'est pas défini, notification ignorée"
+            exit 0
+          fi
+          
+          # Afficher un aperçu du payload (sans les détails sensibles)
+          echo "📋 Aperçu du payload:"
+          jq '{username, embeds: [.embeds[0] | {title, description, fields: [.fields[] | {name, value: (.value | length | "\(.) caractères")}]}]}' discord_payload.json
+          
+          # Envoyer la requête avec gestion d'erreur améliorée
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d @discord_payload.json)
+            -d @discord_payload.json 2>&1)
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
           
           if [ "$HTTP_CODE" -eq 204 ] || [ "$HTTP_CODE" -eq 200 ]; then
             echo "✅ Notification envoyée avec succès !"
           else
             echo "❌ Erreur lors de l'envoi (HTTP $HTTP_CODE)"
-            echo "$RESPONSE" | head -n -1
+            echo "📋 Réponse complète:"
+            echo "$RESPONSE_BODY"
+            
+            # Afficher le payload pour debugging
+            echo ""
+            echo "📋 Payload envoyé:"
+            cat discord_payload.json | jq .
+            
+            # Si c'est une erreur 400, vérifier les limites Discord
+            if [ "$HTTP_CODE" -eq 400 ]; then
+              echo ""
+              echo "💡 Erreur 400 - Vérifications:"
+              echo "   - Les field values doivent être ≤ 1024 caractères"
+              echo "   - L'embed total doit être ≤ 6000 caractères"
+              echo "   - Le JSON doit être valide"
+              echo "   - Les caractères spéciaux doivent être correctement échappés"
+            fi
+            
             exit 1
           fi
