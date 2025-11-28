@@ -99,18 +99,46 @@ jobs:
           CHANGELOG_RAW=$(cat changelog_short.txt 2>/dev/null || echo "")
           SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt 2>/dev/null | sed 's/### //' || echo "")
           
+          # Nettoyer les valeurs : supprimer les caractères de contrôle et normaliser les retours à la ligne
+          SUMMARY_RAW=$(echo -n "$SUMMARY_RAW" | tr -d '\r' | sed 's/\x00//g' | head -c 900)
+          CHANGELOG_RAW=$(echo -n "$CHANGELOG_RAW" | tr -d '\r' | sed 's/\x00//g' | head -c 900)
+          
           # S'assurer que les valeurs ne sont pas vides (Discord rejette les champs vides)
           if [ -z "$SUMMARY_RAW" ] || [ "$SUMMARY_RAW" = "" ]; then
-            SUMMARY_RAW="• Améliorations et corrections de bugs\n• Optimisations de performance\n• Expérience utilisateur améliorée"
+            SUMMARY_RAW="• Améliorations et corrections de bugs
+• Optimisations de performance
+• Expérience utilisateur améliorée"
           fi
           
           if [ -z "$CHANGELOG_RAW" ] || [ "$CHANGELOG_RAW" = "" ]; then
             CHANGELOG_RAW="Consultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION) pour plus de détails."
           fi
           
-          # Tronquer les valeurs si elles dépassent 1024 caractères (limite Discord)
-          SUMMARY_RAW=$(echo "$SUMMARY_RAW" | head -c 1000)
-          CHANGELOG_RAW=$(echo "$CHANGELOG_RAW" | head -c 1000)
+          # S'assurer que les valeurs ne dépassent pas 1024 caractères (limite Discord stricte)
+          # On limite à 900 pour laisser une marge de sécurité
+          SUMMARY_LEN=${#SUMMARY_RAW}
+          if [ "$SUMMARY_LEN" -gt 900 ]; then
+            SUMMARY_RAW=$(echo -n "$SUMMARY_RAW" | head -c 900)
+            SUMMARY_RAW="${SUMMARY_RAW}..."
+          fi
+          
+          CHANGELOG_LEN=${#CHANGELOG_RAW}
+          if [ "$CHANGELOG_LEN" -gt 900 ]; then
+            CHANGELOG_RAW=$(echo -n "$CHANGELOG_RAW" | head -c 900)
+            CHANGELOG_RAW="${CHANGELOG_RAW}..."
+          fi
+          
+          # S'assurer que les valeurs ne sont jamais vides (Discord rejette les champs vides)
+          if [ -z "$SUMMARY_RAW" ] || [ "${#SUMMARY_RAW}" -eq 0 ]; then
+            SUMMARY_RAW="• Améliorations et corrections de bugs"
+          fi
+          if [ -z "$CHANGELOG_RAW" ] || [ "${#CHANGELOG_RAW}" -eq 0 ]; then
+            CHANGELOG_RAW="Consultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION) pour plus de détails."
+          fi
+          
+          # Debug : afficher les longueurs
+          echo "📏 Longueur SUMMARY: ${#SUMMARY_RAW}"
+          echo "📏 Longueur CHANGELOG: ${#CHANGELOG_RAW}"
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
@@ -132,12 +160,12 @@ jobs:
                 "fields": [
                   {
                     "name": "✨ Points Clés de cette Version",
-                    "value": (if $summary == "" then "• Améliorations et corrections de bugs" else $summary end),
+                    "value": (if ($summary | length) == 0 then "• Améliorations et corrections de bugs" else $summary end),
                     "inline": false
                   },
                   {
                     "name": "📝 Changements Complets",
-                    "value": (if $changelog == "" then "Consultez la page de release pour plus de détails." else $changelog end),
+                    "value": (if ($changelog | length) == 0 then "Consultez la page de release pour plus de détails." else $changelog end),
                     "inline": false
                   },
                   {
@@ -165,6 +193,22 @@ jobs:
             cat discord_payload.json
             exit 1
           fi
+          
+          # Vérifier que tous les champs ont des valeurs non vides
+          FIELD_COUNT=$(jq '.embeds[0].fields | length' discord_payload.json)
+          for i in $(seq 0 $((FIELD_COUNT - 1))); do
+            FIELD_VALUE=$(jq -r ".embeds[0].fields[$i].value" discord_payload.json)
+            FIELD_NAME=$(jq -r ".embeds[0].fields[$i].name" discord_payload.json)
+            if [ -z "$FIELD_VALUE" ] || [ "$FIELD_VALUE" = "null" ]; then
+              echo "❌ Erreur : Le champ '$FIELD_NAME' est vide"
+              exit 1
+            fi
+            FIELD_LEN=${#FIELD_VALUE}
+            if [ "$FIELD_LEN" -gt 1024 ]; then
+              echo "❌ Erreur : Le champ '$FIELD_NAME' dépasse 1024 caractères ($FIELD_LEN)"
+              exit 1
+            fi
+          done
           
           # Afficher le payload pour debug (sans le webhook)
           echo "📋 Payload JSON généré :"
