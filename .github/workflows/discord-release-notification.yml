@@ -200,6 +200,24 @@ jobs:
             fi
           fi
           
+          # S'assurer qu'aucun champ n'est vide (Discord refuse les champs vides)
+          if [ -z "$SUMMARY_RAW" ] || [ ${#SUMMARY_RAW} -lt 1 ]; then
+            SUMMARY_RAW="✨ Nouvelles fonctionnalités et améliorations"
+          fi
+          
+          if [ -z "$CHANGELOG_RAW" ] || [ ${#CHANGELOG_RAW} -lt 1 ]; then
+            CHANGELOG_RAW="📝 Consultez le CHANGELOG complet sur GitHub pour tous les détails."
+          fi
+          
+          if [ -z "$DOWNLOAD_MSG" ] || [ ${#DOWNLOAD_MSG} -lt 1 ]; then
+            DOWNLOAD_MSG="**Windows** : Voir la page de release"
+          fi
+          
+          echo "🔍 Vérification finale avant génération JSON:"
+          echo "   Summary non vide: ${#SUMMARY_RAW} caractères"
+          echo "   Changelog non vide: ${#CHANGELOG_RAW} caractères"
+          echo "   Download non vide: ${#DOWNLOAD_MSG} caractères"
+          
           # Construire le JSON avec jq (échapper correctement les caractères spéciaux)
           jq -n \
             --arg username "Nexus Release Bot" \
@@ -215,32 +233,32 @@ jobs:
               "avatar_url": $avatar,
               "embeds": [{
                 "title": ("🚀 Nexus " + $version + " - Nouvelle Version Disponible !"),
-                "description": "**Une mise à jour importante de Nexus est maintenant disponible.**\n\n",
+                "description": "**Une mise à jour importante de Nexus est maintenant disponible.**",
                 "color": 5814783,
                 "fields": [
                   {
-                    "name": "✨ Points Clés de cette Version",
-                    "value": $summary,
+                    "name": "✨ Points Clés",
+                    "value": (if ($summary | length) > 0 then $summary else "Nouvelles fonctionnalités" end),
                     "inline": false
                   },
                   {
-                    "name": "📋 Changements Complets",
-                    "value": $changelog,
+                    "name": "📋 Changements",
+                    "value": (if ($changelog | length) > 0 then $changelog else "Voir le CHANGELOG" end),
                     "inline": false
                   },
                   {
-                    "name": "⬇️ Téléchargements",
-                    "value": $download,
+                    "name": "⬇️ Téléchargement",
+                    "value": (if ($download | length) > 0 then $download else "Voir la release" end),
                     "inline": false
                   },
                   {
-                    "name": "🔗 Liens Utiles",
-                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)\n📖 [Documentation](https://github.com/Rory-Mercury-91/Le-Nexus#readme)"),
+                    "name": "🔗 Liens",
+                    "value": ("📦 [Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Issues](https://github.com/Rory-Mercury-91/Le-Nexus/issues)\n📖 [Docs](https://github.com/Rory-Mercury-91/Le-Nexus#readme)"),
                     "inline": false
                   }
                 ],
                 "footer": {
-                  "text": ("Nexus v" + $version_num + " • Production Ready • Merci de votre soutien !"),
+                  "text": ("Nexus v" + $version_num),
                   "icon_url": $avatar
                 },
                 "timestamp": $timestamp
@@ -254,11 +272,25 @@ jobs:
             exit 1
           fi
           
-          # Afficher la taille des champs pour debugging
-          echo "📊 Tailles des champs:"
-          echo "   Summary: ${#SUMMARY_RAW} caractères"
-          echo "   Changelog: ${#CHANGELOG_RAW} caractères"
-          echo "   Download: ${#DOWNLOAD_MSG} caractères"
+          # Vérifier que les embeds ne sont pas vides
+          EMBED_COUNT=$(jq '.embeds | length' discord_payload.json)
+          if [ "$EMBED_COUNT" -eq 0 ]; then
+            echo "❌ Erreur: Aucun embed dans le payload"
+            exit 1
+          fi
+          
+          # Vérifier que chaque field a une value non vide
+          EMPTY_FIELDS=$(jq '.embeds[0].fields[] | select(.value == "" or .value == null) | .name' discord_payload.json)
+          if [ -n "$EMPTY_FIELDS" ]; then
+            echo "❌ Erreur: Champs vides détectés: $EMPTY_FIELDS"
+            exit 1
+          fi
+          
+          # Afficher un résumé du payload
+          echo "✅ Payload Discord validé:"
+          echo "   Embeds: $EMBED_COUNT"
+          echo "   Fields: $(jq '.embeds[0].fields | length' discord_payload.json)"
+          jq '.embeds[0].fields[] | "   - \(.name): \(.value | length) caractères"' -r discord_payload.json
           
           echo "✅ Payload Discord préparé et validé"
 
