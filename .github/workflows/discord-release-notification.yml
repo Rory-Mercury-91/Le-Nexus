@@ -293,51 +293,48 @@ jobs:
           jq '.embeds[0].fields[] | "   - \(.name): \(.value | length) caractères"' -r discord_payload.json
           
           echo "✅ Payload Discord préparé et validé"
-
-      - name: Send Discord Notification
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}
-        run: |
+          
+          # Envoyer à Discord immédiatement
+          echo ""
           echo "📤 Envoi de la notification Discord..."
           
           # Vérifier que le webhook est défini
-          if [ -z "$DISCORD_WEBHOOK" ] || [ "$DISCORD_WEBHOOK" = "" ]; then
+          if [ -z "${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}" ]; then
             echo "⚠️ DISCORD_WEBHOOK_URL_NEXUS n'est pas défini, notification ignorée"
             exit 0
           fi
           
-          # Afficher un aperçu du payload (sans les détails sensibles)
-          echo "📋 Aperçu du payload:"
-          jq '{username, embeds: [.embeds[0] | {title, description, fields: [.fields[] | {name, value: (.value | length | "\(.) caractères")}]}]}' discord_payload.json
+          # Afficher le payload complet pour debugging
+          echo "📋 Payload complet à envoyer:"
+          cat discord_payload.json | jq .
           
-          # Envoyer la requête avec gestion d'erreur améliorée
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$DISCORD_WEBHOOK" \
+          # Envoyer la requête
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}" \
             -H "Content-Type: application/json" \
             -d @discord_payload.json 2>&1)
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           RESPONSE_BODY=$(echo "$RESPONSE" | head -n -1)
           
+          echo ""
+          echo "📡 Code de réponse HTTP: $HTTP_CODE"
+          
           if [ "$HTTP_CODE" -eq 204 ] || [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✅ Notification envoyée avec succès !"
+            echo "✅ Notification Discord envoyée avec succès !"
           else
-            echo "❌ Erreur lors de l'envoi (HTTP $HTTP_CODE)"
-            echo "📋 Réponse complète:"
+            echo "❌ Erreur lors de l'envoi à Discord (HTTP $HTTP_CODE)"
+            echo "📋 Réponse de Discord:"
             echo "$RESPONSE_BODY"
             
-            # Afficher le payload pour debugging
-            echo ""
-            echo "📋 Payload envoyé:"
-            cat discord_payload.json | jq .
-            
-            # Si c'est une erreur 400, vérifier les limites Discord
+            # Si c'est une erreur 400, afficher plus de détails
             if [ "$HTTP_CODE" -eq 400 ]; then
               echo ""
-              echo "💡 Erreur 400 - Vérifications:"
-              echo "   - Les field values doivent être ≤ 1024 caractères"
-              echo "   - L'embed total doit être ≤ 6000 caractères"
-              echo "   - Le JSON doit être valide"
-              echo "   - Les caractères spéciaux doivent être correctement échappés"
+              echo "💡 Erreur 400 - Le payload est rejeté par Discord"
+              echo "   Causes possibles:"
+              echo "   - Un field value est vide ou trop long (max 1024 caractères)"
+              echo "   - L'embed total dépasse 6000 caractères"
+              echo "   - Caractères spéciaux mal échappés"
+              echo "   - Structure JSON invalide pour Discord"
             fi
             
             exit 1
