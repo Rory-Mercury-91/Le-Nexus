@@ -34,10 +34,11 @@ function getCronExpression(frequency) {
 /**
  * Initialise le scheduler de synchronisation
  * @param {object} config - Configuration { enabled, traducteurs, sheetUrl, syncFrequency }
- * @param {object} db - Instance de la base de données
+ * @param {object} dbOrGetter - Instance de la base de données ou fonction getter
  * @param {object} store - Instance electron-store
+ * @param {function} getPathManager - Fonction getter pour PathManager (optionnel)
  */
-function initScheduler(config, dbOrGetter, store) {
+function initScheduler(config, dbOrGetter, store, getPathManager = null) {
   const getDb = typeof dbOrGetter === 'function' ? dbOrGetter : () => dbOrGetter;
 
   // Arrêter le scheduler existant
@@ -68,7 +69,8 @@ function initScheduler(config, dbOrGetter, store) {
         return;
       }
 
-      const result = await performAdulteGameUpdatesCheck(db, store, null, null, getPathManager);
+      const pathManager = getPathManager ? getPathManager() : null;
+      const result = await performAdulteGameUpdatesCheck(db, store, null, null, pathManager);
       
       if (result) {
         // Mettre à jour la config avec la date de sync

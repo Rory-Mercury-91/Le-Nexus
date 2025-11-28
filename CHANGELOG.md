@@ -5,6 +5,82 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.2] - 2025-11-27
+
+### ✨ Ajouté
+- **Traduction automatique des genres et thèmes**
+  - Traduction automatique de tous les genres et thèmes de l'anglais vers le français
+  - Support de 179 traductions de genres et 54 traductions de thèmes
+  - Gestion des variantes d'écriture (majuscules, espaces, tirets)
+  - Déduplication automatique des genres et thèmes après traduction
+  - Traduction appliquée dans les pages de détails des Animes et Mangas
+  - Traduction des genres et thèmes dans les filtres de recherche des collections Animes et Mangas
+  - Les valeurs originales (anglais) sont conservées en base de données pour la recherche, seul l'affichage est traduit
+- **Traduction automatique des tags jeux adultes**
+  - Dictionnaire complet de 95 traductions de tags jeux adultes
+  - Support de toutes les catégories : graphismes, types de jeux, personnages, thèmes, actes sexuels
+  - Traduction des tags dans les filtres de recherche de la collection Jeux Adultes
+  - Traduction des tags dans les pages de détails des jeux adultes
+  - Les valeurs originales (anglais) sont conservées en base de données pour la recherche, seul l'affichage est traduit
+- **Traduction automatique des démographies**
+  - Normalisation et traduction des démographies (Shounen → Shōnen, Shoujo → Shōjo, etc.)
+  - Support de toutes les variantes d'écriture (avec/sans accent, majuscules/minuscules)
+  - Traduction appliquée dans les pages de détails des Animes et Mangas
+
+### 🐛 Corrigé
+- **Erreur `isFieldUserModified is not defined` dans la synchronisation MAL**
+  - Ajout de l'import manquant de `isFieldUserModified` dans `mal-sync-core.js`
+  - Correction des erreurs lors de la synchronisation des mangas depuis MAL
+- **Erreur `getPathManager is not defined` dans le scheduler de traductions**
+  - Ajout du paramètre `getPathManager` manquant dans `adulte-game-traduction-scheduler.js`
+  - Mise à jour de l'appel dans les handlers pour passer correctement le paramètre
+- **Erreur SQLite dans `checkAnimeUpdates` du scheduler de notifications**
+  - Correction de la requête SQL utilisant des tables inexistantes (`anime_episodes_vus`, `anime_statut_utilisateur`)
+  - Remplacement par l'utilisation correcte de `anime_user_data` et du champ `episodes_vus`
+  - Correction de la valeur de statut (`'watching'` → `'En cours'`)
+- **Exclusion automatique des équipes de scanlation des genres et thèmes**
+  - Exclusion automatique des noms d'équipes de scanlation dans les filtres de genres et thèmes
+  - Filtrage appliqué pour les Animes et les Mangas (genres et thèmes)
+  - Exclusion basée sur une liste complète de 200+ équipes de scanlation
+  - Comparaison insensible à la casse, aux accents et aux espaces
+  - Exclusion effectuée avant et après traduction pour garantir la propreté des listes
+  - Exclusion également des ratings (Content rating: Suggestive, etc.) qui peuvent être stockés par erreur dans les genres
+
+## [1.0.1] - 2025-11-26
+
+### ✨ Ajouté
+- **Système de filtres par genres et thèmes pour toutes les collections**
+  - Filtres par genres et thèmes pour les Mangas (depuis Nautiljon, MAL)
+  - Filtres par genres et thèmes pour les Animes (depuis MAL, Nautiljon)
+  - Filtres par genres pour les Films et Séries TV (depuis TMDB)
+  - Interface de sélection unifiée avec boutons toggle pour chaque genre/thème
+  - Filtrage côté backend avec recherche dans les données (texte pour mangas/animes, JSON pour films/séries)
+  - Compteur de genres/thèmes sélectionnés dans l'interface
+  - Persistance des filtres sélectionnés en session
+  - Intégration complète avec le système de filtres existant (recherche, statut, favoris, etc.)
+
+### 🔧 Amélioré
+- **Système de rapports unifié pour tous les imports, synchronisations et enrichissements**
+  - Format standardisé basé sur le rapport Mihon
+  - Sections détaillées : créés, mis à jour, ignorés, erreurs, matchs, correspondances potentielles
+  - Rapport unique même pour les opérations multi-étapes (ex: Google Sheet + Scraping)
+  - Rapports précis pour : Import Mihon, Sync MAL, Sync Nautiljon, Enrichissement, Jeux adultes
+- **Gestion des titres alternatifs améliorée**
+  - Fusion automatique intelligente des titres depuis différentes sources (Mihon, MAL, Nautiljon)
+  - Déduplication avancée avec normalisation Unicode pour éviter les doublons
+  - Conservation automatique de l'ancien titre principal dans les titres alternatifs lors d'un changement
+  - Support correct des caractères asiatiques (japonais, coréen, chinois) dans la normalisation
+  - Affichage séparé des titres romaji et anglais dans les pages de détails des mangas
+- **Normalisation des données**
+  - Normalisation des tags (genres et thèmes) depuis Nautiljon : séparateur " - " remplacé par ", " pour une meilleure cohérence
+  - Normalisation appliquée également aux animes importés depuis Nautiljon
+
+### 🐛 Corrigé
+- Priorité des données Nautiljon : les données Nautiljon prévalent désormais sur MAL, Mihon et l'enrichissement automatique
+- Correction du handler "posseder-tous-les-tomes" pour marquer tous les tomes comme possédés
+- Mise à jour du lien de traduction pour les jeux adultes depuis Google Sheets
+- Respect des champs modifiés par l'utilisateur pour les jeux adultes (titre, version, statut, etc.)
+
 ## [1.0.0] - 2025-11-26
 
 ### ✨ Ajouté
@@ -99,42 +175,8 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Documentation des scripts Tampermonkey
 - Guide de configuration Discord pour les notifications de release
 
-## [1.0.1] - 2025-11-26
-
-### ✨ Ajouté
-- **Système de filtres par genres et thèmes pour toutes les collections**
-  - Filtres par genres et thèmes pour les Mangas (depuis Nautiljon, MAL)
-  - Filtres par genres et thèmes pour les Animes (depuis MAL, Nautiljon)
-  - Filtres par genres pour les Films et Séries TV (depuis TMDB)
-  - Interface de sélection unifiée avec boutons toggle pour chaque genre/thème
-  - Filtrage côté backend avec recherche dans les données (texte pour mangas/animes, JSON pour films/séries)
-  - Compteur de genres/thèmes sélectionnés dans l'interface
-  - Persistance des filtres sélectionnés en session
-  - Intégration complète avec le système de filtres existant (recherche, statut, favoris, etc.)
-
-### 🔧 Amélioré
-- **Système de rapports unifié pour tous les imports, synchronisations et enrichissements**
-  - Format standardisé basé sur le rapport Mihon
-  - Sections détaillées : créés, mis à jour, ignorés, erreurs, matchs, correspondances potentielles
-  - Rapport unique même pour les opérations multi-étapes (ex: Google Sheet + Scraping)
-  - Rapports précis pour : Import Mihon, Sync MAL, Sync Nautiljon, Enrichissement, Jeux adultes
-- **Gestion des titres alternatifs améliorée**
-  - Fusion automatique intelligente des titres depuis différentes sources (Mihon, MAL, Nautiljon)
-  - Déduplication avancée avec normalisation Unicode pour éviter les doublons
-  - Conservation automatique de l'ancien titre principal dans les titres alternatifs lors d'un changement
-  - Support correct des caractères asiatiques (japonais, coréen, chinois) dans la normalisation
-  - Affichage séparé des titres romaji et anglais dans les pages de détails des mangas
-- **Normalisation des données**
-  - Normalisation des tags (genres et thèmes) depuis Nautiljon : séparateur " - " remplacé par ", " pour une meilleure cohérence
-  - Normalisation appliquée également aux animes importés depuis Nautiljon
-
-### 🐛 Corrigé
-- Priorité des données Nautiljon : les données Nautiljon prévalent désormais sur MAL, Mihon et l'enrichissement automatique
-- Correction du handler "posseder-tous-les-tomes" pour marquer tous les tomes comme possédés
-- Mise à jour du lien de traduction pour les jeux adultes depuis Google Sheets
-- Respect des champs modifiés par l'utilisateur pour les jeux adultes (titre, version, statut, etc.)
-
 ---
 
-[1.0.1]: https://github.com/VOTRE_USERNAME/le-nexus/releases/tag/v1.0.1
-[1.0.0]: https://github.com/VOTRE_USERNAME/le-nexus/releases/tag/v1.0.0
+[1.0.2]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.2
+[1.0.1]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.1
+[1.0.0]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.0

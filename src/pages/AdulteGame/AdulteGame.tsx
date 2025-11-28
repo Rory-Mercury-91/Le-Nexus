@@ -23,6 +23,7 @@ import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/u
 import { useToast } from '../../hooks/common/useToast';
 import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import type { AdulteGame, AdulteGameStatutJeu, AdulteGameStatutPerso } from '../../types';
+import { translateAdulteGameTag } from '../../utils/translations';
 
 export default function AdulteGame() {
   const navigate = useNavigate();
@@ -544,7 +545,7 @@ export default function AdulteGame() {
                             opacity: preference === 'disliked' && !isSelected ? 0.8 : 1
                           }}
                         >
-                          {tag}
+                          {translateAdulteGameTag(tag)}
                         </button>
                       );
                     })}

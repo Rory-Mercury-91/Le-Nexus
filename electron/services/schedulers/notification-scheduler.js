@@ -266,20 +266,15 @@ class NotificationScheduler {
           a.mal_id,
           a.titre,
           a.nb_episodes,
-          COALESCE(
-            (SELECT COUNT(DISTINCT episode_numero) 
-             FROM anime_episodes_vus 
-             WHERE anime_id = a.id AND user_id = ? AND vu = 1),
-            0
-          ) as episodes_vus
+          COALESCE(aud.episodes_vus, 0) as episodes_vus
         FROM anime_series a
-        LEFT JOIN anime_statut_utilisateur asu ON a.id = asu.anime_id AND asu.user_id = ?
+        LEFT JOIN anime_user_data aud ON a.id = aud.anime_id AND aud.user_id = ?
         WHERE a.user_id_ajout = ?
-        AND (asu.statut_visionnage = 'watching' OR asu.statut_visionnage IS NULL)
+        AND (aud.statut_visionnage = 'En cours' OR aud.statut_visionnage IS NULL)
         AND a.mal_id IS NOT NULL
       `
         )
-        .all(userId, userId, userId);
+        .all(userId, userId);
 
       console.log(`🔍 Vérification de ${animes.length} animes en cours...`);
 

@@ -4,7 +4,7 @@
  */
 
 const { transformMangaData, transformAnimeData } = require('./mal-transformers');
-const { updateFieldIfNotUserModified } = require('../../utils/enrichment-helpers');
+const { updateFieldIfNotUserModified, isFieldUserModified } = require('../../utils/enrichment-helpers');
 const { isNautiljonSource } = require('../mangas/manga-import-merger');
 
 function upsertMangaUserStatus(db, serieId, userId, mangaData) {

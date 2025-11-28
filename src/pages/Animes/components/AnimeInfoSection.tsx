@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useDevMode } from '../../../hooks/common/useDevMode';
 import { AnimeSerie } from '../../../types';
 import { cleanMalRewriteText } from '../../../utils/text-utils';
-import { translateDemographic, translateRating, translateSeason, translateSource, translateStatus } from '../../../utils/translations';
+import { translateDemographic, translateGenres, translateRating, translateSeason, translateSource, translateStatus, translateThemes } from '../../../utils/translations';
 import AnimeMalBlock from './AnimeMalBlock';
 import AnimeRelationsSection from './AnimeRelationsSection';
 
@@ -225,11 +225,15 @@ export default function AnimeInfoSection({ anime, shouldShow }: AnimeInfoSection
 
       {/* Genres, Thèmes et Source */}
       {(() => {
-        const genresList = anime.genres && shouldShow('genres')
-          ? anime.genres.split(',').map(g => g.trim()).filter(g => g)
+        // Traduire et dédupliquer les genres et thèmes
+        const translatedGenres = anime.genres && shouldShow('genres') ? translateGenres(anime.genres) : '';
+        const translatedThemes = anime.themes && shouldShow('themes') ? translateThemes(anime.themes) : '';
+        
+        const genresList = translatedGenres
+          ? translatedGenres.split(',').map(g => g.trim()).filter(g => g)
           : [];
-        const themesList = anime.themes && shouldShow('themes')
-          ? anime.themes.split(',').map(t => t.trim()).filter(t => t)
+        const themesList = translatedThemes
+          ? translatedThemes.split(',').map(t => t.trim()).filter(t => t)
           : [];
         const source = anime.source && shouldShow('source') ? translateSource(anime.source) : null;
 

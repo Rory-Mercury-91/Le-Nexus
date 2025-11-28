@@ -28,7 +28,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### 🎬 Nautiljon Extractor (Mangas & Animes)
 
-**Fichier** : `animes/Nautiljon Extractor.user.js`  
+**Fichier** : `Nautiljon Extractor.user.js`  
 **Version** : 1.6.2 (support CSP)
 
 **Fonction** : Import complet depuis Nautiljon. Détecte automatiquement si vous êtes sur une page manga ou anime. Pour les mangas : menu avec 3 points verticaux (⋮) en bas à gauche avec options Import complet (📚) ou Import tomes uniquement (📖). Pour les animes : bouton d'import simple. Priorise les valeurs françaises (écrase les données des APIs).
@@ -52,7 +52,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### 📥 MyAnimeList Quick Add (Animes & Mangas)
 
-**Fichier** : `animes/MyAnimeList Quick Add.user.js`  
+**Fichier** : `MyAnimeList Quick Add.user.js`  
 **Version** : 2.1.0 (support CSP, script unifié)
 
 **Fonction** : Import rapide d'animes et mangas depuis MyAnimeList avec enrichissement automatique des données. Détecte automatiquement le type de page.
@@ -84,7 +84,7 @@ Tous les scripts sont listés avec un bouton "Installer" pour chaque. Un simple 
 
 ### ⋮ Nautiljon Extractor
 
-**Fichier** : `mangas/Nautiljon Extractor.user.js`  
+**Fichier** : `Nautiljon Extractor.user.js`  
 **Version** : 1.6.2 (support CSP)
 
 **Fonction** : Import complet de mangas, manhwa et scans depuis Nautiljon vers Le Nexus.
@@ -158,7 +158,7 @@ Menu moderne en **bas à gauche** pour éviter les conflits avec les éléments 
 
 ### 🎮 AdulteGame Extractor (F95Zone & LewdCorner)
 
-**Fichier** : `adulte-game/AdulteGame Extractor.user.js`  
+**Fichier** : `AdulteGame Extractor.user.js`  
 **Version** : 2.0.1 (support Chrome/Chromium + CSP)
 
 **Fonction** : Extrait les données des jeux pour adultes depuis F95Zone et LewdCorner pour Le Nexus.

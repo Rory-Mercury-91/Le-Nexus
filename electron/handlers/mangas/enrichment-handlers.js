@@ -263,8 +263,13 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
                      'En cours';
       
       // Genres
-      const genres = jikanData.genres?.map(g => g.name).join(', ') || null;
-      const themes = jikanData.themes?.map(t => t.name).join(', ') || null;
+      const { deduplicateCommaSeparatedItems } = require('../../utils/data-normalization');
+      const { genreTranslations, themeTranslations } = require('../../utils/translation-dictionaries');
+      const genresRaw = jikanData.genres?.map(g => g.name).join(', ') || null;
+      const themesRaw = jikanData.themes?.map(t => t.name).join(', ') || null;
+      // Dédupliquer en utilisant les traductions pour éviter les doublons après traduction
+      const genres = deduplicateCommaSeparatedItems(genresRaw, genreTranslations);
+      const themes = deduplicateCommaSeparatedItems(themesRaw, themeTranslations);
       
       // Démographie
       const demographie = jikanData.demographics?.[0]?.name || null;

@@ -173,7 +173,7 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
     if (config && config.enabled) {
       const db = getDb();
       if (db) {
-        traductionSync.initScheduler(config, getDb, store);
+        traductionSync.initScheduler(config, getDb, store, getPathManager);
       }
     }
   };

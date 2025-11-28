@@ -35,11 +35,11 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           
           # Extraire la section du CHANGELOG pour cette version
-          # Recherche flexible : accepte "## [X.Y.Z] - YYYY-MM-DD"
+          # Supporte X.Y.Z et X.Y.Z-suffix (beta, rc, etc.)
           awk -v ver="${VERSION#v}" '
             /^## \[/ {
-              # Extraire la version entre crochets
-              match($0, /\[([0-9]+\.[0-9]+\.[0-9]+)\]/, arr)
+              # Extraire la version entre crochets (avec support des suffixes)
+              match($0, /\[([0-9]+\.[0-9]+\.[0-9]+[^\]]*)\]/, arr)
               if (arr[1] == ver) {
                 started = 1
                 next
@@ -52,12 +52,40 @@ jobs:
           
           # Vérifier si le changelog a été extrait
           if [ ! -s changelog_extract.txt ]; then
-            echo "ATTENTION: Changelog vide pour $VERSION" >&2
-            echo "Contenu disponible dans les prochaines releases." > changelog_extract.txt
+            echo "⚠️ ATTENTION: Changelog vide pour $VERSION" >&2
+            echo "📝 Contenu disponible dans les prochaines releases." > changelog_extract.txt
           fi
           
-          # Limiter à 1000 caractères pour Discord field (limite: 1024)
-          head -c 1000 changelog_extract.txt > changelog_short.txt
+          # Limiter à 1000 caractères avec indicateur de troncature
+          CHANGELOG_SIZE=$(wc -c < changelog_extract.txt)
+          if [ $CHANGELOG_SIZE -gt 1000 ]; then
+            head -c 997 changelog_extract.txt > changelog_short.txt
+            echo "..." >> changelog_short.txt
+            echo "truncated=true" >> $GITHUB_OUTPUT
+          else
+            cp changelog_extract.txt changelog_short.txt
+            echo "truncated=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract Summary
+        id: summary
+        run: |
+          # Extraire les 3 premières catégories principales (max 500 caractères)
+          SUMMARY=$(awk '
+            /^### / {
+              if (count++ < 3) {
+                gsub(/^### /, "");
+                print "• " $0
+              }
+            }
+          ' changelog_extract.txt | head -c 500)
+          
+          if [ -z "$SUMMARY" ]; then
+            SUMMARY="✨ Nouvelles fonctionnalités et améliorations"
+          fi
+          
+          # Échapper pour utilisation dans jq
+          echo "$SUMMARY" > summary.txt
 
       - name: Fetch Release Asset
         id: asset
@@ -68,36 +96,57 @@ jobs:
           VERSION_NUMBER="${{ steps.version.outputs.version_number }}"
           REPO="${{ github.repository }}"
           
+          echo "🔍 Recherche des assets pour $VERSION..."
+          
           RESPONSE=$(curl -s \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/$REPO/releases/tags/$VERSION")
           
+          # Chercher l'installateur .exe
           ASSET_URL=$(echo "$RESPONSE" | jq -r '.assets[]? | select(.name | endswith(".exe")) | .browser_download_url' | head -n 1)
           ASSET_NAME=$(echo "$RESPONSE" | jq -r '.assets[]? | select(.name | endswith(".exe")) | .name' | head -n 1)
           
+          # Fallback si l'asset n'existe pas encore
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
+            echo "⚠️ Asset .exe non trouvé, utilisation du nom par défaut"
             ASSET_NAME="Nexus-$VERSION_NUMBER.exe"
-            ENCODED_NAME=$ASSET_NAME
-            ASSET_URL="https://github.com/$REPO/releases/download/$VERSION/$ENCODED_NAME"
+            ASSET_URL="https://github.com/$REPO/releases/download/$VERSION/$ASSET_NAME"
+            echo "asset_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Asset trouvé: $ASSET_NAME"
+            echo "asset_exists=true" >> $GITHUB_OUTPUT
           fi
           
           echo "download_url=$ASSET_URL" >> $GITHUB_OUTPUT
           echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
-          echo "Asset détecté: $ASSET_NAME -> $ASSET_URL"
 
-      - name: Send Discord Notification
+      - name: Prepare Discord Payload
+        id: payload
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}
           VERSION: ${{ steps.version.outputs.version }}
           VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
           ASSET_URL: ${{ steps.asset.outputs.download_url }}
+          ASSET_EXISTS: ${{ steps.asset.outputs.asset_exists }}
+          TRUNCATED: ${{ steps.changelog.outputs.truncated }}
         run: |
-          # Lire le changelog et le résumé depuis les fichiers
+          # Lire les fichiers
           CHANGELOG_RAW=$(cat changelog_short.txt)
-          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt | sed 's/### //')
+          SUMMARY_RAW=$(cat summary.txt)
           
-          # Construire le JSON avec jq pour échappement correct
+          # Préparer le message de téléchargement
+          if [ "$ASSET_EXISTS" = "true" ]; then
+            DOWNLOAD_MSG="**Windows** : [💾 Télécharger l'installateur]($ASSET_URL)"
+          else
+            DOWNLOAD_MSG="**Windows** : ⏳ L'installateur sera disponible sous peu\n[📦 Voir la page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION)"
+          fi
+          
+          # Ajouter un lien vers le changelog complet si tronqué
+          if [ "$TRUNCATED" = "true" ]; then
+            CHANGELOG_RAW="${CHANGELOG_RAW}\n\n_[📖 Voir le changelog complet](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md)_"
+          fi
+          
+          # Construire le JSON avec jq
           jq -n \
             --arg username "Nexus Release Bot" \
             --arg avatar "https://github.com/Rory-Mercury-91.png" \
@@ -105,7 +154,7 @@ jobs:
             --arg version_num "$VERSION_NUMBER" \
             --arg summary "$SUMMARY_RAW" \
             --arg changelog "$CHANGELOG_RAW" \
-            --arg asset_url "$ASSET_URL" \
+            --arg download "$DOWNLOAD_MSG" \
             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
             '{
               "username": $username,
@@ -121,18 +170,18 @@ jobs:
                     "inline": false
                   },
                   {
-                    "name": "📝 Changements Complets",
+                    "name": "📋 Changements Complets",
                     "value": $changelog,
                     "inline": false
                   },
                   {
                     "name": "⬇️ Téléchargements",
-                    "value": ("**Windows** : [💾 Télécharger l'\''installateur](" + $asset_url + ")"),
+                    "value": $download,
                     "inline": false
                   },
                   {
                     "name": "🔗 Liens Utiles",
-                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)"),
+                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)\n📖 [Documentation](https://github.com/Rory-Mercury-91/Le-Nexus#readme)"),
                     "inline": false
                   }
                 ],
@@ -144,7 +193,24 @@ jobs:
               }]
             }' > discord_payload.json
           
-          # Envoyer le JSON à Discord
-          curl -X POST "$DISCORD_WEBHOOK" \
+          echo "✅ Payload Discord préparé"
+
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL_NEXUS }}
+        run: |
+          echo "📤 Envoi de la notification Discord..."
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d @discord_payload.json
+            -d @discord_payload.json)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" -eq 204 ] || [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Notification envoyée avec succès !"
+          else
+            echo "❌ Erreur lors de l'envoi (HTTP $HTTP_CODE)"
+            echo "$RESPONSE" | head -n -1
+            exit 1
+          fi

@@ -257,15 +257,17 @@ async function handleImportAnime(req, res, getDb, store, mainWindow, getPathMana
 
       if (isFromNautiljon && animeData.genres !== undefined && animeData.genres !== null) {
         updates.push('genres = ?');
-        // Normaliser le séparateur " - " en ", " pour Nautiljon
-        const normalizedGenres = animeData.genres.replace(/\s*-\s*/g, ', ');
+        // Normaliser le séparateur " - " en ", " et dédupliquer en utilisant les traductions
+        const { normalizeAndDeduplicateNautiljonGenres } = require('../../utils/data-normalization');
+        const normalizedGenres = normalizeAndDeduplicateNautiljonGenres(animeData.genres);
         values.push(normalizedGenres);
       }
 
       if (isFromNautiljon && animeData.themes !== undefined && animeData.themes !== null) {
         updates.push('themes = ?');
-        // Normaliser le séparateur " - " en ", " pour Nautiljon
-        const normalizedThemes = animeData.themes.replace(/\s*-\s*/g, ', ');
+        // Normaliser le séparateur " - " en ", " et dédupliquer en utilisant les traductions
+        const { normalizeAndDeduplicateNautiljonThemes } = require('../../utils/data-normalization');
+        const normalizedThemes = normalizeAndDeduplicateNautiljonThemes(animeData.themes);
         values.push(normalizedThemes);
       }
 

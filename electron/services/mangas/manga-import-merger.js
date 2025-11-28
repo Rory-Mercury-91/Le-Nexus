@@ -4,6 +4,7 @@
  */
 
 const { inferMediaType } = require('./manga-import-parser');
+const { normalizeAndDeduplicateNautiljonGenres, normalizeAndDeduplicateNautiljonThemes, deduplicateCommaSeparatedItems } = require('../../utils/data-normalization');
 
 /**
  * Vérifie si une série a Nautiljon comme source principale
@@ -361,7 +362,7 @@ function mergeSerieData(currentData, parsedData, userModifiedFields = null) {
     statut_publication_vf: preferNautiljon(parsedData.statut_publication, currentData.statut_publication_vf),
     annee_publication: preferNautiljon(parsedData.annee_publication_vo, currentData.annee_publication),
     annee_vf: preferNautiljon(parsedData.annee_publication, currentData.annee_vf),
-    genres: preferNautiljon(parsedData.genres, currentData.genres),
+    genres: normalizeAndDeduplicateNautiljonGenres(preferNautiljon(parsedData.genres, currentData.genres)),
     nb_chapitres: preferNautiljon(parsedData.nb_chapitres_vo, currentData.nb_chapitres),
     nb_chapitres_vf: preferNautiljon(parsedData.nb_chapitres, currentData.nb_chapitres_vf),
     nb_volumes: (typeof parsedData.nb_volumes_vo === 'number' ? parsedData.nb_volumes_vo : preferNautiljon(parsedData.nb_volumes_vo, currentData.nb_volumes)),
@@ -371,7 +372,7 @@ function mergeSerieData(currentData, parsedData, userModifiedFields = null) {
     rating: preferNautiljon(parsedData.rating, currentData.rating),
     langue_originale: preferNautiljon(parsedData.langue_originale, currentData.langue_originale),
     demographie: preferNautiljon(parsedData.demographie, currentData.demographie),
-    themes: preferNautiljon(parsedData.themes, currentData.themes),
+    themes: normalizeAndDeduplicateNautiljonThemes(preferNautiljon(parsedData.themes, currentData.themes)),
     auteurs: preferNautiljon(parsedData.auteurs, currentData.auteurs),
     serialization: preferNautiljon(parsedData.serialization, currentData.serialization),
     media_type: mediaType
@@ -401,7 +402,7 @@ function prepareNewSerieData(parsedData) {
     statut_publication_vf: parsedData.statut_publication || null,
     annee_publication: parsedData.annee_publication_vo || null, // Année VO si fournie
     annee_vf: parsedData.annee_publication || null,
-    genres: parsedData.genres || null,
+    genres: normalizeAndDeduplicateNautiljonGenres(parsedData.genres),
     nb_volumes: parsedData.nb_volumes_vo || null, // Nombre de volumes VO si fourni
     nb_volumes_vf: parsedData.nb_volumes || null,
     nb_chapitres: parsedData.nb_chapitres_vo || null,
@@ -411,7 +412,7 @@ function prepareNewSerieData(parsedData) {
     editeur: parsedData.editeur || null,
     editeur_vo: parsedData.editeur_vo || null,
     rating: parsedData.rating || null,
-    themes: parsedData.themes || null,
+    themes: normalizeAndDeduplicateNautiljonThemes(parsedData.themes),
     auteurs: parsedData.auteurs || null,
     serialization: parsedData.serialization || null,
     media_type: mediaType

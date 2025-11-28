@@ -25,6 +25,7 @@ import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
 import { Serie, SerieFilters, SerieTag } from '../../types';
+import { translateGenre, translateTheme } from '../../utils/translations';
 import { computeMangaProgress } from '../../utils/manga-progress';
 import { getSerieStatusLabel } from '../../utils/manga-status';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
@@ -522,7 +523,9 @@ export default function Mangas() {
     setShowMajOnly(false);
     setMihonFilter('all');
     setSelectedLabels([]);
-  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setMihonFilter, setSelectedLabels]);
+    setSelectedGenres([]);
+    setSelectedThemes([]);
+  }, [setFilters, setSearchTerm, setShowFavoriteOnly, setShowHidden, setShowMajOnly, setMihonFilter, setSelectedLabels, setSelectedGenres, setSelectedThemes]);
 
   const handleLabelToggle = useCallback((label: string) => {
     setSelectedLabels(prev => {
@@ -1120,7 +1123,7 @@ export default function Mangas() {
                             transition: 'all 0.2s'
                           }}
                         >
-                          {genre}
+                          {translateGenre(genre)}
                         </button>
                       );
                     })}
@@ -1183,7 +1186,7 @@ export default function Mangas() {
                             transition: 'all 0.2s'
                           }}
                         >
-                          {theme}
+                          {translateTheme(theme)}
                         </button>
                       );
                     })}

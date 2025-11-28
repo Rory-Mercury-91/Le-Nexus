@@ -1,5 +1,6 @@
 import { Tag } from 'lucide-react';
 import React from 'react';
+import { translateAdulteGameTags } from '../../../utils/translations';
 
 interface AdulteGameTagsCardProps {
   tags?: string | string[] | null;
@@ -37,7 +38,12 @@ const AdulteGameTagsCard: React.FC<AdulteGameTagsCardProps> = ({ tags, tagPrefer
     return [];
   };
 
-  const tagsList = parseTags();
+  const rawTagsList = parseTags();
+  
+  // Traduire les tags et les dédupliquer
+  const tagsList = rawTagsList.length > 0
+    ? translateAdulteGameTags(rawTagsList).split(',').map(t => t.trim()).filter(t => t)
+    : [];
 
   if (tagsList.length === 0) {
     return (

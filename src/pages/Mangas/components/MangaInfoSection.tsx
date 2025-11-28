@@ -5,7 +5,7 @@ import { useDevMode } from '../../../hooks/common/useDevMode';
 import { Serie } from '../../../types';
 import { organizeMangaTitles } from '../../../utils/manga-titles';
 import { cleanMalRewriteText } from '../../../utils/text-utils';
-import { translatePublicationStatus, translateRating } from '../../../utils/translations';
+import { translateDemographic, translateGenres, translatePublicationStatus, translateRating, translateThemes } from '../../../utils/translations';
 import MangaMalBlock from './MangaMalBlock';
 import MangaRelationsSection from './MangaRelationsSection';
 
@@ -202,7 +202,7 @@ export default function MangaInfoSection({ serie, shouldShow, onLabelsChange }: 
                     }}
                   >
                     <Users size={16} />
-                    {serie.demographie}
+                    {translateDemographic(serie.demographie)}
                   </span>
                 )}
               </>
@@ -267,15 +267,18 @@ export default function MangaInfoSection({ serie, shouldShow, onLabelsChange }: 
 
       {/* Genres et Thèmes */}
       {(() => {
-        // Extraire les genres et thèmes
-        const genresList = serie.genres && shouldShow('genres')
-          ? serie.genres.split(',').map(g => g.trim()).filter(g => g)
+        // Traduire et dédupliquer les genres et thèmes (la déduplication est déjà faite dans translateGenres/translateThemes)
+        const translatedGenres = serie.genres && shouldShow('genres') ? translateGenres(serie.genres) : '';
+        const translatedThemes = serie.themes && shouldShow('themes') ? translateThemes(serie.themes) : '';
+        
+        const genresList = translatedGenres
+          ? translatedGenres.split(',').map(g => g.trim()).filter(g => g)
           : [];
-        const themesList = serie.themes && shouldShow('themes')
-          ? serie.themes.split(',').map(t => t.trim()).filter(t => t)
+        const themesList = translatedThemes
+          ? translatedThemes.split(',').map(t => t.trim()).filter(t => t)
           : [];
 
-        // Normaliser pour comparaison (insensible à la casse)
+        // Normaliser pour comparaison (insensible à la casse) afin d'éviter les doublons entre genres et thèmes
         const normalize = (str: string) => str.toLowerCase().trim();
         const genresNormalized = genresList.map(normalize);
 

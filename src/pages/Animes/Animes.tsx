@@ -24,6 +24,7 @@ import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
 import { AnimeFilters, AnimeSerie } from '../../types';
+import { translateGenre, translateTheme } from '../../utils/translations';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
 
 const ANIME_SORT_OPTIONS = ['title-asc', 'title-desc', 'date-desc', 'date-asc'] as const;
@@ -1024,7 +1025,7 @@ export default function Animes() {
                             transition: 'all 0.2s'
                           }}
                         >
-                          {genre}
+                          {translateGenre(genre)}
                         </button>
                       );
                     })}
@@ -1087,7 +1088,7 @@ export default function Animes() {
                             transition: 'all 0.2s'
                           }}
                         >
-                          {theme}
+                          {translateTheme(theme)}
                         </button>
                       );
                     })}

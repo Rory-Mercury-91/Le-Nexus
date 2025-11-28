@@ -249,40 +249,139 @@ function registerAnimeSeriesReadHandlers(ipcMain, getDb, store) {
     }
   });
 
-  // Récupérer tous les genres uniques
+  // Récupérer tous les genres uniques (dédupliqués après traduction)
   ipcMain.handle('get-all-anime-genres', async () => {
     try {
       const db = getDb();
       if (!db) throw new Error('Base de données non initialisée');
+      const { genreTranslations, translateItem, isScanTeam, getExcludedScanTeams } = require('../../utils/translation-dictionaries');
+      
       const animes = db.prepare('SELECT genres FROM anime_series WHERE genres IS NOT NULL AND genres <> \'\' AND LENGTH(genres) > 0').all();
-      const allGenres = new Set();
+      const allGenresRaw = new Set();
       animes.forEach(anime => {
         if (anime.genres) {
           const genres = anime.genres.split(',').map(g => g.trim()).filter(Boolean);
-          genres.forEach(genre => allGenres.add(genre));
+          genres.forEach(genre => allGenresRaw.add(genre));
         }
       });
-      return Array.from(allGenres).sort();
+      
+      // Liste des valeurs à exclure (ratings qui peuvent être dans les genres par erreur)
+      const excludedValues = new Set([
+        'Content rating: Suggestive',
+        'Suggestive',
+        'Suggestif',
+        'safe',
+        'suggestive',
+        'erotica',
+        'R+',
+        'R - 17+',
+        'PG-13',
+        'G - All Ages',
+        'PG - Children'
+      ]);
+      
+      // Charger les équipes de scanlation à exclure
+      const excludedScanTeams = getExcludedScanTeams();
+      
+      // Traduire tous les genres et dédupliquer sur les traductions
+      const translatedGenresSet = new Set();
+      const genreToOriginal = new Map(); // Pour conserver la première occurrence de chaque traduction
+      
+      for (const genre of allGenresRaw) {
+        // Exclure les ratings qui peuvent être dans les genres par erreur
+        if (excludedValues.has(genre) || excludedValues.has(genre.toLowerCase())) {
+          continue;
+        }
+        
+        // Exclure les équipes de scanlation
+        if (isScanTeam(genre, excludedScanTeams)) {
+          continue;
+        }
+        
+        // Traduire le genre
+        const translated = translateItem(genre, genreTranslations);
+        
+        // Exclure aussi si la traduction est un rating
+        if (excludedValues.has(translated) || excludedValues.has(translated.toLowerCase())) {
+          continue;
+        }
+        
+        // Exclure aussi si la traduction est une équipe de scanlation
+        if (isScanTeam(translated, excludedScanTeams)) {
+          continue;
+        }
+        
+        // Normaliser la traduction pour la comparaison (minuscules, espaces multiples)
+        const normalizedTranslation = translated.toLowerCase().replace(/\s+/g, ' ').trim();
+        
+        // Si cette traduction n'a pas encore été vue, l'ajouter
+        if (!translatedGenresSet.has(normalizedTranslation)) {
+          translatedGenresSet.add(normalizedTranslation);
+          // Conserver le genre original (VO) pour le retour
+          genreToOriginal.set(normalizedTranslation, genre);
+        }
+      }
+      
+      // Retourner les genres originaux (VO) triés, mais dédupliqués sur les traductions
+      const result = Array.from(genreToOriginal.values()).sort();
+      return result;
     } catch (error) {
       console.error('❌ Erreur get-all-anime-genres:', error);
       throw error;
     }
   });
 
-  // Récupérer tous les thèmes uniques
+  // Récupérer tous les thèmes uniques (dédupliqués après traduction)
   ipcMain.handle('get-all-anime-themes', async () => {
     try {
       const db = getDb();
       if (!db) throw new Error('Base de données non initialisée');
+      const { themeTranslations, translateItem, isScanTeam, getExcludedScanTeams } = require('../../utils/translation-dictionaries');
+      
       const animes = db.prepare('SELECT themes FROM anime_series WHERE themes IS NOT NULL AND themes <> \'\' AND LENGTH(themes) > 0').all();
-      const allThemes = new Set();
+      const allThemesRaw = new Set();
       animes.forEach(anime => {
         if (anime.themes) {
           const themes = anime.themes.split(',').map(t => t.trim()).filter(Boolean);
-          themes.forEach(theme => allThemes.add(theme));
+          themes.forEach(theme => allThemesRaw.add(theme));
         }
       });
-      return Array.from(allThemes).sort();
+      
+      // Charger les équipes de scanlation à exclure
+      const excludedScanTeams = getExcludedScanTeams();
+      
+      // Traduire tous les thèmes et dédupliquer sur les traductions
+      const translatedThemesSet = new Set();
+      const themeToOriginal = new Map(); // Pour conserver la première occurrence de chaque traduction
+      
+      for (const theme of allThemesRaw) {
+        // Exclure les équipes de scanlation
+        if (isScanTeam(theme, excludedScanTeams)) {
+          continue;
+        }
+        
+        // Traduire le thème
+        const translated = translateItem(theme, themeTranslations);
+        
+        // Exclure aussi si la traduction est une équipe de scanlation
+        if (isScanTeam(translated, excludedScanTeams)) {
+          continue;
+        }
+        
+        // Normaliser la traduction pour la comparaison (minuscules, espaces multiples)
+        const normalizedTranslation = translated.toLowerCase().replace(/\s+/g, ' ').trim();
+        
+        // Si cette traduction n'a pas encore été vue, l'ajouter
+        if (!translatedThemesSet.has(normalizedTranslation)) {
+          translatedThemesSet.add(normalizedTranslation);
+          // Conserver le thème original (VO) pour le retour
+          themeToOriginal.set(normalizedTranslation, theme);
+        }
+      }
+      
+      // Retourner les thèmes originaux (VO) triés, mais dédupliqués sur les traductions
+      const result = Array.from(themeToOriginal.values()).sort();
+      return result;
     } catch (error) {
       console.error('❌ Erreur get-all-anime-themes:', error);
       throw error;
