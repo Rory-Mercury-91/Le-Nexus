@@ -93,9 +93,24 @@ jobs:
           VERSION_NUMBER: ${{ steps.version.outputs.version_number }}
           ASSET_URL: ${{ steps.asset.outputs.download_url }}
         run: |
+          echo "📤 Envoi de la notification Discord..."
+          
           # Lire le changelog et le résumé depuis les fichiers
-          CHANGELOG_RAW=$(cat changelog_short.txt)
-          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt | sed 's/### //')
+          CHANGELOG_RAW=$(cat changelog_short.txt 2>/dev/null || echo "")
+          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt 2>/dev/null | sed 's/### //' || echo "")
+          
+          # S'assurer que les valeurs ne sont pas vides (Discord rejette les champs vides)
+          if [ -z "$SUMMARY_RAW" ] || [ "$SUMMARY_RAW" = "" ]; then
+            SUMMARY_RAW="• Améliorations et corrections de bugs\n• Optimisations de performance\n• Expérience utilisateur améliorée"
+          fi
+          
+          if [ -z "$CHANGELOG_RAW" ] || [ "$CHANGELOG_RAW" = "" ]; then
+            CHANGELOG_RAW="Consultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION) pour plus de détails."
+          fi
+          
+          # Tronquer les valeurs si elles dépassent 1024 caractères (limite Discord)
+          SUMMARY_RAW=$(echo "$SUMMARY_RAW" | head -c 1000)
+          CHANGELOG_RAW=$(echo "$CHANGELOG_RAW" | head -c 1000)
           
           # Construire le JSON avec jq pour échappement correct
           jq -n \
@@ -117,12 +132,12 @@ jobs:
                 "fields": [
                   {
                     "name": "✨ Points Clés de cette Version",
-                    "value": $summary,
+                    "value": (if $summary == "" then "• Améliorations et corrections de bugs" else $summary end),
                     "inline": false
                   },
                   {
                     "name": "📝 Changements Complets",
-                    "value": $changelog,
+                    "value": (if $changelog == "" then "Consultez la page de release pour plus de détails." else $changelog end),
                     "inline": false
                   },
                   {
@@ -144,7 +159,30 @@ jobs:
               }]
             }' > discord_payload.json
           
-          # Envoyer le JSON à Discord
-          curl -X POST "$DISCORD_WEBHOOK" \
+          # Valider le JSON avant l'envoi
+          if ! jq empty discord_payload.json 2>/dev/null; then
+            echo "❌ Erreur : JSON invalide"
+            cat discord_payload.json
+            exit 1
+          fi
+          
+          # Afficher le payload pour debug (sans le webhook)
+          echo "📋 Payload JSON généré :"
+          cat discord_payload.json | jq .
+          
+          # Envoyer le JSON à Discord avec gestion d'erreur
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d @discord_payload.json
+            -d @discord_payload.json)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          
+          if [ "$HTTP_CODE" -eq 204 ] || [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Notification envoyée avec succès !"
+          else
+            echo "❌ Erreur lors de l'envoi (HTTP $HTTP_CODE)"
+            echo "Réponse Discord :"
+            echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+            exit 1
+          fi
