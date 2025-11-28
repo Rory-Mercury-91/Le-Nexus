@@ -78,7 +78,7 @@ jobs:
               "avatar_url": $avatar,
               "embeds": [{
                 "title": ("🚀 Nexus " + $version + " - Nouvelle Version Disponible !"),
-                "description": "**Une nouvelle version de Nexus est maintenant disponible.**\n\nConsultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ") pour plus de détails.",
+                "description": ("**Une nouvelle version de Nexus est maintenant disponible.**\n\nConsultez la [page de release](" + "https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ") pour plus de détails."),
                 "color": 5814783,
                 "fields": [
                   {
