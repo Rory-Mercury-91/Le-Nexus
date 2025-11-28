@@ -29,36 +29,6 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
 
-      - name: Extract Changelog
-        id: changelog
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          
-          # Extraire la section du CHANGELOG pour cette version
-          # Recherche flexible : accepte "## [X.Y.Z] - YYYY-MM-DD"
-          awk -v ver="${VERSION#v}" '
-            /^## \[/ {
-              # Extraire la version entre crochets
-              match($0, /\[([0-9]+\.[0-9]+\.[0-9]+)\]/, arr)
-              if (arr[1] == ver) {
-                started = 1
-                next
-              } else if (started) {
-                exit
-              }
-            }
-            started { print }
-          ' CHANGELOG.md > changelog_extract.txt
-          
-          # Vérifier si le changelog a été extrait
-          if [ ! -s changelog_extract.txt ]; then
-            echo "ATTENTION: Changelog vide pour $VERSION" >&2
-            echo "Contenu disponible dans les prochaines releases." > changelog_extract.txt
-          fi
-          
-          # Limiter à 1000 caractères pour Discord field (limite: 1024)
-          head -c 1000 changelog_extract.txt > changelog_short.txt
-
       - name: Fetch Release Asset
         id: asset
         env:
@@ -95,31 +65,12 @@ jobs:
         run: |
           echo "📤 Envoi de la notification Discord..."
           
-          # Lire le changelog et le résumé depuis les fichiers
-          CHANGELOG_RAW=$(cat changelog_short.txt 2>/dev/null || echo "")
-          SUMMARY_RAW=$(awk '/^### / { if (count++ < 3) print "• " $0 }' changelog_extract.txt 2>/dev/null | sed 's/### //' || echo "")
-          
-          # S'assurer que les valeurs ne sont pas vides (Discord rejette les champs vides)
-          if [ -z "$SUMMARY_RAW" ]; then
-            SUMMARY_RAW="• Améliorations et corrections de bugs"
-          fi
-          
-          if [ -z "$CHANGELOG_RAW" ]; then
-            CHANGELOG_RAW="Consultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/$VERSION) pour plus de détails."
-          fi
-          
-          # Tronquer à 1000 caractères max (limite Discord: 1024)
-          SUMMARY_RAW=$(echo "$SUMMARY_RAW" | head -c 1000)
-          CHANGELOG_RAW=$(echo "$CHANGELOG_RAW" | head -c 1000)
-          
           # Construire le JSON avec jq pour échappement correct
           jq -n \
             --arg username "Nexus Release Bot" \
             --arg avatar "https://github.com/Rory-Mercury-91.png" \
             --arg version "$VERSION" \
             --arg version_num "$VERSION_NUMBER" \
-            --arg summary "$SUMMARY_RAW" \
-            --arg changelog "$CHANGELOG_RAW" \
             --arg asset_url "$ASSET_URL" \
             --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
             '{
@@ -127,19 +78,9 @@ jobs:
               "avatar_url": $avatar,
               "embeds": [{
                 "title": ("🚀 Nexus " + $version + " - Nouvelle Version Disponible !"),
-                "description": "**Une mise à jour importante de Nexus est maintenant disponible.**\n\n",
+                "description": "**Une nouvelle version de Nexus est maintenant disponible.**\n\nConsultez la [page de release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ") pour plus de détails.",
                 "color": 5814783,
                 "fields": [
-                  {
-                    "name": "✨ Points Clés de cette Version",
-                    "value": (if ($summary | length) == 0 then "• Améliorations et corrections de bugs" else $summary end),
-                    "inline": false
-                  },
-                  {
-                    "name": "📝 Changements Complets",
-                    "value": (if ($changelog | length) == 0 then "Consultez la page de release pour plus de détails." else $changelog end),
-                    "inline": false
-                  },
                   {
                     "name": "⬇️ Téléchargements",
                     "value": ("**Windows** : [💾 Télécharger l'\''installateur](" + $asset_url + ")"),
