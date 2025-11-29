@@ -182,6 +182,35 @@ interface ElectronAPI {
   updateAdulteGameNotes: (gameId: number, notes: string) => Promise<{ success: boolean }>;
   updateAdulteGameGame: (id: number, gameData: Record<string, unknown>) => Promise<{ success: boolean }>;
   selectAdulteGameExecutable: () => Promise<{ success: boolean; path?: string }>;
+  scanAdulteGameExecutables: () => Promise<{
+    success: boolean;
+    canceled?: boolean;
+    error?: string;
+    executables?: Array<{
+      path: string;
+      filename: string;
+      folder: string;
+      isDuplicate: boolean;
+      duplicatePaths?: string[];
+    }>;
+  }>;
+  searchAdulteGameGamesMinimal: (searchTerm: string) => Promise<Array<{
+    id: number;
+    titre: string;
+    f95_thread_id?: number | null;
+    Lewdcorner_thread_id?: number | null;
+  }>>;
+  getAdulteGameCurrentExecutables: (gameId: number) => Promise<Array<{
+    version: string;
+    path: string;
+    label: string;
+  }>>;
+  bulkUpdateAdulteGameExecutables: (assignments: Array<{
+    gameId: number;
+    executablePath: string;
+    action: 'add' | 'replace';
+    label?: string;
+  }>) => Promise<{ success: boolean; updated: number }>;
   updateUser: (userData: { id: number; name: string; emoji: string; color: string }) => Promise<{ success: boolean; error?: string }>;
   deleteUser: (userName: string) => Promise<{ success: boolean; error?: string }>;
   onAnimeImportProgress: (callback: (progress: AnimeImportProgress) => void) => () => void;

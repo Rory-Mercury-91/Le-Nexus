@@ -806,7 +806,8 @@ export default function Animes() {
   } = usePagination({
     items: sortedAnimes,
     defaultItemsPerPage: 50,
-    storageKey: 'animes-items-per-page'
+    storageKey: 'animes-items-per-page',
+    scrollStorageKey: 'collection.animes.scroll'
   });
 
 
@@ -1157,6 +1158,26 @@ export default function Animes() {
               </div>
             )}
           </CollectionFiltersBar>
+
+          {/* Pagination avec contrôles de vue et items par page */}
+          {sortedAnimes.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              totalItems={sortedAnimes.length}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+              onFirstPage={goToFirstPage}
+              onLastPage={goToLastPage}
+              onNextPage={goToNextPage}
+              onPreviousPage={goToPreviousPage}
+              canGoNext={canGoNext}
+              canGoPrevious={canGoPrevious}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+            />
+          )}
 
           {/* Message d'ajout depuis URL/ID MAL */}
           {showAddFromMal && (

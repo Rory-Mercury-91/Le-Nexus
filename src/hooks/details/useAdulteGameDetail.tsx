@@ -7,6 +7,7 @@ import { useToast } from '../common/useToast';
 interface GameVersion {
   version: string;
   path: string;
+  label?: string;
 }
 
 export function useAdulteGameDetail() {
@@ -283,7 +284,8 @@ export function useAdulteGameDetail() {
       if (Array.isArray(parsed)) {
         return parsed.map(exe => ({
           version: exe.version,
-          path: exe.path
+          path: exe.path,
+          label: exe.label || `Version ${exe.version}`
         }));
       }
     } catch {}

@@ -938,7 +938,8 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   } = usePagination({
     items: sortedGames,
     defaultItemsPerPage: 50,
-    storageKey: 'adulte-game-items-per-page'
+    storageKey: 'adulte-game-items-per-page',
+    scrollStorageKey: 'collection.adulteGames.scroll'
   });
 
   // Calculer si des filtres sont actifs (incluant les filtres spécifiques)

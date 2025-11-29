@@ -1,4 +1,4 @@
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdulteGameCard } from '../../components/cards';
@@ -17,6 +17,7 @@ import {
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
 import AddAdulteGameModal from '../../components/modals/adulte-game/AddAdulteGameModal';
+import ScanExecutablesModal from '../../components/modals/adulte-game/ScanExecutablesModal';
 import { useAdulteGameCollection } from '../../hooks/collections/useAdulteGameCollection';
 import { useConfirm } from '../../hooks/common/useConfirm';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
@@ -29,6 +30,7 @@ export default function AdulteGame() {
   const navigate = useNavigate();
   const { ToastContainer } = useToast();
   const { ConfirmDialog: ConfirmModal } = useConfirm();
+  const [showScanModal, setShowScanModal] = useState(false);
   
   // Utiliser le contexte global pour la progression
   const { setAdulteGameUpdating, setAdulteGameProgress } = useGlobalProgress();
@@ -311,15 +313,25 @@ export default function AdulteGame() {
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter un jeu"
             extraButtons={
-              <button
-                onClick={handleCheckUpdatesWithProgress}
-                disabled={loading}
-                className="btn btn-outline"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <RefreshCw size={18} />
-                Vérifier MAJ
-              </button>
+              <>
+                <button
+                  onClick={() => setShowScanModal(true)}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Search size={18} />
+                  Scanner les disques
+                </button>
+                <button
+                  onClick={handleCheckUpdatesWithProgress}
+                  disabled={loading}
+                  className="btn btn-outline"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <RefreshCw size={18} />
+                  Vérifier MAJ
+                </button>
+              </>
             }
           />
 
@@ -716,6 +728,15 @@ export default function AdulteGame() {
                 await loadGames(true);
                 setShowAddModal(false);
                 setInitialSearchId(null);
+              }}
+            />
+          )}
+
+          {showScanModal && (
+            <ScanExecutablesModal
+              onClose={() => setShowScanModal(false)}
+              onSuccess={async () => {
+                await loadGames(true);
               }}
             />
           )}

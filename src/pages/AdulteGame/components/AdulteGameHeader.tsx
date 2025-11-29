@@ -6,6 +6,7 @@ import { useGlobalProgress } from '../../../contexts/GlobalProgressContext';
 interface GameVersion {
   version: string;
   path: string;
+  label?: string;
 }
 
 interface AdulteGameHeaderProps {
@@ -211,7 +212,7 @@ export default function AdulteGameHeader({
                           onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
                         >
                           <Play size={14} style={{ color: 'var(--success)' }} />
-                          <span>Version {version.version}</span>
+                          <span>{version.label || `Version ${version.version}`}</span>
                         </button>
                       ))}
                     </div>

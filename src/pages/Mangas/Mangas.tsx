@@ -806,7 +806,8 @@ export default function Mangas() {
   } = usePagination({
     items: sortedSeries,
     defaultItemsPerPage: 50,
-    storageKey: 'mangas-items-per-page'
+    storageKey: 'mangas-items-per-page',
+    scrollStorageKey: 'collection.mangas.scroll'
   });
 
   const handleToggleFavorite = async (serieId: number) => {

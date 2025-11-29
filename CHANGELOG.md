@@ -5,6 +5,26 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.3] - 2025-11-29
+
+### ✨ Ajouté
+- **Scanner d'exécutables pour les jeux adultes**
+  - Scan récursif d'un dossier pour détecter tous les fichiers .exe
+  - Interface modale avec deux colonnes : exécutables trouvés et attribution au jeu
+  - Recherche de jeux dans la base de données avec barre de recherche
+  - Attribution en masse avec actions "Remplacer" ou "Ajouter"
+  - Gestion des conflits lorsque plusieurs exécutables pointent vers le même jeu
+  - Label personnalisé pour chaque exécutable (modifiable avant attribution)
+  - Affichage du label personnalisé dans le dropdown de lancement du jeu (au lieu de "Version scanned-...")
+  - Détection et affichage des doublons d'exécutables
+
+### 🔧 Amélioré
+- **Système de pagination amélioré**
+  - Remontée automatique en haut de la liste lors du changement de page manuel
+  - Préservation de la restauration du scroll lors du retour depuis une page de détails
+  - Effacement automatique de la position de scroll sauvegardée lors des changements de page
+  - Ajout de la pagination en haut de la page Animes (cohérence avec les autres collections)
+
 ## [1.0.2] - 2025-11-27
 
 ### ✨ Ajouté
@@ -177,6 +197,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.3]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.0

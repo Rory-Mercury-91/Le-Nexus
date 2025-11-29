@@ -331,7 +331,8 @@ export default function Movies() {
   } = usePagination({
     items: sortedMovies,
     defaultItemsPerPage: 50,
-    storageKey: 'movies-items-per-page'
+    storageKey: 'movies-items-per-page',
+    scrollStorageKey: 'collection.movies.scroll'
   });
 
 

@@ -12,6 +12,7 @@ const { registerLaunchHandlers } = require('./launch-handlers');
 const { registerAdulteGameUpdatesCheckHandlers } = require('./adulte-game-updates-check-handlers');
 const { registerAdulteGameSearchHandlers } = require('./adulte-game-search-handlers');
 const { registerF95ConnectionHandlers } = require('./f95-connection-handlers');
+const { registerScanHandlers } = require('./scan-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour la gestion des jeux adultes
@@ -30,6 +31,7 @@ function registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager) {
   registerAdulteGameUpdatesCheckHandlers(ipcMain, getDb, store, getPathManager);
   registerAdulteGameSearchHandlers(ipcMain, getDb, store, getPathManager);
   registerF95ConnectionHandlers(ipcMain);
+  registerScanHandlers(ipcMain, getDb, store);
   
   console.log('✅ Handlers jeux adultes enregistrés');
 }

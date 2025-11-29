@@ -325,6 +325,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectAdulteGameExecutable: () => ipcRenderer.invoke('select-adulte-game-executable'),
   selectAdulteGameCoverImage: () => ipcRenderer.invoke('select-adulte-game-cover-image'),
 
+  // Scan des exécutables
+  scanAdulteGameExecutables: () => ipcRenderer.invoke('scan-adulte-game-executables'),
+  searchAdulteGameGamesMinimal: (searchTerm) => ipcRenderer.invoke('search-adulte-game-games-minimal', searchTerm),
+  getAdulteGameCurrentExecutables: (gameId) => ipcRenderer.invoke('get-adulte-game-current-executables', gameId),
+  bulkUpdateAdulteGameExecutables: (assignments) => ipcRenderer.invoke('bulk-update-adulte-game-executables', assignments),
+
   // Synchronisation traductions
   getTraductionConfig: () => ipcRenderer.invoke('get-traduction-config'),
   saveTraductionConfig: (config) => ipcRenderer.invoke('save-traduction-config', config),

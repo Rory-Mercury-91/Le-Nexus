@@ -301,7 +301,8 @@ export default function Series() {
   } = usePagination({
     items: sortedSeries,
     defaultItemsPerPage: 50,
-    storageKey: 'series-items-per-page'
+    storageKey: 'series-items-per-page',
+    scrollStorageKey: 'collection.series.scroll'
   });
 
 
