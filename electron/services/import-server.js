@@ -38,16 +38,16 @@ function createImportServer(port, getDb, store, mainWindow, getPathManager) {
 
     // Router vers les modules spécialisés
     // Les modules retournent true si la route est gérée, false sinon
-    
+
     // Routes manga
     if (registerMangaRoutes(req, res, getDb, store, mainWindow, getPathManager)) {
-            return;
-          }
+      return;
+    }
 
     // Routes anime
     if (registerAnimeRoutes(req, res, getDb, store, mainWindow, getPathManager)) {
-            return;
-          }
+      return;
+    }
 
     // Routes jeux adultes
     if (registerAdulteGameRoutes(req, res, getDb, store)) {
@@ -57,7 +57,7 @@ function createImportServer(port, getDb, store, mainWindow, getPathManager) {
     // Route: GET / (healthcheck)
     if (req.method === 'GET' && req.url === '/') {
       sendSuccessResponse(res, {
-        status: 'ok', 
+        status: 'ok',
         message: 'Nexus Import Server',
         version: '1.0.0'
       });
@@ -69,7 +69,7 @@ function createImportServer(port, getDb, store, mainWindow, getPathManager) {
       const { net } = require('electron');
       const urlParams = new URLSearchParams(req.url.split('?')[1]);
       const imageUrl = urlParams.get('url');
-      
+
       if (!imageUrl) {
         return sendErrorResponse(res, 400, 'URL manquante');
       }
@@ -86,7 +86,7 @@ function createImportServer(port, getDb, store, mainWindow, getPathManager) {
       request.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       request.setHeader('Accept', 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8');
       request.setHeader('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7');
-      
+
       if (imageUrl.includes('lewdcorner')) {
         request.setHeader('Referer', 'https://lewdcorner.com/');
       } else if (imageUrl.includes('f95zone')) {

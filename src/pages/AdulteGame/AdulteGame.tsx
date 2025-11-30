@@ -18,6 +18,8 @@ import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
 import AddAdulteGameModal from '../../components/modals/adulte-game/AddAdulteGameModal';
 import ScanExecutablesModal from '../../components/modals/adulte-game/ScanExecutablesModal';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { ADULTE_GAME_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import { useAdulteGameCollection } from '../../hooks/collections/useAdulteGameCollection';
 import { useConfirm } from '../../hooks/common/useConfirm';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
@@ -134,6 +136,7 @@ export default function AdulteGame() {
   // États d'UI spécifiques au composant (affichage des filtres collapsibles)
   const [showTagsFilter, setShowTagsFilter] = useState(false);
   const [showLabelsFilter, setShowLabelsFilter] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Fonctions de rendu spécifiques au composant
   const handleOpenGame = (gameId: number) => {
@@ -365,6 +368,7 @@ export default function AdulteGame() {
           <CollectionFiltersBar
             hasActiveFilters={hasActiveFilters}
             onClearFilters={clearFilters}
+            onOpenHelp={() => setShowHelpModal(true)}
           >
             <CollectionSearchBar
               searchTerm={searchTerm}
@@ -769,6 +773,12 @@ export default function AdulteGame() {
           <BackToBottomButton />
         </div>
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={ADULTE_GAME_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

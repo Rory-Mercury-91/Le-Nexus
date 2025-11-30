@@ -81,7 +81,18 @@ export default function MultiSelectDropdown({
             cursor: 'pointer',
             minHeight: '42px',
             padding: '8px 12px',
-            textAlign: 'left'
+            textAlign: 'left',
+            background: 'var(--surface)',
+            border: '2px solid var(--border)',
+            borderRadius: '8px',
+            color: 'var(--text)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)';
           }}
         >
           <span style={{ color: selectedIds.length === 0 ? 'var(--text-secondary)' : 'var(--text)' }}>

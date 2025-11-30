@@ -357,13 +357,15 @@ export default function DisplaySettingsModal({
           </button>
         </div>
 
-        {/* Affichage avec catégories */}
+        {/* Affichage avec catégories ou liste simple */}
         {hasCategories && categories ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '18px'
-          }}>
+          <div 
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '18px'
+            }}
+          >
             {categories.map((category) => (
               <div
                 key={category.title}
@@ -409,8 +411,9 @@ export default function DisplaySettingsModal({
             ))}
           </div>
         ) : (
-          /* Affichage simple (liste plate) */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
+          <div 
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}
+          >
             {allFields.map((field) => (
               <div
                 key={field.key}

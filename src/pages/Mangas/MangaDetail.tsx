@@ -1,4 +1,5 @@
-import { Edit, Settings, Trash2 } from 'lucide-react';
+import { BookOpen, Edit, Plus, Settings, Trash2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import EnrichmentButton from '../../components/common/EnrichmentButton';
 import ProtectedContent from '../../components/common/ProtectedContent';
@@ -17,6 +18,7 @@ import {
 } from './components';
 
 export default function SerieDetail() {
+  const location = useLocation();
   const {
     serie,
     loading,
@@ -78,7 +80,7 @@ export default function SerieDetail() {
       <>
         <DetailPageHeader
           backLabel="Retour à la collection"
-          backTo="/collection"
+          backTo={location.state?.from || '/collection'}
           actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
@@ -218,8 +220,9 @@ export default function SerieDetail() {
               </div>
             )}
 
-            {/* Liste des tomes - Pleine largeur (pour volumes ou volume+chapitre) */}
-            {shouldShow('section_tomes') && (
+            {/* Liste des tomes - Toujours affichée pour permettre l'ajout de tomes */}
+            {/* Si la section est masquée, on affiche quand même un bouton pour ajouter un tome */}
+            {shouldShow('section_tomes') ? (
               <div
                 className="card"
                 style={{
@@ -257,6 +260,36 @@ export default function SerieDetail() {
                   }}
                   shouldShow={true}
                 />
+              </div>
+            ) : (
+              // Si la section est masquée, afficher quand même un bouton pour ajouter un tome
+              <div
+                className="card"
+                style={{
+                  padding: 'clamp(16px, 2vw, 20px)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                <div>
+                  <h2 style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <BookOpen size={20} />
+                    Tomes ({tomes.length})
+                  </h2>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '8px 0 0 0' }}>
+                    Section masquée - Vous pouvez toujours ajouter des tomes
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddTome(true)}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
+                >
+                  <Plus size={18} />
+                  Ajouter un tome
+                </button>
               </div>
             )}
           </div>

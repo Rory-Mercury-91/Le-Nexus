@@ -4,12 +4,14 @@ interface CollectionFiltersBarProps {
   children: ReactNode;
   onClearFilters?: () => void;
   hasActiveFilters?: boolean;
+  onOpenHelp?: () => void;
 }
 
 const CollectionFiltersBar: React.FC<CollectionFiltersBarProps> = ({
   children,
   onClearFilters,
-  hasActiveFilters = false
+  hasActiveFilters = false,
+  onOpenHelp
 }) => {
   // Cloner les enfants pour passer les props au CollectionSearchBar s'il existe
   const clonedChildren = React.Children.map(children, (child) => {
@@ -27,7 +29,8 @@ const CollectionFiltersBar: React.FC<CollectionFiltersBarProps> = ({
       if (isSearchBar) {
         return cloneElement(child as React.ReactElement<any>, {
           hasActiveFilters,
-          onClearFilters
+          onClearFilters,
+          onOpenHelp
         });
       }
     }

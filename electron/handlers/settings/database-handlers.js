@@ -534,7 +534,8 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     showAnimes: true,
     showMovies: true,
     showSeries: true,
-    showAdulteGame: true
+    showAdulteGame: true,
+    showBooks: true
   };
 
   ipcMain.handle('set-content-preferences', (event, userName, preferences = {}) => {
@@ -544,6 +545,12 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
       ...(userPrefs[userName] || {}),
       ...preferences
     };
+    
+    // Synchroniser showBooks avec showMangas : si on change showMangas, showBooks suit
+    if (preferences.hasOwnProperty('showMangas')) {
+      mergedPrefs.showBooks = preferences.showMangas;
+    }
+    
     userPrefs[userName] = mergedPrefs;
     store.set('contentPreferences', userPrefs);
     
@@ -680,6 +687,46 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   ipcMain.handle('delete-adulte-game-display-overrides', createDeleteJsonDisplayOverridesHandler({
     tableName: 'adulte_game_user_data',
     itemIdColumnName: 'game_id',
+    getDb,
+    store
+  }));
+
+  // Préférences affichage livres (globales - utilisent user_preferences avec content_type='books')
+  ipcMain.handle('get-books-display-settings', createGetGlobalDisplaySettingsHandler({
+    contentType: 'books',
+    defaultDisplay: {},
+    getDb,
+    store
+  }));
+
+  ipcMain.handle('save-books-display-settings', createSaveGlobalDisplaySettingsHandler({
+    contentType: 'books',
+    getDb,
+    store,
+    useVisibleFormat: true
+  }));
+
+  // Handlers pour les overrides locaux des livres (stockés dans book_user_data.display_preferences)
+  const { ensureBookUserDataRow } = require('../books/book-helpers');
+  
+  ipcMain.handle('get-books-display-overrides', createGetJsonDisplayOverridesHandler({
+    tableName: 'book_user_data',
+    itemIdColumnName: 'book_id',
+    getDb,
+    store
+  }));
+
+  ipcMain.handle('save-books-display-overrides', createSaveJsonDisplayOverridesHandler({
+    tableName: 'book_user_data',
+    itemIdColumnName: 'book_id',
+    getDb,
+    store,
+    ensureRowExists: ensureBookUserDataRow
+  }));
+
+  ipcMain.handle('delete-books-display-overrides', createDeleteJsonDisplayOverridesHandler({
+    tableName: 'book_user_data',
+    itemIdColumnName: 'book_id',
     getDb,
     store
   }));

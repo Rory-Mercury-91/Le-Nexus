@@ -67,6 +67,21 @@ function registerExportHandlers(ipcMain, getDb, app, getPathManager, store) {
         if (userData.length > 0) {
           extraSections.push({ title: `Données utilisateur (${userData.length})`, data: userData });
         }
+      } else if (type === 'book') {
+        mainData = db.prepare('SELECT * FROM books WHERE id = ?').get(id);
+        if (!mainData) {
+          return { success: false, error: `Livre introuvable (ID ${id})` };
+        }
+        // Récupérer les données utilisateur depuis book_user_data
+        const userData = db.prepare('SELECT * FROM book_user_data WHERE book_id = ?').all(id);
+        if (userData.length > 0) {
+          extraSections.push({ title: `Données utilisateur (${userData.length})`, data: userData });
+        }
+        // Récupérer les propriétaires depuis book_proprietaires
+        const proprietaires = db.prepare('SELECT * FROM book_proprietaires WHERE book_id = ?').all(id);
+        if (proprietaires.length > 0) {
+          extraSections.push({ title: `Propriétaires (${proprietaires.length})`, data: proprietaires });
+        }
       } else if (type === 'anime') {
         mainData = db.prepare('SELECT * FROM anime_series WHERE id = ?').get(id);
         if (!mainData) {
@@ -190,6 +205,7 @@ function registerExportHandlers(ipcMain, getDb, app, getPathManager, store) {
         { name: 'anime_user_data', label: 'Anime User Data' },
         { name: 'movie_user_data', label: 'Movie User Data' },
         { name: 'tv_show_user_data', label: 'TV Show User Data' },
+        { name: 'book_user_data', label: 'Book User Data' },
         { name: 'adulte_game_user_data', label: 'Adulte Game User Data' }
       ];
       

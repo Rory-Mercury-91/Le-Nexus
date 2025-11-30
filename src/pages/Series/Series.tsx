@@ -15,6 +15,8 @@ import {
 } from '../../components/collections';
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { SERIES_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import AddSeriesModal from '../../components/modals/series/AddSeriesModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
@@ -73,6 +75,7 @@ export default function Series() {
     { storage: 'session' }
   );
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [viewMode, handleViewModeChange] = useCollectionViewMode('series');
   const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
     'collection.series.filters.selectedGenres',
@@ -107,8 +110,10 @@ export default function Series() {
 
       // Charger tous les genres disponibles
       try {
-        const allGenres = await window.electronAPI.getAllTvGenres();
-        setAvailableGenres(allGenres);
+        const allGenres = await (window.electronAPI as any).getAllTvGenres?.();
+        if (allGenres && Array.isArray(allGenres)) {
+          setAvailableGenres(allGenres);
+        }
       } catch (error) {
         console.error('Erreur chargement genres:', error);
       }
@@ -242,17 +247,17 @@ export default function Series() {
       getIsHidden: (s) => !!s.is_hidden,
       getIsFavorite: (s) => !!s.is_favorite,
       getStatus: (s) => s.statut_visionnage || 'À regarder',
-      getHasUpdates: (s) => !!s.maj_disponible
-    },
-    customFilter: (show) => {
-      // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
-      if (selectedGenres.length > 0) {
-        if (!show.genres || !Array.isArray(show.genres)) return false;
-        const showGenreNames = show.genres.map((g: any) => g.name || g).filter(Boolean);
-        const hasAllGenres = selectedGenres.every(genre => showGenreNames.includes(genre));
-        if (!hasAllGenres) return false;
+      getHasUpdates: (s) => !!s.maj_disponible,
+      customFilter: (show: TvShowListItem) => {
+        // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
+        if (selectedGenres.length > 0) {
+          if (!show.genres || !Array.isArray(show.genres)) return false;
+          const showGenreNames = show.genres.map((g: any) => g.name || g).filter(Boolean);
+          const hasAllGenres = selectedGenres.every(genre => showGenreNames.includes(genre));
+          if (!hasAllGenres) return false;
+        }
+        return true;
       }
-      return true;
     },
     sortConfig: {
       sortOptions: {
@@ -357,6 +362,7 @@ export default function Series() {
           <CollectionFiltersBar
             hasActiveFilters={hasActiveFilters}
             onClearFilters={handleClearFilters}
+            onOpenHelp={() => setShowHelpModal(true)}
           >
             <CollectionSearchBar
               placeholder="Rechercher une série (titre, TMDb ID...)"
@@ -595,6 +601,12 @@ export default function Series() {
           <BackToBottomButton />
         </div>
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={SERIES_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

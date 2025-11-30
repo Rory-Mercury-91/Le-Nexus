@@ -7,7 +7,7 @@ import { rememberScrollTarget } from '../../hooks/common/useScrollRestoration';
 
 interface SearchResult {
   id: number;
-  type: 'manga' | 'anime' | 'adulte-game';
+  type: 'manga' | 'anime' | 'book' | 'movie' | 'series' | 'adulte-game';
   title: string;
   subtitle?: string;
   progress?: string;
@@ -123,6 +123,18 @@ export default function GlobalSearch({ isOpen, onClose, currentUser }: GlobalSea
       case 'anime':
         rememberScrollTarget('collection.animes.scroll', result.id);
         navigate(`/animes/${result.id}`);
+        break;
+      case 'book':
+        rememberScrollTarget('collection.books.scroll', result.id);
+        navigate(`/books/${result.id}`);
+        break;
+      case 'movie':
+        rememberScrollTarget('collection.movies.scroll', result.id);
+        navigate(`/movies/${result.id}`);
+        break;
+      case 'series':
+        rememberScrollTarget('collection.series.scroll', result.id);
+        navigate(`/series/${result.id}`);
         break;
       case 'adulte-game':
         rememberScrollTarget('collection.adulteGames.scroll', result.id);

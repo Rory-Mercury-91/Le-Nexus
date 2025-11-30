@@ -263,6 +263,46 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTvEpisodeUserVideos: (episodeId) => ipcRenderer.invoke('get-tv-episode-user-videos', episodeId),
   deleteTvEpisodeUserVideo: (episodeId, videoId) => ipcRenderer.invoke('delete-tv-episode-user-video', episodeId, videoId),
 
+  // ========== BOOKS ==========
+  booksGet: (filters) => ipcRenderer.invoke('books-get', filters),
+  booksGetDetail: (bookId) => ipcRenderer.invoke('books-get-detail', bookId),
+  
+  // ========== LECTURES ==========
+  getAvailableContentTypes: () => ipcRenderer.invoke('get-available-content-types'),
+  
+  // ========== COMICS ==========
+  comicsSearch: (payload) => ipcRenderer.invoke('comics-search', payload),
+  comicsImportFromGoogleBooks: (googleBooksId) => ipcRenderer.invoke('comics-import-from-google-books', googleBooksId),
+  
+  // ========== BD ==========
+  bdSearch: (payload) => ipcRenderer.invoke('bd-search', payload),
+  bdImportFromBnf: (bnfId) => ipcRenderer.invoke('bd-import-from-bnf', bnfId),
+  bdImportFromGoogleBooks: (googleBooksId) => ipcRenderer.invoke('bd-import-from-google-books', googleBooksId),
+  booksCreate: (bookData) => ipcRenderer.invoke('books-create', bookData),
+  booksUpdate: (payload) => ipcRenderer.invoke('books-update', payload),
+  booksDelete: (bookId) => ipcRenderer.invoke('books-delete', bookId),
+  booksSetStatus: (payload) => ipcRenderer.invoke('books-set-status', payload),
+  booksToggleFavorite: (payload) => ipcRenderer.invoke('books-toggle-favorite', payload),
+  booksToggleHidden: (payload) => ipcRenderer.invoke('books-toggle-hidden', payload),
+  booksSearch: (payload) => ipcRenderer.invoke('books-search', payload),
+  booksImportFromGoogle: (googleBooksId) => ipcRenderer.invoke('books-import-from-google', googleBooksId),
+  booksImportFromOpenLibrary: (openLibraryId) => ipcRenderer.invoke('books-import-from-open-library', openLibraryId),
+  booksImportFromBnf: (bnfId) => ipcRenderer.invoke('books-import-from-bnf', bnfId),
+  getBookLabels: (bookId) => ipcRenderer.invoke('get-book-labels', bookId),
+  getAllBookLabels: () => ipcRenderer.invoke('get-all-book-labels'),
+  addBookLabel: (bookId, label, color) => ipcRenderer.invoke('add-book-label', bookId, label, color),
+  removeBookLabel: (bookId, label) => ipcRenderer.invoke('remove-book-label', bookId, label),
+  updateBookLabels: (bookId, labels) => ipcRenderer.invoke('update-book-labels', bookId, labels),
+  getBooksDisplaySettings: () => ipcRenderer.invoke('get-books-display-settings'),
+  saveBooksDisplaySettings: (prefs) => ipcRenderer.invoke('save-books-display-settings', prefs),
+  getBooksDisplayOverrides: (bookId) => ipcRenderer.invoke('get-books-display-overrides', bookId),
+  saveBooksDisplayOverrides: (bookId, overrides) => ipcRenderer.invoke('save-books-display-overrides', bookId, overrides),
+  deleteBooksDisplayOverrides: (bookId, keys) => ipcRenderer.invoke('delete-books-display-overrides', bookId, keys),
+  booksAddProprietaire: (payload) => ipcRenderer.invoke('books-add-proprietaire', payload),
+  booksRemoveProprietaire: (payload) => ipcRenderer.invoke('books-remove-proprietaire', payload),
+  booksMarkAsRead: (bookId) => ipcRenderer.invoke('books-mark-as-read', bookId),
+  booksMarkAsOwned: (payload) => ipcRenderer.invoke('books-mark-as-owned', payload),
+
   // ========== ADULTE GAME ==========
   masquerAdulteGame: (adulteGameId) => ipcRenderer.invoke('masquer-adulte-game', adulteGameId),
   demasquerAdulteGame: (adulteGameId) => ipcRenderer.invoke('demasquer-adulte-game', adulteGameId),

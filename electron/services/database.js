@@ -520,13 +520,91 @@ function initDatabase(dbPath) {
     );
 
     -- ========================================
+    -- TABLES LIVRES
+    -- ========================================
+    
+    CREATE TABLE IF NOT EXISTS books (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      titre TEXT NOT NULL,
+      titre_original TEXT,
+      auteur TEXT,
+      auteurs TEXT,
+      isbn TEXT,
+      isbn13 TEXT,
+      editeur TEXT,
+      date_publication TEXT,
+      date_publication_originale TEXT,
+      nombre_pages INTEGER,
+      langue TEXT,
+      langue_originale TEXT,
+      type_livre TEXT,
+      genres TEXT,
+      description TEXT,
+      couverture_url TEXT,
+      google_books_id TEXT,
+      open_library_id TEXT,
+      bnf_id TEXT,
+      source_donnees TEXT DEFAULT 'manual',
+      source_url TEXT,
+      score REAL,
+      nb_votes INTEGER,
+      rating TEXT,
+      user_modified_fields TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS book_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      prix REAL NOT NULL DEFAULT 0,
+      date_achat DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(book_id, user_id)
+    );
+
+    CREATE TRIGGER IF NOT EXISTS trg_book_proprietaires_updated_at
+    AFTER UPDATE ON book_proprietaires
+    FOR EACH ROW
+    BEGIN
+      UPDATE book_proprietaires
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+
+    CREATE TABLE IF NOT EXISTS book_user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      statut_lecture TEXT NOT NULL DEFAULT 'À lire',
+      score REAL,
+      date_debut TEXT,
+      date_fin TEXT,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
+      is_hidden INTEGER NOT NULL DEFAULT 0,
+      notes_privees TEXT,
+      labels TEXT,
+      display_preferences TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(book_id, user_id),
+      CHECK (statut_lecture IN ('À lire', 'En cours', 'Terminé', 'Abandonné', 'En pause'))
+    );
+
+    -- ========================================
     -- TABLE PRÉFÉRENCES GLOBALES
     -- ========================================
 
     CREATE TABLE IF NOT EXISTS user_preferences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
-      content_type TEXT CHECK(content_type IN ('adulte_game', 'movies', 'mangas', 'animes', 'tv_shows') OR content_type IS NULL),
+      content_type TEXT CHECK(content_type IN ('adulte_game', 'movies', 'mangas', 'animes', 'tv_shows', 'books') OR content_type IS NULL),
       type TEXT NOT NULL CHECK(type IN ('display_settings', 'tag_preferences', 'blacklist')),
       key TEXT NOT NULL,
       value TEXT,
@@ -581,6 +659,17 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_game ON adulte_game_user_data(game_id);
     CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_user ON adulte_game_user_data(user_id);
     
+    -- Index livres
+    CREATE INDEX IF NOT EXISTS idx_books_google_books_id ON books(google_books_id);
+    CREATE INDEX IF NOT EXISTS idx_books_open_library_id ON books(open_library_id);
+    CREATE INDEX IF NOT EXISTS idx_books_isbn ON books(isbn);
+    CREATE INDEX IF NOT EXISTS idx_books_isbn13 ON books(isbn13);
+    CREATE INDEX IF NOT EXISTS idx_books_type_livre ON books(type_livre);
+    CREATE INDEX IF NOT EXISTS idx_book_proprietaires_book ON book_proprietaires(book_id);
+    CREATE INDEX IF NOT EXISTS idx_book_proprietaires_user ON book_proprietaires(user_id);
+    CREATE INDEX IF NOT EXISTS idx_book_user_data_book ON book_user_data(book_id);
+    CREATE INDEX IF NOT EXISTS idx_book_user_data_user ON book_user_data(user_id);
+    
     -- Index préférences globales
     CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
     CREATE INDEX IF NOT EXISTS idx_user_preferences_type ON user_preferences(type);
@@ -599,6 +688,8 @@ function initDatabase(dbPath) {
     ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
     ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
     ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+    ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
+    ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
     ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
   } catch (compatibilityError) {
     console.warn('⚠️ Erreur lors de la vérification des colonnes obligatoires:', compatibilityError.message);
@@ -687,7 +778,11 @@ function migrateAllDatabases(databasesPath) {
         ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
         ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
         ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
+        ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
+        ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
         ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
+        ensureColumn(db, 'books', 'prix_suggere', 'REAL');
+        ensureColumn(db, 'books', 'devise', 'TEXT');
 
         // Synchroniser les relations existantes pour assurer une navigation cohérente
         propagateAllRelations(db);

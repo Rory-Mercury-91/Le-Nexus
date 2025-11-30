@@ -1,26 +1,31 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import ImportingOverlay from './components/common/ImportingOverlay';
 import ProtectedContent from './components/common/ProtectedContent';
 import UserSelector from './components/common/UserSelector';
-import { ErrorBoundary } from './components/common/ErrorBoundary';
 import Layout from './components/layout/Layout';
 import OnboardingWizard from './components/layout/OnboardingWizard';
 import SplashScreen from './components/layout/SplashScreen';
+import { GlobalProgressProvider } from './contexts/GlobalProgressContext';
 import { AdulteGameLockProvider, useAdulteGameLock } from './hooks/useAdulteGameLock';
 import { useBackendLogger } from './hooks/useBackendLogger';
-import { GlobalProgressProvider } from './contexts/GlobalProgressContext';
 import AdulteGame from './pages/AdulteGame/AdulteGame';
 import AdulteGameDetail from './pages/AdulteGame/AdulteGameDetail';
 import AnimeDetail from './pages/Animes/AnimeDetail';
 import Animes from './pages/Animes/Animes';
+import Bd from './pages/Bd/Bd';
+import BookDetail from './pages/Books/BookDetail';
+import Books from './pages/Books/Books';
+import Comics from './pages/Comics/Comics';
 import Dashboard from './pages/Dashboard/Dashboard';
-import Collection from './pages/Mangas/Mangas';
+import Lectures from './pages/Lectures/Lectures';
 import SerieDetail from './pages/Mangas/MangaDetail';
+import Collection from './pages/Mangas/Mangas';
 import MovieDetail from './pages/Movies/MovieDetail';
 import Movies from './pages/Movies/Movies';
-import SeriesDetail from './pages/Series/SeriesDetail';
 import Series from './pages/Series/Series';
+import SeriesDetail from './pages/Series/SeriesDetail';
 import Settings from './pages/Settings/Settings';
 
 // Wrapper pour protéger les routes jeux adultes
@@ -46,7 +51,7 @@ function ProtectedAdulteGameRoute({ children }: { children: React.ReactNode }) {
 function App() {
   // Activer le système de logging backend vers frontend
   useBackendLogger();
-  
+
   // Ne plus charger automatiquement l'utilisateur au démarrage
   // Le UserSelector sera toujours affiché pour choisir qui utilise l'app
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -56,11 +61,11 @@ function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [checkingUsers, setCheckingUsers] = useState(true);
-  
+
   // Pour l'onboarding : récupérer le baseDirectory et l'étape initiale
   const [onboardingBaseDir, setOnboardingBaseDir] = useState<string | null>(null);
   const [onboardingInitialStep, setOnboardingInitialStep] = useState(1);
-  
+
   // Charger le baseDirectory quand l'onboarding est activé
   useEffect(() => {
     if (needsOnboarding) {
@@ -129,7 +134,7 @@ function App() {
         // Vérifier si on vient d'un changement d'utilisateur depuis les paramètres
         // (détecté par la présence d'un flag dans sessionStorage)
         const fromUserSwitch = sessionStorage.getItem('userSwitchFromSettings');
-        
+
         if (effectiveUsers.length === 1) {
           // Un seul utilisateur : charger automatiquement
           const singleUser = effectiveUsers[0].name;
@@ -267,7 +272,7 @@ function App() {
   // Étape 2: Sélection utilisateur
   if (!currentUser) {
     return (
-      <UserSelector 
+      <UserSelector
         onUserSelected={handleUserSelected}
         onCreateNewProfile={async () => {
           // Vérifier si le baseDirectory est déjà configuré
@@ -301,34 +306,39 @@ function App() {
         <GlobalProgressProvider>
           <AdulteGameLockProvider>
             <Layout currentUser={currentUser}>
-            <Routes>
-              <Route path="/" element={<Dashboard key={refreshTrigger} />} />
-              <Route path="/collection" element={<Collection key={refreshTrigger} />} />
-              <Route path="/serie/:id" element={<SerieDetail key={refreshTrigger} />} />
-              <Route path="/animes" element={<Animes key={refreshTrigger} />} />
-              <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
-              <Route path="/movies" element={<Movies key={refreshTrigger} />} />
-              <Route path="/movies/:tmdbId" element={<MovieDetail key={refreshTrigger} />} />
-              <Route path="/series" element={<Series key={refreshTrigger} />} />
-              <Route path="/series/:tmdbId" element={<SeriesDetail key={refreshTrigger} />} />
-              <Route
-                path="/adulte-game"
-                element={
-                  <ProtectedAdulteGameRoute>
-                    <AdulteGame key={refreshTrigger} />
-                  </ProtectedAdulteGameRoute>
-                }
-              />
-              <Route
-                path="/adulte-game/:id"
-                element={
-                  <ProtectedAdulteGameRoute>
-                    <AdulteGameDetail key={refreshTrigger} />
-                  </ProtectedAdulteGameRoute>
-                }
-              />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
+              <Routes>
+                <Route path="/" element={<Dashboard key={refreshTrigger} />} />
+                <Route path="/lectures" element={<Lectures key={refreshTrigger} />} />
+                <Route path="/collection" element={<Collection key={refreshTrigger} />} />
+                <Route path="/serie/:id" element={<SerieDetail key={refreshTrigger} />} />
+                <Route path="/animes" element={<Animes key={refreshTrigger} />} />
+                <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
+                <Route path="/movies" element={<Movies key={refreshTrigger} />} />
+                <Route path="/movies/:tmdbId" element={<MovieDetail key={refreshTrigger} />} />
+                <Route path="/series" element={<Series key={refreshTrigger} />} />
+                <Route path="/series/:tmdbId" element={<SeriesDetail key={refreshTrigger} />} />
+                <Route path="/books" element={<Books key={refreshTrigger} />} />
+                <Route path="/books/:id" element={<BookDetail key={refreshTrigger} />} />
+                <Route path="/bd" element={<Bd key={refreshTrigger} />} />
+                <Route path="/comics" element={<Comics key={refreshTrigger} />} />
+                <Route
+                  path="/adulte-game"
+                  element={
+                    <ProtectedAdulteGameRoute>
+                      <AdulteGame key={refreshTrigger} />
+                    </ProtectedAdulteGameRoute>
+                  }
+                />
+                <Route
+                  path="/adulte-game/:id"
+                  element={
+                    <ProtectedAdulteGameRoute>
+                      <AdulteGameDetail key={refreshTrigger} />
+                    </ProtectedAdulteGameRoute>
+                  }
+                />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
             </Layout>
           </AdulteGameLockProvider>
         </GlobalProgressProvider>

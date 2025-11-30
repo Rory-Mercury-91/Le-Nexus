@@ -3,16 +3,23 @@ import { createMangaModalConfig } from '../common/mal-modal-helpers';
 
 interface AddSerieModalProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  onComplete?: () => void;
   initialMalId?: string;
+  initialMediaType?: string;
 }
 
-export default function AddSerieModal({ onClose, onSuccess, initialMalId }: AddSerieModalProps) {
+export default function AddSerieModal({ onClose, onSuccess, onComplete, initialMalId, initialMediaType }: AddSerieModalProps) {
+  const handleSuccess = () => {
+    if (onSuccess) onSuccess();
+    if (onComplete) onComplete();
+  };
+
   return (
     <AddMalItemModal
-      config={createMangaModalConfig(initialMalId)}
+      config={createMangaModalConfig(initialMalId, initialMediaType)}
       onClose={onClose}
-      onSuccess={onSuccess}
+      onSuccess={handleSuccess}
     />
   );
 }

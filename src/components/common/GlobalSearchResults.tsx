@@ -1,6 +1,6 @@
 interface SearchResult {
   id: number;
-  type: 'manga' | 'anime' | 'adulte-game';
+  type: 'manga' | 'anime' | 'book' | 'movie' | 'series' | 'adulte-game';
   title: string;
   subtitle?: string;
   progress?: string;
@@ -35,6 +35,12 @@ export default function GlobalSearchResults({
         return '📚';
       case 'anime':
         return '🎬';
+      case 'book':
+        return '📖';
+      case 'movie':
+        return '🎞️';
+      case 'series':
+        return '📺';
       case 'adulte-game':
         return '🎮';
       default:
@@ -48,6 +54,12 @@ export default function GlobalSearchResults({
         return 'MANGAS';
       case 'anime':
         return 'ANIMES';
+      case 'book':
+        return 'LIVRES';
+      case 'movie':
+        return 'FILMS';
+      case 'series':
+        return 'SÉRIES';
       case 'adulte-game':
         return 'JEUX ADULTE';
       default:
@@ -217,7 +229,7 @@ export default function GlobalSearchResults({
             Recherchez dans toutes vos collections
           </div>
           <div style={{ fontSize: '12px' }}>
-            Lectures • Animes • Jeux adultes
+            Lectures • Animes • Films • Séries • Jeux adultes
           </div>
         </div>
       )}

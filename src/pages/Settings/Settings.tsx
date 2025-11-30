@@ -60,6 +60,8 @@ export default function Settings() {
     setShowMovieDisplayModal,
     showSeriesDisplayModal,
     setShowSeriesDisplayModal,
+    showBooksDisplayModal,
+    setShowBooksDisplayModal,
     showAdulteGameDisplayModal,
     setShowAdulteGameDisplayModal,
     confirm,
@@ -208,14 +210,11 @@ export default function Settings() {
           onAutoLaunchChange={handleAutoLaunchChange}
           onAutoDownloadCoversChange={handleAutoDownloadCoversChange}
           onContentPrefChange={handleContentPrefChange}
-          tmdbLanguage={tmdbLanguage}
-          tmdbRegion={tmdbRegion}
-          onTmdbLanguageChange={handleTmdbLanguageChange}
-          onTmdbRegionChange={handleTmdbRegionChange}
           onOpenMangaSettings={() => setShowMangaDisplayModal(true)}
           onOpenAnimeSettings={() => setShowAnimeDisplayModal(true)}
           onOpenMovieSettings={() => setShowMovieDisplayModal(true)}
           onOpenSeriesSettings={() => setShowSeriesDisplayModal(true)}
+          onOpenBooksSettings={() => setShowBooksDisplayModal(true)}
           onOpenAdultGameSettings={() => setShowAdulteGameDisplayModal(true)}
         />
       ),
@@ -641,6 +640,68 @@ export default function Settings() {
             setShowSeriesDisplayModal(false);
           }}
           onClose={() => setShowSeriesDisplayModal(false)}
+          showToast={showToast}
+        />
+      )}
+
+      {showBooksDisplayModal && (
+        <DisplaySettingsModal
+          title="Affichage des livres"
+          description="Activez ou désactivez les sections visibles sur les fiches livres."
+          fields={[
+            {
+              title: 'Informations principales',
+              icon: '📚',
+              fields: [
+                { key: 'titre', label: 'Titre' },
+                { key: 'auteur', label: 'Auteur' },
+                { key: 'description', label: 'Description' },
+                { key: 'type_livre', label: 'Type de livre' },
+                { key: 'editeur', label: 'Éditeur' },
+                { key: 'date_publication', label: 'Date de publication' },
+                { key: 'nombre_pages', label: 'Nombre de pages' },
+                { key: 'isbn', label: 'ISBN' },
+                { key: 'langue', label: 'Langue' },
+                { key: 'genres', label: 'Genres' },
+                { key: 'score', label: 'Note moyenne' },
+                { key: 'prix', label: 'Prix suggéré' }
+              ]
+            },
+            {
+              title: 'Coûts',
+              icon: '💰',
+              fields: [
+                { key: 'costs', label: 'Coûts par propriétaire' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getBooksDisplaySettings?.();
+            return prefs || {
+              titre: true,
+              auteur: true,
+              description: true,
+              type_livre: true,
+              editeur: true,
+              date_publication: true,
+              nombre_pages: true,
+              isbn: true,
+              langue: true,
+              genres: true,
+              score: true,
+              prix: true,
+              costs: true
+            };
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveBooksDisplaySettings?.(prefs);
+            window.dispatchEvent(new CustomEvent('book-display-settings-updated'));
+          }}
+          onSave={() => {
+            setShowBooksDisplayModal(false);
+          }}
+          onClose={() => setShowBooksDisplayModal(false)}
           showToast={showToast}
         />
       )}

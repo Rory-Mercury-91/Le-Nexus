@@ -39,6 +39,8 @@ const { registerAllTvHandlers } = require('./handlers/tv/tv-handlers');
 const { registerUserHandlers } = require('./handlers/users/user-handlers');
 const { registerMalSyncHandlers } = require('./handlers/mal/mal-sync-handlers');
 const { registerAdulteGameHandlers } = require('./handlers/adulte-game/adulte-game-handlers');
+const { registerBookHandlers } = require('./handlers/books/book-handlers');
+const { registerLecturesHandlers } = require('./handlers/lectures/lectures-handlers');
 const { registerExportHandlers } = require('./handlers/common/export-handlers');
 const { registerImageDownloadHandlers } = require('./handlers/common/image-download-handlers');
 
@@ -568,6 +570,8 @@ app.whenReady().then(async () => {
       // Ne pas supprimer Sec-CH-UA-Form-Factors car il peut être nécessaire
       // delete details.requestHeaders['Sec-CH-UA-Form-Factors'];
     }
+    
+    
     callback({ requestHeaders: details.requestHeaders });
   });
   
@@ -868,6 +872,8 @@ app.whenReady().then(async () => {
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
   registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager);
+  registerBookHandlers(ipcMain, getDb, store);
+  registerLecturesHandlers(ipcMain, getDb, store);
   registerAllMovieHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
   registerAllTvHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
   registerImageDownloadHandlers(ipcMain, dialog, getMainWindow);

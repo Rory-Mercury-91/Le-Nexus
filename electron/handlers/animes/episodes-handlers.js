@@ -64,6 +64,12 @@ function registerAnimeEpisodesHandlers(ipcMain, getDb, store) {
       const wasZero = previousEpisodesVus === 0;
       const isNowOneOrMore = episodesVusCount >= 1;
 
+      // Vérifier si l'utilisateur a vu tous les épisodes disponibles et réinitialiser maj_disponible si nécessaire
+      const animeInfo = db.prepare('SELECT statut_diffusion, maj_disponible FROM anime_series WHERE id = ?').get(animeId);
+      const isEnCours = animeInfo?.statut_diffusion === 'En cours';
+      const hasSeenAllEpisodes = nbEpisodes > 0 && episodesVusCount >= nbEpisodes;
+      const shouldResetMajDisponible = isEnCours && hasSeenAllEpisodes && animeInfo?.maj_disponible === 1;
+
       if (nbEpisodes > 0) {
         if (episodesVusCount === 0) {
           autoStatut = 'À regarder';
@@ -103,6 +109,12 @@ function registerAnimeEpisodesHandlers(ipcMain, getDb, store) {
           SET episode_progress = ?, episodes_vus = ?, updated_at = datetime('now')
           WHERE anime_id = ? AND user_id = ?
         `).run(JSON.stringify(episodeProgress), episodesVusCount, animeId, userId);
+      }
+
+      // Réinitialiser maj_disponible si l'utilisateur a vu tous les épisodes disponibles
+      if (shouldResetMajDisponible) {
+        db.prepare('UPDATE anime_series SET maj_disponible = 0 WHERE id = ?').run(animeId);
+        console.log(`✅ Réinitialisation maj_disponible pour anime ${animeId} (tous les épisodes vus)`);
       }
 
       return { success: true };
@@ -149,6 +161,14 @@ function registerAnimeEpisodesHandlers(ipcMain, getDb, store) {
         SET episode_progress = ?, episodes_vus = ?, statut_visionnage = 'Terminé', updated_at = datetime('now')
         WHERE anime_id = ? AND user_id = ?
       `).run(JSON.stringify(episodeProgress), nbEpisodes, animeId, userId);
+
+      // Vérifier si l'anime est en cours et réinitialiser maj_disponible si nécessaire
+      const animeInfo = db.prepare('SELECT statut_diffusion, maj_disponible FROM anime_series WHERE id = ?').get(animeId);
+      const isEnCours = animeInfo?.statut_diffusion === 'En cours';
+      if (isEnCours && animeInfo?.maj_disponible === 1) {
+        db.prepare('UPDATE anime_series SET maj_disponible = 0 WHERE id = ?').run(animeId);
+        console.log(`✅ Réinitialisation maj_disponible pour anime ${animeId} (tous les épisodes marqués comme vus)`);
+      }
 
       return { success: true };
     } catch (error) {

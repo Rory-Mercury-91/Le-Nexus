@@ -42,7 +42,8 @@ export function useSettings() {
     showAnimes: true,
     showMovies: true,
     showSeries: true,
-    showAdulteGame: true
+    showAdulteGame: true,
+    showBooks: true
   };
   const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,7 @@ export function useSettings() {
   const [showAnimeDisplayModal, setShowAnimeDisplayModal] = useState(false);
   const [showMovieDisplayModal, setShowMovieDisplayModal] = useState(false);
   const [showSeriesDisplayModal, setShowSeriesDisplayModal] = useState(false);
+  const [showBooksDisplayModal, setShowBooksDisplayModal] = useState(false);
   const [showAdulteGameDisplayModal, setShowAdulteGameDisplayModal] = useState(false);
   const [tmdbLanguage, setTmdbLanguage] = useState('fr-FR');
   const [tmdbRegion, setTmdbRegion] = useState('FR');
@@ -178,6 +180,12 @@ export function useSettings() {
   const handleContentPrefChange = async (pref: keyof ContentPreferences, value: boolean) => {
     try {
       const newPrefs: ContentPreferences = { ...defaultContentPrefs, ...contentPrefs, [pref]: value };
+      
+      // Si on change showMangas, synchroniser showBooks avec la même valeur
+      if (pref === 'showMangas') {
+        newPrefs.showBooks = value;
+      }
+      
       setContentPrefs(newPrefs);
 
       const currentUser = await window.electronAPI.getCurrentUser();
@@ -338,6 +346,8 @@ export function useSettings() {
     setShowMovieDisplayModal,
     showSeriesDisplayModal,
     setShowSeriesDisplayModal,
+    showBooksDisplayModal,
+    setShowBooksDisplayModal,
     showAdulteGameDisplayModal,
     setShowAdulteGameDisplayModal,
     tmdbLanguage,

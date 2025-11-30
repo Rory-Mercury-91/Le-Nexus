@@ -1,10 +1,11 @@
-import { BookOpenCheck, CheckCircle, Eye, EyeOff, Info, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { CheckCircle, Eye, EyeOff, Info, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 import AnimeEnrichmentConfigModal, { EnrichmentConfig as AnimeEnrichmentConfig } from '../../../components/modals/anime/AnimeEnrichmentConfigModal';
 import MangaEnrichmentConfigModal, { EnrichmentConfig as MangaEnrichmentConfig } from '../../../components/modals/manga/MangaEnrichmentConfigModal';
 import type { AnimeImportResult } from '../../../types';
 import AdulteGameSettings from './AdulteGameSettings';
+import MediaSettings from './MediaSettings';
 import type { ApiKeyProvider } from './apiKeyGuideTypes';
 
 const DEFAULT_MAL_REDIRECT_URI = 'http://localhost:8888/callback';
@@ -183,15 +184,6 @@ export default function IntegrationsSettings({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectUriRef = useRef<string>(DEFAULT_MAL_REDIRECT_URI);
 
-  const [tmdbApiKey, setTmdbApiKey] = useState('');
-  const [tmdbApiToken, setTmdbApiToken] = useState('');
-  const [tmdbInitialLoad, setTmdbInitialLoad] = useState(false);
-  const [tmdbSaving, setTmdbSaving] = useState(false);
-  const tmdbSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [tmdbTesting, setTmdbTesting] = useState(false);
-  const [tmdbTestResult, setTmdbTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [tmdbKeyVisible, setTmdbKeyVisible] = useState(false);
-  const [tmdbTokenVisible, setTmdbTokenVisible] = useState(false);
 
   const [groqApiKeyInput, setGroqApiKeyInput] = useState('');
   const [groqInitialLoad, setGroqInitialLoad] = useState(false);
@@ -453,30 +445,6 @@ export default function IntegrationsSettings({
   }, []);
 
   useEffect(() => {
-    const loadTmdbCredentials = async () => {
-      try {
-        const creds = await window.electronAPI.getTmdbCredentials?.();
-        if (creds) {
-          setTmdbApiKey(creds.apiKey || '');
-          setTmdbApiToken(creds.apiToken || '');
-        }
-      } catch (error) {
-        console.error('Erreur chargement identifiants TMDb:', error);
-      } finally {
-        setTmdbInitialLoad(true);
-      }
-    };
-
-    loadTmdbCredentials();
-
-    return () => {
-      if (tmdbSaveTimeout.current) {
-        clearTimeout(tmdbSaveTimeout.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     setGroqApiKeyInput(groqApiKey || '');
     setGroqInitialLoad(true);
 
@@ -513,81 +481,6 @@ export default function IntegrationsSettings({
       }
     }, 600);
   };
-
-  const scheduleTmdbCredentialSave = useCallback(
-    (nextKey?: string, nextToken?: string) => {
-      if (!tmdbInitialLoad || !window.electronAPI.setTmdbCredentials) {
-        return;
-      }
-
-      if (tmdbSaveTimeout.current) {
-        clearTimeout(tmdbSaveTimeout.current);
-      }
-
-      const keyValue = (nextKey ?? tmdbApiKey).trim();
-      const tokenValue = (nextToken ?? tmdbApiToken).trim();
-
-      tmdbSaveTimeout.current = setTimeout(async () => {
-        setTmdbSaving(true);
-        try {
-          await window.electronAPI.setTmdbCredentials?.({
-            apiKey: keyValue,
-            apiToken: tokenValue,
-          });
-        } catch (error: any) {
-          console.error('Erreur sauvegarde identifiants TMDb:', error);
-          showToast?.({
-            title: 'Erreur TMDb',
-            message: error?.message || 'Impossible de sauvegarder les identifiants TMDb.',
-            type: 'error',
-          });
-        } finally {
-          setTmdbSaving(false);
-          tmdbSaveTimeout.current = null;
-        }
-      }, 600);
-    },
-    [tmdbInitialLoad, tmdbApiKey, tmdbApiToken, showToast]
-  );
-
-  const flushTmdbCredentialSave = useCallback(async () => {
-    if (!tmdbInitialLoad || !window.electronAPI.setTmdbCredentials) {
-      return;
-    }
-
-    if (tmdbSaveTimeout.current) {
-      clearTimeout(tmdbSaveTimeout.current);
-      tmdbSaveTimeout.current = null;
-    }
-
-    setTmdbSaving(true);
-    try {
-      await window.electronAPI.setTmdbCredentials?.({
-        apiKey: tmdbApiKey.trim(),
-        apiToken: tmdbApiToken.trim(),
-      });
-    } catch (error: any) {
-      console.error('Erreur sauvegarde identifiants TMDb:', error);
-      showToast?.({
-        title: 'Erreur TMDb',
-        message: error?.message || 'Impossible de sauvegarder les identifiants TMDb.',
-        type: 'error',
-      });
-    } finally {
-      setTmdbSaving(false);
-    }
-  }, [tmdbApiKey, tmdbApiToken, tmdbInitialLoad, showToast]);
-
-  useEffect(() => {
-    return () => {
-      // Ne pas appeler flushTmdbCredentialSave dans le cleanup pour éviter les boucles infinies
-      // La sauvegarde est déjà gérée par onBlur et le timeout
-      if (tmdbSaveTimeout.current) {
-        clearTimeout(tmdbSaveTimeout.current);
-        tmdbSaveTimeout.current = null;
-      }
-    };
-  }, []);
 
   const scheduleGroqApiKeySave = useCallback(
     (nextKey: string) => {
@@ -662,57 +555,6 @@ export default function IntegrationsSettings({
       }
     };
   }, []);
-
-  const handleTestTmdbConnection = useCallback(async () => {
-    if (!tmdbApiKey.trim()) {
-      const message = 'La clé API TMDb (v3) est requise pour tester la connexion.';
-      setTmdbTestResult({ success: false, message });
-      showToast?.({
-        title: 'Clé API requise',
-        message,
-        type: 'error'
-      });
-      return;
-    }
-
-    try {
-      setTmdbTesting(true);
-      setTmdbTestResult(null);
-
-      const result = await window.electronAPI.testTmdbConnection?.({
-        apiKey: tmdbApiKey.trim(),
-        apiToken: tmdbApiToken.trim()
-      });
-
-      if (result?.success) {
-        const message = 'Connexion établie. Les services TMDb sont disponibles.';
-        setTmdbTestResult({ success: true, message });
-        showToast?.({
-          title: 'Connexion TMDb réussie',
-          message,
-          type: 'success'
-        });
-      } else {
-        const message = result?.error || 'Connexion refusée par TMDb.';
-        setTmdbTestResult({ success: false, message });
-        showToast?.({
-          title: 'Connexion TMDb échouée',
-          message,
-          type: 'error'
-        });
-      }
-    } catch (error: any) {
-      const message = error?.message || 'Impossible de contacter TMDb.';
-      setTmdbTestResult({ success: false, message });
-      showToast?.({
-        title: 'Connexion TMDb échouée',
-        message,
-        type: 'error'
-      });
-    } finally {
-      setTmdbTesting(false);
-    }
-  }, [showToast, tmdbApiKey, tmdbApiToken]);
 
   const handleTestGroqConnection = useCallback(async () => {
     const key = groqApiKeyInput.trim();
@@ -1163,219 +1005,6 @@ export default function IntegrationsSettings({
     );
   };
 
-  const renderTmdbSection = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div
-        style={{
-          display: 'grid',
-          gap: '18px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          alignItems: 'stretch',
-        }}
-      >
-        <div
-          style={{
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <KeyRound size={16} />
-                TMDb API Key (v3) <span style={{ color: '#f97316' }}>*</span>
-              </label>
-              <TooltipIcon id="tmdbKey" />
-            </div>
-            <button
-              onClick={handleTestTmdbConnection}
-              className="btn btn-outline"
-              disabled={tmdbTesting}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                minWidth: '190px',
-              }}
-            >
-              <RefreshCw size={15} style={{ animation: tmdbTesting ? 'spin 1s linear infinite' : 'none' }} />
-              {tmdbTesting ? 'Test en cours…' : 'Tester la connexion'}
-            </button>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input
-              type={tmdbKeyVisible ? 'text' : 'password'}
-              value={tmdbApiKey}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTmdbApiKey(value);
-                scheduleTmdbCredentialSave(value, undefined);
-              }}
-              onBlur={() => {
-                flushTmdbCredentialSave().catch(() => undefined);
-              }}
-              placeholder="Clé API publique v3"
-              className="input"
-              style={{
-                flex: 1,
-                letterSpacing: tmdbKeyVisible ? '0.4px' : '0.6px',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setTmdbKeyVisible((prev) => !prev)}
-              style={{
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                borderRadius: '8px',
-                width: '42px',
-                height: '42px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-secondary)'
-              }}
-              aria-label={tmdbKeyVisible ? 'Masquer la clé TMDb' : 'Afficher la clé TMDb'}
-            >
-              {tmdbKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-          {tmdbSaving && (
-            <div
-              style={{
-                fontSize: '12px',
-                color: 'var(--primary-light)',
-              }}
-            >
-              Sauvegarde en cours…
-            </div>
-          )}
-          {tmdbTestResult && (
-            <div
-              style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: `1px solid ${tmdbTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-                background: tmdbTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                color: tmdbTestResult.success ? 'var(--success)' : 'var(--error)',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                width: '100%'
-              }}
-            >
-              <CheckCircle size={14} />
-              {tmdbTestResult.message}
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={16} />
-              Jeton d’accès lecture (v4)
-            </label>
-            <div style={headerActionPlaceholderStyle}>
-              <TooltipIcon id="tmdbToken" />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <input
-              type={tmdbTokenVisible ? 'text' : 'password'}
-              value={tmdbApiToken}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTmdbApiToken(value);
-                scheduleTmdbCredentialSave(undefined, value);
-              }}
-              onBlur={() => {
-                flushTmdbCredentialSave().catch(() => undefined);
-              }}
-              placeholder="Token Bearer (optionnel)"
-              className="input"
-              style={{
-                flex: 1,
-                letterSpacing: tmdbTokenVisible ? '0.4px' : '0.6px',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setTmdbTokenVisible((prev) => !prev)}
-              style={{
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                borderRadius: '8px',
-                width: '42px',
-                height: '42px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: 'var(--text-secondary)'
-              }}
-              aria-label={tmdbTokenVisible ? 'Masquer le jeton TMDb' : 'Afficher le jeton TMDb'}
-            >
-              {tmdbTokenVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: '20px',
-            borderRadius: '12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Source des images MyAnimeList</div>
-            <div style={headerActionPlaceholderStyle}>
-              <TooltipIcon id="imageSource" />
-            </div>
-          </div>
-          <select
-            value={imageSource === 'tmdb' ? 'mal' : imageSource}
-            onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist')}
-            className="select"
-            style={{ width: '100%' }}
-          >
-            <option value="mal">MyAnimeList (par défaut)</option>
-            <option value="anilist">AniList (haute définition)</option>
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-
   const renderGroqSection = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div
@@ -1593,7 +1222,7 @@ export default function IntegrationsSettings({
               fontSize: '12px',
             }}
           >
-            <BookOpenCheck size={14} />
+            <Info size={14} />
             Guide MAL
           </button>
         }
@@ -1748,12 +1377,17 @@ export default function IntegrationsSettings({
               fontSize: '12px',
             }}
           >
-            <BookOpenCheck size={14} />
+            <Info size={14} />
             Guide TMDb
           </button>
         }
       >
-        {renderTmdbSection()}
+        <MediaSettings
+          showToast={showToast ?? (() => undefined)}
+          imageSource={imageSource}
+          onImageSourceChange={onImageSourceChange}
+          TooltipIcon={TooltipIcon}
+        />
       </NestedSection>
 
       <NestedSection
@@ -1777,7 +1411,7 @@ export default function IntegrationsSettings({
               fontSize: '12px',
             }}
           >
-            <BookOpenCheck size={14} />
+            <Info size={14} />
             Guide Groq
           </button>
         }
@@ -1806,7 +1440,7 @@ export default function IntegrationsSettings({
               fontSize: '12px',
             }}
           >
-            <BookOpenCheck size={14} />
+            <Info size={14} />
             Guide Jeux Adultes
           </button>
         }

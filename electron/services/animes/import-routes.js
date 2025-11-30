@@ -889,6 +889,14 @@ async function handleMarkEpisodeWatched(req, res, getDb, store) {
         VALUES (?, ?, 'Terminé', CURRENT_TIMESTAMP)
       `).run(anime.id, userId);
       console.log(`🎉 Anime "${anime.titre}" marqué comme "Terminé" automatiquement`);
+
+      // Vérifier si l'anime est en cours et réinitialiser maj_disponible si nécessaire
+      const animeInfo = db.prepare('SELECT statut_diffusion, maj_disponible FROM anime_series WHERE id = ?').get(anime.id);
+      const isEnCours = animeInfo?.statut_diffusion === 'En cours';
+      if (isEnCours && animeInfo?.maj_disponible === 1) {
+        db.prepare('UPDATE anime_series SET maj_disponible = 0 WHERE id = ?').run(anime.id);
+        console.log(`✅ Réinitialisation maj_disponible pour anime ${anime.id} (tous les épisodes marqués comme vus via API)`);
+      }
     }
 
     const totalMarked = episodeInfo.episode_numero > 1 ? episodeInfo.episode_numero : 1;

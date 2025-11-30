@@ -18,6 +18,7 @@ export default function Dashboard() {
     animes,
     movies,
     tvShows,
+    books,
     adulteGames,
     loading,
     refreshing,
@@ -126,6 +127,15 @@ export default function Dashboard() {
               label: 'Ajoute ta première série',
               route: '/series',
               color: '#6366f1'
+            });
+          }
+
+          if (contentPrefs.showMangas && books.length === 0) {
+            emptyCollections.push({
+              icon: '📖',
+              label: 'Ajoute ton premier livre',
+              route: '/books',
+              color: '#8b5cf6'
             });
           }
 

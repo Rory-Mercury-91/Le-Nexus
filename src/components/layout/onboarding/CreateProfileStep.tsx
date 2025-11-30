@@ -12,6 +12,7 @@ interface CreateProfileStepProps {
   showMovies: boolean;
   showSeries: boolean;
   showAdulteGame: boolean;
+  showBooks: boolean;
   adulteGamePassword: string;
   adulteGamePasswordConfirm: string;
   showAdulteGamePassword: boolean;
@@ -46,6 +47,7 @@ export default function CreateProfileStep({
   showMovies,
   showSeries,
   showAdulteGame,
+  showBooks,
   adulteGamePassword,
   adulteGamePasswordConfirm,
   showAdulteGamePassword,
@@ -450,9 +452,12 @@ export default function CreateProfileStep({
                 {
                   key: 'mangas',
                   label: '📚 Lectures',
-                  description: 'Manga, manhwa, comics…',
+                  description: 'Manga, manhwa, comics, BD, livres…',
                   checked: showMangas,
-                  onChange: onShowMangasChange
+                  onChange: (checked) => {
+                    onShowMangasChange(checked);
+                    // showBooks est automatiquement synchronisé avec showMangas dans useOnboarding
+                  }
                 },
                 {
                   key: 'animes',

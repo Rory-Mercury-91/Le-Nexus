@@ -32,6 +32,7 @@ export interface ContentPreferences {
   showMovies: boolean;
   showSeries: boolean;
   showAdulteGame: boolean;
+  showBooks: boolean;
 }
 
 export interface Serie {
@@ -713,6 +714,74 @@ export interface AdulteGameFilters {
   statut_traduction?: AdulteGameStatutTraduction;
   show_hidden?: boolean;
   search?: string;
+  [key: string]: unknown;
+}
+
+// ========================================
+// TYPES LIVRES
+// ========================================
+
+export type BookType = 'Roman' | 'Biographie' | 'Autobiographie' | 'Essai' | 'Documentaire' | 'Polar' | 'Science-fiction' | 'Fantasy' | 'Horreur' | 'Romance' | 'Thriller' | 'Bande dessinée' | 'Comics' | 'Manga' | 'Autre';
+
+export interface Book {
+  id: number;
+  titre: string;
+  titre_original?: string | null;
+  auteur?: string | null;
+  auteurs?: string | null; // JSON array pour plusieurs auteurs
+  isbn?: string | null;
+  isbn13?: string | null;
+  editeur?: string | null;
+  date_publication?: string | null;
+  date_publication_originale?: string | null;
+  nombre_pages?: number | null;
+  langue?: string | null;
+  langue_originale?: string | null;
+  type_livre?: BookType | null;
+  genres?: string | null; // JSON array ou string séparé par virgules
+  description?: string | null;
+  couverture_url?: string | null;
+  google_books_id?: string | null;
+  open_library_id?: string | null;
+  bnf_id?: string | null;
+  source_donnees?: 'manual' | 'google_books' | 'open_library' | 'bnf' | null;
+  source_url?: string | null;
+  score_moyen?: number | null; // Score moyen de l'API (ex: Google Books sur 5)
+  nb_votes?: number | null;
+  rating?: string | null;
+  prix_suggere?: number | null; // Prix suggéré depuis l'API
+  devise?: string | null; // Code devise (EUR, USD, etc.)
+  user_modified_fields?: string | null; // JSON array des champs modifiés par l'utilisateur
+  created_at?: string;
+  updated_at?: string;
+  
+  // Données utilisateur (depuis book_user_data)
+  statut_lecture?: 'À lire' | 'En cours' | 'Terminé' | 'Abandonné' | 'En pause' | null;
+  score?: number | null;
+  date_debut?: string | null;
+  date_fin?: string | null;
+  is_favorite?: boolean | number;
+  is_hidden?: boolean | number;
+  notes_privees?: string | null;
+  labels?: Array<{ label: string; color: string }>; // JSON array
+  display_preferences?: Record<string, boolean>; // JSON object
+  
+  // Propriétaires et coûts
+  proprietaires?: Array<{ id: number; name: string; color: string; prix: number; date_achat?: string | null }>;
+  prix_total?: number; // Prix total du livre (somme des prix des propriétaires)
+}
+
+export interface BookListItem extends Book {
+  // Pour la liste, on peut avoir des données simplifiées
+}
+
+export interface BookFilters {
+  statut_lecture?: string;
+  type_livre?: BookType;
+  show_favorite_only?: boolean;
+  show_hidden?: boolean;
+  search?: string;
+  genres?: string[];
   [key: string]: unknown;
 }
 

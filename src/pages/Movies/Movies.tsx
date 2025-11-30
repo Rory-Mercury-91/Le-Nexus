@@ -15,6 +15,8 @@ import {
 } from '../../components/collections';
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { MOVIES_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import AddMovieModal from '../../components/modals/movie/AddMovieModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
@@ -73,6 +75,7 @@ export default function Movies() {
     { storage: 'session' }
   );
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [viewMode, handleViewModeChange] = useCollectionViewMode('movies');
   const [selectedGenres, setSelectedGenres] = usePersistentState<string[]>(
     'collection.movies.filters.selectedGenres',
@@ -100,8 +103,10 @@ export default function Movies() {
 
       // Charger tous les genres disponibles
       try {
-        const allGenres = await window.electronAPI.getAllMovieGenres();
-        setAvailableGenres(allGenres);
+        const allGenres = await (window.electronAPI as any).getAllMovieGenres?.();
+        if (allGenres && Array.isArray(allGenres)) {
+          setAvailableGenres(allGenres);
+        }
       } catch (error) {
         console.error('Erreur chargement genres:', error);
       }
@@ -276,17 +281,17 @@ export default function Movies() {
       getIsInWatchlist: (m) => {
         const status = m.statut_visionnage || 'À regarder';
         return status !== 'Terminé';
+      },
+      customFilter: (movie: MovieListItem) => {
+        // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
+        if (selectedGenres.length > 0) {
+          if (!movie.genres || !Array.isArray(movie.genres)) return false;
+          const movieGenreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean);
+          const hasAllGenres = selectedGenres.every(genre => movieGenreNames.includes(genre));
+          if (!hasAllGenres) return false;
+        }
+        return true;
       }
-    },
-    customFilter: (movie) => {
-      // Filtre par genres (les genres sont stockés en JSON, tableau d'objets avec `name`)
-      if (selectedGenres.length > 0) {
-        if (!movie.genres || !Array.isArray(movie.genres)) return false;
-        const movieGenreNames = movie.genres.map((g: any) => g.name || g).filter(Boolean);
-        const hasAllGenres = selectedGenres.every(genre => movieGenreNames.includes(genre));
-        if (!hasAllGenres) return false;
-      }
-      return true;
     },
     sortConfig: {
       sortOptions: {
@@ -391,6 +396,7 @@ export default function Movies() {
           <CollectionFiltersBar
             hasActiveFilters={hasActiveFilters}
             onClearFilters={handleClearFilters}
+            onOpenHelp={() => setShowHelpModal(true)}
           >
             <CollectionSearchBar
               placeholder="Rechercher un film (titre ou TMDb ID)..."
@@ -611,6 +617,12 @@ export default function Movies() {
           <BackToBottomButton />
         </div>
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={MOVIES_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

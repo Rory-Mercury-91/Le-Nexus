@@ -3,7 +3,8 @@ export const STATUS_SETS = {
   anime: ['À regarder', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const,
   adulteGame: ['À lire', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const,
   movie: ['À regarder', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const,
-  series: ['À regarder', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const
+  series: ['À regarder', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const,
+  book: ['À lire', 'En cours', 'En pause', 'Terminé', 'Abandonné'] as const
 };
 
 export const COMMON_STATUSES = {
@@ -11,7 +12,8 @@ export const COMMON_STATUSES = {
   ANIME: STATUS_SETS.anime,
   ADULTE_GAME: STATUS_SETS.adulteGame,
   MOVIE: STATUS_SETS.movie,
-  SERIES: STATUS_SETS.series
+  SERIES: STATUS_SETS.series,
+  BOOK: STATUS_SETS.book
 } as const;
 
 export type StatusCategory = keyof typeof STATUS_SETS;

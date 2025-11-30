@@ -185,7 +185,52 @@ function registerSearchHandlers(ipcMain, shell, getDb, store) {
         });
       });
 
-      console.log(`🔍 Recherche globale: "${query}" => ${allResults.length} résultats (${mangas.length} mangas, ${animes.length} animes, ${adulteGames.length} jeux adultes)`);
+      // Rechercher dans les livres
+      let books = [];
+      
+      if (numericId) {
+        // Recherche par ID pour les livres
+        books = db.prepare(`
+          SELECT b.id, b.titre, b.auteur, b.couverture_url
+          FROM books b
+          LEFT JOIN book_user_data bud ON b.id = bud.book_id AND bud.user_id = ?
+          WHERE (bud.is_hidden IS NULL OR bud.is_hidden = 0)
+          AND b.id = ?
+          LIMIT 10
+        `).all(userId, numericId);
+      }
+      
+      // Si pas de résultat par ID ou recherche textuelle, chercher par titre/auteur/ISBN
+      if (books.length === 0) {
+        books = db.prepare(`
+          SELECT b.id, b.titre, b.auteur, b.couverture_url
+          FROM books b
+          LEFT JOIN book_user_data bud ON b.id = bud.book_id AND bud.user_id = ?
+          WHERE (bud.is_hidden IS NULL OR bud.is_hidden = 0)
+          AND (
+            b.titre LIKE ?
+            OR b.titre_original LIKE ?
+            OR b.auteur LIKE ?
+            OR b.auteurs LIKE ?
+            OR b.isbn LIKE ?
+            OR b.isbn13 LIKE ?
+          )
+          LIMIT 10
+        `).all(userId, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery, searchQuery);
+      }
+
+      books.forEach(book => {
+        allResults.push({
+          id: book.id,
+          type: 'book',
+          title: book.titre,
+          subtitle: book.auteur || '',
+          progress: '',
+          coverUrl: book.couverture_url
+        });
+      });
+
+      console.log(`🔍 Recherche globale: "${query}" => ${allResults.length} résultats (${mangas.length} mangas, ${animes.length} animes, ${books.length} livres, ${adulteGames.length} jeux adultes)`);
       return allResults;
     } catch (error) {
       console.error('❌ Erreur global-search:', error);

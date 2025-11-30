@@ -1,6 +1,6 @@
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import logoMihon from '../../../assets/logo-128px.png';
 import { MangaCard } from '../../components/cards';
 import {
@@ -17,6 +17,8 @@ import {
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
 import MalCandidateSelectionModal from '../../components/modals/common/MalCandidateSelectionModal';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { MANGAS_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import AddSerieModal from '../../components/modals/manga/AddSerieModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
@@ -25,10 +27,10 @@ import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
 import { Serie, SerieFilters, SerieTag } from '../../types';
-import { translateGenre, translateTheme } from '../../utils/translations';
 import { computeMangaProgress } from '../../utils/manga-progress';
 import { getSerieStatusLabel } from '../../utils/manga-status';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
+import { translateGenre, translateTheme } from '../../utils/translations';
 
 // Composant wrapper pour ListItem qui gère isHidden dynamiquement (comme MangaCard)
 function ListItemWrapper({
@@ -134,12 +136,25 @@ const isSerieFilters = (value: unknown): value is SerieFilters => {
 
 export default function Mangas() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { showToast, ToastContainer } = useToast();
+  
+  // Récupérer le filtre media_type depuis l'URL
+  const mediaTypeFromUrl = searchParams.get('media_type');
+  
+  // Recharger les séries quand le media_type change
+  useEffect(() => {
+    if (mediaTypeFromUrl) {
+      loadSeries();
+    }
+  }, [mediaTypeFromUrl]);
   const [series, setSeries] = useState<Serie[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialMalId, setInitialMalId] = useState<string | null>(null);
   const [importingMal, setImportingMal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [malCandidateSelection, setMalCandidateSelection] = useState<{
     malId: number;
     candidates: Array<{
@@ -303,13 +318,15 @@ export default function Mangas() {
 
   const handleOpenSerieDetail = useCallback((serie: Serie) => {
     rememberScrollTarget('collection.mangas.scroll', serie.id);
-    navigate(`/serie/${serie.id}`);
-  }, [navigate]);
+    // Passer la route actuelle dans location.state pour le retour
+    const currentPath = location.pathname + location.search;
+    navigate(`/serie/${serie.id}`, { state: { from: currentPath } });
+  }, [navigate, location]);
 
   useEffect(() => {
     loadStats();
     loadCurrentUser();
-  }, [filters]);
+  }, [filters, mediaTypeFromUrl]);
 
   // Fonction pour mettre à jour une série dans l'état (utilisée par les deux méthodes)
   const updateSerieInState = useCallback((serieId: number, updates: Partial<Serie>) => {
@@ -360,7 +377,7 @@ export default function Mangas() {
       const { serieId } = event.detail;
       // Recharger les labels pour cette série
       if (serieId) {
-        window.electronAPI.getMangaLabels(serieId).then(labels => {
+        window.electronAPI.getMangaLabels(serieId).then((labels: Array<{ label: string; color: string }>) => {
           setSerieLabels(prev => ({
             ...prev,
             [serieId]: labels
@@ -601,6 +618,25 @@ export default function Mangas() {
       getIsFavorite: (s) => !!s.is_favorite,
       getStatus: (s) => getSerieStatusLabel(s),
       customFilter: (serie) => {
+        // Filtre par media_type depuis l'URL
+        if (mediaTypeFromUrl) {
+          const serieMediaType = (serie.media_type || '').toLowerCase();
+          // Décoder l'URL (pour gérer "Light%20Novel" -> "Light Novel")
+          const decodedMediaType = decodeURIComponent(mediaTypeFromUrl);
+          const targetMediaType = decodedMediaType.toLowerCase();
+          
+          // Gestion spéciale pour Light Novel
+          if (decodedMediaType === 'Light Novel') {
+            if (!serieMediaType.includes('light novel') && !serieMediaType.includes('novel')) {
+              return false;
+            }
+          } else {
+            if (serieMediaType !== targetMediaType && !serieMediaType.includes(targetMediaType)) {
+              return false;
+            }
+          }
+        }
+        
         // Filtre par genres
         if (selectedGenres.length > 0) {
           if (!serie.genres) return false;
@@ -632,7 +668,7 @@ export default function Mangas() {
           const sourceDonnees = serie.source_donnees;
           const isMal = sourceDonnees === 'mal' || sourceDonnees === 'mal+nautiljon';
           const isNautiljon = sourceDonnees === 'nautiljon' || sourceDonnees === 'mal+nautiljon';
-          
+
           switch (mihonFilter) {
             case 'mihon':
               if (!isMihon) return false;
@@ -727,8 +763,8 @@ export default function Mangas() {
   });
 
   // Calculer hasActiveFilters en incluant le filtre Mihon et autres filtres
-  const hasActiveFilters = hasActiveFiltersBase || mihonFilter !== 'all' || 
-    !!filters.type_volume || !!filters.tag || !!filters.source_id || 
+  const hasActiveFilters = hasActiveFiltersBase || mihonFilter !== 'all' ||
+    !!filters.type_volume || !!filters.tag || !!filters.source_id ||
     selectedLabels.length > 0 || selectedGenres.length > 0 || selectedThemes.length > 0;
 
   // Détecter si une URL/ID MAL est présente dans la recherche et si aucun résultat
@@ -911,10 +947,10 @@ export default function Mangas() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           {/* En-tête avec composant réutilisable */}
           <CollectionHeader
-            title="Collection Lectures"
+            title={mediaTypeFromUrl ? `Collection ${mediaTypeFromUrl}` : "Collection Lectures"}
             icon="📚"
-            count={series.length}
-            countLabel={series.length > 1 ? 'lectures' : 'lecture'}
+            count={sortedSeries.length}
+            countLabel={sortedSeries.length > 1 ? 'lectures' : 'lecture'}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter une série"
             extraButtons={
@@ -948,6 +984,7 @@ export default function Mangas() {
           <CollectionFiltersBar
             hasActiveFilters={hasActiveFilters}
             onClearFilters={clearFilters}
+            onOpenHelp={() => setShowHelpModal(true)}
           >
             <CollectionSearchBar
               searchTerm={searchTerm}
@@ -1558,6 +1595,12 @@ export default function Mangas() {
         <BackToTopButton />
         <BackToBottomButton />
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={MANGAS_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

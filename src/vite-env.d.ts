@@ -493,7 +493,7 @@ interface ElectronAPI {
       timestamp: string;
     }>;
   }) => void) => () => void;
-  exportEntityData?: (type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'serie', id: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+  exportEntityData?: (type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'serie' | 'book', id: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
 
   // Anime Enrichment Config
   getAnimeEnrichmentConfig: () => Promise<EnrichmentConfig>;
@@ -606,6 +606,89 @@ interface ElectronAPI {
   createMovie: (_movieData: Record<string, unknown>) => Promise<{ success: boolean; movieId?: number; error?: string }>;
   updateMovie: (_movieId: number, _movieData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   deleteMovie: (_movieId: number) => Promise<{ success: boolean; error?: string }>;
+  // Books
+  booksGet?: (filters?: Record<string, unknown>) => Promise<import('./types').BookListItem[]>;
+  booksGetDetail?: (bookId: number) => Promise<import('./types').Book | null>;
+  getAvailableContentTypes?: () => Promise<{
+    manga: number;
+    manhwa: number;
+    manhua: number;
+    lightNovel: number;
+    webtoon: number;
+    comics: number;
+    bd: number;
+    books: number;
+  }>;
+  comicsSearch?: (payload: { query: string; page?: number }) => Promise<{
+    results: Array<{
+      source: string;
+      title: string;
+      description?: string;
+      coverUrl?: string;
+      year?: number;
+      publisher?: string;
+      issueCount?: number;
+      sourceUrl?: string;
+      inLibrary: boolean;
+    }>;
+    totalResults: number;
+    totalPages: number;
+    page: number;
+  }>;
+  comicsImportFromGoogleBooks?: (googleBooksId: string) => Promise<{
+    success: boolean;
+    serieId?: number;
+    error?: string;
+    alreadyExists?: boolean;
+  }>;
+  bdSearch?: (payload: { query: string; page?: number }) => Promise<{
+    results: Array<{
+      source: string;
+      bnfId: string;
+      title: string;
+      authors?: string[];
+      description?: string;
+      coverUrl?: string;
+      publisher?: string;
+      publishedDate?: string;
+      isbn?: string;
+      sourceUrl?: string;
+      inLibrary: boolean;
+    }>;
+    totalResults: number;
+    totalPages: number;
+    page: number;
+  }>;
+  bdImportFromBnf?: (bnfId: string) => Promise<{
+    success: boolean;
+    serieId?: number;
+    error?: string;
+    alreadyExists?: boolean;
+  }>;
+  booksCreate?: (bookData: Record<string, unknown>) => Promise<{ success: boolean; bookId?: number; error?: string }>;
+  booksUpdate?: (payload: { bookId: number; bookData: Record<string, unknown> }) => Promise<{ success: boolean; error?: string }>;
+  booksDelete?: (bookId: number) => Promise<{ success: boolean; error?: string }>;
+  booksSetStatus?: (payload: { bookId: number; statut?: string; score?: number; dateDebut?: string | null; dateFin?: string | null }) => Promise<{ success: boolean; statut: string }>;
+  booksToggleFavorite?: (payload: { bookId: number }) => Promise<void>;
+  booksToggleHidden?: (payload: { bookId: number }) => Promise<void>;
+  booksSearch?: (payload: { query: string; source?: 'google_books' | 'open_library' | 'all'; page?: number }) => Promise<{ results: Array<import('./hooks/common/useBookSearch').BookSearchResult>; totalResults: number; totalPages: number; page: number }>;
+  booksImportFromGoogle?: (googleBooksId: string) => Promise<{ success: boolean; bookId?: number; error?: string; alreadyExists?: boolean }>;
+  booksImportFromOpenLibrary?: (openLibraryId: string) => Promise<{ success: boolean; bookId?: number; error?: string; alreadyExists?: boolean }>;
+  booksImportFromBnf?: (bnfId: string) => Promise<{ success: boolean; bookId?: number; error?: string; alreadyExists?: boolean }>;
+  booksAddProprietaire?: (payload: { bookId: number; userId: number; prix: number; dateAchat?: string | null }) => Promise<{ success: boolean; error?: string }>;
+  booksRemoveProprietaire?: (payload: { bookId: number; userId: number }) => Promise<{ success: boolean; error?: string }>;
+  booksMarkAsRead?: (bookId: number) => Promise<{ success: boolean; error?: string }>;
+  booksMarkAsOwned?: (payload: { bookId: number; prix?: number; dateAchat?: string | null; partageAvec?: number[] }) => Promise<{ success: boolean; error?: string }>;
+  getBookLabels?: (bookId: number) => Promise<Array<{ label: string; color: string }>>;
+  getAllBookLabels?: () => Promise<Array<{ label: string; color: string }>>;
+  addBookLabel?: (bookId: number, label: string, color?: string) => Promise<{ success: boolean }>;
+  removeBookLabel?: (bookId: number, label: string) => Promise<{ success: boolean }>;
+  updateBookLabels?: (bookId: number, labels: Array<{ label: string; color: string }>) => Promise<{ success: boolean }>;
+  getBooksDisplaySettings?: () => Promise<Record<string, boolean>>;
+  saveBooksDisplaySettings?: (prefs: Record<string, boolean>) => Promise<void>;
+  getBooksDisplayOverrides?: (bookId: number) => Promise<Record<string, boolean>>;
+  saveBooksDisplayOverrides?: (bookId: number, overrides: Record<string, boolean>) => Promise<void>;
+  deleteBooksDisplayOverrides?: (bookId: number, keys: string[]) => Promise<{ success: boolean; error?: string }>;
   // Galerie d'images utilisateur
   addMovieUserImageUrl: (movieId: number, imageUrl: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
   addMovieUserImageFile: (movieId: number, title?: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
@@ -727,6 +810,14 @@ interface ElectronAPI {
   masquerSerie: (serieId: number) => Promise<{ success: boolean }>;
   marquerSerieLue: (serieId: number) => Promise<{ success: boolean }>;
   toggleTomeLu: (tomeId: number, lu: boolean) => Promise<{ success: boolean }>;
+  // Labels de séries manga
+  getMangaLabels: (serieId: number) => Promise<Array<{ label: string; color: string }>>;
+  getAllMangaLabels: () => Promise<Array<{ label: string; color: string }>>;
+  addMangaLabel: (serieId: number, label: string, color?: string) => Promise<{ success: boolean }>;
+  removeMangaLabel: (serieId: number, label: string) => Promise<{ success: boolean }>;
+  // Genres et thèmes de séries manga
+  getAllMangaGenres: () => Promise<string[]>;
+  getAllMangaThemes: () => Promise<string[]>;
   toggleTomePossede: (tomeId: number, possede: boolean) => Promise<{ success: boolean }>;
   toggleTomeMihon: (tomeId: number, mihon: boolean) => Promise<{ success: boolean }>;
   possederTousLesTomes: (serieId: number) => Promise<{ success: boolean; tomesUpdated?: number }>;

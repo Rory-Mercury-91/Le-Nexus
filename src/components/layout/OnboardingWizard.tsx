@@ -129,6 +129,7 @@ export default function OnboardingWizard({ onComplete, initialStep = 1, initialB
             showMovies={data.showMovies}
             showSeries={data.showSeries}
             showAdulteGame={data.showAdulteGame}
+            showBooks={data.showBooks}
             adulteGamePassword={data.adulteGamePassword}
             adulteGamePasswordConfirm={data.adulteGamePasswordConfirm}
             showAdulteGamePassword={showAdulteGamePassword}

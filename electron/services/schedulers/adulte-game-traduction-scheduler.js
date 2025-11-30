@@ -69,8 +69,7 @@ function initScheduler(config, dbOrGetter, store, getPathManager = null) {
         return;
       }
 
-      const pathManager = getPathManager ? getPathManager() : null;
-      const result = await performAdulteGameUpdatesCheck(db, store, null, null, pathManager);
+      const result = await performAdulteGameUpdatesCheck(db, store, null, null, getPathManager);
       
       if (result) {
         // Mettre à jour la config avec la date de sync

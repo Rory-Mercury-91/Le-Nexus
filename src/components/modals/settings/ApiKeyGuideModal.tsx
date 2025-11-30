@@ -127,19 +127,19 @@ const PROVIDERS: ProviderConfig[] = [
     accent: 'linear-gradient(135deg, #ec4899, #f97316)',
     url: 'https://support.discord.com/hc/fr/articles/228383668-introduction-aux-webhooks',
     urlLabel: 'Créer un webhook Discord',
-    summary: 'Permet d’automatiser les alertes (webhook et mentions) pour les traductions/synchronisations des jeux adultes (le bouton « Créer un webhook Discord » ouvre simplement la documentation officielle pour vous guider).',
+    summary: 'Permet d\'automatiser les alertes (webhook et mentions) pour les traductions/synchronisations des jeux adultes (le bouton « Créer un webhook Discord » ouvre simplement la documentation officielle pour vous guider).',
     steps: [
       'Ouvrez Discord (bureau ou web) et, sur le salon où doivent arriver les alertes, ouvrez les Paramètres du salon > Intégrations > Webhooks.',
-      'Cliquez sur « Nouveau Webhook », choisissez un nom (ex. « Nexus - Jeux adultes ») et le salon de destination, puis copiez l’URL générée.',
+      'Cliquez sur « Nouveau Webhook », choisissez un nom (ex. « Nexus - Jeux adultes ») et le salon de destination, puis copiez l\'URL générée.',
       'Collez cette URL dans la carte « Webhook Discord » de la section Jeux Adultes dans Nexus.',
       'Dans Discord, activez le mode développeur (Paramètres utilisateurs > Avancés) pour pouvoir copier les IDs des membres.',
-      'Ajoutez vos traducteurs dans Nexus puis, dans « Mentions Discord automatiques », collez pour chacun l’ID numérique (clic droit > Copier l’ID).',
+      'Ajoutez vos traducteurs dans Nexus puis, dans « Mentions Discord automatiques », collez pour chacun l\'ID numérique (clic droit > Copier l\'ID).',
       'Enregistrez : chaque synchronisation ou mise à jour enverra désormais un message vers votre serveur Discord.'
     ],
     notes: [
       'Le webhook ne fonctionne que sur les salons où vous disposez des droits « Gérer les webhooks ». Demandez-les si besoin.',
       'Les IDs Discord sont sensibles : conservez-les en privé.',
-      'Un seul webhook est utilisé par Nexus : choisissez le salon d’alertes qui centralise vos notifications.'
+      'Un seul webhook est utilisé par Nexus : choisissez le salon d\'alertes qui centralise vos notifications.'
     ]
   }
 ];

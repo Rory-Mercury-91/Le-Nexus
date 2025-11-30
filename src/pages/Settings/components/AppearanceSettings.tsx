@@ -1,5 +1,5 @@
 import { Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 import type { ContentPreferences } from '../../../types';
 
@@ -12,14 +12,11 @@ interface AppearanceSettingsProps {
   onAutoLaunchChange: (enabled: boolean) => void;
   onAutoDownloadCoversChange: (enabled: boolean) => void;
   onContentPrefChange: (key: keyof ContentPreferences, value: boolean) => void;
-  tmdbLanguage: string;
-  tmdbRegion: string;
-  onTmdbLanguageChange: (value: string) => void | Promise<void>;
-  onTmdbRegionChange: (value: string) => void | Promise<void>;
   onOpenMangaSettings: () => void;
   onOpenAnimeSettings: () => void;
   onOpenMovieSettings: () => void;
   onOpenSeriesSettings: () => void;
+  onOpenBooksSettings: () => void;
   onOpenAdultGameSettings: () => void;
 }
 
@@ -32,27 +29,14 @@ export default function AppearanceSettings({
   onAutoLaunchChange,
   onAutoDownloadCoversChange,
   onContentPrefChange,
-  tmdbLanguage,
-  tmdbRegion,
-  onTmdbLanguageChange,
-  onTmdbRegionChange,
   onOpenMangaSettings,
   onOpenAnimeSettings,
   onOpenMovieSettings,
   onOpenSeriesSettings,
+  onOpenBooksSettings,
   onOpenAdultGameSettings,
 }: AppearanceSettingsProps) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  const [languageInput, setLanguageInput] = useState(tmdbLanguage);
-  const [regionInput, setRegionInput] = useState(tmdbRegion);
-
-  useEffect(() => {
-    setLanguageInput(tmdbLanguage);
-  }, [tmdbLanguage]);
-
-  useEffect(() => {
-    setRegionInput(tmdbRegion);
-  }, [tmdbRegion]);
 
   const tooltipTexts: Record<string, string> = {
     theme: 'Mémorisation : Le thème est automatiquement sauvegardé d\'une session à l\'autre.',
@@ -109,8 +93,8 @@ export default function AppearanceSettings({
     </span>
   );
 
-  const visibilityOptions: Array<{ label: string; key: keyof ContentPreferences }> = [
-    { label: '📚 Lectures', key: 'showMangas' },
+  const visibilityOptions: Array<{ label: string; key: keyof ContentPreferences; description?: string }> = [
+    { label: '📚 Lectures', key: 'showMangas', description: 'Manga, Manhwa, Manhua, Comics, BD, Livres' },
     { label: '🎬 Animes', key: 'showAnimes' },
     { label: '🎞️ Films', key: 'showMovies' },
     { label: '📺 Séries', key: 'showSeries' },
@@ -151,6 +135,13 @@ export default function AppearanceSettings({
         description: 'Définissez les blocs affichés pour les fiches séries et le suivi des saisons.',
         icon: '📺',
         onOpen: onOpenSeriesSettings,
+      },
+      {
+        id: 'books',
+        title: 'Livres',
+        description: 'Personnalisez les sections visibles des fiches livres (romans, biographies, essais…).',
+        icon: '📖',
+        onOpen: onOpenBooksSettings,
       },
       {
         id: 'adult-game',
@@ -290,104 +281,33 @@ export default function AppearanceSettings({
             gap: '12px'
           }}
         >
-          {visibilityOptions.map(({ label, key }) => (
+          {visibilityOptions.map(({ label, key, description }) => (
             <div
               key={key}
               style={{
                 flex: '1 1 180px',
                 minWidth: '160px',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '10px',
+                flexDirection: 'column',
+                gap: '6px',
                 padding: '12px 16px',
                 border: '1px solid var(--border)',
                 borderRadius: '10px',
                 background: 'var(--surface-light)'
               }}
             >
-              <span style={{ fontSize: '14px', fontWeight: 600 }}>{label}</span>
-              <Toggle
-                checked={contentPrefs[key]}
-                onChange={(checked) => onContentPrefChange(key, checked)}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 600 }}>{label}</span>
+                <Toggle
+                  checked={contentPrefs[key]}
+                  onChange={(checked) => onContentPrefChange(key, checked)}
+                />
+              </div>
+              {description && (
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{description}</span>
+              )}
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Paramètres régionaux */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px'
-        }}
-      >
-        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
-          🌐 Paramètres Régionaux et de Langue
-        </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-          Ces réglages influencent la langue et la disponibilité des contenus récupérés via les services externes (TMDb…).
-        </p>
-        <div
-          style={{
-            display: 'grid',
-            gap: '14px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))'
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>Langue par défaut</label>
-            <input
-              type="text"
-              value={languageInput}
-              onChange={(e) => setLanguageInput(e.target.value)}
-              onBlur={() => onTmdbLanguageChange(languageInput)}
-              placeholder="fr-FR"
-              style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                color: 'var(--text)',
-                fontSize: '13px',
-                letterSpacing: '0.3px'
-              }}
-            />
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Format attendu : langue-pays (ex. fr-FR, en-US).
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>Région par défaut</label>
-            <input
-              type="text"
-              value={regionInput}
-              onChange={(e) => setRegionInput(e.target.value.toUpperCase())}
-              onBlur={() => onTmdbRegionChange(regionInput)}
-              placeholder="FR"
-              maxLength={2}
-              style={{
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--background)',
-                color: 'var(--text)',
-                fontSize: '13px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.4px'
-              }}
-            />
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Détermine les disponibilités (VOD/cinéma) utilisées par défaut.
-            </span>
-          </div>
         </div>
       </div>
 

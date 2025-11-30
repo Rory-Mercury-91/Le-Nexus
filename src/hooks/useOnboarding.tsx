@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ContentPreferences } from '../types';
 
 export interface OnboardingData {
@@ -13,6 +13,7 @@ export interface OnboardingData {
   showMovies: boolean;
   showSeries: boolean;
   showAdulteGame: boolean;
+  showBooks: boolean;
   adulteGamePassword: string;
   adulteGamePasswordConfirm: string;
 }
@@ -75,13 +76,16 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
     showAnimes: true,
     showMovies: true,
     showSeries: true,
-    showAdulteGame: true
+    showAdulteGame: true,
+    showBooks: true
   };
   const [showMangas, setShowMangas] = useState(defaultContentPrefs.showMangas);
   const [showAnimes, setShowAnimes] = useState(defaultContentPrefs.showAnimes);
   const [showMovies, setShowMovies] = useState(defaultContentPrefs.showMovies);
   const [showSeries, setShowSeries] = useState(defaultContentPrefs.showSeries);
   const [showAdulteGame, setShowAdulteGame] = useState(defaultContentPrefs.showAdulteGame);
+  // showBooks est synchronisé avec showMangas, donc on utilise showMangas comme valeur
+  const showBooks = showMangas;
 
   // Mot de passe jeux adultes (optionnel)
   const [adulteGamePassword, setAdulteGamePassword] = useState('');
@@ -112,17 +116,17 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
         // Configurer l'emplacement temporairement pour vérifier les bases
         // Il faut d'abord configurer l'emplacement pour que getAllUsers puisse fonctionner
         await window.electronAPI.setBaseDirectory(baseDirectory);
-        
+
         // Attendre un peu pour que l'emplacement soit bien configuré
         await new Promise(resolve => setTimeout(resolve, 300));
-        
+
         const checkResult = await window.electronAPI.checkDatabasesInLocation(baseDirectory);
         if (checkResult.success && checkResult.hasDatabases) {
           setHasExistingDatabases(true);
           // Charger les utilisateurs depuis les bases trouvées
           const users = await window.electronAPI.getAllUsers();
           setExistingUsers(users || []);
-          
+
           // Si une seule base de données, marquer pour connexion automatique
           if (users && users.length === 1 && step === 2) {
             const singleUser = users[0].name;
@@ -323,19 +327,21 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
       // Définir l'utilisateur actuel
       // Utiliser result.user.name pour garantir la correspondance exacte avec la base de données
       const userName = result.user.name;
-      
+
       // Sauvegarder dans localStorage AVANT d'appeler setCurrentUser
       localStorage.setItem('currentUser', userName);
-      
+
       await window.electronAPI.setCurrentUser(userName);
 
       // Sauvegarder les préférences de contenu
+      // Synchroniser showBooks avec showMangas
       await window.electronAPI.setContentPreferences(userName, {
         showMangas,
         showAnimes,
         showMovies,
         showSeries,
-        showAdulteGame
+        showAdulteGame,
+        showBooks: showMangas // Synchroniser avec showMangas
       });
 
       // Définir le mot de passe jeux adultes maître si fourni
@@ -350,7 +356,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
       // Marquer que l'onboarding est terminé et qu'un utilisateur a été créé
       // Cela permettra à App.tsx de charger directement l'utilisateur
       setLoading(false);
-      
+
       // Compléter l'onboarding
       // onComplete va vérifier localStorage.getItem('currentUser') et charger l'utilisateur
       onComplete();
@@ -375,6 +381,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
       showMovies,
       showSeries,
       showAdulteGame,
+      showBooks,
       adulteGamePassword,
       adulteGamePasswordConfirm
     },

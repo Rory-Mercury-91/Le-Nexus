@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   AdulteGame,
   AnimeSerie,
+  BookListItem,
   ContentPreferences,
   EvolutionStatistics,
   LectureStatistics,
@@ -23,6 +24,7 @@ export function useDashboard() {
   const [adulteGames, setAdulteGames] = useState<AdulteGame[]>([]);
   const [movies, setMovies] = useState<MovieListItem[]>([]);
   const [tvShows, setTvShows] = useState<TvShowListItem[]>([]);
+  const [books, setBooks] = useState<BookListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [evolutionStats, setEvolutionStats] = useState<EvolutionStatistics | null>(null);
@@ -33,6 +35,7 @@ export function useDashboard() {
     showAnimes: true,
     showMovies: true,
     showSeries: true,
+    showBooks: true,
     showAdulteGame: true
   };
   const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
@@ -73,6 +76,7 @@ export function useDashboard() {
     const evolutionData = await window.electronAPI.getEvolutionStatistics();
     const moviesData = await window.electronAPI.getMovies({});
     const tvShowsData = await window.electronAPI.getTvShows({});
+    const booksData = await window.electronAPI.booksGet?.({}) || [];
     
     // Charger les jeux adultes seulement si pas de mot de passe
     if (!hasPassword) {
@@ -93,6 +97,7 @@ export function useDashboard() {
     }
     setMovies(moviesData || []);
     setTvShows(tvShowsData || []);
+    setBooks(booksData);
     setEvolutionStats(evolutionData);
     setLoading(false);
   };
@@ -116,6 +121,7 @@ export function useDashboard() {
     hasPassword,
     movies,
     tvShows,
+    books,
     loadStats,
     handleRefresh
   };

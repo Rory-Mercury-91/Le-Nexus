@@ -5,6 +5,71 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.4] - 2025-11-30
+
+### ✨ Ajouté
+- **Fonction d'aide pour le système de recherche par page**
+  - Modal d'aide explicative pour comprendre le fonctionnement du système de recherche par page
+  - Accessible depuis toutes les pages de collections (Animes, Mangas, Films, Séries, Jeux Adultes)
+  - Explications détaillées sur les fonctionnalités de recherche et de filtrage
+- **Intégration Google Books pour BD et Comics**
+  - Remplacement de l'API Comic Vine par Google Books pour les comics
+  - Recherche unifiée BD et Comics via Google Books API
+  - Filtrage automatique par langue (français uniquement) pour les comics
+  - Détection intelligente des BD et Comics basée sur les catégories, éditeurs et mots-clés
+  - Support des métadonnées complètes (auteurs, éditeurs, ISBN, descriptions)
+  - Images de couverture fonctionnelles depuis Google Books
+- **Pages dédiées pour BD et Comics**
+  - Création de pages de collection dédiées `/bd` et `/comics`
+  - Filtrage automatique par type de média (BD, Comic)
+  - Interface cohérente avec les autres collections (Mangas, Livres)
+  - Modales d'import dédiées avec recherche Google Books intégrée
+  - Support complet des statuts de lecture, favoris et masquage
+- **Recherche globale étendue**
+  - Support de tous les types de contenu dans la recherche globale (Livres, Films, Séries)
+  - Navigation directe vers les pages de détails depuis les résultats
+  - Groupement des résultats par type avec compteurs
+  - Icônes et labels spécifiques pour chaque type de contenu
+
+### 🔧 Amélioré
+- **Navigation et organisation des pages Lectures**
+  - Regroupement de toutes les pages Lectures en sous-catégorie dans la navigation
+  - Menu expandable "Lectures" avec sous-menus pour chaque type (Tout, Manga, Manhwa, Manhua, BD, Comics, Livres)
+  - Navigation plus claire et organisée avec hiérarchie visuelle
+  - Expansion automatique du menu "Lectures" lorsque l'utilisateur est sur une page de cette section
+- **Compteurs d'entrées dans la navigation**
+  - Affichage du nombre total d'entrées pour chaque collection dans la navigation
+  - Compteur sur "Lectures" (parent) et "Tout" affichant le total de toutes les entrées Lectures
+  - Compteurs individuels pour chaque sous-catégorie (Manga, Manhwa, Manhua, BD, Comics, Livres)
+  - Compteurs pour les autres collections principales (Animes, Films, Séries, Jeux Adultes)
+  - Rechargement automatique des compteurs lors de la navigation
+  - Cohérence visuelle avec affichage entre parenthèses pour toutes les collections
+- **Modales d'import BD et Comics**
+  - Design harmonisé avec le reste de l'application
+  - Affichage structuré des résultats (couverture, titre, auteurs, éditeur, année)
+  - Indication visuelle des items déjà dans la collection
+  - Badge indiquant la source (BnF ou Google Books) pour les BD
+  - Gestion améliorée des descriptions HTML avec nettoyage et troncature
+  - Feedback utilisateur amélioré avec messages d'erreur explicites
+- **Gestion de la visibilité des contenus**
+  - Consolidation de la visibilité "Lectures" : un seul toggle masque/affiche toute la section (Mangas, Manhua, Manhwa, BD, Comics, Livres)
+  - Suppression du toggle séparé pour les Livres
+  - Synchronisation automatique de `showBooks` avec `showMangas`
+  - Cohérence dans l'onboarding et les paramètres
+
+### 🐛 Corrigé
+- Corrections multiples d'erreurs TypeScript dans les composants React
+- Correction de la syntaxe JavaScript dans le serveur d'import (accolade manquante)
+- Correction des types pour les composants de cartes (BookCard, etc.)
+- Harmonisation des types SearchResult dans la recherche globale
+- Correction des handlers d'import BD et Comics (gestion correcte des retours de création)
+- Correction de l'affichage des images de couverture (conversion null → undefined)
+
+### 🔄 Migration de base de données
+- Migration automatique pour les colonnes `source_id` et `source_donnees` dans la table `manga_series`
+- Nécessaire pour le support des BD et Comics (stockage des identifiants BNF et Google Books)
+- Migration appliquée automatiquement au démarrage pour toutes les bases de données existantes
+
 ## [1.0.3] - 2025-11-29
 
 ### ✨ Ajouté
@@ -197,6 +262,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.4]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.4
 [1.0.3]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.1

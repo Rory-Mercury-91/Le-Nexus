@@ -39,9 +39,14 @@ export function MangaTomesList({
   onPossederTousLesTomes,
   shouldShow
 }: MangaTomesListProps) {
-  if (!shouldShow || (serie.type_contenu && (serie.type_contenu !== 'volume' && serie.type_contenu !== 'volume+chapitre'))) {
+  // Toujours permettre l'affichage pour que l'utilisateur puisse ajouter des tomes
+  // même si type_contenu est 'chapitre' ou si la section est masquée
+  if (!shouldShow) {
     return null;
   }
+
+  // Si c'est une série de type "chapitre" uniquement, afficher un message informatif
+  const isChapitreOnly = serie.type_contenu === 'chapitre';
 
   return (
     <div
@@ -58,10 +63,17 @@ export function MangaTomesList({
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <BookOpen size={20} />
-          Tomes ({tomes.length})
-        </h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOpen size={20} />
+            Tomes ({tomes.length})
+          </h2>
+          {isChapitreOnly && (
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>
+              💡 Cette série est configurée pour les chapitres, mais vous pouvez toujours ajouter des tomes
+            </p>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {tomes.length > 0 && (
             <button

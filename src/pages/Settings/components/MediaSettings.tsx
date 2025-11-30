@@ -1,19 +1,18 @@
-import { BookOpenCheck, Globe2, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Globe2, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Toggle from '../../../components/common/Toggle';
-import type { ApiKeyProvider } from './apiKeyGuideTypes';
 
 interface MediaSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
-  onOpenGuide?: (provider: ApiKeyProvider) => void;
+  imageSource?: 'mal' | 'anilist' | 'tmdb';
+  onImageSourceChange?: (source: 'mal' | 'anilist' | 'tmdb') => void;
+  TooltipIcon?: ({ id, placement }: { id: 'imageSource' | 'tmdbKey' | 'tmdbToken' | 'groqKey' | 'groqAutoTranslate' | 'malClientId' | 'malAutoSync' | 'nautiljonAutoSync' | 'nautiljonTomes' | 'animeEnrichment' | 'mangaEnrichment' | 'malManualSync' | 'mihonImport'; placement?: 'center' | 'end' }) => JSX.Element;
 }
 
-export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsProps) {
+export default function MediaSettings({ showToast, imageSource, onImageSourceChange, TooltipIcon }: MediaSettingsProps) {
   const [apiKey, setApiKey] = useState('');
   const [apiToken, setApiToken] = useState('');
   const [language, setLanguage] = useState('fr-FR');
   const [region, setRegion] = useState('FR');
-  const [autoTranslate, setAutoTranslate] = useState(true);
   const [testing, setTesting] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
@@ -25,8 +24,7 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
     apiKey: '',
     apiToken: '',
     language: 'fr-FR',
-    region: 'FR',
-    autoTranslate: true
+    region: 'FR'
   });
 
   useEffect(() => {
@@ -40,7 +38,6 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
         if (syncSettings) {
           setLanguage(syncSettings.language || 'fr-FR');
           setRegion(syncSettings.region || 'FR');
-          setAutoTranslate(syncSettings.autoTranslate ?? true);
         }
         setInitialLoadDone(true);
       } catch (error) {
@@ -56,17 +53,16 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
       apiKey,
       apiToken,
       language,
-      region,
-      autoTranslate
+      region
     };
-  }, [apiKey, apiToken, language, region, autoTranslate]);
+  }, [apiKey, apiToken, language, region]);
 
   const persistSettings = useCallback(async () => {
     if (!initialLoadDone) {
       return;
     }
 
-    const { apiKey: currentApiKey, apiToken: currentApiToken, language: currentLanguage, region: currentRegion, autoTranslate: currentAutoTranslate } =
+    const { apiKey: currentApiKey, apiToken: currentApiToken, language: currentLanguage, region: currentRegion } =
       latestValuesRef.current;
 
     setIsAutoSaving(true);
@@ -77,8 +73,7 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
       });
       await window.electronAPI.saveMediaSyncSettings({
         language: currentLanguage,
-        region: currentRegion,
-        autoTranslate: currentAutoTranslate
+        region: currentRegion
       });
       setLastSavedAt(new Date());
       hasPendingChanges.current = false;
@@ -170,44 +165,50 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {onOpenGuide && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => onOpenGuide('tmdb')}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              fontSize: '13px'
-            }}
-          >
-            <BookOpenCheck size={16} />
-            Guide TMDb
-          </button>
-        </div>
-      )}
-
       <div
         style={{
-          background: 'var(--surface)',
-          borderRadius: '16px',
-          border: '1px solid var(--border)',
-          padding: '24px',
           display: 'grid',
-          gap: '20px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))'
+          gap: '18px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          alignItems: 'stretch',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <KeyRound size={16} />
               TMDb API Key (v3)
-            </span>
-          </label>
+            </label>
+            <button
+              onClick={handleTestConnection}
+              className="btn btn-outline"
+              disabled={testing}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                minWidth: '190px',
+              }}
+            >
+              <RefreshCw size={14} style={{ animation: testing ? 'spin 1s linear infinite' : 'none' }} />
+              {testing ? 'Test en cours…' : 'Tester la connexion'}
+            </button>
+          </div>
           <input
             type="text"
             value={apiKey}
@@ -221,26 +222,53 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
               });
             }}
             placeholder="Clé API publique (v3)"
+            className="input"
             style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text)'
+              flex: 1
             }}
           />
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             Requise pour les requêtes REST principales (recherche, détails, images).
           </p>
+          {lastTestResult && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: lastTestResult.success ? 'var(--success)' : 'var(--error)',
+                border: `1px solid ${lastTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                background: lastTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                width: '100%',
+              }}
+            >
+              {lastTestResult.message}
+            </div>
+          )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck size={16} />
-              Jeton d’accès lecture (v4)
-            </span>
-          </label>
+              Jeton d'accès lecture (v4)
+            </label>
+            <div style={{ minWidth: '190px', height: '36px' }} />
+          </div>
           <input
             type="text"
             value={apiToken}
@@ -254,32 +282,37 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
               });
             }}
             placeholder="Token v4 (Bearer)"
+            className="input"
             style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text)'
+              flex: 1
             }}
           />
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            Optionnel. Utilisé si vous préférez l’authentification Bearer pour certaines routes (découverte avancée).
+            Optionnel. Utilisé si vous préférez l'authentification Bearer pour certaines routes (découverte avancée).
           </p>
         </div>
       </div>
 
       <div
         style={{
-          background: 'var(--surface)',
-          borderRadius: '16px',
-          border: '1px solid var(--border)',
-          padding: '24px',
           display: 'grid',
-          gap: '20px',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))'
+          gap: '18px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          alignItems: 'stretch',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
           <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Globe2 size={16} />
             Langue par défaut
@@ -297,12 +330,9 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
               });
             }}
             placeholder="fr-FR"
+            className="input"
             style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text)'
+              flex: 1
             }}
           />
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
@@ -310,7 +340,47 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {imageSource !== undefined && onImageSourceChange && (
+          <div
+            style={{
+              padding: '20px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Source des images MyAnimeList</label>
+              {TooltipIcon && <TooltipIcon id="imageSource" />}
+            </div>
+            <select
+              value={imageSource === 'tmdb' ? 'mal' : imageSource}
+              onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist')}
+              className="select"
+              style={{ width: '100%' }}
+            >
+              <option value="mal">MyAnimeList (par défaut)</option>
+              <option value="anilist">AniList (haute définition)</option>
+            </select>
+          </div>
+        )}
+
+        <div
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
           <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>
             Région par défaut
           </label>
@@ -328,44 +398,15 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
             }}
             placeholder="FR"
             maxLength={2}
+            className="input"
             style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text)',
+              flex: 1,
               textTransform: 'uppercase'
             }}
           />
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             Utilisé pour les disponibilités (streaming) et la découverte.
           </p>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            borderLeft: '1px solid var(--border)',
-            paddingLeft: '20px'
-          }}
-        >
-          <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>
-            Traduction automatique (Groq)
-          </label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Toggle
-              checked={autoTranslate}
-              onChange={(value) => {
-                setAutoTranslate(Boolean(value));
-                scheduleAutoSave();
-              }}
-            />
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Traduire automatiquement les synopsis en français si TMDb ne les fournit pas.
-            </span>
-          </div>
         </div>
       </div>
 
@@ -377,31 +418,6 @@ export default function MediaSettings({ showToast, onOpenGuide }: MediaSettingsP
           alignItems: 'center'
         }}
       >
-        <button
-          onClick={handleTestConnection}
-          className="btn btn-outline"
-          disabled={testing}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: '10px'
-          }}
-        >
-          <RefreshCw size={16} style={{ animation: testing ? 'spin 1s linear infinite' : 'none' }} />
-          {testing ? 'Test en cours...' : 'Tester la connexion TMDb'}
-        </button>
-        {lastTestResult && (
-          <span
-            style={{
-              fontSize: '12px',
-              color: lastTestResult.success ? '#22c55e' : '#ef4444'
-            }}
-          >
-            {lastTestResult.message}
-          </span>
-        )}
         <span style={{ fontSize: '12px', color: isAutoSaving ? 'var(--primary)' : 'var(--text-secondary)' }}>
           {isAutoSaving
             ? 'Sauvegarde automatique...'

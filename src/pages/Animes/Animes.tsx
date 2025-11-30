@@ -17,6 +17,8 @@ import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
 import AddAnimeModal from '../../components/modals/anime/AddAnimeModal';
 import MalCandidateSelectionModal from '../../components/modals/common/MalCandidateSelectionModal';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { ANIMES_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
 import { useCollectionFilters } from '../../hooks/common/useCollectionFilters';
@@ -24,8 +26,8 @@ import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
 import { AnimeFilters, AnimeSerie } from '../../types';
-import { translateGenre, translateTheme } from '../../utils/translations';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
+import { translateGenre, translateTheme } from '../../utils/translations';
 
 const ANIME_SORT_OPTIONS = ['title-asc', 'title-desc', 'date-desc', 'date-asc'] as const;
 type AnimeSortOption = (typeof ANIME_SORT_OPTIONS)[number];
@@ -63,6 +65,7 @@ export default function Animes() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialMalId, setInitialMalId] = useState<number | null>(null);
   const [importingMal, setImportingMal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [malCandidateSelection, setMalCandidateSelection] = useState<{
     malId: number;
     candidates: Array<{
@@ -223,18 +226,24 @@ export default function Animes() {
 
       // Charger tous les labels disponibles
       try {
-        const allLabels = await window.electronAPI.getAllAnimeLabels();
-        setAvailableLabels(allLabels);
+        const allLabels = await (window.electronAPI as any).getAllAnimeLabels?.();
+        if (allLabels && Array.isArray(allLabels)) {
+          setAvailableLabels(allLabels);
+        }
       } catch (error) {
         console.error('Erreur chargement labels:', error);
       }
 
       // Charger tous les genres et thèmes disponibles
       try {
-        const allGenres = await window.electronAPI.getAllAnimeGenres();
-        setAvailableGenres(allGenres);
-        const allThemes = await window.electronAPI.getAllAnimeThemes();
-        setAvailableThemes(allThemes);
+        const allGenres = await (window.electronAPI as any).getAllAnimeGenres?.();
+        if (allGenres && Array.isArray(allGenres)) {
+          setAvailableGenres(allGenres);
+        }
+        const allThemes = await (window.electronAPI as any).getAllAnimeThemes?.();
+        if (allThemes && Array.isArray(allThemes)) {
+          setAvailableThemes(allThemes);
+        }
       } catch (error) {
         console.error('Erreur chargement genres/thèmes:', error);
       }
@@ -337,7 +346,7 @@ export default function Animes() {
       const { animeId } = event.detail;
       // Recharger les labels pour cet anime
       if (animeId) {
-        window.electronAPI.getAnimeLabels(animeId).then(labels => {
+        (window.electronAPI as any).getAnimeLabels?.(animeId).then((labels: Array<{ label: string; color: string }>) => {
           setAnimeLabels(prev => ({
             ...prev,
             [animeId]: labels
@@ -615,15 +624,7 @@ export default function Animes() {
       getIsHidden: (a) => !!a.is_masquee,
       getIsFavorite: (a) => !!a.is_favorite,
       getStatus: (a) => resolveAnimeStatus(a),
-      getHasUpdates: (a) => {
-        const episodesVus = a.episodes_vus || 0;
-        const episodesTotal = a.nb_episodes || 0;
-        return (
-          a.statut_diffusion === 'En cours' &&
-          episodesTotal > 0 &&
-          episodesVus < episodesTotal
-        );
-      },
+      getHasUpdates: () => false,
       customFilter: (anime) => {
         // Filtre par genres
         if (selectedGenres.length > 0) {
@@ -656,13 +657,7 @@ export default function Animes() {
           return Boolean(anime.is_masquee);
         }
         if (showMajOnly) {
-          const episodesVus = anime.episodes_vus || 0;
-          const episodesTotal = anime.nb_episodes || 0;
-          return (
-            anime.statut_diffusion === 'En cours' &&
-            episodesTotal > 0 &&
-            episodesVus < episodesTotal
-          );
+          return false; // Les animes n'ont pas de système de mises à jour
         }
 
         // Filtre par labels
@@ -883,6 +878,7 @@ export default function Animes() {
           <CollectionFiltersBar
             hasActiveFilters={hasActiveFiltersBase || selectedLabels.length > 0 || selectedGenres.length > 0 || selectedThemes.length > 0}
             onClearFilters={clearFilters}
+            onOpenHelp={() => setShowHelpModal(true)}
           >
             <CollectionSearchBar
               searchTerm={searchTerm}
@@ -1355,6 +1351,12 @@ export default function Animes() {
         <BackToTopButton />
         <BackToBottomButton />
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={ANIMES_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

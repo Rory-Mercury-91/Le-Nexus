@@ -9,6 +9,7 @@ interface CollectionSearchBarProps {
   showSubmitButton?: boolean;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
+  onOpenHelp?: () => void;
 }
 
 const CollectionSearchBar: React.FC<CollectionSearchBarProps> = ({
@@ -18,7 +19,8 @@ const CollectionSearchBar: React.FC<CollectionSearchBarProps> = ({
   onSubmit,
   showSubmitButton = true,
   hasActiveFilters = false,
-  onClearFilters
+  onClearFilters,
+  onOpenHelp
 }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +52,44 @@ const CollectionSearchBar: React.FC<CollectionSearchBarProps> = ({
             style={{ paddingLeft: '48px' }}
           />
         </div>
+        {onOpenHelp && (
+          <button
+            type="button"
+            onClick={onOpenHelp}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '1px solid var(--border)',
+              backgroundColor: 'var(--surface-light)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--primary)';
+              e.currentTarget.style.color = 'white';
+              e.currentTarget.style.borderColor = 'var(--primary)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--surface-light)';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+            aria-label="Aide sur les filtres et la recherche"
+            title="Aide sur les filtres et la recherche"
+          >
+            ?
+          </button>
+        )}
         {hasActiveFilters && onClearFilters && (
           <button
             type="button"

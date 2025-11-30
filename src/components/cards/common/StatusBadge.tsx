@@ -1,6 +1,6 @@
 interface StatusBadgeProps {
   status: string;
-  type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'series';
+  type: 'manga' | 'anime' | 'adulte-game' | 'movie' | 'series' | 'book';
 }
 
 export default function StatusBadge({ status, type }: StatusBadgeProps) {
