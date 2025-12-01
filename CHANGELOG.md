@@ -5,6 +5,36 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.4-Fix] - 2025-12-01
+
+### 🐛 Corrigé
+- **Erreur SQLite `no such column: b.prix_suggere`**
+  - Ajout des colonnes `prix_suggere` et `devise` à la table `books` dans le schéma de base de données
+  - Migration automatique pour les bases de données existantes
+  - Ajout d'une fonction de sécurité `ensureBookColumns` pour garantir la présence des colonnes
+- **Incohérence des compteurs entre sidebar et pages de collection**
+  - Correction du compteur total dans l'en-tête des pages (affichage du nombre d'items filtrés au lieu du total brut)
+  - Exclusion des séries masquées dans les compteurs de la sidebar pour cohérence avec l'affichage
+  - Correction de la catégorisation des séries avec `media_type` NULL (comptées comme "Manga" au lieu de "Non classé")
+- **Catégorie "Non classé" pour les séries sans media_type**
+  - Création d'une nouvelle catégorie "Non classé" pour les séries avec `media_type` NULL ou vide
+  - Ajout du lien "Non classé" dans la sidebar sous la section Lectures
+  - Support du filtre "Non classé" dans les pages Lectures et Mangas
+  - Comptage correct des séries non classées (131 entrées identifiées)
+
+### 🔧 Amélioré
+- **Champ `media_type` transformé en select**
+  - Remplacement du champ texte par un menu déroulant avec options prédéfinies
+  - Options disponibles : Non classé, Manga, Manhwa, Manhua, Light Novel, Novel, Webtoon, Comic, BD
+  - Réduction des erreurs de saisie et standardisation des valeurs
+  - Interface plus intuitive pour classer les séries non classées
+
+### 🧹 Nettoyage
+- **Suppression des modals non utilisés**
+  - Suppression de `EditSerieForm.tsx` (remplacé par `EditSerieModal` avec `EditMalItemModal`)
+  - Suppression de `ImportAdulteGameJsonModal.tsx` (non utilisé)
+  - Suppression de `MalSyncOverlay.tsx` (non utilisé)
+
 ## [1.0.4] - 2025-11-30
 
 ### ✨ Ajouté
@@ -262,6 +292,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.4-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.4-Fix
 [1.0.4]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.4
 [1.0.3]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.2

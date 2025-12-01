@@ -7,10 +7,38 @@ const googleBooks = require('../../apis/google-books');
 const openLibrary = require('../../apis/open-library');
 const bnf = require('../../apis/bnf');
 
+// Helper pour s'assurer que les colonnes existent
+function ensureBookColumns(db) {
+  const Database = require('../../services/database');
+  // Utiliser la fonction ensureColumn via une référence directe
+  const columns = db.prepare('PRAGMA table_info(books)').all();
+  const columnNames = columns.map(col => col.name);
+  
+  if (!columnNames.includes('prix_suggere')) {
+    try {
+      db.prepare('ALTER TABLE books ADD COLUMN prix_suggere REAL').run();
+      console.log('✅ Colonne prix_suggere ajoutée à books');
+    } catch (error) {
+      console.warn('⚠️ Impossible d\'ajouter la colonne prix_suggere:', error.message);
+    }
+  }
+  
+  if (!columnNames.includes('devise')) {
+    try {
+      db.prepare('ALTER TABLE books ADD COLUMN devise TEXT').run();
+      console.log('✅ Colonne devise ajoutée à books');
+    } catch (error) {
+      console.warn('⚠️ Impossible d\'ajouter la colonne devise:', error.message);
+    }
+  }
+}
+
 function registerBookHandlers(ipcMain, getDb, store) {
   // GET - Récupérer tous les livres
   ipcMain.handle('books-get', (event, filters = {}) => {
     const db = getDb();
+    // S'assurer que les colonnes existent
+    ensureBookColumns(db);
     const currentUser = store.get('currentUser', '');
     const userId = currentUser ? getUserIdByName(db, currentUser) : null;
 
@@ -160,6 +188,8 @@ function registerBookHandlers(ipcMain, getDb, store) {
   // GET - Récupérer un livre par ID
   ipcMain.handle('books-get-detail', (event, bookId) => {
     const db = getDb();
+    // S'assurer que les colonnes existent
+    ensureBookColumns(db);
     const currentUser = store.get('currentUser', '');
     const userId = currentUser ? getUserIdByName(db, currentUser) : null;
 

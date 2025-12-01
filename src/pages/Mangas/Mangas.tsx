@@ -620,19 +620,26 @@ export default function Mangas() {
       customFilter: (serie) => {
         // Filtre par media_type depuis l'URL
         if (mediaTypeFromUrl) {
-          const serieMediaType = (serie.media_type || '').toLowerCase();
-          // Décoder l'URL (pour gérer "Light%20Novel" -> "Light Novel")
-          const decodedMediaType = decodeURIComponent(mediaTypeFromUrl);
-          const targetMediaType = decodedMediaType.toLowerCase();
-          
-          // Gestion spéciale pour Light Novel
-          if (decodedMediaType === 'Light Novel') {
-            if (!serieMediaType.includes('light novel') && !serieMediaType.includes('novel')) {
+          // Gestion spéciale pour "Unclassified" (media_type NULL ou vide)
+          if (mediaTypeFromUrl === 'Unclassified') {
+            if (serie.media_type && serie.media_type !== '') {
               return false;
             }
           } else {
-            if (serieMediaType !== targetMediaType && !serieMediaType.includes(targetMediaType)) {
-              return false;
+            const serieMediaType = (serie.media_type || '').toLowerCase();
+            // Décoder l'URL (pour gérer "Light%20Novel" -> "Light Novel")
+            const decodedMediaType = decodeURIComponent(mediaTypeFromUrl);
+            const targetMediaType = decodedMediaType.toLowerCase();
+            
+            // Gestion spéciale pour Light Novel
+            if (decodedMediaType === 'Light Novel') {
+              if (!serieMediaType.includes('light novel') && !serieMediaType.includes('novel')) {
+                return false;
+              }
+            } else {
+              if (serieMediaType !== targetMediaType && !serieMediaType.includes(targetMediaType)) {
+                return false;
+              }
             }
           }
         }

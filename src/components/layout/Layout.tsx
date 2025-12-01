@@ -41,6 +41,7 @@ export default function Layout({ children, currentUser }: LayoutProps) {
     comics: number;
     bd: number;
     books: number;
+    unclassified?: number;
   } | null>(null);
   const [collectionCounts, setCollectionCounts] = useState<{
     animes: number;
@@ -340,11 +341,11 @@ export default function Layout({ children, currentUser }: LayoutProps) {
             {contentPrefs.showMangas && (
               <NavGroup
                 icon="📚"
-                label={availableContentTypes ? `Lectures (${(availableContentTypes.manga || 0) + (availableContentTypes.manhwa || 0) + (availableContentTypes.manhua || 0) + (availableContentTypes.lightNovel || 0) + (availableContentTypes.webtoon || 0) + (availableContentTypes.comics || 0) + (availableContentTypes.bd || 0) + (availableContentTypes.books || 0)})` : 'Lectures'}
+                label={availableContentTypes ? `Lectures (${(availableContentTypes.manga || 0) + (availableContentTypes.manhwa || 0) + (availableContentTypes.manhua || 0) + (availableContentTypes.lightNovel || 0) + (availableContentTypes.webtoon || 0) + (availableContentTypes.comics || 0) + (availableContentTypes.bd || 0) + (availableContentTypes.books || 0) + (availableContentTypes.unclassified || 0)})` : 'Lectures'}
                 defaultExpanded={location.pathname.startsWith('/lectures') || location.pathname.startsWith('/collection') || location.pathname.startsWith('/books')}
               >
                 <NavLink to="/lectures" icon="📚" isActive={isActive('/lectures')}>
-                  {availableContentTypes ? `Tout (${(availableContentTypes.manga || 0) + (availableContentTypes.manhwa || 0) + (availableContentTypes.manhua || 0) + (availableContentTypes.lightNovel || 0) + (availableContentTypes.webtoon || 0) + (availableContentTypes.comics || 0) + (availableContentTypes.bd || 0) + (availableContentTypes.books || 0)})` : 'Tout'}
+                  {availableContentTypes ? `Tout (${(availableContentTypes.manga || 0) + (availableContentTypes.manhwa || 0) + (availableContentTypes.manhua || 0) + (availableContentTypes.lightNovel || 0) + (availableContentTypes.webtoon || 0) + (availableContentTypes.comics || 0) + (availableContentTypes.bd || 0) + (availableContentTypes.books || 0) + (availableContentTypes.unclassified || 0)})` : 'Tout'}
                 </NavLink>
                 {availableContentTypes && availableContentTypes.manga > 0 && (
                   <NavLink to="/collection?media_type=Manga" icon="📘" isActive={location.pathname === '/collection' && location.search.includes('media_type=Manga')}>
@@ -384,6 +385,11 @@ export default function Layout({ children, currentUser }: LayoutProps) {
                 {availableContentTypes && availableContentTypes.books > 0 && (
                   <NavLink to="/books" icon="📖" isActive={isActive('/books')}>
                     Livres ({availableContentTypes.books})
+                  </NavLink>
+                )}
+                {availableContentTypes && (availableContentTypes.unclassified || 0) > 0 && (
+                  <NavLink to="/collection?media_type=Unclassified" icon="❓" isActive={location.pathname === '/collection' && location.search.includes('media_type=Unclassified')}>
+                    Non classé ({(availableContentTypes.unclassified || 0)})
                   </NavLink>
                 )}
               </NavGroup>

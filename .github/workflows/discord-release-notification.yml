@@ -88,7 +88,7 @@ jobs:
                   },
                   {
                     "name": "🔗 Liens Utiles",
-                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)"),
+                    "value": ("📦 [Page de la Release](https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/" + $version + ")\n📝 [Changelog Complet](https://github.com/Rory-Mercury-91/Le-Nexus/blob/main/CHANGELOG.md)\n🐛 [Signaler un Bug](https://github.com/Rory-Mercury-91/Le-Nexus/issues)"),
                     "inline": false
                   }
                 ],

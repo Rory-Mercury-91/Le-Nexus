@@ -8,9 +8,13 @@ const { registerBdHandlers } = require('./bd-handlers');
 /**
  * Détecte les types de contenu disponibles dans la base de données
  * Retourne un objet avec les types disponibles et leur nombre
+ * Exclut les séries masquées pour être cohérent avec l'affichage dans les pages
  */
 function handleGetAvailableContentTypes(db, store) {
   const currentUser = store.get('currentUser', '');
+  const { getUserIdByName } = require('../mangas/manga-helpers');
+  const userId = getUserIdByName(db, currentUser);
+  const userBinding = typeof userId === 'number' ? userId : -1;
   
   const result = {
     manga: 0,
@@ -20,22 +24,58 @@ function handleGetAvailableContentTypes(db, store) {
     webtoon: 0,
     comics: 0,
     bd: 0,
-    books: 0
+    books: 0,
+    unclassified: 0  // Entrées sans media_type
   };
 
-  // Compter les séries manga par media_type
-  const mangaCounts = db.prepare(`
+  // Construire la condition pour exclure les séries masquées (comme dans handleGetSeries)
+  const hiddenFilter = currentUser && userId 
+    ? `AND (mud.is_hidden IS NULL OR mud.is_hidden = 0)`
+    : '';
+
+  // D'abord compter les comics et BD (priorité) pour éviter les doubles comptages
+  // Exclure les séries masquées pour être cohérent avec l'affichage dans les pages
+  const comicsQuery = `
+    SELECT COUNT(*) as count
+    FROM manga_series s
+    LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+    WHERE (LOWER(s.media_type) = 'comic' OR LOWER(s.type_volume) LIKE '%comic%')
+      ${hiddenFilter}
+  `;
+  const comicsCount = db.prepare(comicsQuery).get(userBinding);
+  result.comics = comicsCount?.count || 0;
+
+  const bdQuery = `
+    SELECT COUNT(*) as count
+    FROM manga_series s
+    LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+    WHERE (LOWER(s.media_type) = 'bd' OR LOWER(s.type_volume) LIKE '%bd%')
+      ${hiddenFilter}
+  `;
+  const bdCount = db.prepare(bdQuery).get(userBinding);
+  result.bd = bdCount?.count || 0;
+
+  // Compter les séries manga par media_type (inclure toutes les séries, même sans media_type)
+  // Exclure celles déjà comptées comme comics ou BD et les séries masquées
+  const mangaCountsQuery = `
     SELECT 
-      media_type,
+      s.media_type,
       COUNT(*) as count
-    FROM manga_series
-    WHERE media_type IS NOT NULL AND media_type != ''
-    GROUP BY media_type
-  `).all();
+    FROM manga_series s
+    LEFT JOIN manga_user_data mud ON s.id = mud.serie_id AND mud.user_id = ?
+    WHERE NOT (LOWER(COALESCE(s.media_type, '')) = 'comic' OR LOWER(COALESCE(s.type_volume, '')) LIKE '%comic%')
+      AND NOT (LOWER(COALESCE(s.media_type, '')) = 'bd' OR LOWER(COALESCE(s.type_volume, '')) LIKE '%bd%')
+      ${hiddenFilter}
+    GROUP BY s.media_type
+  `;
+  const mangaCounts = db.prepare(mangaCountsQuery).all(userBinding);
 
   mangaCounts.forEach(row => {
     const mediaType = (row.media_type || '').toLowerCase();
-    if (mediaType.includes('manga') && !mediaType.includes('manhwa') && !mediaType.includes('manhua')) {
+    // Si media_type est NULL ou vide, compter dans "Non classé"
+    if (!row.media_type || row.media_type === '') {
+      result.unclassified += row.count;
+    } else if (mediaType.includes('manga') && !mediaType.includes('manhwa') && !mediaType.includes('manhua')) {
       result.manga += row.count;
     } else if (mediaType.includes('manhwa')) {
       result.manhwa += row.count;
@@ -45,27 +85,11 @@ function handleGetAvailableContentTypes(db, store) {
       result.lightNovel += row.count;
     } else if (mediaType.includes('webtoon')) {
       result.webtoon += row.count;
+    } else {
+      // Autres types non reconnus -> Non classé
+      result.unclassified += row.count;
     }
   });
-
-  // Compter les comics (manga_series avec media_type = "Comic" ou type_volume contenant "Comic")
-  // TODO: À implémenter quand la table comics sera créée
-  // Pour l'instant, on peut utiliser manga_series avec media_type = "Comic"
-  const comicsCount = db.prepare(`
-    SELECT COUNT(*) as count
-    FROM manga_series
-    WHERE LOWER(media_type) = 'comic' OR LOWER(type_volume) LIKE '%comic%'
-  `).get();
-  result.comics = comicsCount?.count || 0;
-
-  // Compter les BD (manga_series avec media_type = "BD" ou type_volume contenant "BD")
-  // TODO: À implémenter quand la table bd sera créée
-  const bdCount = db.prepare(`
-    SELECT COUNT(*) as count
-    FROM manga_series
-    WHERE LOWER(media_type) = 'bd' OR LOWER(type_volume) LIKE '%bd%'
-  `).get();
-  result.bd = bdCount?.count || 0;
 
   // Compter les livres
   const booksCount = db.prepare(`

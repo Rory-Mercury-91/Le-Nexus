@@ -549,6 +549,8 @@ function initDatabase(dbPath) {
       score REAL,
       nb_votes INTEGER,
       rating TEXT,
+      prix_suggere REAL,
+      devise TEXT,
       user_modified_fields TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

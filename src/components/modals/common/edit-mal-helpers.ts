@@ -321,7 +321,23 @@ export function createMangaEditConfig(serie: Serie): EditMalItemModalConfig<Seri
     { key: 'auteurs', type: 'text', label: 'Auteurs (optionnel)', placeholder: 'Auteur 1, Auteur 2', required: false },
     
     // Métadonnées MAL
-    { key: 'media_type', type: 'text', label: 'Type média (optionnel)', placeholder: 'Manga', required: false },
+    { 
+      key: 'media_type', 
+      type: 'select', 
+      label: 'Type média (optionnel)', 
+      options: [
+        { value: '', label: '-- Non classé --' },
+        { value: 'Manga', label: 'Manga' },
+        { value: 'Manhwa', label: 'Manhwa' },
+        { value: 'Manhua', label: 'Manhua' },
+        { value: 'Light Novel', label: 'Light Novel' },
+        { value: 'Novel', label: 'Novel' },
+        { value: 'Webtoon', label: 'Webtoon' },
+        { value: 'Comic', label: 'Comic' },
+        { value: 'BD', label: 'BD' }
+      ],
+      required: false 
+    },
     { key: 'date_debut', type: 'date', label: 'Date début (optionnel)', required: false },
     { key: 'date_fin', type: 'date', label: 'Date fin (optionnel)', required: false },
     { key: 'mal_id', type: 'number', label: 'MAL ID (optionnel)', placeholder: '12345', required: false },

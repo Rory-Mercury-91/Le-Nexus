@@ -21,7 +21,7 @@ import { getSerieStatusLabel } from '../../utils/manga-status';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
 import { translateGenre, translateTheme } from '../../utils/translations';
 
-type ContentType = 'all' | 'manga' | 'manhwa' | 'manhua' | 'lightNovel' | 'webtoon' | 'comics' | 'bd' | 'books';
+type ContentType = 'all' | 'manga' | 'manhwa' | 'manhua' | 'lightNovel' | 'webtoon' | 'comics' | 'bd' | 'books' | 'unclassified';
 
 interface ContentTypeInfo {
   type: ContentType;
@@ -82,6 +82,7 @@ export default function Lectures() {
     comics: number;
     bd: number;
     books: number;
+    unclassified?: number;
   } | null>(null);
 
   const [selectedType, setSelectedType] = useState<ContentType>('all');
@@ -272,7 +273,7 @@ export default function Lectures() {
       if (selectedType === 'all') {
         setSeries(allSeries || []);
       } else {
-        const mediaTypeMap: Record<ContentType, string> = {
+        const mediaTypeMap: Record<ContentType, string | null> = {
           all: '',
           manga: 'Manga',
           manhwa: 'Manhwa',
@@ -281,13 +282,19 @@ export default function Lectures() {
           webtoon: 'Webtoon',
           comics: 'Comic',
           bd: 'BD',
-          books: ''
+          books: '',
+          unclassified: null  // null signifie media_type NULL
         };
 
         const targetMediaType = mediaTypeMap[selectedType];
         const filtered = (allSeries || []).filter((serie: Serie) => {
+          // Pour "unclassified", on filtre les séries avec media_type NULL ou vide
+          if (selectedType === 'unclassified') {
+            return !serie.media_type || serie.media_type === '';
+          }
+
           const serieMediaType = (serie.media_type || '').toLowerCase();
-          const target = targetMediaType.toLowerCase();
+          const target = targetMediaType ? targetMediaType.toLowerCase() : '';
 
           if (selectedType === 'lightNovel') {
             return serieMediaType.includes('light novel') || serieMediaType.includes('novel');
@@ -429,7 +436,12 @@ export default function Lectures() {
 
           // Pour les séries, vérifier le media_type
           if (isSerie(item) && selectedType !== 'books') {
-            const mediaTypeMap: Record<ContentType, string> = {
+            // Pour "unclassified", on filtre les séries avec media_type NULL ou vide
+            if (selectedType === 'unclassified') {
+              return !item.media_type || item.media_type === '';
+            }
+
+            const mediaTypeMap: Record<ContentType, string | null> = {
               all: '',
               manga: 'Manga',
               manhwa: 'Manhwa',
@@ -438,11 +450,12 @@ export default function Lectures() {
               webtoon: 'Webtoon',
               comics: 'Comic',
               bd: 'BD',
-              books: ''
+              books: '',
+              unclassified: null
             };
             const targetMediaType = mediaTypeMap[selectedType];
             const serieMediaType = (item.media_type || '').toLowerCase();
-            const target = targetMediaType.toLowerCase();
+            const target = targetMediaType ? targetMediaType.toLowerCase() : '';
 
             if (selectedType === 'lightNovel') {
               return serieMediaType.includes('light novel') || serieMediaType.includes('novel');
@@ -612,7 +625,7 @@ export default function Lectures() {
     if (!contentTypes) return [];
 
     return [
-      { type: 'all', label: 'Tout', icon: '📚', count: Object.values(contentTypes).reduce((a, b) => a + b, 0) },
+      { type: 'all', label: 'Tout', icon: '📚', count: Object.values(contentTypes).reduce((a, b) => a + (b || 0), 0) },
       { type: 'manga', label: 'Manga', icon: '📘', count: contentTypes.manga },
       { type: 'manhwa', label: 'Manhwa', icon: '📙', count: contentTypes.manhwa },
       { type: 'manhua', label: 'Manhua', icon: '📕', count: contentTypes.manhua },
@@ -620,7 +633,8 @@ export default function Lectures() {
       { type: 'webtoon', label: 'Webtoon', icon: '📱', count: contentTypes.webtoon },
       { type: 'comics', label: 'Comics', icon: '🦸', count: contentTypes.comics },
       { type: 'bd', label: 'BD', icon: '📗', count: contentTypes.bd },
-      { type: 'books', label: 'Livres', icon: '📖', count: contentTypes.books }
+      { type: 'books', label: 'Livres', icon: '📖', count: contentTypes.books },
+      ...((contentTypes.unclassified || 0) > 0 ? [{ type: 'unclassified' as ContentType, label: 'Non classé', icon: '❓', count: contentTypes.unclassified || 0 }] : [])
     ];
   };
 
@@ -749,7 +763,8 @@ export default function Lectures() {
 
   const contentTypeInfo = getContentTypeInfo();
   const visibleTypes = contentTypeInfo.filter(ct => ct.count > 0 || ct.type === 'all');
-  const totalCount = series.length + books.length;
+  // Utiliser sortedItems.length pour avoir le total des éléments filtrés et affichés
+  const totalCount = sortedItems.length;
 
   return (
     <>
