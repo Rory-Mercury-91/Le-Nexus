@@ -23,6 +23,7 @@ import SearchHelpModal from '../../../../components/modals/help/SearchHelpModal'
 import { ADULTE_GAME_SEARCH_HELP_CONFIG } from '../../../../components/modals/help/search-help-configs';
 import { useGlobalProgress } from '../../../../contexts/GlobalProgressContext';
 import { useAdulteGameCollection } from '../../../../hooks/collections/useAdulteGameCollection';
+import { useMultiDelete } from '../../../../hooks/collections/useMultiDelete';
 import { useConfirm } from '../../../../hooks/common/useConfirm';
 import { rememberScrollTarget, useScrollRestoration } from '../../../../hooks/common/useScrollRestoration';
 import { useToast } from '../../../../hooks/common/useToast';
@@ -591,6 +592,35 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
     );
   };
 
+  // Suppression multiple
+  const {
+    isSelectionMode,
+    selectedCount,
+    isDeleting,
+    toggleSelectionMode,
+    toggleItemSelection,
+    selectAll,
+    deselectAll,
+    isItemSelected,
+    handleDeleteSelected,
+    ConfirmDialog: MultiDeleteConfirmDialog
+  } = useMultiDelete<AdulteGame>({
+    deleteApi: (id) => window.electronAPI.deleteAdulteGameGame(id as number),
+    itemName: 'jeu',
+    getItemTitle: (game) => game.titre || 'Sans titre',
+    onDeleteComplete: () => {
+      loadGames();
+    }
+  });
+
+  const handleDeleteSelectedGames = useCallback(async () => {
+    await handleDeleteSelected(filteredGames);
+  }, [handleDeleteSelected, filteredGames]);
+
+  const handleSelectAllGames = useCallback(() => {
+    selectAll(filteredGames);
+  }, [selectAll, filteredGames]);
+
   if (loading && games.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -603,6 +633,7 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
     <>
       {ToastContainer}
       <ConfirmModal />
+      <MultiDeleteConfirmDialog />
       <div className="fade-in" style={{ padding: '32px 40px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           {/* En-tête avec composant réutilisable */}
@@ -613,6 +644,13 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
             countLabel={filteredGames.length > 1 ? 'jeux' : 'jeu'}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter un jeu"
+            isSelectionMode={isSelectionMode}
+            selectedCount={selectedCount}
+            onToggleSelectionMode={toggleSelectionMode}
+            onSelectAll={handleSelectAllGames}
+            onDeselectAll={deselectAll}
+            onDeleteSelected={handleDeleteSelectedGames}
+            isDeleting={isDeleting}
             extraButtons={
               <>
                 <button
@@ -1007,6 +1045,9 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
               loading={loading}
               viewMode={viewMode}
               key={`${viewMode}-${currentPage}`}
+              isSelectionMode={isSelectionMode}
+              isItemSelected={isItemSelected}
+              onToggleItemSelection={toggleItemSelection}
               renderCard={renderGameCard}
               renderListItem={renderGameListItem}
               emptyMessage={
@@ -1026,6 +1067,9 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
               loading={loading}
               viewMode={viewMode}
               key={`${viewMode}-${currentPage}`}
+              isSelectionMode={isSelectionMode}
+              isItemSelected={isItemSelected}
+              onToggleItemSelection={toggleItemSelection}
               renderCard={renderGameCard}
               renderListItem={renderGameListItem}
               emptyMessage={

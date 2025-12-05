@@ -23,6 +23,10 @@ interface CollectionViewProps<T> {
   emptyIcon?: React.ReactNode;
   gridMinWidth?: number;
   imageMinWidth?: number;
+  // Mode sélection multiple
+  isSelectionMode?: boolean;
+  isItemSelected?: (id: number | string) => boolean;
+  onToggleItemSelection?: (id: number | string) => void;
 }
 
 // Fonction helper pour générer une clé unique pour un item
@@ -44,7 +48,10 @@ export default function CollectionView<T extends { id: number | string }>({
   emptyMessage = 'Aucun élément dans votre collection',
   emptyIcon,
   gridMinWidth = 360,
-  imageMinWidth = 200
+  imageMinWidth = 200,
+  isSelectionMode = false,
+  isItemSelected,
+  onToggleItemSelection
 }: CollectionViewProps<T>) {
   // Mémoriser les styles pour éviter les recalculs
   const gridStyle = useMemo(() => ({
@@ -100,15 +107,43 @@ export default function CollectionView<T extends { id: number | string }>({
         <div style={gridStyle}>
           {items.map((item) => {
             const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
+            const selected = isSelectionMode && isItemSelected ? isItemSelected(item.id) : false;
             return (
-              <div 
-                key={itemKey} 
+              <div
+                key={itemKey}
                 data-scroll-id={String(item.id)}
                 style={{
                   display: 'flex',
-                  height: '100%'
+                  height: '100%',
+                  position: 'relative'
                 }}
               >
+                {isSelectionMode && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '48px',
+                      zIndex: 10,
+                      background: 'var(--surface)',
+                      borderRadius: '4px',
+                      padding: '4px',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => onToggleItemSelection?.(item.id)}
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        cursor: 'pointer',
+                        accentColor: 'var(--primary)'
+                      }}
+                    />
+                  </div>
+                )}
                 {renderCard(item, onUpdate)}
               </div>
             );
@@ -120,9 +155,35 @@ export default function CollectionView<T extends { id: number | string }>({
         <div style={listStyle}>
           {items.map((item) => {
             const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
+            const selected = isSelectionMode && isItemSelected ? isItemSelected(item.id) : false;
             return (
-              <div key={itemKey} data-scroll-id={String(item.id)}>
-                {renderListItem ? renderListItem(item, onUpdate) : renderCard(item, onUpdate)}
+              <div
+                key={itemKey}
+                data-scroll-id={String(item.id)}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}
+              >
+                {isSelectionMode && (
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => onToggleItemSelection?.(item.id)}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      cursor: 'pointer',
+                      accentColor: 'var(--primary)',
+                      flexShrink: 0
+                    }}
+                  />
+                )}
+                <div style={{ flex: 1 }}>
+                  {renderListItem ? renderListItem(item, onUpdate) : renderCard(item, onUpdate)}
+                </div>
               </div>
             );
           })}
@@ -134,16 +195,49 @@ export default function CollectionView<T extends { id: number | string }>({
         <div style={imagesStyle}>
           {items.map((item) => {
             const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
+            const selected = isSelectionMode && isItemSelected ? isItemSelected(item.id) : false;
             const card = renderCard(item, onUpdate);
             // Cloner l'élément et ajouter imageOnly pour mode images
             const enhancedCard = isValidElement(card)
-              ? cloneElement(card as React.ReactElement<{ imageOnly?: boolean }>, { 
-                  imageOnly: true
-                })
+              ? cloneElement(card as React.ReactElement<{ imageOnly?: boolean }>, {
+                imageOnly: true
+              })
               : card;
-            
+
             return (
-              <div key={itemKey} data-scroll-id={String(item.id)}>
+              <div
+                key={itemKey}
+                data-scroll-id={String(item.id)}
+                style={{
+                  position: 'relative'
+                }}
+              >
+                {isSelectionMode && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '48px',
+                      zIndex: 10,
+                      background: 'var(--surface)',
+                      borderRadius: '4px',
+                      padding: '4px',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => onToggleItemSelection?.(item.id)}
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        cursor: 'pointer',
+                        accentColor: 'var(--primary)'
+                      }}
+                    />
+                  </div>
+                )}
                 {enhancedCard}
               </div>
             );

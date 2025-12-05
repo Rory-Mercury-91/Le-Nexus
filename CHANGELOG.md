@@ -5,6 +5,40 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.5-Fix] - 2025-12-05
+
+### ✨ Ajouté
+- **Suppression multiple dans les collections**
+  - Nouvelle fonctionnalité de suppression multiple pour les animes, mangas, livres et jeux
+  - Bouton "Supprimer" dans le header de chaque collection pour activer le mode sélection
+  - Cases à cocher affichées sur chaque élément en mode sélection (positionnées à gauche du menu trois points)
+  - Boutons "Tout sélectionner" / "Tout désélectionner" pour faciliter la sélection
+  - Compteur d'éléments sélectionnés affiché dans le header
+  - Confirmation avant suppression avec liste des éléments à supprimer
+  - Respect des filtres actifs : seuls les éléments visibles peuvent être sélectionnés
+  - Gestion des erreurs avec messages appropriés en cas d'échec partiel
+  - Rechargement automatique de la collection après suppression
+  - Support pour toutes les vues : grille, liste et images uniquement
+  - Hook réutilisable `useMultiDelete` pour faciliter l'intégration dans d'autres collections
+
+### 🐛 Corrigé
+- **Affichage du logo en production**
+  - Correction du problème d'affichage du logo Nexus en production Electron
+  - Utilisation de la fonction `getAssetPath` pour gérer correctement les chemins selon l'environnement
+  - Le logo s'affiche maintenant correctement en production avec le protocole `file://`
+
+- **Navigation après suppression**
+  - Correction de l'écran blanc lors de la suppression d'un anime en production
+  - Remplacement de `window.location.href` par `navigate()` de React Router
+  - Navigation fluide sans rechargement complet de la page
+  - Compatible avec le système de routage HashRouter utilisé en production Electron
+
+### 🔧 Amélioré
+- **Interface utilisateur**
+  - Positionnement des cases à cocher optimisé : placées à gauche du menu trois points plutôt qu'en haut à gauche
+  - Meilleure visibilité et accessibilité des contrôles de sélection
+  - Interface de confirmation de suppression améliorée avec affichage des titres des éléments
+
 ## [1.0.5] - 2025-12-03
 
 ### 🎬 Refonte complète de la section Vidéos

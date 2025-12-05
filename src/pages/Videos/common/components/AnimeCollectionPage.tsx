@@ -13,11 +13,12 @@ import {
 } from '../../../../components/collections';
 import CollectionView from '../../../../components/common/CollectionView';
 import ListItem from '../../../../components/common/ListItem';
-import AddAnimeModal from '../../../../components/modals/videos/AddAnimeModal';
 import MalCandidateSelectionModal from '../../../../components/modals/common/MalCandidateSelectionModal';
 import SearchHelpModal from '../../../../components/modals/help/SearchHelpModal';
 import { ANIMES_SEARCH_HELP_CONFIG } from '../../../../components/modals/help/search-help-configs';
+import AddAnimeModal from '../../../../components/modals/videos/AddAnimeModal';
 import { useCollectionViewMode } from '../../../../hooks/collections/useCollectionViewMode';
+import { useMultiDelete } from '../../../../hooks/collections/useMultiDelete';
 import { usePagination } from '../../../../hooks/collections/usePagination';
 import { useCollectionFilters } from '../../../../hooks/common/useCollectionFilters';
 import { usePersistentState } from '../../../../hooks/common/usePersistentState';
@@ -725,9 +726,40 @@ export default function AnimeCollectionPage({ config }: AnimeCollectionPageProps
     completionFilter !== '' ||
     workStatusFilter !== '';
 
+  // Suppression multiple
+  const {
+    isSelectionMode,
+    selectedCount,
+    isDeleting,
+    toggleSelectionMode,
+    toggleItemSelection,
+    selectAll,
+    deselectAll,
+    isItemSelected,
+    handleDeleteSelected,
+    ConfirmDialog: MultiDeleteConfirmDialog
+  } = useMultiDelete<AnimeSerie>({
+    deleteApi: (id) => window.electronAPI.deleteAnime(id as number),
+    itemName: 'anime',
+    getItemTitle: (anime) => anime.titre,
+    onDeleteComplete: () => {
+      loadAnimes();
+      window.dispatchEvent(new CustomEvent('anime-deleted'));
+    }
+  });
+
+  const handleDeleteSelectedAnimes = useCallback(async () => {
+    await handleDeleteSelected(sortedAnimes);
+  }, [handleDeleteSelected, sortedAnimes]);
+
+  const handleSelectAllAnimes = useCallback(() => {
+    selectAll(sortedAnimes);
+  }, [selectAll, sortedAnimes]);
+
   return (
     <>
       {ToastContainer}
+      <MultiDeleteConfirmDialog />
       <div className="fade-in" style={{ padding: '32px 40px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           <CollectionHeader
@@ -737,6 +769,13 @@ export default function AnimeCollectionPage({ config }: AnimeCollectionPageProps
             countLabel={sortedAnimes.length > 1 ? 'animes' : 'anime'}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel="Ajouter un anime"
+            isSelectionMode={isSelectionMode}
+            selectedCount={selectedCount}
+            onToggleSelectionMode={toggleSelectionMode}
+            onSelectAll={handleSelectAllAnimes}
+            onDeselectAll={deselectAll}
+            onDeleteSelected={handleDeleteSelectedAnimes}
+            isDeleting={isDeleting}
             extraButtons={
               <button
                 onClick={async () => {
@@ -876,6 +915,9 @@ export default function AnimeCollectionPage({ config }: AnimeCollectionPageProps
             viewMode={viewMode}
             gridMinWidth={200}
             imageMinWidth={200}
+            isSelectionMode={isSelectionMode}
+            isItemSelected={isItemSelected}
+            onToggleItemSelection={toggleItemSelection}
             renderCard={(anime) => (
               <AnimeCard
                 key={`${anime.id}-${anime.statut_visionnage}-${anime.is_favorite}-${updateKey}`}

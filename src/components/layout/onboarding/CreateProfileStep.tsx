@@ -508,7 +508,7 @@ export default function CreateProfileStep({
                 {
                   key: 'adulte-game',
                   label: '🎮 Jeux',
-                  description: 'Nouveautés et suivis',
+                  description: 'Jeux vidéos et jeux adultes',
                   checked: showAdulteGame,
                   onChange: onShowAdulteGameChange
                 }

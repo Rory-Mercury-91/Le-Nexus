@@ -16,6 +16,7 @@ import AddBookComicBdModal from '../../../../components/modals/lectures/AddBookC
 import AddLectureTypeModal from '../../../../components/modals/lectures/AddLectureTypeModal';
 import AddMangaModal from '../../../../components/modals/lectures/AddMangaModal';
 import { useCollectionViewMode } from '../../../../hooks/collections/useCollectionViewMode';
+import { useMultiDelete } from '../../../../hooks/collections/useMultiDelete';
 import { usePagination } from '../../../../hooks/collections/usePagination';
 import { useCollectionFilters } from '../../../../hooks/common/useCollectionFilters';
 import { usePersistentState } from '../../../../hooks/common/usePersistentState';
@@ -623,6 +624,45 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
     selectedGenres.length > 0 ||
     selectedThemes.length > 0;
 
+  // Suppression multiple
+  const {
+    isSelectionMode,
+    selectedCount,
+    isDeleting,
+    toggleSelectionMode,
+    toggleItemSelection,
+    selectAll,
+    deselectAll,
+    isItemSelected,
+    handleDeleteSelected,
+    ConfirmDialog: MultiDeleteConfirmDialog
+  } = useMultiDelete<LectureItem>({
+    deleteApi: async (id) => {
+      const item = sortedItems.find(i => i.id === id);
+      if (item && isSerie(item)) {
+        return await window.electronAPI.deleteSerie(id as number);
+      } else if (item) {
+        return await window.electronAPI.booksDelete?.(id as number) || { success: false };
+      }
+      return { success: false };
+    },
+    itemName: 'œuvre',
+    getItemTitle: (item) => isSerie(item) ? item.titre : (item as BookListItem).titre || 'Sans titre',
+    onDeleteComplete: () => {
+      loadContent();
+      loadStats();
+      window.dispatchEvent(new CustomEvent('serie-deleted'));
+    }
+  });
+
+  const handleDeleteSelectedItems = useCallback(async () => {
+    await handleDeleteSelected(sortedItems);
+  }, [handleDeleteSelected, sortedItems]);
+
+  const handleSelectAllItems = useCallback(() => {
+    selectAll(sortedItems);
+  }, [selectAll, sortedItems]);
+
   const countLabel = sortedItems.length > 1 ? 'œuvres' : 'œuvre';
 
   // Générer le label du bouton selon le type de contenu
@@ -651,6 +691,7 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
   return (
     <>
       {ToastContainer}
+      <MultiDeleteConfirmDialog />
       <div className="fade-in" style={{ padding: '32px 40px 60px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
           <CollectionHeader
@@ -660,6 +701,13 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
             countLabel={countLabel}
             onAdd={() => setShowAddModal(true)}
             addButtonLabel={getAddButtonLabel()}
+            isSelectionMode={isSelectionMode}
+            selectedCount={selectedCount}
+            onToggleSelectionMode={toggleSelectionMode}
+            onSelectAll={handleSelectAllItems}
+            onDeselectAll={deselectAll}
+            onDeleteSelected={handleDeleteSelectedItems}
+            isDeleting={isDeleting}
             extraButtons={(
               <button
                 onClick={() => {
@@ -745,6 +793,9 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
             viewMode={viewMode}
             gridMinWidth={200}
             imageMinWidth={200}
+            isSelectionMode={isSelectionMode}
+            isItemSelected={isItemSelected}
+            onToggleItemSelection={toggleItemSelection}
             renderCard={(item) => {
               if (isSerie(item)) {
                 return (

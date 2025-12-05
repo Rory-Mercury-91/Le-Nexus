@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import React, { ReactNode } from 'react';
 
 interface CollectionHeaderProps {
@@ -9,6 +9,14 @@ interface CollectionHeaderProps {
   onAdd?: () => void;
   addButtonLabel?: string;
   extraButtons?: ReactNode;
+  // Mode suppression multiple
+  isSelectionMode?: boolean;
+  selectedCount?: number;
+  onToggleSelectionMode?: () => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
+  onDeleteSelected?: () => void;
+  isDeleting?: boolean;
 }
 
 const CollectionHeader: React.FC<CollectionHeaderProps> = ({
@@ -18,7 +26,14 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
   countLabel,
   onAdd,
   addButtonLabel,
-  extraButtons
+  extraButtons,
+  isSelectionMode = false,
+  selectedCount = 0,
+  onToggleSelectionMode,
+  onSelectAll,
+  onDeselectAll,
+  onDeleteSelected,
+  isDeleting = false
 }) => {
   return (
     <div style={{
@@ -29,12 +44,12 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
       flexWrap: 'wrap',
       gap: '16px'
     }}>
-      <h1 style={{ 
-        fontSize: '32px', 
-        fontWeight: '700', 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '12px' 
+      <h1 style={{
+        fontSize: '32px',
+        fontWeight: '700',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
       }}>
         {icon && (
           <span style={{ fontSize: '32px' }}>{icon}</span>
@@ -46,21 +61,84 @@ const CollectionHeader: React.FC<CollectionHeaderProps> = ({
           </span>
         )}
       </h1>
-      
-      {(extraButtons || (onAdd && addButtonLabel)) && (
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {extraButtons}
-          {onAdd && addButtonLabel && (
+
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {isSelectionMode ? (
+          <>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              background: 'var(--surface-light)',
+              borderRadius: '8px',
+              border: '1px solid var(--border)'
+            }}>
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>
+                {selectedCount} sélectionné{selectedCount > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={onSelectAll}
+                className="btn btn-outline"
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+                title="Tout sélectionner"
+              >
+                Tout
+              </button>
+              <button
+                onClick={onDeselectAll}
+                className="btn btn-outline"
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+                title="Tout désélectionner"
+              >
+                Aucun
+              </button>
+            </div>
             <button
-              onClick={onAdd}
-              className="btn btn-primary"
+              onClick={onDeleteSelected}
+              disabled={selectedCount === 0 || isDeleting}
+              className="btn btn-danger"
+              style={{
+                opacity: selectedCount === 0 ? 0.5 : 1,
+                cursor: selectedCount === 0 ? 'not-allowed' : 'pointer'
+              }}
             >
-              <Plus size={20} />
-              {addButtonLabel}
+              <Trash2 size={18} />
+              Supprimer ({selectedCount})
             </button>
-          )}
-        </div>
-      )}
+            <button
+              onClick={onToggleSelectionMode}
+              className="btn btn-outline"
+            >
+              <X size={18} />
+              Annuler
+            </button>
+          </>
+        ) : (
+          <>
+            {extraButtons}
+            {onToggleSelectionMode && (
+              <button
+                onClick={onToggleSelectionMode}
+                className="btn btn-outline"
+                title="Mode suppression multiple"
+              >
+                <Trash2 size={18} />
+                Supprimer
+              </button>
+            )}
+            {onAdd && addButtonLabel && (
+              <button
+                onClick={onAdd}
+                className="btn btn-primary"
+              >
+                <Plus size={20} />
+                {addButtonLabel}
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

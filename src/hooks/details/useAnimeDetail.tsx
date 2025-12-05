@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AnimeSerie } from '../../types';
 import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
@@ -14,6 +14,7 @@ const animeDisplayDefaults: AnimeDisplayPrefs = {};
 
 export function useAnimeDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -144,7 +145,7 @@ export function useAnimeDetail() {
           message: `"${anime.titre}" a été supprimé de votre collection.`,
           type: 'success'
         });
-        window.location.href = '/animes';
+        navigate('/animes');
       } else {
         const errorMessage = (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string')
           ? result.error
@@ -163,7 +164,7 @@ export function useAnimeDetail() {
         type: 'error'
       });
     }
-  }, [anime, confirm, showToast]);
+  }, [anime, confirm, showToast, navigate]);
 
   // Hook pour les épisodes
   const {
@@ -281,7 +282,7 @@ export function useAnimeDetail() {
       'source', 'annee', 'saison_diffusion', 'date_sortie_vf', 'date_debut_streaming',
       'duree', 'editeur', 'site_web', 'en_cours_diffusion'
     ];
-    
+
     const fieldsToUpdate = protectedFields.filter(field => enrichmentFields.includes(field));
 
     // Demander confirmation

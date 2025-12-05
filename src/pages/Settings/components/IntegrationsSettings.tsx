@@ -944,9 +944,46 @@ export default function IntegrationsSettings({
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {syncItems.map((item) => (
+        <div style={{ display: 'flex', gap: '14px', flexDirection: 'row' }}>
+          {syncItems.map((item) => (
+            <div
+              key={item.key}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 18px',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-light)',
+                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+                flex: 1,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                <label
+                  htmlFor={item.key}
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                >
+                  {item.label}
+                </label>
+                <TooltipIcon id={item.tooltipId} />
+              </div>
+              <Toggle
+                checked={item.checked}
+                onChange={item.onChange}
+                disabled={!anilistConnected}
+              />
+            </div>
+          ))}
+
           <div
-            key={item.key}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -956,11 +993,12 @@ export default function IntegrationsSettings({
               border: '1px solid var(--border)',
               background: 'var(--surface-light)',
               boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+              flex: 1,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
               <label
-                htmlFor={item.key}
+                htmlFor="anilist-manual-sync"
                 style={{
                   fontSize: '14px',
                   fontWeight: 500,
@@ -969,65 +1007,31 @@ export default function IntegrationsSettings({
                   userSelect: 'none',
                 }}
               >
-                {item.label}
+                🔄 Synchronisation manuelle AniList
               </label>
-              <TooltipIcon id={item.tooltipId} />
+              <TooltipIcon id="anilistManualSync" />
             </div>
-            <Toggle
-              checked={item.checked}
-              onChange={item.onChange}
+            <button
+              onClick={onAnilistSyncNow}
+              className="btn"
               disabled={!anilistConnected}
-            />
-          </div>
-        ))}
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 18px',
-            borderRadius: '10px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-            <label
-              htmlFor="anilist-manual-sync"
               style={{
-                fontSize: '14px',
-                fontWeight: 500,
-                color: 'var(--text)',
-                cursor: 'pointer',
-                userSelect: 'none',
+                opacity: !anilistConnected ? 0.5 : 1,
+                cursor: !anilistConnected ? 'not-allowed' : 'pointer',
+                padding: '8px 16px',
+                fontSize: '13px',
+                borderRadius: '8px',
               }}
             >
-              🔄 Synchronisation manuelle AniList
-            </label>
-            <TooltipIcon id="anilistManualSync" />
+              <RefreshCw size={14} style={{ marginRight: '6px', display: 'inline' }} />
+              Synchroniser maintenant
+            </button>
+            {!anilistConnected && (
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                Connectez-vous d'abord
+              </span>
+            )}
           </div>
-          <button
-            onClick={onAnilistSyncNow}
-            className="btn"
-            disabled={!anilistConnected}
-            style={{
-              opacity: !anilistConnected ? 0.5 : 1,
-              cursor: !anilistConnected ? 'not-allowed' : 'pointer',
-              padding: '8px 16px',
-              fontSize: '13px',
-              borderRadius: '8px',
-            }}
-          >
-            <RefreshCw size={14} style={{ marginRight: '6px', display: 'inline' }} />
-            Synchroniser maintenant
-          </button>
-          {!anilistConnected && (
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-              Connectez-vous d'abord
-            </span>
-          )}
         </div>
         {anilistConnected && anilistLastSync?.timestamp && (
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '18px' }}>
