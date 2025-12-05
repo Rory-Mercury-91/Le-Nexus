@@ -1,4 +1,5 @@
 export { default as AdulteGameBanner } from './AdulteGameBanner';
+export { default as AdulteGameCostsSection } from './AdulteGameCostsSection';
 export { default as AdulteGameHeader } from './AdulteGameHeader';
 export { default as AdulteGameInfoCard } from './AdulteGameInfoCard';
 export { default as AdulteGameLabelsCard } from './AdulteGameLabelsCard';

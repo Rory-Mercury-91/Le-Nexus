@@ -4,10 +4,10 @@ export type ViewMode = 'grid' | 'list' | 'images';
 
 /**
  * Hook pour gérer le mode d'affichage d'une collection avec persistance dans localStorage
- * @param collectionType - Type de collection ('animes', 'mangas', 'adulte-game', 'series', 'movies')
+ * @param collectionType - Type de collection ('animes', 'mangas', 'adulte-game', 'series', 'movies', 'videos')
  * @returns [viewMode, handleViewModeChange]
  */
-export function useCollectionViewMode(collectionType: 'animes' | 'mangas' | 'adulte-game' | 'series' | 'movies') {
+export function useCollectionViewMode(collectionType: 'animes' | 'mangas' | 'adulte-game' | 'series' | 'movies' | 'videos') {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   useEffect(() => {

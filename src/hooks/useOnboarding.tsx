@@ -76,6 +76,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
     showAnimes: true,
     showMovies: true,
     showSeries: true,
+    showVideos: true,
     showAdulteGame: true,
     showBooks: true
   };
@@ -87,7 +88,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
   // showBooks est synchronisé avec showMangas, donc on utilise showMangas comme valeur
   const showBooks = showMangas;
 
-  // Mot de passe jeux adultes (optionnel)
+  // Mot de passe jeux adultes
   const [adulteGamePassword, setAdulteGamePassword] = useState('');
   const [adulteGamePasswordConfirm, setAdulteGamePasswordConfirm] = useState('');
   const [showAdulteGamePassword, setShowAdulteGamePassword] = useState(false);
@@ -280,7 +281,9 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
         return;
       }
 
-      if (!showMangas && !showAnimes && !showMovies && !showSeries && !showAdulteGame) {
+      // Calculer showVideos à partir des 3 options (pour la migration)
+      const showVideos = showAnimes || showMovies || showSeries;
+      if (!showMangas && !showVideos && !showAdulteGame) {
         setError('Veuillez sélectionner au moins un type de contenu');
         setLoading(false);
         return;
@@ -340,6 +343,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
         showAnimes,
         showMovies,
         showSeries,
+        showVideos,
         showAdulteGame,
         showBooks: showMangas // Synchroniser avec showMangas
       });

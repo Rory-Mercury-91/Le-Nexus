@@ -700,10 +700,10 @@ export default function EditMalItemModal<TItem extends { id: number | string; ti
   // Champs communs MAL (titre, titres alternatifs, couverture)
   const commonMalFields: FormField[] = [
     { key: 'titre', type: 'text', label: 'Titre *', placeholder: `Titre du ${mediaType}`, required: true },
-    { key: 'titre_romaji', type: 'text', label: 'Titre romaji (optionnel)', placeholder: 'Romaji Title', required: false },
-    { key: 'titre_natif', type: 'text', label: 'Titre natif (optionnel)', placeholder: '日本語タイトル', required: false },
-    { key: 'titre_anglais', type: 'text', label: 'Titre anglais (optionnel)', placeholder: 'English Title', required: false },
-    { key: 'titres_alternatifs', type: 'text', label: 'Titres alternatifs (optionnel)', placeholder: 'Titre alt 1, Titre alt 2', required: false },
+    { key: 'titre_romaji', type: 'text', label: 'Titre romaji', placeholder: 'Romaji Title', required: false },
+    { key: 'titre_natif', type: 'text', label: 'Titre natif', placeholder: '日本語タイトル', required: false },
+    { key: 'titre_anglais', type: 'text', label: 'Titre anglais', placeholder: 'English Title', required: false },
+    { key: 'titres_alternatifs', type: 'text', label: 'Titres alternatifs', placeholder: 'Titre alt 1, Titre alt 2', required: false },
     { key: 'couverture_url', type: 'text', label: 'URL couverture (géré par upload)', required: false }
   ];
 
@@ -902,7 +902,7 @@ export default function EditMalItemModal<TItem extends { id: number | string; ti
               </button>
               <div style={{ marginTop: '12px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
-                  URL couverture (optionnel)
+                  URL couverture
                 </label>
                 <input
                   type="text"

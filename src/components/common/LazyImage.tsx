@@ -48,7 +48,9 @@ export default function LazyImage({
       },
       {
         threshold,
-        rootMargin: '50px' // Commence à charger 50px avant que l'image soit visible
+        // Charger les images 2 lignes au-dessus et en dessous de la zone visible
+        // 1000px devrait couvrir environ 2 lignes de cartes (chaque carte fait ~300-400px)
+        rootMargin: '1000px 0px'
       }
     );
 

@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useState } from 'react';
-import { useToast } from '../../../hooks/common/useToast';
 import { MalSearchResult } from '../../../hooks/common/useMalSearch';
-import Modal from './Modal';
-import ModalHeader from './ModalHeader';
-import { useModalEscape } from './useModalEscape';
+import { useToast } from '../../../hooks/common/useToast';
 import AddMalSearchSection from './AddMalSearchSection';
 import CoverImageUpload from './CoverImageUpload';
 import MalCandidateSelectionModal from './MalCandidateSelectionModal';
+import Modal from './Modal';
+import ModalHeader from './ModalHeader';
+import { useModalEscape } from './useModalEscape';
 
 /**
  * Configuration pour AddMalItemModal
@@ -27,8 +27,8 @@ export interface AddMalItemModalConfig<TResult extends MalSearchResult> {
     [key: string]: any;
   }>;
   /** Fonction pour créer l'item */
-  createApi: (data: Record<string, any>) => Promise<{ success: boolean; id?: number; error?: string; [key: string]: any }>;
-  /** Fonction pour enrichir l'item après création (optionnel) */
+  createApi: (data: Record<string, any>) => Promise<{ success: boolean; id?: number; error?: string;[key: string]: any }>;
+  /** Fonction pour enrichir l'item après création */
   enrichApi?: (itemId: number, force?: boolean) => Promise<{ success: boolean; error?: string; message?: string }>;
   /** Message de succès pour la création */
   createSuccessMessage?: string;
@@ -48,7 +48,7 @@ interface AddMalItemModalProps<TResult extends MalSearchResult> {
 
 /**
  * Composant générique pour ajouter un item Anime ou Manga depuis MAL/Jikan
- * Utilisé par AddAnimeModal et AddSerieModal
+ * Utilisé par AddAnimeModal et AddMangaModal
  */
 export default function AddMalItemModal<TResult extends MalSearchResult>({
   config,
@@ -93,11 +93,54 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
 
   useModalEscape(onClose, saving);
 
+  // Détecter si la recherche contient un ID MAL ou AniList
+  const detectIdFromSearch = (input: string): { malId: number | null; anilistId: number | null } => {
+    if (!input) return { malId: null, anilistId: null };
+    const trimmed = input.trim();
+
+    // Détecter URL AniList (anime ou manga)
+    const anilistAnimeUrlMatch = trimmed.match(/anilist\.co\/anime\/(\d+)/i);
+    if (anilistAnimeUrlMatch) {
+      return { malId: null, anilistId: parseInt(anilistAnimeUrlMatch[1], 10) };
+    }
+    const anilistMangaUrlMatch = trimmed.match(/anilist\.co\/manga\/(\d+)/i);
+    if (anilistMangaUrlMatch) {
+      return { malId: null, anilistId: parseInt(anilistMangaUrlMatch[1], 10) };
+    }
+
+    // Détecter URL MAL
+    const malUrlMatch = trimmed.match(/myanimelist\.net\/(?:anime|manga)\/(\d+)/i);
+    if (malUrlMatch) {
+      return { malId: parseInt(malUrlMatch[1], 10), anilistId: null };
+    }
+
+    // Si c'est juste un nombre, on assume que c'est un ID MAL (plus commun)
+    if (/^\d+$/.test(trimmed)) {
+      return { malId: parseInt(trimmed, 10), anilistId: null };
+    }
+
+    return { malId: null, anilistId: null };
+  };
+
   // Initialiser la recherche si initialMalId est fourni
   useEffect(() => {
     if (initialMalId) {
       const searchValue = initialMalId.toString();
       setSearchTerm(searchValue);
+
+      // Détecter si c'est un ID direct (MAL ou AniList)
+      const detected = detectIdFromSearch(searchValue);
+      if (detected.malId || detected.anilistId) {
+        // Si c'est un ID, essayer l'import direct
+        if (detected.malId) {
+          handleImportFromMalResult(detected.malId);
+        } else if (detected.anilistId) {
+          handleImportFromAnilistResult(detected.anilistId);
+        }
+        return;
+      }
+
+      // Sinon, faire une recherche normale
       const performAutoSearch = async () => {
         setSearching(true);
         setShowResults(true);
@@ -123,6 +166,17 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
     e.preventDefault();
     if (!searchTerm.trim()) return;
 
+    // Détecter si c'est un ID direct (MAL ou AniList)
+    const detected = detectIdFromSearch(searchTerm);
+    if (detected.malId) {
+      await handleImportFromMalResult(detected.malId);
+      return;
+    } else if (detected.anilistId) {
+      await handleImportFromAnilistResult(detected.anilistId);
+      return;
+    }
+
+    // Sinon, faire une recherche normale
     setSearching(true);
     setShowResults(true);
     try {
@@ -142,7 +196,7 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
 
   const handleSelectResult = (result: TResult) => {
     const malId = result.source === 'MyAnimeList' ? parseInt(result.id, 10) : 0;
-    
+
     setFormData({
       titre: result.titre || '',
       description: result.description?.replace(/<[^>]*>/g, '') || '',
@@ -155,19 +209,36 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
     setSearchTerm('');
   };
 
+  const handleImportFromAnilistResult = async (anilistId: number) => {
+    if (!anilistId || anilistId <= 0) {
+      showToast({ title: 'ID AniList invalide', type: 'error' });
+      return;
+    }
+
+    if (mediaType === 'manga' && typeof window.electronAPI.addMangaByAnilistId === 'function') {
+      await runMalImport(anilistId, {}, false, true); // true = isAnilist
+    } else if (mediaType === 'anime' && typeof window.electronAPI.addAnimeByAnilistId === 'function') {
+      await runMalImport(anilistId, {}, false, true); // true = isAnilist
+    } else {
+      showToast({ title: 'Import AniList non disponible pour ce type', type: 'error' });
+      return;
+    }
+  };
+
   const handleImportFromMalResult = async (malId: number) => {
     if (!malId || malId <= 0) {
       showToast({ title: 'ID MyAnimeList invalide', type: 'error' });
       return;
     }
 
-    await runMalImport(malId, {}, false);
+    await runMalImport(malId, {}, false, false); // false = isAnilist
   };
 
   const runMalImport = async (
-    malIdValue: number,
+    idValue: number,
     options: { targetSerieId?: number; forceCreate?: boolean } = {},
-    fromSelection = false
+    fromSelection = false,
+    isAnilist = false
   ) => {
     if (fromSelection) {
       setResolvingCandidate(true);
@@ -176,15 +247,26 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
     }
 
     try {
-      const result = await importDirectlyApi(malIdValue, options);
+      let result;
+      if (isAnilist && mediaType === 'manga' && typeof window.electronAPI.addMangaByAnilistId === 'function') {
+        result = await window.electronAPI.addMangaByAnilistId(idValue, options);
+      } else if (isAnilist && mediaType === 'anime' && typeof window.electronAPI.addAnimeByAnilistId === 'function') {
+        result = await window.electronAPI.addAnimeByAnilistId(idValue, options);
+      } else {
+        result = await importDirectlyApi(idValue, options);
+      }
 
       if (result.success) {
         setMalCandidateSelection(null);
-        if (result.anime || result.serie) {
-          const item = result.anime || result.serie;
-          showToast({ 
-            title: `✅ ${item.titre} importé avec succès !`, 
-            type: 'success' 
+        if ('anime' in result && result.anime) {
+          showToast({
+            title: `✅ ${result.anime.titre} importé avec succès !`,
+            type: 'success'
+          });
+        } else if ('serie' in result && result.serie) {
+          showToast({
+            title: `✅ ${result.serie.titre} importé avec succès !`,
+            type: 'success'
           });
         }
         setTimeout(() => {
@@ -192,15 +274,15 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
           onClose();
         }, 600);
       } else if (result.requiresSelection && Array.isArray(result.candidates)) {
-        setMalCandidateSelection({ malId: malIdValue, candidates: result.candidates });
+        setMalCandidateSelection({ malId: idValue, candidates: result.candidates });
       } else {
         showToast({ title: result.error || 'Erreur lors de l\'import', type: 'error' });
       }
     } catch (error: any) {
       console.error('Erreur import MAL:', error);
-      showToast({ 
-        title: error?.message || 'Erreur lors de l\'import depuis MyAnimeList', 
-        type: 'error' 
+      showToast({
+        title: error?.message || 'Erreur lors de l\'import depuis MyAnimeList',
+        type: 'error'
       });
     } finally {
       if (fromSelection) {
@@ -246,9 +328,9 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
       const success = result.success !== false && itemId !== null;
 
       if (success) {
-        showToast({ 
-          title: createSuccessMessage, 
-          type: 'success' 
+        showToast({
+          title: createSuccessMessage,
+          type: 'success'
         });
 
         // Si un mal_id a été fourni, lancer l'enrichissement en arrière-plan
@@ -264,8 +346,8 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
           enrichApi(itemId, false)
             .then((enrichResult) => {
               if (enrichResult.success) {
-                showToast({ 
-                  title: enrichSuccessMessage, 
+                showToast({
+                  title: enrichSuccessMessage,
                   message: enrichResult.message || 'Toutes les données ont été mises à jour',
                   type: 'success',
                   duration: 3000
@@ -285,16 +367,16 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
           onClose();
         }, 600);
       } else {
-        showToast({ 
-          title: (result as any).error || 'Erreur lors de l\'ajout', 
-          type: 'error' 
+        showToast({
+          title: (result as any).error || 'Erreur lors de l\'ajout',
+          type: 'error'
         });
       }
     } catch (error: any) {
       console.error('Erreur ajout:', error);
-      showToast({ 
-        title: error?.message || `Erreur lors de l'ajout de ${title.toLowerCase()}`, 
-        type: 'error' 
+      showToast({
+        title: error?.message || `Erreur lors de l'ajout de ${title.toLowerCase()}`,
+        type: 'error'
       });
     } finally {
       setSaving(false);
@@ -380,7 +462,7 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
                   {/* Description */}
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                      Description (optionnel)
+                      Description
                     </label>
                     <textarea
                       value={formData.description}
@@ -411,7 +493,7 @@ export default function AddMalItemModal<TResult extends MalSearchResult>({
 
                     <div>
                       <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                        Genres (optionnel)
+                        Genres
                       </label>
                       <input
                         type="text"

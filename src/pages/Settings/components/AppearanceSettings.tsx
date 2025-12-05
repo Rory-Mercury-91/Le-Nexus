@@ -18,6 +18,7 @@ interface AppearanceSettingsProps {
   onOpenSeriesSettings: () => void;
   onOpenBooksSettings: () => void;
   onOpenAdultGameSettings: () => void;
+  onOpenRawgGameSettings: () => void;
 }
 
 export default function AppearanceSettings({
@@ -35,6 +36,7 @@ export default function AppearanceSettings({
   onOpenSeriesSettings,
   onOpenBooksSettings,
   onOpenAdultGameSettings,
+  onOpenRawgGameSettings,
 }: AppearanceSettingsProps) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
@@ -95,10 +97,8 @@ export default function AppearanceSettings({
 
   const visibilityOptions: Array<{ label: string; key: keyof ContentPreferences; description?: string }> = [
     { label: '📚 Lectures', key: 'showMangas', description: 'Manga, Manhwa, Manhua, Comics, BD, Livres' },
-    { label: '🎬 Animes', key: 'showAnimes' },
-    { label: '🎞️ Films', key: 'showMovies' },
-    { label: '📺 Séries', key: 'showSeries' },
-    { label: '🎮 Jeux adultes', key: 'showAdulteGame' }
+    { label: '🎬 Vidéos', key: 'showVideos', description: 'Animes, Films et Séries' },
+    { label: '🎮 Jeux', key: 'showAdulteGame', description: 'Jeux adultes, Jeux vidéo (RAWG)' }
   ];
 
   const personalizationCards: Array<{
@@ -149,6 +149,13 @@ export default function AppearanceSettings({
         description: 'Configurez les sections visibles par défaut : informations principales, traduction, tags…',
         icon: '🎮',
         onOpen: onOpenAdultGameSettings,
+      },
+      {
+        id: 'rawg-game',
+        title: 'Jeux vidéo',
+        description: 'Personnalisez les sections visibles des fiches jeux vidéo importées depuis RAWG.',
+        icon: '🎮',
+        onOpen: onOpenRawgGameSettings,
       },
     ];
 
@@ -281,33 +288,45 @@ export default function AppearanceSettings({
             gap: '12px'
           }}
         >
-          {visibilityOptions.map(({ label, key, description }) => (
-            <div
-              key={key}
-              style={{
-                flex: '1 1 180px',
-                minWidth: '160px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                padding: '12px 16px',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                background: 'var(--surface-light)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600 }}>{label}</span>
-                <Toggle
-                  checked={contentPrefs[key]}
-                  onChange={(checked) => onContentPrefChange(key, checked)}
-                />
+          {visibilityOptions.map(({ label, key, description }) => {
+            // Pour showVideos, calculer la valeur avec fallback sur les anciennes préférences
+            let checked: boolean;
+            if (key === 'showVideos') {
+              checked = contentPrefs.showVideos !== undefined
+                ? contentPrefs.showVideos
+                : (contentPrefs.showAnimes || contentPrefs.showMovies || contentPrefs.showSeries);
+            } else {
+              checked = contentPrefs[key] ?? false;
+            }
+
+            return (
+              <div
+                key={key}
+                style={{
+                  flex: '1 1 180px',
+                  minWidth: '160px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  padding: '12px 16px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  background: 'var(--surface-light)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600 }}>{label}</span>
+                  <Toggle
+                    checked={checked}
+                    onChange={(checked) => onContentPrefChange(key, checked)}
+                  />
+                </div>
+                {description && (
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{description}</span>
+                )}
               </div>
-              {description && (
-                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{description}</span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import ImportingOverlay from './components/common/ImportingOverlay';
 import ProtectedContent from './components/common/ProtectedContent';
@@ -10,23 +10,39 @@ import SplashScreen from './components/layout/SplashScreen';
 import { GlobalProgressProvider } from './contexts/GlobalProgressContext';
 import { AdulteGameLockProvider, useAdulteGameLock } from './hooks/useAdulteGameLock';
 import { useBackendLogger } from './hooks/useBackendLogger';
-import AdulteGame from './pages/AdulteGame/AdulteGame';
 import AdulteGameDetail from './pages/AdulteGame/AdulteGameDetail';
+import GamesAll from './pages/Games/All';
+import GamesVideoGames from './pages/Games/VideoGames';
+import GamesAdulteGames from './pages/Games/AdulteGames';
+import RawgGameDetail from './pages/Games/RawgGameDetail';
 import AnimeDetail from './pages/Animes/AnimeDetail';
-import Animes from './pages/Animes/Animes';
-import Bd from './pages/Bd/Bd';
 import BookDetail from './pages/Books/BookDetail';
-import Books from './pages/Books/Books';
-import Comics from './pages/Comics/Comics';
 import Dashboard from './pages/Dashboard/Dashboard';
-import Lectures from './pages/Lectures/Lectures';
+import Subscriptions from './pages/Subscriptions/Subscriptions';
+import LecturesAll from './pages/Lectures/All';
+import LecturesManga from './pages/Lectures/Manga';
+import LecturesManhwa from './pages/Lectures/Manhwa';
+import LecturesManhua from './pages/Lectures/Manhua';
+import LecturesLightNovel from './pages/Lectures/LightNovel';
+import LecturesWebtoon from './pages/Lectures/Webtoon';
+import LecturesComics from './pages/Lectures/Comics';
+import LecturesBd from './pages/Lectures/Bd';
+import LecturesBooks from './pages/Lectures/Books';
+import LecturesOneShot from './pages/Lectures/OneShot';
+import LecturesUnclassified from './pages/Lectures/Unclassified';
 import SerieDetail from './pages/Mangas/MangaDetail';
-import Collection from './pages/Mangas/Mangas';
 import MovieDetail from './pages/Movies/MovieDetail';
-import Movies from './pages/Movies/Movies';
-import Series from './pages/Series/Series';
 import SeriesDetail from './pages/Series/SeriesDetail';
 import Settings from './pages/Settings/Settings';
+import All from './pages/Videos/All';
+import MovieAnime from './pages/Videos/MovieAnime';
+import VideosMovies from './pages/Videos/Movies';
+import ONA from './pages/Videos/ONA';
+import OVA from './pages/Videos/OVA';
+import VideosSeries from './pages/Videos/Series';
+import Special from './pages/Videos/Special';
+import TV from './pages/Videos/TV';
+import Unclassified from './pages/Videos/Unclassified';
 
 // Wrapper pour protéger les routes jeux adultes
 function ProtectedAdulteGameRoute({ children }: { children: React.ReactNode }) {
@@ -308,32 +324,80 @@ function App() {
             <Layout currentUser={currentUser}>
               <Routes>
                 <Route path="/" element={<Dashboard key={refreshTrigger} />} />
-                <Route path="/lectures" element={<Lectures key={refreshTrigger} />} />
-                <Route path="/collection" element={<Collection key={refreshTrigger} />} />
+                <Route path="/subscriptions" element={<Subscriptions key={refreshTrigger} />} />
+                <Route path="/lectures" element={<LecturesAll key={refreshTrigger} />} />
+                <Route path="/lectures/manga" element={<LecturesManga key={refreshTrigger} />} />
+                <Route path="/lectures/manhwa" element={<LecturesManhwa key={refreshTrigger} />} />
+                <Route path="/lectures/manhua" element={<LecturesManhua key={refreshTrigger} />} />
+                <Route path="/lectures/light-novel" element={<LecturesLightNovel key={refreshTrigger} />} />
+                <Route path="/lectures/webtoon" element={<LecturesWebtoon key={refreshTrigger} />} />
+                <Route path="/lectures/comics" element={<LecturesComics key={refreshTrigger} />} />
+                <Route path="/lectures/bd" element={<LecturesBd key={refreshTrigger} />} />
+                <Route path="/lectures/books" element={<LecturesBooks key={refreshTrigger} />} />
+                <Route path="/lectures/one-shot" element={<LecturesOneShot key={refreshTrigger} />} />
+                <Route path="/lectures/unclassified" element={<LecturesUnclassified key={refreshTrigger} />} />
+                <Route path="/collection" element={<Navigate to="/lectures" replace />} />
                 <Route path="/serie/:id" element={<SerieDetail key={refreshTrigger} />} />
-                <Route path="/animes" element={<Animes key={refreshTrigger} />} />
+                <Route path="/videos" element={<All key={refreshTrigger} />} />
+                <Route path="/videos/tv" element={<TV key={refreshTrigger} />} />
+                <Route path="/videos/ona" element={<ONA key={refreshTrigger} />} />
+                <Route path="/videos/ova" element={<OVA key={refreshTrigger} />} />
+                <Route path="/videos/movie-anime" element={<MovieAnime key={refreshTrigger} />} />
+                <Route path="/videos/special" element={<Special key={refreshTrigger} />} />
+                <Route path="/videos/unclassified" element={<Unclassified key={refreshTrigger} />} />
+                <Route path="/videos/movies" element={<VideosMovies key={refreshTrigger} />} />
+                <Route path="/videos/series" element={<VideosSeries key={refreshTrigger} />} />
+                <Route path="/videos/all" element={<All key={refreshTrigger} />} />
                 <Route path="/animes/:id" element={<AnimeDetail key={refreshTrigger} />} />
-                <Route path="/movies" element={<Movies key={refreshTrigger} />} />
                 <Route path="/movies/:tmdbId" element={<MovieDetail key={refreshTrigger} />} />
-                <Route path="/series" element={<Series key={refreshTrigger} />} />
                 <Route path="/series/:tmdbId" element={<SeriesDetail key={refreshTrigger} />} />
-                <Route path="/books" element={<Books key={refreshTrigger} />} />
                 <Route path="/books/:id" element={<BookDetail key={refreshTrigger} />} />
-                <Route path="/bd" element={<Bd key={refreshTrigger} />} />
-                <Route path="/comics" element={<Comics key={refreshTrigger} />} />
+                {/* Redirections vers les nouvelles routes */}
+                <Route path="/books" element={<Navigate to="/lectures/books" replace />} />
+                <Route path="/comics" element={<Navigate to="/lectures/comics" replace />} />
+                <Route path="/bd" element={<Navigate to="/lectures/bd" replace />} />
                 <Route
                   path="/adulte-game"
-                  element={
-                    <ProtectedAdulteGameRoute>
-                      <AdulteGame key={refreshTrigger} />
-                    </ProtectedAdulteGameRoute>
-                  }
+                  element={<Navigate to="/games/all" replace />}
                 />
                 <Route
                   path="/adulte-game/:id"
                   element={
                     <ProtectedAdulteGameRoute>
                       <AdulteGameDetail key={refreshTrigger} />
+                    </ProtectedAdulteGameRoute>
+                  }
+                />
+                {/* Routes Games */}
+                <Route
+                  path="/games"
+                  element={<GamesAll key={refreshTrigger} />}
+                />
+                <Route
+                  path="/games/all"
+                  element={<GamesAll key={refreshTrigger} />}
+                />
+                <Route
+                  path="/games/video"
+                  element={
+                    <ProtectedAdulteGameRoute>
+                      <GamesVideoGames key={refreshTrigger} />
+                    </ProtectedAdulteGameRoute>
+                  }
+                />
+                <Route
+                  path="/games/adulte"
+                  element={
+                    <ProtectedAdulteGameRoute>
+                      <GamesAdulteGames key={refreshTrigger} />
+                    </ProtectedAdulteGameRoute>
+                  }
+                />
+                <Route
+                  path="/games/rawg/:id"
+                  element={
+                    <ProtectedAdulteGameRoute>
+                      <RawgGameDetail key={refreshTrigger} />
                     </ProtectedAdulteGameRoute>
                   }
                 />

@@ -28,6 +28,9 @@ interface GlobalProgressState {
   animeProgress: AnimeImportProgress | null;
   mangaProgress: AnimeImportProgress | null;
 
+  // Synchronisation AniList
+  anilistSyncing: boolean;
+
   // Traduction
   translating: boolean;
   translationProgress: TranslationProgress | null;
@@ -58,6 +61,7 @@ interface GlobalProgressContextType extends GlobalProgressState {
   setMalSyncing: (syncing: boolean) => void;
   setAnimeProgress: (progress: AnimeImportProgress | null | ((prev: AnimeImportProgress | null) => AnimeImportProgress | null)) => void;
   setMangaProgress: (progress: AnimeImportProgress | null | ((prev: AnimeImportProgress | null) => AnimeImportProgress | null)) => void;
+  setAnilistSyncing: (syncing: boolean) => void;
   setTranslating: (translating: boolean) => void;
   setTranslationProgress: (progress: TranslationProgress | null) => void;
   setAdulteGameUpdating: (updating: boolean) => void;
@@ -92,6 +96,7 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     malSyncing: false,
     animeProgress: null,
     mangaProgress: null,
+    anilistSyncing: false,
     translating: false,
     translationProgress: null,
     adulteGameUpdating: false,
@@ -111,6 +116,10 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
 
   const setMalSyncing = useCallback((syncing: boolean) => {
     setState(prev => ({ ...prev, malSyncing: syncing }));
+  }, []);
+
+  const setAnilistSyncing = useCallback((syncing: boolean) => {
+    setState(prev => ({ ...prev, anilistSyncing: syncing }));
   }, []);
 
   const setAnimeProgress = useCallback((progress: AnimeImportProgress | null | ((prev: AnimeImportProgress | null) => AnimeImportProgress | null)) => {
@@ -164,12 +173,13 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasActiveOperation = useCallback(() => {
-    return state.malSyncing ||
-      state.animeProgress !== null ||
-      state.mangaProgress !== null ||
-      state.translating ||
-      state.adulteGameUpdating;
-  }, [state.malSyncing, state.animeProgress, state.mangaProgress, state.translating, state.adulteGameUpdating]);
+    return state.malSyncing || 
+           state.anilistSyncing ||
+           state.animeProgress !== null || 
+           state.mangaProgress !== null || 
+           state.translating || 
+           state.adulteGameUpdating;
+  }, [state.malSyncing, state.anilistSyncing, state.animeProgress, state.mangaProgress, state.translating, state.adulteGameUpdating]);
 
   // Fonction pour définir le temps de début de synchronisation MAL
   const setImportStartTime = useCallback((time: number) => {
@@ -353,6 +363,129 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
           return prev;
         });
       }, 3000);
+    });
+
+    // Écouter les événements de progression AniList sync
+    const unsubscribeAnilist = window.electronAPI.onAnilistSyncProgress?.((_event: any, progress: {
+      type: 'anime' | 'manga';
+      total: number;
+      current: number;
+      imported?: number;
+      updated?: number;
+      item: string;
+      elapsedMs?: number;
+      etaMs?: number;
+      speed?: number;
+    }) => {
+      const progressData: AnimeImportProgress = {
+        phase: 'anime',
+        type: progress.type,
+        total: progress.total,
+        currentIndex: progress.current,
+        imported: progress.imported || 0,
+        updated: progress.updated || 0,
+        skipped: 0,
+        errors: 0,
+        currentAnime: progress.item,
+        elapsedMs: progress.elapsedMs || (importStartTimeRef.current > 0 && importStartTimeRef.current < Date.now() ? Date.now() - importStartTimeRef.current : undefined),
+        etaMs: progress.etaMs || undefined,
+        speed: progress.speed || undefined
+      };
+
+      if (progress.type === 'manga') {
+        setMangaProgress(progressData);
+        if (mangaCloseTimeoutRef.current) {
+          clearTimeout(mangaCloseTimeoutRef.current);
+          mangaCloseTimeoutRef.current = null;
+        }
+      } else {
+        setAnimeProgress(progressData);
+        if (animeCloseTimeoutRef.current) {
+          clearTimeout(animeCloseTimeoutRef.current);
+          animeCloseTimeoutRef.current = null;
+        }
+      }
+    });
+
+    const unsubscribeAnilistCompleted = window.electronAPI.onAnilistSyncCompleted?.((_event: any, result: {
+      mangas?: { created?: number; updated?: number };
+      animes?: { created?: number; updated?: number };
+    }) => {
+      if (result.mangas) {
+        const mangasData = result.mangas;
+        setMangaProgress((prev) => {
+          if (prev) {
+            return {
+              ...prev,
+              imported: mangasData.created || 0,
+              updated: mangasData.updated || 0,
+              phase: 'complete'
+            };
+          }
+          return prev;
+        });
+      }
+      if (result.animes) {
+        const animesData = result.animes;
+        setAnimeProgress((prev) => {
+          if (prev) {
+            return {
+              ...prev,
+              imported: animesData.created || 0,
+              updated: animesData.updated || 0,
+              phase: 'complete'
+            };
+          }
+          return prev;
+        });
+      }
+
+      setAnilistSyncing(false);
+
+      // Programmer la fermeture automatique des progressions si aucun enrichissement ne démarre
+      if (animeCloseTimeoutRef.current) {
+        clearTimeout(animeCloseTimeoutRef.current);
+        animeCloseTimeoutRef.current = null;
+      }
+      if (mangaCloseTimeoutRef.current) {
+        clearTimeout(mangaCloseTimeoutRef.current);
+        mangaCloseTimeoutRef.current = null;
+      }
+
+      const animeProgressSnapshot = state.animeProgress;
+      const mangaProgressSnapshot = state.mangaProgress;
+      const animeProgressId = animeProgressSnapshot ? `${animeProgressSnapshot.currentIndex}_${animeProgressSnapshot.total}_${animeProgressSnapshot.type}` : null;
+      const mangaProgressId = mangaProgressSnapshot ? `${mangaProgressSnapshot.currentIndex}_${mangaProgressSnapshot.total}_${mangaProgressSnapshot.type}` : null;
+
+      animeCloseTimeoutRef.current = setTimeout(() => {
+        setAnimeProgress((prev) => {
+          if (prev) {
+            const currentId = `${prev.currentIndex}_${prev.total}_${prev.type}`;
+            if (currentId === animeProgressId) {
+              return null;
+            }
+          }
+          return prev;
+        });
+      }, 5000);
+
+      mangaCloseTimeoutRef.current = setTimeout(() => {
+        setMangaProgress((prev) => {
+          if (prev) {
+            const currentId = `${prev.currentIndex}_${prev.total}_${prev.type}`;
+            if (currentId === mangaProgressId) {
+              return null;
+            }
+          }
+          return prev;
+        });
+      }, 5000);
+    });
+
+    const unsubscribeAnilistError = window.electronAPI.onAnilistSyncError?.((_event: any, _data: any) => {
+      setAnilistSyncing(false);
+      setAnimeProgress(null);
+      setMangaProgress(null);
     });
 
     // Écouter les événements d'enrichissement
@@ -550,6 +683,9 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
       if (mangaCloseTimeoutRef.current) clearTimeout(mangaCloseTimeoutRef.current);
       if (unsubscribeMal) unsubscribeMal();
       if (unsubscribeMalCompleted) unsubscribeMalCompleted();
+      if (unsubscribeAnilist) unsubscribeAnilist();
+      if (unsubscribeAnilistCompleted) unsubscribeAnilistCompleted();
+      if (unsubscribeAnilistError) unsubscribeAnilistError();
       if (unsubscribeAnimeEnrichment) unsubscribeAnimeEnrichment();
       if (unsubscribeAnimeEnrichmentComplete) unsubscribeAnimeEnrichmentComplete();
       if (unsubscribeMangaEnrichment) unsubscribeMangaEnrichment();
@@ -562,7 +698,7 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
       if (unsubscribeTranslationError) unsubscribeTranslationError();
       if (unsubscribeAdulteGame) unsubscribeAdulteGame();
     };
-  }, [setAnimeProgress, setMangaProgress, setMalSyncing, setTranslating, setTranslationProgress, setAdulteGameProgress, setAdulteGameUpdating, state, resetMihonImportTimeout]);
+  }, [setAnimeProgress, setMangaProgress, setMalSyncing, setAnilistSyncing, setTranslating, setTranslationProgress, setAdulteGameProgress, setAdulteGameUpdating, state, resetMihonImportTimeout]);
 
   // Enregistrer les callbacks pour les vérifications de mises à jour jeux adultes (en dehors du useEffect principal pour éviter les boucles)
   useEffect(() => {
@@ -585,6 +721,7 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     isProgressCollapsed,
     setIsProgressCollapsed,
     setMalSyncing,
+    setAnilistSyncing,
     setAnimeProgress,
     setMangaProgress,
     setTranslating,

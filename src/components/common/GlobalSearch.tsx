@@ -137,8 +137,14 @@ export default function GlobalSearch({ isOpen, onClose, currentUser }: GlobalSea
         navigate(`/series/${result.id}`);
         break;
       case 'adulte-game':
+        // Vérifier si c'est un jeu RAWG ou un jeu adulte
+        const game = result as any;
         rememberScrollTarget('collection.adulteGames.scroll', result.id);
-        navigate(`/adulte-game/${result.id}`);
+        if (game.game_site === 'RAWG') {
+          navigate(`/games/rawg/${result.id}`);
+        } else {
+          navigate(`/adulte-game/${result.id}`);
+        }
         break;
     }
   };

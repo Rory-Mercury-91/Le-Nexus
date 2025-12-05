@@ -157,6 +157,45 @@ function registerMediaSettingsHandlers(ipcMain, getDb, store) {
     getDb,
     store
   }));
+
+  // ========== RAWG API ==========
+  ipcMain.handle('get-rawg-credentials', () => {
+    return {
+      apiKey: store.get('rawg.apiKey', '')
+    };
+  });
+
+  ipcMain.handle('set-rawg-credentials', (event, { apiKey }) => {
+    if (apiKey !== undefined) {
+      const normalizedKey = typeof apiKey === 'string' ? apiKey.trim() : apiKey;
+      store.set('rawg.apiKey', normalizedKey || '');
+      console.log('[RAWG] API key sauvegardée:', normalizedKey ? `${normalizedKey.slice(0, 4)}…` : '(vide)');
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle('test-rawg-connection', async (event, credentials = {}) => {
+    const { searchGames } = require('../../apis/rawg');
+    const apiKey = credentials.apiKey ?? store.get('rawg.apiKey', process.env.RAWG_API_KEY || '');
+
+    if (!apiKey) {
+      return { success: false, error: 'Aucune clé API RAWG configurée' };
+    }
+
+    try {
+      // Tester avec une recherche simple
+      const result = await searchGames('test', { apiKey, page: 1, pageSize: 1 });
+      return {
+        success: true,
+        message: 'Connexion RAWG réussie'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de la connexion à RAWG'
+      };
+    }
+  });
 }
 
 module.exports = {

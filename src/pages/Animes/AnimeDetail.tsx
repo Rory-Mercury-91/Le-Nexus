@@ -1,7 +1,8 @@
 import { Edit, Settings, Trash2 } from 'lucide-react';
-import ProtectedContent from '../../components/common/ProtectedContent';
+import { useLocation } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import EnrichmentButton from '../../components/common/EnrichmentButton';
+import ProtectedContent from '../../components/common/ProtectedContent';
 import AnimeEditModal from '../../components/modals/anime/AnimeEditModal';
 import DisplaySettingsModal from '../../components/modals/common/DisplaySettingsModal';
 import { useAnimeDetail } from '../../hooks/details/useAnimeDetail';
@@ -11,11 +12,11 @@ import {
   AnimeCover,
   AnimeEpisodesGrid,
   AnimeExternalLinks,
-  AnimeInfoSection,
-  AnimeStreamingLinks
+  AnimeInfoSection
 } from './components';
 
 export default function AnimeDetail() {
+  const location = useLocation();
   const {
     anime,
     episodes,
@@ -79,7 +80,7 @@ export default function AnimeDetail() {
         {ToastContainer}
         <DetailPageHeader
           backLabel="Retour aux animes"
-          backTo="/animes"
+          backTo={(location.state as { from?: string } | null)?.from || '/animes'}
           actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button

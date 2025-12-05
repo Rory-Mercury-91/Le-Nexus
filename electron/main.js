@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, protocol, shell, Tray, Menu, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol, shell, Tray, Menu, session, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
@@ -38,9 +38,12 @@ const { registerAllMovieHandlers } = require('./handlers/movies/movie-handlers')
 const { registerAllTvHandlers } = require('./handlers/tv/tv-handlers');
 const { registerUserHandlers } = require('./handlers/users/user-handlers');
 const { registerMalSyncHandlers } = require('./handlers/mal/mal-sync-handlers');
+const { registerAniListSyncHandlers } = require('./handlers/anilist/anilist-sync-handlers');
 const { registerAdulteGameHandlers } = require('./handlers/adulte-game/adulte-game-handlers');
 const { registerBookHandlers } = require('./handlers/books/book-handlers');
 const { registerLecturesHandlers } = require('./handlers/lectures/lectures-handlers');
+const { registerSubscriptionHandlers } = require('./handlers/subscriptions/subscription-handlers');
+const { registerPurchaseHandlers } = require('./handlers/subscriptions/purchase-handlers');
 const { registerExportHandlers } = require('./handlers/common/export-handlers');
 const { registerImageDownloadHandlers } = require('./handlers/common/image-download-handlers');
 
@@ -871,9 +874,12 @@ app.whenReady().then(async () => {
   registerAnimeHandlers(ipcMain, getDb, store);
   registerStatisticsHandlers(ipcMain, getDb, store);
   registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
-  registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager);
+  registerAniListSyncHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
+  registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager, dialog, () => mainWindow);
   registerBookHandlers(ipcMain, getDb, store);
   registerLecturesHandlers(ipcMain, getDb, store);
+  registerSubscriptionHandlers(ipcMain, getDb, store);
+  registerPurchaseHandlers(ipcMain, getDb, store);
   registerAllMovieHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
   registerAllTvHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
   registerImageDownloadHandlers(ipcMain, dialog, getMainWindow);
@@ -957,6 +963,17 @@ app.whenReady().then(async () => {
   setTimeout(downloadIndexIfReady, 2000);
   
   // Réessayer après que le baseDirectory soit chargé (dans le code ci-dessous)
+  // Handler pour copier dans le presse-papiers
+  ipcMain.handle('copy-to-clipboard', (_event, text) => {
+    try {
+      clipboard.writeText(text);
+      return { success: true };
+    } catch (error) {
+      console.error('Erreur copie presse-papiers:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, getPathManager, (dbPath) => {
     const resolvePaths = () => {
       try {
@@ -1129,12 +1146,19 @@ app.whenReady().then(async () => {
   // Démarrer le scheduler de synchronisation MAL
   try {
     startScheduler(getDb(), store, mainWindow, getDb, getPathManager, getMainWindow);
+    startAniListScheduler(getDb(), store, mainWindow, getDb, getPathManager, getMainWindow);
 
     // Démarrer le scheduler Nautiljon
     startNautiljonScheduler(getDb(), store, mainWindow, getPathManager);
 
     // Effectuer une sync au démarrage si nécessaire
     syncOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
+      console.error('Erreur sync MAL au démarrage:', err);
+    });
+    syncAniListOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
+      console.error('Erreur sync AniList au démarrage:', err);
+    });
+    syncAniListOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
       console.warn('⚠️ Sync MAL au démarrage échouée:', err.message);
     });
 

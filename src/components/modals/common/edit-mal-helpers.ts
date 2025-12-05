@@ -22,57 +22,57 @@ export function createAnimeEditConfig(anime: AnimeSerie): EditMalItemModalConfig
       ],
       required: false
     },
-    { key: 'annee', type: 'number', label: 'Année (optionnel)', placeholder: '2024', required: false },
-    { key: 'description', type: 'textarea', label: 'Description (optionnel)', placeholder: 'Synopsis de l\'anime...', required: false },
+    { key: 'annee', type: 'number', label: 'Année', placeholder: '2024', required: false },
+    { key: 'description', type: 'textarea', label: 'Description', placeholder: 'Synopsis de l\'anime...', required: false },
     
     // Métadonnées détaillées
-    { key: 'source', type: 'text', label: 'Source (optionnel)', placeholder: 'Manga, Light Novel...', required: false },
-    { key: 'nb_episodes', type: 'number', label: 'Nb épisodes (optionnel)', placeholder: '12', required: false },
-    { key: 'duree', type: 'text', label: 'Durée (optionnel)', placeholder: '24 min', required: false },
-    { key: 'statut_diffusion', type: 'text', label: 'Statut diffusion (optionnel)', placeholder: 'Finished Airing', required: false },
-    { key: 'saison_diffusion', type: 'text', label: 'Saison (optionnel)', placeholder: 'Winter, Spring...', required: false },
+    { key: 'source', type: 'text', label: 'Source', placeholder: 'Manga, Light Novel...', required: false },
+    { key: 'nb_episodes', type: 'number', label: 'Nb épisodes', placeholder: '12', required: false },
+    { key: 'duree', type: 'text', label: 'Durée', placeholder: '24 min', required: false },
+    { key: 'statut_diffusion', type: 'text', label: 'Statut diffusion', placeholder: 'Finished Airing', required: false },
+    { key: 'saison_diffusion', type: 'text', label: 'Saison', placeholder: 'Winter, Spring...', required: false },
     { key: 'en_cours_diffusion', type: 'checkbox', label: 'En cours de diffusion', required: false },
     
     // Dates
-    { key: 'date_debut', type: 'date', label: 'Date début (VO) (optionnel)', required: false },
-    { key: 'date_fin', type: 'date', label: 'Date fin (VO) (optionnel)', required: false },
-    { key: 'date_sortie_vf', type: 'date', label: 'Date sortie VF (optionnel)', required: false },
-    { key: 'date_debut_streaming', type: 'date', label: 'Date début streaming/simulcast (optionnel)', required: false },
+    { key: 'date_debut', type: 'date', label: 'Date début (VO)', required: false },
+    { key: 'date_fin', type: 'date', label: 'Date fin (VO)', required: false },
+    { key: 'date_sortie_vf', type: 'date', label: 'Date sortie VF', required: false },
+    { key: 'date_debut_streaming', type: 'date', label: 'Date début streaming/simulcast', required: false },
     
     // Classification
-    { key: 'genres', type: 'text', label: 'Genres (optionnel)', placeholder: 'Action, Aventure, Fantasy', required: false },
-    { key: 'themes', type: 'text', label: 'Thèmes (optionnel)', placeholder: 'School, Military...', required: false },
-    { key: 'demographics', type: 'text', label: 'Démographie (optionnel)', placeholder: 'Shounen, Seinen...', required: false },
-    { key: 'rating', type: 'text', label: 'Rating (optionnel)', placeholder: 'PG-13, R+...', required: false },
-    { key: 'age_conseille', type: 'text', label: 'Âge conseillé (optionnel)', placeholder: '12 ans et +, 16 ans...', required: false },
-    { key: 'score', type: 'number', label: 'Score MAL (optionnel)', placeholder: '8.5', step: '0.01', required: false },
+    { key: 'genres', type: 'text', label: 'Genres', placeholder: 'Action, Aventure, Fantasy', required: false },
+    { key: 'themes', type: 'text', label: 'Thèmes', placeholder: 'School, Military...', required: false },
+    { key: 'demographics', type: 'text', label: 'Démographie', placeholder: 'Shounen, Seinen...', required: false },
+    { key: 'rating', type: 'text', label: 'Rating', placeholder: 'PG-13, R+...', required: false },
+    { key: 'age_conseille', type: 'text', label: 'Âge conseillé', placeholder: '12 ans et +, 16 ans...', required: false },
+    { key: 'score', type: 'number', label: 'Score MAL', placeholder: '8.5', step: '0.01', required: false },
     
     // Statistiques MAL
-    { key: 'rank_mal', type: 'number', label: 'Rang MAL (optionnel)', placeholder: '#1', required: false },
-    { key: 'popularity_mal', type: 'number', label: 'Popularité MAL (optionnel)', placeholder: '#1', required: false },
-    { key: 'scored_by', type: 'number', label: 'Nombre de notes (optionnel)', placeholder: '1000', required: false },
-    { key: 'favorites', type: 'number', label: 'Favoris (optionnel)', placeholder: '500', required: false },
+    { key: 'rank_mal', type: 'number', label: 'Rang MAL', placeholder: '#1', required: false },
+    { key: 'popularity_mal', type: 'number', label: 'Popularité MAL', placeholder: '#1', required: false },
+    { key: 'scored_by', type: 'number', label: 'Nombre de notes', placeholder: '1000', required: false },
+    { key: 'favorites', type: 'number', label: 'Favoris', placeholder: '500', required: false },
     
     // Production
-    { key: 'studios', type: 'text', label: 'Studios (optionnel)', placeholder: 'Studio Ghibli, Toei Animation', required: false },
-    { key: 'producteurs', type: 'text', label: 'Producteurs (optionnel)', placeholder: 'Bandai Visual, Aniplex', required: false },
-    { key: 'diffuseurs', type: 'text', label: 'Diffuseurs (optionnel)', placeholder: 'Netflix, Disney+', required: false },
-    { key: 'editeur', type: 'text', label: 'Éditeur (DVD/Blu-ray) (optionnel)', placeholder: 'KAZÉ, Kana...', required: false },
-    { key: 'site_web', type: 'text', label: 'Site web officiel (optionnel)', placeholder: 'https://...', required: false },
+    { key: 'studios', type: 'text', label: 'Studios', placeholder: 'Studio Ghibli, Toei Animation', required: false },
+    { key: 'producteurs', type: 'text', label: 'Producteurs', placeholder: 'Bandai Visual, Aniplex', required: false },
+    { key: 'diffuseurs', type: 'text', label: 'Diffuseurs', placeholder: 'Netflix, Disney+', required: false },
+    { key: 'editeur', type: 'text', label: 'Éditeur (DVD/Blu-ray)', placeholder: 'KAZÉ, Kana...', required: false },
+    { key: 'site_web', type: 'text', label: 'Site web officiel', placeholder: 'https://...', required: false },
     
     // Informations contextuelles
-    { key: 'background', type: 'textarea', label: 'Background / Informations contextuelles (optionnel)', placeholder: 'Informations contextuelles sur l\'anime...', required: false },
+    { key: 'background', type: 'textarea', label: 'Background / Informations contextuelles', placeholder: 'Informations contextuelles sur l\'anime...', required: false },
     
     // Relations et franchise
-    { key: 'franchise_name', type: 'text', label: 'Nom de la franchise (optionnel)', placeholder: 'Fate Series', required: false },
-    { key: 'franchise_order', type: 'number', label: 'Ordre dans la franchise (optionnel)', placeholder: '1', required: false },
-    { key: 'prequel_mal_id', type: 'number', label: 'Prequel MAL ID (optionnel)', placeholder: '12345', required: false },
-    { key: 'sequel_mal_id', type: 'number', label: 'Sequel MAL ID (optionnel)', placeholder: '12346', required: false },
+    { key: 'franchise_name', type: 'text', label: 'Nom de la franchise', placeholder: 'Fate Series', required: false },
+    { key: 'franchise_order', type: 'number', label: 'Ordre dans la franchise', placeholder: '1', required: false },
+    { key: 'prequel_mal_id', type: 'number', label: 'Prequel MAL ID', placeholder: '12345', required: false },
+    { key: 'sequel_mal_id', type: 'number', label: 'Sequel MAL ID', placeholder: '12346', required: false },
     
     // Liens
-    { key: 'mal_url', type: 'text', label: 'URL MyAnimeList (optionnel)', placeholder: 'https://myanimelist.net/anime/12345', required: false },
-    { key: 'liens_externes', type: 'textarea', label: 'Liens externes (JSON) (optionnel)', placeholder: '[{"name": "Wikipedia", "url": "https://..."}]', required: false },
-    { key: 'liens_streaming', type: 'textarea', label: 'Liens streaming (JSON) (optionnel)', placeholder: '[{"name": "Netflix", "url": "https://..."}]', required: false }
+    { key: 'mal_url', type: 'text', label: 'URL MyAnimeList', placeholder: 'https://myanimelist.net/anime/12345', required: false },
+    { key: 'liens_externes', type: 'textarea', label: 'Liens externes (JSON)', placeholder: '[{"name": "Wikipedia", "url": "https://..."}]', required: false },
+    { key: 'liens_streaming', type: 'textarea', label: 'Liens streaming (JSON)', placeholder: '[{"name": "Netflix", "url": "https://..."}]', required: false }
   ];
 
   return {
@@ -292,39 +292,39 @@ export function createMangaEditConfig(serie: Serie): EditMalItemModalConfig<Seri
       ],
       required: false
     },
-    { key: 'description', type: 'textarea', label: 'Description (optionnel)', placeholder: 'Synopsis du manga...', required: false },
+    { key: 'description', type: 'textarea', label: 'Description', placeholder: 'Synopsis du manga...', required: false },
     
     // Statut publication
-    { key: 'statut_publication', type: 'text', label: 'Statut publication (optionnel)', placeholder: 'Finished', required: false },
-    { key: 'statut_publication_vf', type: 'text', label: 'Statut publication VF (optionnel)', placeholder: 'Finished', required: false },
+    { key: 'statut_publication', type: 'text', label: 'Statut publication', placeholder: 'Finished', required: false },
+    { key: 'statut_publication_vf', type: 'text', label: 'Statut publication VF', placeholder: 'Finished', required: false },
     
     // Années
-    { key: 'annee_publication', type: 'number', label: 'Année publication (optionnel)', placeholder: '2020', required: false },
-    { key: 'annee_vf', type: 'number', label: 'Année VF (optionnel)', placeholder: '2021', required: false },
+    { key: 'annee_publication', type: 'number', label: 'Année publication', placeholder: '2020', required: false },
+    { key: 'annee_vf', type: 'number', label: 'Année VF', placeholder: '2021', required: false },
     
     // Genres et classification
-    { key: 'genres', type: 'text', label: 'Genres (optionnel)', placeholder: 'Action, Aventure, Fantasy', required: false },
-    { key: 'themes', type: 'text', label: 'Thèmes (optionnel)', placeholder: 'School, Military...', required: false },
-    { key: 'demographie', type: 'text', label: 'Démographie (optionnel)', placeholder: 'Shounen, Seinen...', required: false },
+    { key: 'genres', type: 'text', label: 'Genres', placeholder: 'Action, Aventure, Fantasy', required: false },
+    { key: 'themes', type: 'text', label: 'Thèmes', placeholder: 'School, Military...', required: false },
+    { key: 'demographie', type: 'text', label: 'Démographie', placeholder: 'Shounen, Seinen...', required: false },
     
     // Chapitres et volumes
-    { key: 'nb_chapitres', type: 'number', label: 'Nb chapitres (optionnel)', placeholder: '100', required: false },
-    { key: 'nb_chapitres_vf', type: 'number', label: 'Nb chapitres VF (optionnel)', placeholder: '80', required: false },
-    { key: 'nb_volumes', type: 'number', label: 'Nb volumes (optionnel)', placeholder: '10', required: false },
-    { key: 'nb_volumes_vf', type: 'number', label: 'Nb volumes VF (optionnel)', placeholder: '8', required: false },
+    { key: 'nb_chapitres', type: 'number', label: 'Nb chapitres', placeholder: '100', required: false },
+    { key: 'nb_chapitres_vf', type: 'number', label: 'Nb chapitres VF', placeholder: '80', required: false },
+    { key: 'nb_volumes', type: 'number', label: 'Nb volumes', placeholder: '10', required: false },
+    { key: 'nb_volumes_vf', type: 'number', label: 'Nb volumes VF', placeholder: '8', required: false },
     
     // Édition
-    { key: 'langue_originale', type: 'text', label: 'Langue originale (optionnel)', placeholder: 'Japanese', required: false },
-    { key: 'editeur', type: 'text', label: 'Éditeur (optionnel)', placeholder: 'Kana', required: false },
-    { key: 'editeur_vo', type: 'text', label: 'Éditeur VO (optionnel)', placeholder: 'Shueisha', required: false },
-    { key: 'serialization', type: 'text', label: 'Sérialisation (optionnel)', placeholder: 'Weekly Shonen Jump', required: false },
-    { key: 'auteurs', type: 'text', label: 'Auteurs (optionnel)', placeholder: 'Auteur 1, Auteur 2', required: false },
+    { key: 'langue_originale', type: 'text', label: 'Langue originale', placeholder: 'Japanese', required: false },
+    { key: 'editeur', type: 'text', label: 'Éditeur', placeholder: 'Kana', required: false },
+    { key: 'editeur_vo', type: 'text', label: 'Éditeur VO', placeholder: 'Shueisha', required: false },
+    { key: 'serialization', type: 'text', label: 'Sérialisation', placeholder: 'Weekly Shonen Jump', required: false },
+    { key: 'auteurs', type: 'text', label: 'Auteurs', placeholder: 'Auteur 1, Auteur 2', required: false },
     
     // Métadonnées MAL
     { 
       key: 'media_type', 
       type: 'select', 
-      label: 'Type média (optionnel)', 
+      label: 'Type média', 
       options: [
         { value: '', label: '-- Non classé --' },
         { value: 'Manga', label: 'Manga' },
@@ -333,24 +333,25 @@ export function createMangaEditConfig(serie: Serie): EditMalItemModalConfig<Seri
         { value: 'Light Novel', label: 'Light Novel' },
         { value: 'Novel', label: 'Novel' },
         { value: 'Webtoon', label: 'Webtoon' },
+        { value: 'One-shot', label: 'One-shot' },
         { value: 'Comic', label: 'Comic' },
         { value: 'BD', label: 'BD' }
       ],
       required: false 
     },
-    { key: 'date_debut', type: 'date', label: 'Date début (optionnel)', required: false },
-    { key: 'date_fin', type: 'date', label: 'Date fin (optionnel)', required: false },
-    { key: 'mal_id', type: 'number', label: 'MAL ID (optionnel)', placeholder: '12345', required: false },
-    { key: 'score_mal', type: 'number', label: 'Score MAL (optionnel)', placeholder: '8.5', step: '0.01', required: false },
-    { key: 'rank_mal', type: 'number', label: 'Rang MAL (optionnel)', placeholder: '#1', required: false },
-    { key: 'popularity_mal', type: 'number', label: 'Popularité MAL (optionnel)', placeholder: '#1', required: false },
+    { key: 'date_debut', type: 'date', label: 'Date début', required: false },
+    { key: 'date_fin', type: 'date', label: 'Date fin', required: false },
+    { key: 'mal_id', type: 'number', label: 'MAL ID', placeholder: '12345', required: false },
+    { key: 'score_mal', type: 'number', label: 'Score MAL', placeholder: '8.5', step: '0.01', required: false },
+    { key: 'rank_mal', type: 'number', label: 'Rang MAL', placeholder: '#1', required: false },
+    { key: 'popularity_mal', type: 'number', label: 'Popularité MAL', placeholder: '#1', required: false },
     
     // Informations contextuelles
-    { key: 'background', type: 'textarea', label: 'Background / Informations contextuelles (optionnel)', placeholder: 'Informations contextuelles sur le manga...', required: false },
+    { key: 'background', type: 'textarea', label: 'Background / Informations contextuelles', placeholder: 'Informations contextuelles sur le manga...', required: false },
     
     // Relations
-    { key: 'prequel_mal_id', type: 'number', label: 'Prequel MAL ID (optionnel)', placeholder: '12345', required: false },
-    { key: 'sequel_mal_id', type: 'number', label: 'Sequel MAL ID (optionnel)', placeholder: '12346', required: false }
+    { key: 'prequel_mal_id', type: 'number', label: 'Prequel MAL ID', placeholder: '12345', required: false },
+    { key: 'sequel_mal_id', type: 'number', label: 'Sequel MAL ID', placeholder: '12346', required: false }
   ];
 
   // Fusionner tous les titres alternatifs en un seul champ

@@ -31,6 +31,7 @@ export interface ContentPreferences {
   showAnimes: boolean;
   showMovies: boolean;
   showSeries: boolean;
+  showVideos?: boolean; // Option pour masquer/afficher toute la section Vidéos (remplace showAnimes/showMovies/showSeries)
   showAdulteGame: boolean;
   showBooks: boolean;
 }
@@ -62,6 +63,7 @@ export interface Serie {
   
   // Nouveaux champs MAL
   mal_id?: number | null;
+  anilist_id?: number | null;
   titre_romaji?: string | null;
   titre_natif?: string | null;
   titre_anglais?: string | null;
@@ -123,6 +125,22 @@ export interface Tome {
 }
 
 export interface Statistics {
+  nbMangasParProprietaire?: Record<number, number>;
+  nbBdParProprietaire?: Record<number, number>;
+  nbComicsParProprietaire?: Record<number, number>;
+  nbLivresParProprietaire?: Record<number, number>;
+  nbJeuxParProprietaire?: Record<number, number>;
+  nbJeuxVideosParProprietaire?: Record<number, number>;
+  nbJeuxAdultesParProprietaire?: Record<number, number>;
+  coutsMangasParProprietaire?: Record<number, number>;
+  coutsBdParProprietaire?: Record<number, number>;
+  coutsComicsParProprietaire?: Record<number, number>;
+  coutsLivresParProprietaire?: Record<number, number>;
+  coutsJeuxVideosParProprietaire?: Record<number, number>;
+  coutsJeuxAdultesParProprietaire?: Record<number, number>;
+  coutsAbonnementsParProprietaire?: Record<number, number>; // Coût mensuel des abonnements par propriétaire
+  coutsAchatsPonctuelsParProprietaire?: Record<number, number>; // Coût total des achats ponctuels par propriétaire
+  nbAbonnementsActifs?: number; // Nombre total d'abonnements actifs
   totaux: {
     [userId: number]: number; // Coût par utilisateur (user_id)
   };
@@ -241,6 +259,7 @@ export interface AnimeSearchResult {
 export interface AnimeSerie {
   id: number;
   mal_id: number;
+  anilist_id?: number | null;
   mal_url?: string;
   nautiljon_url?: string | null; // URL de la page Nautiljon (extrait de relations)
   titre: string;
@@ -629,7 +648,7 @@ export interface User {
 
 export type AdulteGameStatutPerso = 'Terminé' | 'En cours' | 'En pause' | 'À lire' | 'Abandonné';
 export type AdulteGameStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
-export type AdulteGameMoteur = 'RenPy' | 'Unity' | 'RPGM' | 'Unreal' | 'HTML' | 'Flash' | 'QSP' | 'Autre';
+export type AdulteGameMoteur = 'ADRIFT' | 'Flash' | 'HTML' | 'Java' | 'Others' | 'QSP' | 'RAGS' | 'RPGM' | 'RenPy' | 'Ren\'Py' | 'Tads' | 'Unity' | 'Unreal Engine' | 'Unreal' | 'WebGL' | 'WolfRPG' | 'Wolf RPG' | 'Autre';
 export type AdulteGameStatutTraduction = 'Traduction' | 'Traduction (Mod inclus)' | 'Traduction intégré' | '';
 export type AdulteGameTypeTraduction = 'Manuelle' | 'Semi-automatique' | 'Automatique' | 'VO française' | '';
 
@@ -648,9 +667,10 @@ export interface AdulteGame {
   game_statut?: AdulteGameStatutJeu | null; // Nouveau nom
   game_engine?: AdulteGameMoteur | null; // Nouveau nom
   game_developer?: string | null; // Nouveau nom
-  game_site?: 'F95Zone' | 'LewdCorner' | null; // Nouveau nom
+  game_site?: 'F95Zone' | 'LewdCorner' | 'RAWG' | null; // Nouveau nom
   couverture_url?: string | null;
   tags?: string[]; // Parsé depuis JSON
+  esrb_rating?: string | null; // Classification ESRB pour les jeux RAWG
   lien_f95?: string | null;
   lien_lewdcorner?: string | null; // Nouveau champ
   

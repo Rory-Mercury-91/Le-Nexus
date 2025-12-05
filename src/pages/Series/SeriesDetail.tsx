@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, ChevronDown, Copy, Edit, Image as ImageIcon, Layers, Lock, Play, Plus, Settings, Trash2 } from 'lucide-react';
 import { Fragment, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CardCover, CardTitle } from '../../components/cards/common';
 import { BackToBottomButton, BackToTopButton } from '../../components/collections';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
@@ -72,6 +72,7 @@ interface SeasonGroup {
 
 export default function SeriesDetail() {
   const { tmdbId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
@@ -240,7 +241,7 @@ export default function SeriesDetail() {
           message: `"${show.titre}" a été supprimée de votre collection.`,
           type: 'success'
         });
-        navigate('/series');
+        navigate('/videos/series');
       } else {
         showToast({
           title: 'Erreur',
@@ -1086,7 +1087,7 @@ export default function SeriesDetail() {
       {ToastContainer}
       <DetailPageHeader
         backLabel="Retour aux séries"
-        backTo="/series"
+        backTo={(location.state as { from?: string } | null)?.from || '/series'}
         actions={
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button

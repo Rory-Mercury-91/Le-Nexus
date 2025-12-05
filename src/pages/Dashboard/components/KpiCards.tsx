@@ -1,4 +1,4 @@
-import { BookOpen, Package } from 'lucide-react';
+import { BookOpen, CreditCard, Package } from 'lucide-react';
 import { LectureStatistics, Statistics } from '../../../types';
 
 const COLORS = {
@@ -35,7 +35,7 @@ export default function KpiCards({ stats, lectureStats, coutTotal }: KpiCardsPro
         </div>
       </div>
 
-      <div className="card" style={{ padding: '20px', textAlign: 'center', background: 'linear-gradient(135deg, var(--surface), var(--surface-light))' }}>
+      <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
         <div style={{ fontSize: '24px', margin: '0 auto 8px' }}>💰</div>
         <div style={{ fontSize: '32px', fontWeight: '700', color: 'var(--warning)', marginBottom: '4px' }}>
           {coutTotal.toFixed(0)}€
@@ -49,6 +49,31 @@ export default function KpiCards({ stats, lectureStats, coutTotal }: KpiCardsPro
           </div>
         )}
       </div>
+
+      {stats.nbAbonnementsActifs !== undefined && stats.nbAbonnementsActifs > 0 && (
+        <div className="card" style={{ padding: '20px', textAlign: 'center' }}>
+          <CreditCard size={24} style={{ color: '#10b981', margin: '0 auto 8px' }} />
+          <div style={{ fontSize: '32px', fontWeight: '700', color: '#10b981', marginBottom: '4px' }}>
+            {stats.nbAbonnementsActifs}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+            Abonnement{stats.nbAbonnementsActifs > 1 ? 's' : ''} actif{stats.nbAbonnementsActifs > 1 ? 's' : ''}
+          </div>
+          {(() => {
+            const totalAbonnements = stats.coutsAbonnementsParProprietaire 
+              ? Object.values(stats.coutsAbonnementsParProprietaire).reduce((sum: number, val: any) => sum + (val || 0), 0) 
+              : 0;
+            if (totalAbonnements > 0) {
+              return (
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  {totalAbonnements.toFixed(2)}€/mois
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      )}
 
       {lectureStats && (lectureStats.tomesTotal > 0 || lectureStats.chapitresTotal > 0) && (
         <div className="card" style={{ padding: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>

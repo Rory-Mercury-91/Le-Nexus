@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Écran du moniteur -->
+  <rect x="8" y="12" width="48" height="32" rx="2" fill="currentColor" opacity="0.9"/>
+  <rect x="10" y="14" width="44" height="26" rx="1" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+  
+  <!-- Base du moniteur -->
+  <rect x="28" y="44" width="8" height="4" rx="1" fill="currentColor" opacity="0.9"/>
+  <rect x="20" y="48" width="24" height="2" rx="1" fill="currentColor" opacity="0.9"/>
+  
+  <!-- Icône Windows (optionnel, pour identifier PC/Windows) -->
+  <g opacity="0.8">
+    <rect x="14" y="18" width="8" height="8" rx="1" fill="currentColor"/>
+    <rect x="24" y="18" width="8" height="8" rx="1" fill="currentColor"/>
+    <rect x="14" y="28" width="8" height="8" rx="1" fill="currentColor"/>
+    <rect x="24" y="28" width="8" height="8" rx="1" fill="currentColor"/>
+  </g>
+</svg>

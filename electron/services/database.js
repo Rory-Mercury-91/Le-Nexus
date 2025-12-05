@@ -79,6 +79,7 @@ function initDatabase(dbPath) {
       
       -- Nouveaux champs MAL
       mal_id INTEGER UNIQUE,
+      anilist_id INTEGER UNIQUE,
       titre_romaji TEXT,
       titre_natif TEXT,
       titre_anglais TEXT,
@@ -193,6 +194,7 @@ function initDatabase(dbPath) {
     CREATE TABLE IF NOT EXISTS anime_series (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       mal_id INTEGER UNIQUE,
+      anilist_id INTEGER UNIQUE,
       mal_url TEXT,
       titre TEXT NOT NULL,
       titre_romaji TEXT,
@@ -494,6 +496,14 @@ function initDatabase(dbPath) {
       maj_disponible BOOLEAN DEFAULT 0,
       derniere_verif DATETIME,
       user_modified_fields TEXT,
+      -- Colonnes RAWG
+      rawg_id INTEGER,
+      rawg_rating REAL,
+      rawg_released TEXT,
+      rawg_platforms TEXT,
+      rawg_description TEXT,
+      rawg_website TEXT,
+      esrb_rating TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -512,12 +522,38 @@ function initDatabase(dbPath) {
       chemin_executable TEXT,
       labels TEXT,
       display_preferences TEXT,
+      -- Colonnes pour médias utilisateur (images et vidéos)
+      user_images TEXT,
+      user_videos TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(game_id, user_id)
     );
+
+    CREATE TABLE IF NOT EXISTS adulte_game_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      prix REAL NOT NULL DEFAULT 0,
+      date_achat TEXT,
+      platforms TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (game_id) REFERENCES adulte_game_games(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(game_id, user_id)
+    );
+
+    CREATE TRIGGER IF NOT EXISTS trg_adulte_game_proprietaires_updated_at
+    AFTER UPDATE ON adulte_game_proprietaires
+    FOR EACH ROW
+    BEGIN
+      UPDATE adulte_game_proprietaires
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
 
     -- ========================================
     -- TABLES LIVRES
@@ -600,6 +636,107 @@ function initDatabase(dbPath) {
     );
 
     -- ========================================
+    -- TABLES ABONNEMENTS
+    -- ========================================
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('Mensuel', 'Trimestriel', 'Annuel', 'Autre')),
+      price REAL NOT NULL,
+      devise TEXT DEFAULT 'EUR',
+      frequency TEXT NOT NULL CHECK(frequency IN ('monthly', 'quarterly', 'yearly', 'other')),
+      start_date DATE NOT NULL,
+      next_payment_date DATE,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'expired', 'cancelled')),
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS subscription_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(subscription_id, user_id)
+    );
+
+    CREATE TRIGGER IF NOT EXISTS trg_subscription_proprietaires_updated_at
+    AFTER UPDATE ON subscription_proprietaires
+    FOR EACH ROW
+    BEGIN
+      UPDATE subscription_proprietaires
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_subscriptions_updated_at
+    AFTER UPDATE ON subscriptions
+    FOR EACH ROW
+    BEGIN
+      UPDATE subscriptions
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+
+    -- ========================================
+    -- TABLES ACHATS PONCTUELS
+    -- ========================================
+
+    CREATE TABLE IF NOT EXISTS purchase_sites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS one_time_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      site_id INTEGER,
+      site_name TEXT,
+      purchase_date DATE NOT NULL,
+      amount REAL NOT NULL,
+      devise TEXT DEFAULT 'EUR',
+      credits_count INTEGER,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (site_id) REFERENCES purchase_sites(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS one_time_purchase_proprietaires (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (purchase_id) REFERENCES one_time_purchases(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(purchase_id, user_id)
+    );
+
+    CREATE TRIGGER IF NOT EXISTS trg_one_time_purchase_proprietaires_updated_at
+    AFTER UPDATE ON one_time_purchase_proprietaires
+    FOR EACH ROW
+    BEGIN
+      UPDATE one_time_purchase_proprietaires
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_one_time_purchases_updated_at
+    AFTER UPDATE ON one_time_purchases
+    FOR EACH ROW
+    BEGIN
+      UPDATE one_time_purchases
+      SET updated_at = CURRENT_TIMESTAMP
+      WHERE id = NEW.id;
+    END;
+
+    -- ========================================
     -- TABLE PRÉFÉRENCES GLOBALES
     -- ========================================
 
@@ -658,8 +795,11 @@ function initDatabase(dbPath) {
     -- Index jeux adultes
     CREATE INDEX IF NOT EXISTS idx_adulte_game_f95_id ON adulte_game_games(f95_thread_id);
     CREATE INDEX IF NOT EXISTS idx_adulte_game_maj ON adulte_game_games(maj_disponible);
+    CREATE INDEX IF NOT EXISTS idx_adulte_game_rawg_id ON adulte_game_games(rawg_id);
     CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_game ON adulte_game_user_data(game_id);
     CREATE INDEX IF NOT EXISTS idx_adulte_game_user_data_user ON adulte_game_user_data(user_id);
+    CREATE INDEX IF NOT EXISTS idx_adulte_game_proprietaires_game ON adulte_game_proprietaires(game_id);
+    CREATE INDEX IF NOT EXISTS idx_adulte_game_proprietaires_user ON adulte_game_proprietaires(user_id);
     
     -- Index livres
     CREATE INDEX IF NOT EXISTS idx_books_google_books_id ON books(google_books_id);
@@ -678,6 +818,18 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_user_preferences_content_type ON user_preferences(content_type);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_user_preferences_unique 
     ON user_preferences(user_id, COALESCE(content_type, ''), type, key, COALESCE(platform, ''));
+    
+    -- Index abonnements
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_next_payment ON subscriptions(next_payment_date);
+    CREATE INDEX IF NOT EXISTS idx_subscription_proprietaires_sub ON subscription_proprietaires(subscription_id);
+    CREATE INDEX IF NOT EXISTS idx_subscription_proprietaires_user ON subscription_proprietaires(user_id);
+    
+    -- Index achats ponctuels
+    CREATE INDEX IF NOT EXISTS idx_one_time_purchases_site ON one_time_purchases(site_id);
+    CREATE INDEX IF NOT EXISTS idx_one_time_purchases_date ON one_time_purchases(purchase_date);
+    CREATE INDEX IF NOT EXISTS idx_one_time_purchase_proprietaires_purchase ON one_time_purchase_proprietaires(purchase_id);
+    CREATE INDEX IF NOT EXISTS idx_one_time_purchase_proprietaires_user ON one_time_purchase_proprietaires(user_id);
   `);
   } catch (schemaError) {
     console.error('❌ Erreur lors de la création du schéma consolidé:', schemaError.message);
@@ -692,7 +844,24 @@ function initDatabase(dbPath) {
     ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
     ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
     ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
+    ensureColumn(db, 'manga_series', 'anilist_id', 'INTEGER');
+    ensureColumn(db, 'anime_series', 'anilist_id', 'INTEGER');
     ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
+    ensureColumn(db, 'subscriptions', 'devise', 'TEXT DEFAULT \'EUR\'');
+    ensureColumn(db, 'one_time_purchases', 'devise', 'TEXT DEFAULT \'EUR\'');
+    // Colonnes RAWG pour adulte_game_games
+    ensureColumn(db, 'adulte_game_games', 'rawg_id', 'INTEGER');
+    ensureColumn(db, 'adulte_game_games', 'rawg_rating', 'REAL');
+    ensureColumn(db, 'adulte_game_games', 'rawg_released', 'TEXT');
+    ensureColumn(db, 'adulte_game_games', 'rawg_platforms', 'TEXT');
+    ensureColumn(db, 'adulte_game_games', 'rawg_description', 'TEXT');
+    ensureColumn(db, 'adulte_game_games', 'rawg_website', 'TEXT');
+    ensureColumn(db, 'adulte_game_games', 'esrb_rating', 'TEXT');
+    // Colonnes pour les médias utilisateur dans adulte_game_user_data
+    ensureColumn(db, 'adulte_game_user_data', 'user_images', 'TEXT');
+    ensureColumn(db, 'adulte_game_user_data', 'user_videos', 'TEXT');
+    // Colonne platforms dans adulte_game_proprietaires
+    ensureColumn(db, 'adulte_game_proprietaires', 'platforms', 'TEXT');
   } catch (compatibilityError) {
     console.warn('⚠️ Erreur lors de la vérification des colonnes obligatoires:', compatibilityError.message);
   }
@@ -782,9 +951,28 @@ function migrateAllDatabases(databasesPath) {
         ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
         ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
         ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
+        ensureColumn(db, 'manga_series', 'anilist_id', 'INTEGER');
+        ensureColumn(db, 'anime_series', 'anilist_id', 'INTEGER');
         ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
         ensureColumn(db, 'books', 'prix_suggere', 'REAL');
         ensureColumn(db, 'books', 'devise', 'TEXT');
+        ensureColumn(db, 'subscriptions', 'devise', 'TEXT DEFAULT \'EUR\'');
+        ensureColumn(db, 'one_time_purchases', 'devise', 'TEXT DEFAULT \'EUR\'');
+        // Colonnes RAWG pour adulte_game_games
+        ensureColumn(db, 'adulte_game_games', 'rawg_id', 'INTEGER');
+        ensureColumn(db, 'adulte_game_games', 'rawg_rating', 'REAL');
+        ensureColumn(db, 'adulte_game_games', 'rawg_released', 'TEXT');
+        ensureColumn(db, 'adulte_game_games', 'rawg_platforms', 'TEXT');
+        ensureColumn(db, 'adulte_game_games', 'rawg_description', 'TEXT');
+        ensureColumn(db, 'adulte_game_games', 'rawg_website', 'TEXT');
+        ensureColumn(db, 'adulte_game_games', 'esrb_rating', 'TEXT');
+        
+        // Colonnes pour les médias utilisateur dans adulte_game_user_data
+        ensureColumn(db, 'adulte_game_user_data', 'user_images', 'TEXT');
+        ensureColumn(db, 'adulte_game_user_data', 'user_videos', 'TEXT');
+        
+        // Colonne platforms dans adulte_game_proprietaires
+        ensureColumn(db, 'adulte_game_proprietaires', 'platforms', 'TEXT');
 
         // Synchroniser les relations existantes pour assurer une navigation cohérente
         propagateAllRelations(db);

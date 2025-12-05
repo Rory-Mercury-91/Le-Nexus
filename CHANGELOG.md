@@ -5,6 +5,387 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.5] - 2025-12-03
+
+### 🎬 Refonte complète de la section Vidéos
+
+#### Architecture modulaire et DRY
+- **Restructuration complète des pages Vidéos**
+  - Nouvelle organisation modulaire dans `src/pages/Videos/` avec sous-dossiers `common/` pour les composants partagés
+  - Séparation claire par type de contenu : pages dédiées pour chaque sous-type d'anime (TV, ONA, OVA, Films animé, Spécial, Non classé)
+  - Création d'une page "Tout" (`All.tsx`) qui regroupe tous les types de vidéos (animes, films, séries)
+  - Application stricte du principe DRY : réduction de ~6000 lignes de code dupliqué à ~1100 lignes partagées
+  - Architecture en composants configurables : `AnimeCollectionPage` réutilisable pour toutes les pages d'animes
+
+- **Composants communs créés**
+  - `AnimeCollectionPage.tsx` : composant principal réutilisable avec configuration personnalisable par page
+  - `AnimeCollectionPageConfig` : interface de configuration permettant de personnaliser chaque page (titre, icône, type, messages vides, etc.)
+  - Utilitaires communs dans `common/utils/` :
+    - `video-helpers.ts` : fonctions de normalisation et helpers partagés
+    - `video-types.ts` : types TypeScript unifiés pour tous les types de vidéos
+    - `constants.ts` : constantes et validateurs centralisés (options de tri, statuts, etc.)
+    - `anime-page-config.ts` : configuration des pages d'animes
+  - Système de filtres unifié dans `VideoCollectionFilters` intégrant genres, thèmes, labels et statuts
+
+- **Pages créées et refactorisées**
+  - `TV.tsx`, `ONA.tsx`, `OVA.tsx`, `MovieAnime.tsx`, `Special.tsx`, `Unclassified.tsx` : pages dédiées pour chaque type d'anime (~16 lignes chacune, simple wrapper de configuration)
+  - `Movies.tsx` : page Films refactorisée avec filtres dynamiques
+  - `Series.tsx` : page Séries refactorisée avec filtres dynamiques
+  - `All.tsx` : nouvelle page regroupant tous les types de vidéos avec système de filtres unifié
+
+#### Réorganisation des modales
+- **Centralisation des modales vidéos**
+  - Déplacement de toutes les modales vidéos dans `src/components/modals/videos/`
+  - `AddVideoTypeModal.tsx` : nouvelle modale principale permettant de choisir le type de vidéo à ajouter (Anime, Série, Film)
+  - `AddAnimeModal.tsx`, `AddSeriesModal.tsx`, `AddMovieModal.tsx` : modales déplacées et réorganisées
+  - Suppression des anciennes modales obsolètes (`src/components/modals/anime/AddAnimeModal.tsx`, etc.)
+  - Intégration du bouton "+ Ajouter une Vidéo" dans la page "Tout" avec ouverture de la modale de sélection
+
+#### Améliorations fonctionnelles
+- **Support AniList ID pour les animes**
+  - Import direct par AniList ID ou URL en plus de MAL ID
+  - Détection automatique des URLs AniList dans la barre de recherche
+  - Enrichissement symétrique : import par MAL ID enrichit avec AniList, import par AniList ID enrichit avec Jikan (si informations disponibles)
+  - Handler backend `handleAddAnimeByAnilistId` créé avec logique complète de matching unifié
+  - Support dans `AddMalItemModal` et `mal-modal-helpers.ts` pour la recherche et l'import
+
+- **Filtres dynamiques intelligents**
+  - Les filtres par genres et thèmes n'affichent que les options présentes dans les items actuellement filtrés
+  - Les filtres ne montrent plus toutes les options de la base de données, mais uniquement celles pertinentes pour la page courante
+  - Extraction dynamique des genres/thèmes/labels disponibles depuis les données chargées
+  - Application sur toutes les pages (Animes, Films, Séries, Tout)
+
+- **Lazy loading amélioré des images**
+  - Pré-chargement des images 2 lignes au-dessus et en dessous de la zone visible
+  - `rootMargin` de l'IntersectionObserver augmenté de `50px` à `1000px 0px`
+  - Réduction des images blanches lors du scroll rapide
+  - Expérience utilisateur plus fluide avec chargement anticipé
+
+- **Gestion de la visibilité consolidée**
+  - Nouvelle option `showVideos` dans les préférences de contenu pour masquer/afficher toute la section Vidéos
+  - Remplacement des toggles séparés "Animes", "Films", "Séries" par un seul toggle "Vidéos"
+  - Migration automatique : les anciennes préférences (`showAnimes`, `showMovies`, `showSeries`) sont automatiquement converties en `showVideos`
+  - Synchronisation bidirectionnelle pour maintenir la compatibilité
+  - Mise à jour de l'onboarding et des paramètres avec interface simplifiée
+
+#### Améliorations techniques
+- **Normalisation et nettoyage**
+  - Normalisation du `media_type` pour les mangas synchronisés depuis AniList avec détection intelligente (Manhua/Manhwa/Manga)
+  - Nettoyage HTML amélioré : suppression complète des balises HTML (`<br>`, etc.) et décodage des entités HTML dans les synopsis
+  - Détection des caractères chinois/japonais/coréens pour mieux identifier le type de média
+  - Fonction `cleanHtmlText()` robuste appliquée lors de la transformation et l'enrichissement AniList
+
+- **Suppression du code obsolète**
+  - Suppression des anciennes pages redondantes : `src/pages/Animes/Animes.tsx`, `src/pages/Movies/Movies.tsx`, `src/pages/Series/Series.tsx`
+  - Suppression de `src/pages/Videos/Videos.tsx` (remplacé par `All.tsx`)
+  - Suppression des anciennes modales obsolètes
+  - Nettoyage des imports et routes non utilisées
+  - Redirection automatique de `/videos` vers `/videos/all`
+
+- **Améliorations de la navigation**
+  - Structure de menu déroulant dans la sidebar : "Vidéos" avec sous-menus pour chaque type
+  - Compteurs dynamiques pour chaque sous-catégorie
+  - Navigation cohérente entre les pages avec restauration du scroll
+  - **Affichage conditionnel des pages** : les pages vidéos (TV, ONA, OVA, Films animé, Spécial, Non classé, Films, Séries) n'apparaissent dans la sidebar que si elles contiennent au moins une entrée
+  - La page "Tout" reste toujours visible pour permettre l'ajout de vidéos même si toutes les collections sont vides
+
+### 🔧 Amélioré
+- **Interface utilisateur**
+  - Design unifié et cohérent entre toutes les pages de vidéos
+  - Intégration visuelle des filtres dans une seule section (fusion de `VideoFiltersPanel` et `VideoCollectionFilters`)
+  - Messages d'erreur et vides personnalisés par type de page
+  - Bouton de rechargement des données visible dans les en-têtes
+  - **Ajout rapide depuis le Dashboard** : le bouton "Ajoute ta première vidéo" dans le Dashboard ouvre directement la modale d'ajout au lieu de rediriger vers la page Vidéos
+  - Expérience utilisateur améliorée : pas besoin de quitter le Dashboard pour ajouter une première vidéo
+
+- **Performance**
+  - Réduction significative de la duplication de code (de ~6000 à ~1100 lignes)
+  - Chargement optimisé des données avec extraction dynamique des filtres
+  - Meilleure gestion mémoire avec lazy loading amélioré
+
+### 🐛 Corrigé
+- Correction du problème de filtres qui ne s'actualisaient pas correctement (résolu par la nouvelle architecture)
+- Correction de la sauvegarde de `media_type` et `type_volume` lors de la synchronisation AniList
+- Correction de l'affichage des balises HTML dans les synopsis (nettoyage complet)
+- Correction des types TypeScript avec types unifiés `VideoItem`
+- Correction des imports et chemins après réorganisation
+- **Section Lectures** : Correction du filtrage des "One-shot" : les séries avec `media_type = 'One-shot'` apparaissent maintenant correctement dans la collection "One-shot"
+- **Section Lectures** : Correction du comptage "Non classé" : les one-shots ne sont plus comptés dans "Non classé"
+- **Section Lectures** : Correction du filtre de sites Mihon : suppression de la logique fallback incorrecte
+- **Section Lectures** : Correction des redirections : mise à jour de tous les liens `/collection` vers `/lectures`
+- **Section Lectures** : Correction des types TypeScript avec types unifiés `LectureItem` et `ContentType`
+
+### 🧹 Nettoyage
+- Suppression de `src/pages/Videos/common/components/VideoFiltersPanel.tsx` (fonctionnalité intégrée dans `VideoCollectionFilters`)
+- Suppression de `src/pages/Videos/common/hooks/useVideoCollection.ts` (non utilisé)
+- Suppression des anciennes pages de collection redondantes
+- Suppression des anciennes modales obsolètes
+- Nettoyage des fichiers non utilisés et consolidation du code
+- **Section Lectures** : Suppression de `src/pages/Mangas/Mangas.tsx` (1743 lignes obsolètes)
+- **Section Lectures** : Suppression de `src/pages/Bd/Bd.tsx`, `src/pages/Comics/Comics.tsx`, `src/pages/Books/Books.tsx`
+- **Section Lectures** : Suppression de `src/components/modals/lectures/AddContentTypeModal.tsx`
+- **Section Lectures** : Suppression de `src/components/modals/manga/AddSerieModal.tsx`
+- **Section Lectures** : Suppression de `src/components/modals/book/AddBookModal.tsx`
+- **Section Lectures** : Suppression de `src/components/modals/lectures/AddComicModal.tsx` et `AddBdModal.tsx`
+- **Section Lectures** : Suppression des fonctions non utilisées dans `lecture-helpers.ts` et `constants.ts`
+
+### 🎮 Création complète de la page Jeux RAWG
+
+#### Architecture et intégration
+- **Nouvelle page de collection Jeux RAWG**
+  - Page dédiée `/games/rawg` pour les jeux vidéo depuis l'API RAWG
+  - Architecture modulaire partagée avec les jeux adultes : `GameCollectionPage` réutilisable
+  - Filtrage intelligent par type de moteur (Unity, Unreal Engine, RenPy, RPGM, etc.)
+  - Support des jeux vidéo classiques et jeux adultes dans la même table `adulte_game_games`
+  - Distinction visuelle entre jeux RAWG et jeux adultes dans les collections
+
+- **Intégration API RAWG complète**
+  - Recherche de jeux par titre ou ID RAWG avec pagination
+  - Enrichissement automatique depuis l'API RAWG avec métadonnées complètes
+  - Stockage des données RAWG dans la base de données (rawg_id, rawg_rating, rawg_released, rawg_platforms, rawg_description, rawg_website)
+  - Support de la clé API RAWG configurable dans les paramètres
+  - Handler backend `registerRawgHandlers` avec recherche, import et enrichissement
+
+- **Page de détail complète**
+  - Page de détail `/games/rawg/:id` avec toutes les informations du jeu
+  - Affichage des métadonnées RAWG : description, notes (rating, metacritic), plateformes, genres, tags
+  - Informations développeurs et éditeurs
+  - Section boutiques avec liens vers les stores (Steam, Epic Games, GOG, etc.)
+  - Exigences système (PC, PlayStation, Xbox, Nintendo Switch, etc.)
+  - Captures d'écran et vidéos depuis RAWG
+  - Statistiques communautaires (Reddit, Twitch, YouTube, reviews)
+  - Liens externes (site officiel, Reddit, etc.)
+  - Personnalisation complète de l'affichage avec préférences par section
+
+- **Gestion de la propriété et des coûts**
+  - Système de propriétaires multi-utilisateurs avec coûts par propriétaire
+  - Section "Coûts par propriétaire" avec calcul automatique du coût divisé
+  - Support des plateformes par propriétaire (Steam, Epic, GOG, etc.)
+  - Modal de gestion de propriété (`RawgGameOwnershipModal`) pour ajouter/modifier propriétaires et coûts
+  - Affichage des coûts dans les statistiques du tableau de bord
+
+- **Fonctionnalités avancées**
+  - Labels personnalisés avec couleurs
+  - Statut personnel (À jouer, En cours, Terminé, Abandonné, En pause)
+  - Favoris et masquage
+  - Notes privées
+  - Galerie d'images et vidéos utilisateur
+  - Lancement direct des jeux depuis l'application (si exécutable configuré)
+  - Suivi de la dernière session et version jouée
+
+#### Composants créés
+- `Rawg.tsx` : page de collection principale
+- `RawgGameDetail.tsx` : page de détail complète avec toutes les sections
+- `RawgGameInfoSection.tsx` : section d'informations avec métadonnées RAWG
+- `RawgGameCostsSection.tsx` : section des coûts par propriétaire
+- `RawgGameBanner.tsx` : bannière du jeu avec image de fond RAWG
+- `GameCollectionPage.tsx` : composant réutilisable pour toutes les collections de jeux
+- `useRawgGameDetail.tsx` : hook personnalisé pour la gestion de la page de détail
+
+#### Handlers backend
+- `rawg-handlers.js` : handlers pour recherche, import et enrichissement RAWG
+- `rawg-game-gallery-handlers.js` : gestion de la galerie d'images/vidéos utilisateur
+- `rawg-game-video-handlers.js` : gestion des vidéos utilisateur
+- Intégration complète avec le système de propriétaires existant
+
+### 💳 Création complète de la page Abonnements
+
+#### Gestion des abonnements récurrents
+- **Page principale `/subscriptions`**
+  - Interface complète pour gérer les abonnements et achats ponctuels
+  - Affichage en grille responsive de 4 tuiles côte à côte (adaptation automatique sur mobile)
+  - Statistiques en temps réel : abonnements actifs, coût mensuel, coût annuel, total achats ponctuels
+  - Filtres par statut (Actifs, Expirés, Annulés) et recherche par nom
+  - Gestion complète CRUD : création, modification, suppression
+
+- **Fonctionnalités des abonnements**
+  - Types d'abonnements : Mensuel, Trimestriel, Annuel, Autre
+  - Calcul automatique de la prochaine date de paiement selon la fréquence
+  - Mise à jour automatique des dates de paiement pour les abonnements actifs
+  - Support multi-propriétaires avec division automatique des coûts
+  - Gestion des statuts : Actif, Expiré, Annulé
+  - Notes optionnelles pour chaque abonnement
+  - **Support multi-devises** : EUR, USD, GBP, CHF, CAD, JPY, AUD avec affichage du symbole approprié
+
+- **Gestion des achats ponctuels**
+  - Création et gestion d'achats ponctuels avec site d'achat
+  - Gestion des sites référencés (création automatique si nouveau site)
+  - Support du nombre de crédits pour les achats avec crédits
+  - Filtres par site d'achat et recherche par nom
+  - Affichage en grille responsive de 4 tuiles côte à côte
+  - **Support multi-devises** : même système que les abonnements
+
+- **Tables de base de données créées**
+  - `subscriptions` : table principale des abonnements avec colonne `devise`
+  - `subscription_proprietaires` : table de liaison pour les propriétaires
+  - `one_time_purchases` : table des achats ponctuels avec colonne `devise`
+  - `one_time_purchase_proprietaires` : table de liaison pour les propriétaires
+  - `purchase_sites` : table des sites d'achat référencés
+  - Migration automatique pour ajouter la colonne `devise` aux bases existantes
+
+- **Handlers backend créés**
+  - `subscription-handlers.js` : CRUD complet pour les abonnements
+  - `purchase-handlers.js` : CRUD complet pour les achats ponctuels
+  - Calcul automatique des dates de paiement selon la fréquence
+  - Gestion automatique des propriétaires (ajout du currentUserId si aucun propriétaire fourni)
+  - Mise à jour automatique des dates de paiement expirées
+
+- **Modales créées**
+  - `AddSubscriptionModal.tsx` : création d'abonnement avec sélection de devise
+  - `EditSubscriptionModal.tsx` : modification d'abonnement avec gestion de devise
+  - `AddPurchaseModal.tsx` : création d'achat ponctuel avec sélection de devise
+  - `EditPurchaseModal.tsx` : modification d'achat ponctuel avec gestion de devise
+  - Support complet du multi-sélection de propriétaires
+
+- **Intégration dans les statistiques**
+  - Calcul des coûts mensuels des abonnements par propriétaire dans `statistics-handlers.js`
+  - Conversion automatique des fréquences (trimestriel → mensuel, annuel → mensuel)
+  - Calcul des coûts totaux des achats ponctuels par propriétaire
+  - Affichage dans le tableau de bord avec section "Coûts par propriétaire"
+  - Inclusion dans les totaux généraux du tableau de bord
+  - Correction du bug : les abonnements/achats sans propriétaires sont maintenant attribués au premier utilisateur disponible
+
+### 💰 Système de coûts par propriétaire étendu
+
+#### Affichage des coûts dans les pages de détails
+- **Section "Coûts par propriétaire" ajoutée dans :**
+  - Pages de détails Mangas (`MangaCostsSection.tsx`) : coûts des tomes avec calcul du gain Mihon
+  - Pages de détails Livres (`BookCostsSection.tsx`) : coûts des livres par propriétaire
+  - Pages de détails Jeux RAWG (`RawgGameCostsSection.tsx`) : coûts des jeux avec plateformes par propriétaire
+  - Pages de détails Jeux adultes (`AdulteGameCostsSection.tsx`) : coûts des jeux adultes par propriétaire
+
+- **Fonctionnalités des sections de coûts**
+  - Calcul automatique du coût divisé par le nombre de propriétaires
+  - Affichage du coût total et du coût par propriétaire avec avatar et nom
+  - Support des avatars personnalisés (images ou emoji)
+  - Affichage conditionnel : section masquable via préférences d'affichage
+  - Design cohérent entre toutes les sections de coûts
+
+#### Intégration dans le tableau de bord
+- **Section "Coûts par propriétaire" (`CostsByOwner.tsx`)**
+  - Affichage des coûts totaux par utilisateur dans le tableau de bord
+  - Détail par type de contenu : Mangas, BD, Comics, Livres, Jeux vidéo, Jeux adultes, Abonnements, Achats ponctuels
+  - Carte de total général avec récapitulatif de tous les types
+  - Comptage des items par type pour chaque propriétaire
+  - Calcul automatique des totaux depuis les statistiques
+
+- **Calculs backend dans `statistics-handlers.js`**
+  - Calcul des coûts des mangas par propriétaire (avec division par nombre de propriétaires)
+  - Calcul des coûts des BD, Comics et Livres par propriétaire
+  - Calcul des coûts des jeux vidéo (RAWG) par propriétaire
+  - Calcul des coûts des jeux adultes par propriétaire
+  - Calcul des coûts mensuels des abonnements par propriétaire (avec conversion de fréquence)
+  - Calcul des coûts totaux des achats ponctuels par propriétaire
+  - Gestion des cas sans propriétaires : attribution au premier utilisateur disponible
+
+#### Graphiques et visualisations
+- **Graphique de répartition (`RepartitionChart.tsx`)**
+  - Affichage des coûts par type de contenu dans un graphique circulaire
+  - Support de tous les types : Mangas, BD, Comics, Livres, Jeux vidéo, Jeux adultes, Abonnements, Achats ponctuels
+  - Légende interactive avec pourcentages et montants
+  - Couleurs distinctes pour chaque type de contenu
+
+### 🔧 Outils de développement
+
+#### Extension de la fonctionnalité de fusion
+- **Fusion de deux entrées étendue à toutes les pages**
+  - Support de la fusion pour : Lectures (Mangas), Animes, Films, Séries TV, Jeux, **Livres** (nouveau)
+  - Exclusion des abonnements comme demandé
+  - Configuration complète pour les livres dans `merge-config.js` avec tous les champs pertinents
+  - Fonction de transfert des associations pour les livres (`transferBookAssociations`)
+  - Transfert automatique des propriétaires et données utilisateur lors de la fusion de livres
+  - Interface mise à jour : label "Jeux" au lieu de "Jeux adultes" pour plus de précision
+
+### 📚 Refonte complète de la section Lectures
+
+#### Architecture modulaire et DRY
+- **Restructuration complète des pages Lectures**
+  - Nouvelle organisation modulaire dans `src/pages/Lectures/` avec sous-dossiers `common/` pour les composants partagés
+  - Séparation claire par type de contenu : pages dédiées pour chaque type (Manga, Manhwa, Manhua, Light Novel, Webtoon, One-shot, Comics, BD, Livres, Non classé)
+  - Création d'une page "Tout" (`All.tsx`) qui regroupe tous les types de lectures (séries manga + livres)
+  - Application stricte du principe DRY : réduction drastique de la duplication de code
+  - Architecture en composants configurables : `LectureCollectionPage` réutilisable pour toutes les pages de lectures
+  - Alignement de la structure avec la section Vidéos pour cohérence architecturale
+
+- **Composants communs créés**
+  - `LectureCollectionPage.tsx` : composant principal réutilisable avec configuration personnalisable par page
+  - `LectureCollectionPageConfig` : interface de configuration permettant de personnaliser chaque page (titre, icône, type, messages vides, etc.)
+  - `LectureCollectionFilters.tsx` : composant de filtres unifié pour toutes les pages de lectures
+  - Utilitaires communs dans `common/utils/` :
+    - `lecture-types.ts` : types TypeScript unifiés pour tous les types de lectures
+    - `lecture-helpers.ts` : fonctions de normalisation et helpers partagés (détection MAL/AniList, résolution de statut, mapping media_type)
+    - `constants.ts` : constantes et validateurs centralisés (options de tri, statuts, types de volumes)
+    - `lecture-page-config.ts` : configuration des pages de lectures
+
+- **Pages créées et refactorisées**
+  - `All.tsx` : page principale regroupant toutes les lectures (séries + livres)
+  - `Manga.tsx`, `Manhwa.tsx`, `Manhua.tsx`, `LightNovel.tsx`, `Webtoon.tsx`, `OneShot.tsx`, `Comics.tsx`, `Bd.tsx`, `Books.tsx`, `Unclassified.tsx` : pages dédiées pour chaque type (~17 lignes chacune, simple wrapper de configuration)
+  - Suppression de l'ancienne page monolithique `Mangas.tsx` (1743 lignes) remplacée par la nouvelle architecture modulaire
+
+#### Réorganisation des modales
+- **Consolidation des modales d'ajout**
+  - Déplacement et consolidation de toutes les modales lectures dans `src/components/modals/lectures/`
+  - `AddLectureTypeModal.tsx` : nouvelle modale principale permettant de choisir le type de lecture à ajouter (Manga/Manhwa/Manhua/Light Novel/Webtoon via MAL/AniList OU Livre/Comic/BD via Google Books/Open Library/BnF)
+  - `AddMangaModal.tsx` : modale unifiée pour ajouter les séries depuis MAL/AniList (remplace `AddSerieModal.tsx`)
+  - `AddBookComicBdModal.tsx` : modale unifiée pour ajouter les livres, comics et BD depuis Google Books, Open Library ou BnF (remplace `AddBookModal.tsx`, `AddComicModal.tsx`, `AddBdModal.tsx`)
+    - Restructuration visuelle pour alignement avec la modale d'ajout des mangas : recherche API et formulaire manuel visibles simultanément
+    - Suppression du système d'onglets : tout est affiché en même temps avec séparateur "OU" entre recherche et formulaire
+    - Pré-remplissage automatique du formulaire (titre, image, année, description, ISBN) quand un résultat API est sélectionné
+    - Ajout des champs Description et ISBN 13 au formulaire de création manuelle
+    - Disposition optimisée : Année de sortie et ISBN 13 côte à côte pour une meilleure organisation visuelle
+    - Deux boutons d'action disponibles : "Importer depuis API" (si résultat sélectionné) et "Créer" (toujours visible pour création manuelle)
+    - Navigation automatique vers la page de détail avec ouverture du mode édition après création manuelle
+  - Suppression des anciennes modales obsolètes : `AddContentTypeModal.tsx`, `AddSerieModal.tsx`, `AddBookModal.tsx`, `AddComicModal.tsx`, `AddBdModal.tsx`
+  - Intégration du bouton "+ Ajouter une lecture" dans la page "Tout" avec ouverture de la modale de sélection
+  - Boutons d'ajout dynamiques dans les pages dédiées : "+ Ajouter un Manga", "+ Ajouter un Livre", etc.
+
+#### Améliorations fonctionnelles
+- **Support du type "One-shot"**
+  - Ajout de la page dédiée `/lectures/one-shot` pour les one-shots
+  - Support du type "One-shot" dans le filtrage et le comptage backend
+  - Ajout de "One-shot" dans les options de `media_type` du modal d'édition
+  - Détection automatique des one-shots dans la normalisation des types de contenu
+
+- **Filtres unifiés et améliorés**
+  - Création de `LectureCollectionFilters` : composant de filtres unifié pour toutes les pages
+  - Filtres par genres, thèmes et labels avec extraction dynamique depuis les données
+  - Filtre par statut de lecture (À lire, En cours, Terminé, etc.)
+  - Filtre par statut de publication (En cours, Terminée, Abandonnée)
+  - Filtre par type de volume (Broché, Kindle, Webtoon, etc.)
+  - Filtre Mihon/Source (Mihon, MAL, AniList, Nautiljon) avec options "Pas sur..."
+  - Filtre par site (source_id) conditionnel à la présence d'imports Mihon
+  - Suppression du filtre "Tag" redondant avec le filtre "Statut de lecture"
+  - Correction du filtre de sites : suppression de la logique fallback incorrecte qui comparait des domaines avec des source_id
+
+- **Navigation améliorée**
+  - Clic sur le groupe "Lectures" dans la sidebar navigue directement vers `/lectures` (page Tout)
+  - Comportement identique à la section Vidéos pour cohérence
+  - Compteurs dynamiques pour chaque sous-catégorie
+  - Affichage conditionnel des sous-catégories : n'apparaissent que si elles contiennent au moins une entrée
+  - La page "Tout" reste toujours visible pour permettre l'ajout de lectures même si toutes les collections sont vides
+
+#### Gestion de la visibilité consolidée
+- **Groupe Lectures comme entité unifiée**
+  - Le groupe "Lectures" est géré comme un tout dans les préférences de contenu
+  - Option `showMangas` dans les paramètres masque/affiche toute la section Lectures (Manga, Manhwa, Manhua, Comics, BD, Livres, One-shot, Non classé)
+  - Synchronisation automatique : `showBooks` suit automatiquement `showMangas` (dans les paramètres, l'onboarding et le backend)
+  - Dashboard : comptage unifié de toutes les lectures (séries + livres) pour déterminer si le bouton "Ajoute ta première lecture" doit s'afficher
+  - Suppression du bouton séparé "Ajoute ton premier livre" (fusionné dans le bouton principal)
+
+#### Améliorations techniques
+- **Nettoyage et consolidation**
+  - Suppression de l'ancienne page `Mangas.tsx` (1743 lignes) et redirection de `/collection` vers `/lectures`
+  - Suppression des anciennes pages redondantes : `src/pages/Bd/Bd.tsx`, `src/pages/Comics/Comics.tsx`, `src/pages/Books/Books.tsx`
+  - Suppression des anciennes modales obsolètes
+  - Nettoyage des imports et routes non utilisées
+  - Suppression des fonctions non utilisées : `normalizeContentType()`, `isLectureStatusFilter()`
+  - Mise à jour de tous les liens de navigation et redirections vers la nouvelle structure
+
+- **Backend**
+  - Ajout du comptage "One-shot" dans `handleGetAvailableContentTypes`
+  - Exclusion des "One-shot" du comptage "Non classé"
+  - Correction de la logique de filtrage pour détecter correctement les one-shots
+
 ## [1.0.4-Fix] - 2025-12-01
 
 ### 🐛 Corrigé
@@ -292,6 +673,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.5]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5
 [1.0.4-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.4-Fix
 [1.0.4]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.4
 [1.0.3]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.3

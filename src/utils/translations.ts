@@ -419,13 +419,14 @@ export const statusTranslations: Record<string, string> = {
   'Finished': 'Terminé',
   'Not yet published': 'Pas encore publié',
   'On Hiatus': 'En pause',
-  'Discontinued': 'Arrêté',
-  // Variantes françaises
+  'Discontinued': 'Abandonné', // Arrêté/Abandonné pour les œuvres
+  // Variantes françaises (statuts de l'œuvre - publication/diffusion uniquement)
   'En cours': 'En cours',
   'Terminée': 'Terminé',
   'Terminé': 'Terminé',
-  'En pause': 'En pause',
   'Arrêté': 'Arrêté'
+  // Note: Les statuts TMDb sont normalisés vers les statuts anime avant traduction
+  // donc on n'a pas besoin de les traduire directement ici
 };
 
 // Ratings

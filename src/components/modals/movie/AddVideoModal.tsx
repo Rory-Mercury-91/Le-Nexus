@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useEffect } from 'react';
 import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface AddVideoModalProps {
@@ -196,7 +195,7 @@ export default function AddVideoModal({ onClose, onAddUrl, onAddFile, adding = f
                     color: 'var(--text)'
                   }}
                 >
-                  Titre (optionnel)
+                  Titre
                 </label>
                 <input
                   id="video-title"
@@ -301,7 +300,7 @@ export default function AddVideoModal({ onClose, onAddUrl, onAddFile, adding = f
                     </button>
                   </div>
                   <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-                    {copyMode === 'copy' 
+                    {copyMode === 'copy'
                       ? 'Le fichier sera copié dans le dossier de l\'application. Il restera disponible même si vous déplacez le fichier d\'origine.'
                       : 'Le fichier sera référencé directement depuis son emplacement actuel. Si vous déplacez ou supprimez le fichier, il ne sera plus accessible.'}
                   </p>
@@ -318,7 +317,7 @@ export default function AddVideoModal({ onClose, onAddUrl, onAddFile, adding = f
                     color: 'var(--text)'
                   }}
                 >
-                  Titre (optionnel)
+                  Titre
                 </label>
                 <input
                   id="video-file-title"

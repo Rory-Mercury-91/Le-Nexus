@@ -7,11 +7,11 @@ import { useModalEscape } from '../common/useModalEscape';
 
 interface AddAdulteGameJsonModalProps {
   onClose: () => void;
-  onFillForm: (data: AdulteGameJsonData) => void;
+  onFillForm: (data: AdulteGameJsonData) => Promise<void>;
 }
 
 /**
- * Modale pour saisir du JSON et pré-remplir le formulaire
+ * Modale pour saisir du JSON et créer directement le jeu
  */
 export default function AddAdulteGameJsonModal({ onClose, onFillForm }: AddAdulteGameJsonModalProps) {
   const [jsonData, setJsonData] = useState('');
@@ -20,7 +20,7 @@ export default function AddAdulteGameJsonModal({ onClose, onFillForm }: AddAdult
 
   useModalEscape(onClose, false);
 
-  const handleParseJson = () => {
+  const handleParseJson = async () => {
     if (!jsonData.trim()) {
       setJsonError('Veuillez coller des données JSON');
       return;
@@ -38,8 +38,8 @@ export default function AddAdulteGameJsonModal({ onClose, onFillForm }: AddAdult
         throw new Error('Les données doivent contenir au moins "name" ou "id"');
       }
 
-      // Appeler la fonction de pré-remplissage
-      onFillForm(parsed);
+      // Appeler la fonction de création directe
+      await onFillForm(parsed);
       onClose();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'JSON invalide';
@@ -101,7 +101,7 @@ export default function AddAdulteGameJsonModal({ onClose, onFillForm }: AddAdult
           lineHeight: '1.6'
         }}>
           <p style={{ marginBottom: '8px', color: 'var(--text)' }}>
-            Collez les données JSON depuis <strong>LC Extractor</strong> ou toute autre source.
+            Collez les données JSON depuis <strong>LC Extractor</strong> ou toute autre source. Le jeu sera créé directement dans votre bibliothèque.
           </p>
           <button
             onClick={() => window.electronAPI.openExternal?.('https://raw.githubusercontent.com/Hunteraulo1/f95list-extractor/refs/heads/main/dist/toolExtractor.user.js')}
@@ -172,7 +172,7 @@ export default function AddAdulteGameJsonModal({ onClose, onFillForm }: AddAdult
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <FileJson size={18} />
-            Pré-remplir le formulaire
+            Créer le jeu
           </button>
         </div>
       </div>

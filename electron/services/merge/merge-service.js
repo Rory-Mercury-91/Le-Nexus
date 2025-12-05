@@ -298,6 +298,44 @@ function transferGameAssociations(db, sourceId, targetId) {
   };
 }
 
+function transferBookAssociations(db, sourceId, targetId) {
+  const stats = {
+    proprietairesTransferred: 0,
+    userDataTransferred: 0
+  };
+
+  // Transférer les propriétaires
+  const proprietaires = db
+    .prepare('SELECT * FROM book_proprietaires WHERE book_id = ?')
+    .all(sourceId);
+
+  proprietaires.forEach((prop) => {
+    const existing = db
+      .prepare('SELECT id FROM book_proprietaires WHERE book_id = ? AND user_id = ?')
+      .get(targetId, prop.user_id);
+    if (!existing) {
+      db.prepare(
+        'INSERT INTO book_proprietaires (book_id, user_id, prix, date_achat, created_at, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+      ).run(targetId, prop.user_id, prop.prix, prop.date_achat);
+      stats.proprietairesTransferred++;
+    } else {
+      // Si existe déjà, supprimer la source
+      db.prepare('DELETE FROM book_proprietaires WHERE id = ?').run(prop.id);
+    }
+  });
+
+  // Transférer les données utilisateur
+  stats.userDataTransferred = transferUserDataRecords(
+    db,
+    'book_user_data',
+    'book_id',
+    sourceId,
+    targetId
+  );
+
+  return stats;
+}
+
 function transferAssociationsByType(db, type, sourceId, targetId) {
   switch (type) {
     case 'manga':
@@ -310,6 +348,8 @@ function transferAssociationsByType(db, type, sourceId, targetId) {
       return transferTvAssociations(db, sourceId, targetId);
     case 'game':
       return transferGameAssociations(db, sourceId, targetId);
+    case 'book':
+      return transferBookAssociations(db, sourceId, targetId);
     default:
       return {};
   }

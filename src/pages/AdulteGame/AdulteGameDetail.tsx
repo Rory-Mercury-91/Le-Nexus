@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import AdulteGameOwnershipModal from '../../components/modals/adulte-game/AdulteGameOwnershipModal';
 import { ADULTE_GAME_DISPLAY_CATEGORIES, ADULTE_GAME_DISPLAY_DEFAULTS } from '../../components/modals/adulte-game/displayConfig';
 import EditAdulteGameModal from '../../components/modals/adulte-game/EditAdulteGameModal';
 import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
@@ -18,6 +19,7 @@ export default function AdulteGameDetail() {
   const { showToast } = useToast();
   const [tagPreferences, setTagPreferences] = useState<Record<string, 'liked' | 'disliked' | 'neutral'>>({});
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [showOwnershipModal, setShowOwnershipModal] = useState(false);
 
   useEffect(() => {
     loadCurrentUser();
@@ -105,7 +107,14 @@ export default function AdulteGameDetail() {
     loadGame,
     navigate,
     ToastContainer,
-    ConfirmDialog
+    ConfirmDialog,
+    owners,
+    users,
+    currentUser,
+    profileImages,
+    costsByUser,
+    totalPrix,
+    loadOwners
   } = useAdulteGameDetail();
 
   // Gestion des préférences d'affichage
@@ -278,6 +287,10 @@ export default function AdulteGameDetail() {
                   onStatusChange={handleStatusChange}
                   onNotesChange={handleNotesChange}
                   onExecutableChange={loadGame}
+                  costsByUser={costsByUser}
+                  totalPrix={totalPrix}
+                  profileImages={profileImages}
+                  onMarkAsOwned={() => setShowOwnershipModal(true)}
                 />
               )}
             </div>
@@ -382,6 +395,28 @@ export default function AdulteGameDetail() {
           onClose={handleCloseDisplaySettings}
           showToast={showToast}
         />
+      )}
+
+      {showOwnershipModal && game && (
+        <>
+          {users.length > 0 && currentUser ? (
+            <AdulteGameOwnershipModal
+              game={game}
+              owners={owners}
+              users={users}
+              currentUserId={currentUser.id}
+              onClose={() => setShowOwnershipModal(false)}
+              onSuccess={async () => {
+                await loadOwners();
+                setShowOwnershipModal(false);
+                // Déclencher un événement pour recharger les propriétaires
+                window.dispatchEvent(new CustomEvent('adulte-game-ownership-updated', {
+                  detail: { gameId: game.id }
+                }));
+              }}
+            />
+          ) : null}
+        </>
       )}
 
       <ConfirmDialog />

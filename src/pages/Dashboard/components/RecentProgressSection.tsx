@@ -127,6 +127,10 @@ export default function RecentProgressSection({
             }
           };
 
+          // Trouver le jeu pour déterminer son type (RAWG ou adulte)
+          const gameItem = isJeu ? adulteGames.find(g => g.id === (item as any).gameId) : null;
+          const isRawgGame = gameItem?.game_site === 'RAWG';
+
           return (
             <Link
               key={
@@ -140,7 +144,7 @@ export default function RecentProgressSection({
               }
               to={
                 isJeu
-                  ? `/adulte-game/${(item as any).gameId}`
+                  ? (isRawgGame ? `/games/rawg/${(item as any).gameId}` : `/adulte-game/${(item as any).gameId}`)
                   : isMovie
                     ? (tmdbId ? `/movies/${tmdbId}` : '#')
                     : isTvShow

@@ -29,7 +29,9 @@ interface CollectionViewProps<T> {
 function generateItemKey<T extends { id: number | string }>(item: T & Partial<ItemWithStatus>): string {
   const status = item.statut_visionnage || item.statut_lecture || item.statut_perso;
   const favorite = item.is_favorite ? 'fav' : 'no-fav';
-  return status ? `${item.id}-${status}-${favorite}` : String(item.id);
+  // Inclure videoType si présent (pour la page Videos qui combine animes, films et séries)
+  const videoType = (item as any).videoType ? `-${(item as any).videoType}` : '';
+  return status ? `${item.id}-${status}-${favorite}${videoType}` : `${item.id}${videoType}`;
 }
 
 export default function CollectionView<T extends { id: number | string }>({
@@ -50,7 +52,8 @@ export default function CollectionView<T extends { id: number | string }>({
     gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`,
     gap: '12px',
     overflow: 'visible' as const,
-    position: 'relative' as const
+    position: 'relative' as const,
+    alignItems: 'stretch' as const // Force toutes les cartes dans une ligne à avoir la même hauteur
   }), [gridMinWidth]);
 
   const listStyle = useMemo(() => ({
@@ -98,7 +101,14 @@ export default function CollectionView<T extends { id: number | string }>({
           {items.map((item) => {
             const itemKey = generateItemKey(item as T & Partial<ItemWithStatus>);
             return (
-              <div key={itemKey} data-scroll-id={String(item.id)}>
+              <div 
+                key={itemKey} 
+                data-scroll-id={String(item.id)}
+                style={{
+                  display: 'flex',
+                  height: '100%'
+                }}
+              >
                 {renderCard(item, onUpdate)}
               </div>
             );

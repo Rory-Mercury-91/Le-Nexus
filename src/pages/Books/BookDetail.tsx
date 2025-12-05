@@ -1,10 +1,11 @@
 import { Edit, Settings, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import { BackToBottomButton, BackToTopButton } from '../../components/collections';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import DetailStatusSection from '../../components/details/DetailStatusSection';
 import BookOwnershipModal from '../../components/modals/book/BookOwnershipModal';
+import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import EditBookModal from '../../components/modals/book/EditBookModal';
 import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import { useConfirm } from '../../hooks/common/useConfirm';
@@ -59,6 +60,7 @@ const BOOK_DISPLAY_DEFAULTS: Record<string, boolean> = {
 
 export default function BookDetail() {
   const location = useLocation();
+  const { id } = useParams();
   const { showToast, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
   const [showOwnershipModal, setShowOwnershipModal] = useState(false);
@@ -84,6 +86,28 @@ export default function BookDetail() {
     updatingStatus,
     togglingFavorite
   } = useBookDetail();
+
+  // Flag pour s'assurer qu'on n'ouvre la modale qu'une seule fois
+  const hasOpenedEditModal = useRef(false);
+  const lastBookId = useRef<string | undefined>(undefined);
+
+  // Réinitialiser le flag si on change de livre
+  useEffect(() => {
+    if (id !== lastBookId.current) {
+      lastBookId.current = id;
+      hasOpenedEditModal.current = false;
+    }
+  }, [id]);
+
+  // Ouvrir automatiquement le mode édition si demandé via navigation state
+  useEffect(() => {
+    if (location.state?.openEdit && !loading && book && !hasOpenedEditModal.current) {
+      hasOpenedEditModal.current = true;
+      setShowEditModal(true);
+      // Nettoyer le state pour éviter de rouvrir à chaque navigation
+      window.history.replaceState({ ...location.state, openEdit: undefined }, '');
+    }
+  }, [location.state, loading, book, setShowEditModal]);
 
   const handleMarkAsRead = async () => {
     if (!book?.id) return;
@@ -157,7 +181,7 @@ export default function BookDetail() {
       {ToastContainer}
       <DetailPageHeader
         backLabel="Retour à la collection"
-        backTo={location.state?.from || '/books'}
+        backTo={location.state?.from || '/lectures/books'}
         actions={
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
@@ -316,7 +340,7 @@ export default function BookDetail() {
         <>
           {users.length > 0 && currentUser ? (
             <BookOwnershipModal
-              book={book}
+              item={{ type: 'book', book }}
               users={users}
               currentUserId={currentUser.id}
               onClose={() => setShowOwnershipModal(false)}
@@ -326,34 +350,7 @@ export default function BookDetail() {
               }}
             />
           ) : (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10000
-            }}>
-              <div style={{
-                background: 'var(--surface)',
-                padding: '20px',
-                borderRadius: '8px',
-                maxWidth: '400px'
-              }}>
-                <p>Chargement des utilisateurs...</p>
-                <button
-                  onClick={() => setShowOwnershipModal(false)}
-                  className="btn btn-outline"
-                  style={{ marginTop: '12px' }}
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
+            <OwnershipModalLoader onClose={() => setShowOwnershipModal(false)} />
           )}
         </>
       )}

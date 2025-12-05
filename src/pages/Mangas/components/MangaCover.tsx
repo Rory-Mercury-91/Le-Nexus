@@ -241,6 +241,7 @@ interface MangaCoverProps {
   onCoverUpdated?: () => void;
   onMarkAllRead?: () => Promise<void>;
   onMarkAllChaptersRead?: () => Promise<void>;
+  onMarkAsOwned?: () => void;
   costsByUser?: Array<{ user: { id: number; name: string; color: string; emoji: string }; cost: number; tomesCount: number }>;
   totalPrix?: number;
   totalMihon?: number;
@@ -256,6 +257,7 @@ export default function MangaCover({
   onCoverUpdated,
   onMarkAllRead,
   onMarkAllChaptersRead,
+  onMarkAsOwned,
   costsByUser,
   totalPrix,
   totalMihon,
@@ -431,9 +433,9 @@ export default function MangaCover({
 
       {/* Boutons liens externes sous la couverture */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px', alignItems: 'center', justifyContent: 'center' }}>
-        {/* Première ligne : MyAnimeList | Nautiljon */}
-        {(serie.mal_id || serie.nautiljon_url) && (
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Première ligne : MyAnimeList | AniList | Nautiljon */}
+        {(serie.mal_id || (serie as any).anilist_id || serie.nautiljon_url) && (
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
             {serie.mal_id && (
               <ExternalLinkIcon
                 href={`https://myanimelist.net/manga/${serie.mal_id}`}
@@ -443,7 +445,27 @@ export default function MangaCover({
               />
             )}
 
-            {serie.mal_id && serie.nautiljon_url && (
+            {serie.mal_id && ((serie as any).anilist_id || serie.nautiljon_url) && (
+              <span style={{
+                color: 'var(--text-secondary)',
+                fontSize: '16px',
+                fontWeight: '500',
+                userSelect: 'none'
+              }}>
+                |
+              </span>
+            )}
+
+            {(serie as any).anilist_id && (
+              <ExternalLinkIcon
+                href={`https://anilist.co/manga/${(serie as any).anilist_id}`}
+                type="anilist"
+                size={40}
+                title="Voir sur AniList"
+              />
+            )}
+
+            {((serie.mal_id || (serie as any).anilist_id) && serie.nautiljon_url) && (
               <span style={{
                 color: 'var(--text-secondary)',
                 fontSize: '16px',
@@ -537,6 +559,33 @@ export default function MangaCover({
             onMarkAllRead={onMarkAllRead}
             onMarkAllChaptersRead={onMarkAllChaptersRead}
           />
+        </div>
+      )}
+
+      {/* Bouton Marquer comme possédé (pour BD et Comics uniquement) */}
+      {onMarkAsOwned && (serie.media_type === 'BD' || serie.media_type === 'Comic') && (
+        <div style={{ marginTop: '24px' }}>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMarkAsOwned();
+            }}
+            className="btn btn-outline"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            💰 Marquer comme possédé
+          </button>
         </div>
       )}
 

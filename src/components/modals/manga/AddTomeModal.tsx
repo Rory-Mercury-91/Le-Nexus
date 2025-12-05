@@ -276,7 +276,7 @@ export default function AddTomeModal({ serieId, serieTitre, mediaType, typeVolum
             </button>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '12px' }}>
-                URL (optionnel)
+                URL
               </label>
               <input
                 type="text"

@@ -23,6 +23,10 @@ const tooltipTexts = {
   animeEnrichment: "Configurez les champs enrichis (Jikan/AniList, images HQ, traductions) pour les animes.",
   mangaEnrichment: "Activez les remplissages automatiques et traductions IA côté mangas.",
   malManualSync: "Permet de lancer immédiatement une synchronisation complète MyAnimeList.",
+  anilistClientId: "Identifiant client généré sur anilist.co/settings/developer (OAuth).",
+  anilistClientSecret: "Clé secrète générée sur anilist.co/settings/developer (OAuth).",
+  anilistAutoSync: "Met à jour vos progressions AniList automatiquement à l'intervalle défini.",
+  anilistManualSync: "Permet de lancer immédiatement une synchronisation complète AniList.",
   mihonImport: "L'import du backup doit contenir les données suivantes uniquement :\n\n• Séries de la bibliothèque\n• Chapitres\n• Suivi\n• Historique\n\nLes autres options ne sont pas utiles pour cette application."
 } as const;
 
@@ -41,8 +45,10 @@ const headerActionPlaceholderStyle: React.CSSProperties = {
 
 const nestedSectionIds = {
   mal: 'integrations-mal',
+  anilist: 'integrations-anilist',
   tmdb: 'integrations-tmdb',
   groq: 'integrations-groq',
+  rawg: 'integrations-rawg',
   adulteGame: 'integrations-adulteGame',
 } as const;
 
@@ -59,6 +65,16 @@ interface IntegrationsSettingsProps {
 
   malAutoSyncEnabled: boolean;
   onMalAutoSyncChange: (enabled: boolean) => void;
+
+  anilistConnected: boolean;
+  anilistUser: { name?: string; picture?: string } | null;
+  anilistLastSync: { timestamp?: string; animes?: number; mangas?: number } | null;
+  anilistLastStatusSync: { timestamp?: string } | null;
+  onAnilistConnect: () => void;
+  onAnilistDisconnect: () => void;
+  onAnilistSyncNow: () => void | Promise<void>;
+  anilistAutoSyncEnabled: boolean;
+  onAnilistAutoSyncChange: (enabled: boolean) => void;
 
   nautiljonAutoSyncEnabled: boolean;
   onNautiljonAutoSyncChange: (enabled: boolean) => void;
@@ -160,6 +176,15 @@ export default function IntegrationsSettings({
   onMalSyncNow,
   malAutoSyncEnabled,
   onMalAutoSyncChange,
+  anilistConnected,
+  anilistUser,
+  anilistLastSync,
+  anilistLastStatusSync,
+  onAnilistConnect,
+  onAnilistDisconnect,
+  onAnilistSyncNow,
+  anilistAutoSyncEnabled,
+  onAnilistAutoSyncChange,
   nautiljonAutoSyncEnabled,
   onNautiljonAutoSyncChange,
   nautiljonAutoSyncIncludeTomes,
@@ -184,6 +209,14 @@ export default function IntegrationsSettings({
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const redirectUriRef = useRef<string>(DEFAULT_MAL_REDIRECT_URI);
 
+  const [anilistClientId, setAnilistClientId] = useState('');
+  const [anilistClientSecret, setAnilistClientSecret] = useState('');
+  const [anilistCredentialsLoaded, setAnilistCredentialsLoaded] = useState(false);
+  const [isSavingAnilistCredentials, setIsSavingAnilistCredentials] = useState(false);
+  const anilistSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [anilistClientIdVisible, setAnilistClientIdVisible] = useState(false);
+  const [anilistClientSecretVisible, setAnilistClientSecretVisible] = useState(false);
+
 
   const [groqApiKeyInput, setGroqApiKeyInput] = useState('');
   const [groqInitialLoad, setGroqInitialLoad] = useState(false);
@@ -200,6 +233,15 @@ export default function IntegrationsSettings({
   const [mihonImportProgress, setMihonImportProgress] = useState<{ step?: string; message?: string; progress?: number; total?: number; current?: number } | null>(null);
   const [animeEnrichmentEnabled, setAnimeEnrichmentEnabled] = useState(false);
   const [mangaEnrichmentEnabled, setMangaEnrichmentEnabled] = useState(false);
+
+  // États RAWG
+  const [rawgApiKeyInput, setRawgApiKeyInput] = useState('');
+  const [rawgInitialLoad, setRawgInitialLoad] = useState(false);
+  const [rawgSaving, setRawgSaving] = useState(false);
+  const rawgSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rawgTesting, setRawgTesting] = useState(false);
+  const [rawgTestResult, setRawgTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [rawgKeyVisible, setRawgKeyVisible] = useState(false);
 
   const TooltipIcon = ({ id, placement = 'center' }: { id: TooltipId; placement?: 'center' | 'end' }) => (
     <span
@@ -443,6 +485,59 @@ export default function IntegrationsSettings({
       }
     };
   }, []);
+
+  useEffect(() => {
+    const loadAnilistCredentials = async () => {
+      try {
+        const creds = await window.electronAPI.anilistGetCredentials?.();
+        if (creds) {
+          setAnilistClientId(creds.clientId || '');
+          setAnilistClientSecret(creds.clientSecret || '');
+        }
+      } catch (error) {
+        console.error('Erreur chargement identifiants AniList:', error);
+      } finally {
+        setAnilistCredentialsLoaded(true);
+      }
+    };
+
+    loadAnilistCredentials();
+
+    return () => {
+      if (anilistSaveTimeoutRef.current) {
+        clearTimeout(anilistSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleAnilistCredentialSave = (nextClientId: string, nextClientSecret: string) => {
+    if (!anilistCredentialsLoaded || !window.electronAPI.anilistSetCredentials) {
+      return;
+    }
+
+    if (anilistSaveTimeoutRef.current) {
+      clearTimeout(anilistSaveTimeoutRef.current);
+    }
+
+    const trimmedClientId = nextClientId.trim();
+    const trimmedClientSecret = nextClientSecret.trim();
+
+    anilistSaveTimeoutRef.current = setTimeout(async () => {
+      setIsSavingAnilistCredentials(true);
+      try {
+        await window.electronAPI.anilistSetCredentials?.({
+          clientId: trimmedClientId,
+          clientSecret: trimmedClientSecret,
+          redirectUri: `http://localhost:8888/anilist-callback`,
+        });
+      } catch (error) {
+        console.error('Erreur sauvegarde identifiants AniList:', error);
+      } finally {
+        setIsSavingAnilistCredentials(false);
+        anilistSaveTimeoutRef.current = null;
+      }
+    }, 600);
+  };
 
   useEffect(() => {
     setGroqApiKeyInput(groqApiKey || '');
@@ -704,6 +799,241 @@ export default function IntegrationsSettings({
           />
           Connecter MyAnimeList
         </button>
+      </div>
+    );
+  };
+
+  const renderAniListStatus = () => {
+    if (anilistConnected) {
+      const lastSyncDate = anilistLastSync?.timestamp
+        ? new Date(anilistLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+        : null;
+      return (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            justifyContent: 'space-between',
+            padding: '16px 18px',
+            borderRadius: '12px',
+            background: 'rgba(2, 169, 255, 0.12)',
+            border: '1px solid rgba(2, 169, 255, 0.28)',
+            boxShadow: '0 12px 32px rgba(2, 169, 255, 0.18)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            {anilistUser?.picture && (
+              <img
+                src={anilistUser.picture}
+                alt={anilistUser.name}
+                style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #02a9ff' }}
+              />
+            )}
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                {anilistUser?.name}
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                Dernière synchronisation :{' '}
+                {lastSyncDate || 'Jamais'}
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                Dernier état progression :{' '}
+                {anilistLastStatusSync?.timestamp
+                  ? new Date(anilistLastStatusSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+                  : '—'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onAnilistDisconnect}
+            className="btn"
+            style={{
+              background: 'rgba(239, 68, 68, 0.14)',
+              color: '#ef4444',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '10px',
+            }}
+          >
+            Déconnecter
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          padding: '20px',
+          borderRadius: '12px',
+          border: '1px dashed rgba(2, 169, 255, 0.35)',
+          background: 'rgba(2, 169, 255, 0.08)',
+          boxShadow: '0 10px 24px rgba(2, 169, 255, 0.18)',
+        }}
+      >
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
+          Connectez votre compte AniList pour synchroniser automatiquement vos progressions anime/manga.
+        </p>
+        <button
+          onClick={async () => {
+            // Sauvegarder les identifiants immédiatement avant de connecter
+            if (anilistCredentialsLoaded && window.electronAPI.anilistSetCredentials) {
+              // Annuler le timeout en cours s'il existe
+              if (anilistSaveTimeoutRef.current) {
+                clearTimeout(anilistSaveTimeoutRef.current);
+                anilistSaveTimeoutRef.current = null;
+              }
+              // Sauvegarder immédiatement
+              try {
+                await window.electronAPI.anilistSetCredentials({
+                  clientId: anilistClientId.trim(),
+                  clientSecret: anilistClientSecret.trim(),
+                  redirectUri: `http://localhost:8888/anilist-callback`,
+                });
+              } catch (error) {
+                console.error('Erreur sauvegarde identifiants AniList avant connexion:', error);
+              }
+            }
+            // Lancer la connexion
+            onAnilistConnect();
+          }}
+          className="btn btn-primary"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            padding: '12px',
+            fontWeight: 600,
+            fontSize: '14px',
+            borderRadius: '10px',
+            background: '#02a9ff',
+            color: 'white',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+          </svg>
+          Connecter AniList
+        </button>
+      </div>
+    );
+  };
+
+  const renderAnilistSyncToggles = () => {
+    const syncItems: Array<{
+      key: string;
+      label: string;
+      tooltipId: TooltipId;
+      checked: boolean;
+      onChange: (value: boolean) => void;
+    }> = [
+        {
+          key: 'anilist-auto-sync',
+          label: '🔄 Synchronisation automatique AniList',
+          tooltipId: 'anilistAutoSync',
+          checked: anilistAutoSyncEnabled,
+          onChange: onAnilistAutoSyncChange,
+        },
+      ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {syncItems.map((item) => (
+          <div
+            key={item.key}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 18px',
+              borderRadius: '10px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)',
+              boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+              <label
+                htmlFor={item.key}
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+              >
+                {item.label}
+              </label>
+              <TooltipIcon id={item.tooltipId} />
+            </div>
+            <Toggle
+              checked={item.checked}
+              onChange={item.onChange}
+              disabled={!anilistConnected}
+            />
+          </div>
+        ))}
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            borderRadius: '10px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+            <label
+              htmlFor="anilist-manual-sync"
+              style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                color: 'var(--text)',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
+              🔄 Synchronisation manuelle AniList
+            </label>
+            <TooltipIcon id="anilistManualSync" />
+          </div>
+          <button
+            onClick={onAnilistSyncNow}
+            className="btn"
+            disabled={!anilistConnected}
+            style={{
+              opacity: !anilistConnected ? 0.5 : 1,
+              cursor: !anilistConnected ? 'not-allowed' : 'pointer',
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '8px',
+            }}
+          >
+            <RefreshCw size={14} style={{ marginRight: '6px', display: 'inline' }} />
+            Synchroniser maintenant
+          </button>
+          {!anilistConnected && (
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
+              Connectez-vous d'abord
+            </span>
+          )}
+        </div>
+        {anilistConnected && anilistLastSync?.timestamp && (
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '18px' }}>
+            Dernière sync : {new Date(anilistLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+          </p>
+        )}
       </div>
     );
   };
@@ -1004,6 +1334,266 @@ export default function IntegrationsSettings({
       </div>
     );
   };
+
+  // Charger les credentials RAWG au montage
+  useEffect(() => {
+    const loadRawgCredentials = async () => {
+      try {
+        const credentials = await window.electronAPI.getRawgCredentials();
+        if (credentials) {
+          setRawgApiKeyInput(credentials.apiKey || '');
+        }
+        setRawgInitialLoad(true);
+      } catch (error) {
+        console.error('Erreur chargement credentials RAWG:', error);
+        setRawgInitialLoad(true);
+      }
+    };
+    loadRawgCredentials();
+
+    return () => {
+      if (rawgSaveTimeout.current) {
+        clearTimeout(rawgSaveTimeout.current);
+      }
+    };
+  }, []);
+
+  const scheduleRawgApiKeySave = useCallback(
+    (nextKey: string) => {
+      if (!rawgInitialLoad) {
+        return;
+      }
+
+      if (rawgSaveTimeout.current) {
+        clearTimeout(rawgSaveTimeout.current);
+      }
+
+      const value = (nextKey || '').trim();
+
+      rawgSaveTimeout.current = setTimeout(async () => {
+        setRawgSaving(true);
+        try {
+          await window.electronAPI.setRawgCredentials({ apiKey: value });
+        } catch (error: any) {
+          console.error('Erreur sauvegarde clé RAWG:', error);
+          showToast?.({
+            title: 'Erreur RAWG',
+            message: error?.message || 'Impossible de sauvegarder la clé API RAWG.',
+            type: 'error'
+          });
+        } finally {
+          setRawgSaving(false);
+          rawgSaveTimeout.current = null;
+        }
+      }, 600);
+    },
+    [rawgInitialLoad, showToast]
+  );
+
+  const flushRawgApiKeySave = useCallback(async () => {
+    if (!rawgInitialLoad) {
+      return;
+    }
+
+    if (rawgSaveTimeout.current) {
+      clearTimeout(rawgSaveTimeout.current);
+      rawgSaveTimeout.current = null;
+    }
+
+    setRawgSaving(true);
+    try {
+      await window.electronAPI.setRawgCredentials({ apiKey: rawgApiKeyInput.trim() });
+    } catch (error: any) {
+      console.error('Erreur sauvegarde clé RAWG:', error);
+      showToast?.({
+        title: 'Erreur RAWG',
+        message: error?.message || 'Impossible de sauvegarder la clé API RAWG.',
+        type: 'error'
+      });
+    } finally {
+      setRawgSaving(false);
+    }
+  }, [rawgApiKeyInput, rawgInitialLoad, showToast]);
+
+  const handleTestRawgConnection = useCallback(async () => {
+    const key = rawgApiKeyInput.trim();
+
+    if (!key) {
+      const message = 'Veuillez saisir une clé API RAWG pour lancer le test.';
+      setRawgTestResult({ success: false, message });
+      showToast?.({
+        title: 'Clé requise',
+        message,
+        type: 'error'
+      });
+      return;
+    }
+
+    await flushRawgApiKeySave();
+
+    try {
+      setRawgTesting(true);
+      setRawgTestResult(null);
+
+      const result = await window.electronAPI.testRawgConnection({ apiKey: key });
+      if (result?.success) {
+        const message = 'Connexion RAWG validée. Les services d\'enrichissement de jeux sont opérationnels.';
+        setRawgTestResult({ success: true, message });
+        showToast?.({
+          title: 'Connexion RAWG réussie',
+          message,
+          type: 'success'
+        });
+      } else {
+        const message = result?.error || 'Clé API refusée par RAWG.';
+        setRawgTestResult({ success: false, message });
+        showToast?.({
+          title: 'Connexion RAWG échouée',
+          message,
+          type: 'error'
+        });
+      }
+    } catch (error: any) {
+      const message = error?.message || 'Impossible de contacter RAWG.';
+      setRawgTestResult({ success: false, message });
+      showToast?.({
+        title: 'Connexion RAWG échouée',
+        message,
+        type: 'error'
+      });
+    } finally {
+      setRawgTesting(false);
+    }
+  }, [flushRawgApiKeySave, rawgApiKeyInput, showToast]);
+
+  const renderRawgSection = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div
+        style={{
+          display: 'grid',
+          gap: '18px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          alignItems: 'stretch',
+        }}
+      >
+        <div
+          style={{
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface-light)',
+            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Clé API RAWG <span style={{ color: '#f97316' }}>*</span>
+              </label>
+            </div>
+            <button
+              onClick={handleTestRawgConnection}
+              className="btn btn-outline"
+              disabled={rawgTesting}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                minWidth: '190px',
+              }}
+            >
+              <RefreshCw size={14} style={{ animation: rawgTesting ? 'spin 1s linear infinite' : 'none' }} />
+              {rawgTesting ? 'Test en cours…' : 'Tester la connexion'}
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type={rawgKeyVisible ? 'text' : 'password'}
+              value={rawgApiKeyInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setRawgApiKeyInput(value);
+                scheduleRawgApiKeySave(value);
+              }}
+              onBlur={() => {
+                flushRawgApiKeySave().catch(() => undefined);
+              }}
+              placeholder="Votre clé API RAWG"
+              autoComplete="off"
+              className="input"
+              style={{
+                flex: 1,
+                letterSpacing: rawgKeyVisible ? '0.4px' : '0.6px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setRawgKeyVisible((prev) => !prev)}
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                borderRadius: '8px',
+                width: '42px',
+                height: '42px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                transition: 'all 0.2s ease',
+              }}
+              aria-label={rawgKeyVisible ? 'Masquer la clé RAWG' : 'Afficher la clé RAWG'}
+            >
+              {rawgKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {rawgSaving && (
+            <div style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+              Sauvegarde en cours…
+            </div>
+          )}
+          {rawgTestResult && (
+            <div
+              style={{
+                fontSize: '12px',
+                color: rawgTestResult.success ? 'var(--success)' : 'var(--error)',
+                border: `1px solid ${rawgTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
+                background: rawgTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                width: '100%',
+              }}
+            >
+              <CheckCircle size={14} />
+              {rawgTestResult.message}
+            </div>
+          )}
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            La clé API RAWG permet d'enrichir votre bibliothèque de jeux avec des métadonnées complètes (description, genres, plateformes, notes, etc.).
+            <br />
+            <a
+              href="https://rawg.io/apidocs"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--primary)', textDecoration: 'underline' }}
+            >
+              Obtenir une clé API RAWG
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderGroqSection = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1357,6 +1947,169 @@ export default function IntegrationsSettings({
       </NestedSection>
 
       <NestedSection
+        id="integrations-anilist"
+        title="📺 AniList (Progression Anime/Manga)"
+        isOpen={getNestedSectionState('anilist')}
+        onToggle={() => toggleNestedSection('anilist')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('anilist');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <Info size={14} />
+            Guide AniList
+          </button>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gap: '18px',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            }}
+          >
+            <div
+              style={{
+                padding: '18px 20px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-light)',
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID AniList</label>
+                  <TooltipIcon id="anilistClientId" />
+                </div>
+                <div style={headerActionPlaceholderStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input
+                  type={anilistClientIdVisible ? 'text' : 'password'}
+                  value={anilistClientId}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAnilistClientId(value);
+                    scheduleAnilistCredentialSave(value, anilistClientSecret);
+                  }}
+                  placeholder="Clé client générée sur anilist.co/settings/developer"
+                  className="input"
+                  style={{
+                    flex: 1,
+                    letterSpacing: anilistClientIdVisible ? '0.4px' : '0.6px'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setAnilistClientIdVisible((prev) => !prev)}
+                  style={{
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    borderRadius: '8px',
+                    width: '42px',
+                    height: '42px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)'
+                  }}
+                  aria-label={anilistClientIdVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
+                >
+                  {anilistClientIdVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '18px 20px',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-light)',
+                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client Secret AniList</label>
+                  <TooltipIcon id="anilistClientSecret" />
+                </div>
+                <div style={headerActionPlaceholderStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <input
+                  type={anilistClientSecretVisible ? 'text' : 'password'}
+                  value={anilistClientSecret}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAnilistClientSecret(value);
+                    scheduleAnilistCredentialSave(anilistClientId, value);
+                  }}
+                  placeholder="Clé secrète générée sur anilist.co/settings/developer"
+                  className="input"
+                  style={{
+                    flex: 1,
+                    letterSpacing: anilistClientSecretVisible ? '0.4px' : '0.6px'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setAnilistClientSecretVisible((prev) => !prev)}
+                  style={{
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    borderRadius: '8px',
+                    width: '42px',
+                    height: '42px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)'
+                  }}
+                  aria-label={anilistClientSecretVisible ? 'Masquer le Client Secret' : 'Afficher le Client Secret'}
+                >
+                  {anilistClientSecretVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {isSavingAnilistCredentials && (
+                <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+                  Sauvegarde en cours…
+                </span>
+              )}
+            </div>
+
+            {renderAniListStatus()}
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Synchronisation Automatique et Manuelle</h4>
+            {renderAnilistSyncToggles()}
+          </div>
+        </div>
+      </NestedSection>
+
+      <NestedSection
         id="integrations-tmdb"
         title="🎬 Sources Médias et Images (TMDb)"
         isOpen={getNestedSectionState('tmdb')}
@@ -1417,6 +2170,35 @@ export default function IntegrationsSettings({
         }
       >
         {renderGroqSection()}
+      </NestedSection>
+
+      <NestedSection
+        id="integrations-rawg"
+        title="🎮 Enrichissement Jeux Vidéo (RAWG)"
+        isOpen={getNestedSectionState('rawg')}
+        onToggle={() => toggleNestedSection('rawg')}
+        action={
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onOpenGuide('rawg');
+            }}
+            className="btn btn-outline"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px',
+              fontSize: '12px',
+            }}
+          >
+            <Info size={14} />
+            Guide RAWG
+          </button>
+        }
+      >
+        {renderRawgSection()}
       </NestedSection>
 
       <NestedSection

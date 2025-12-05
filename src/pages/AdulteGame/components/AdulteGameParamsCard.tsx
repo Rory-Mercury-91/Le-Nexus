@@ -1,5 +1,6 @@
 import { FileText, FolderOpen, Plus, Settings, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import AdulteGameCostsSection from './AdulteGameCostsSection';
 
 interface ExecutablePath {
   version: string;
@@ -15,6 +16,10 @@ interface AdulteGameParamsCardProps {
   onStatusChange: (nextStatus: string) => void;
   onNotesChange: (nextNotes: string) => void;
   onExecutableChange: () => void;
+  costsByUser?: Array<{ user: { id: number; name: string; color: string; emoji: string }; cost: number }>;
+  totalPrix?: number;
+  profileImages?: Record<string, string | null>;
+  onMarkAsOwned?: () => void;
 }
 
 const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
@@ -24,7 +29,11 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
   chemin_executable,
   onStatusChange,
   onNotesChange,
-  onExecutableChange
+  onExecutableChange,
+  costsByUser = [],
+  totalPrix = 0,
+  profileImages = {},
+  onMarkAsOwned
 }) => {
   const [notes, setNotes] = useState(notes_privees || '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -33,7 +42,7 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
   const [isSavingExecutables, setIsSavingExecutables] = useState(false);
 
   const STATUSES = [
-    { value: 'À lire', label: '📋 À lire', color: 'var(--warning)' },
+    { value: 'À lire', label: '🎮 À jouer', color: 'var(--warning)' },
     { value: 'En cours', label: '🎮 En cours', color: 'var(--primary)' },
     { value: 'En pause', label: '⏸️ En pause', color: 'var(--warning)' },
     { value: 'Terminé', label: '✅ Terminé', color: 'var(--success)' },
@@ -269,6 +278,19 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
               </div>
             )}
           </div>
+
+          {/* Section des coûts */}
+          {onMarkAsOwned && (
+            <div style={{ marginTop: '24px' }}>
+              <AdulteGameCostsSection
+                costsByUser={costsByUser}
+                totalPrix={totalPrix}
+                profileImages={profileImages}
+                onMarkAsOwned={onMarkAsOwned}
+                shouldShow={true}
+              />
+            </div>
+          )}
         </div>
 
         {/* Chemins des exécutables */}

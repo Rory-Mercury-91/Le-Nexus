@@ -1,7 +1,7 @@
 import { Database } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import FullScreenOverlay from '../common/FullScreenOverlay';
-import GradientTitle from '../common/GradientTitle';
+import NexusLogo from '../common/NexusLogo';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -75,9 +75,7 @@ export default function SplashScreen({ onComplete, currentUser }: SplashScreenPr
       </div>
 
       {/* Titre */}
-      <GradientTitle marginBottom="16px">
-        Nexus
-      </GradientTitle>
+      <NexusLogo height={52} style={{ marginBottom: '16px' }} />
 
       {/* Statut */}
       <p style={{

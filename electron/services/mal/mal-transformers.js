@@ -165,16 +165,42 @@ function transformAnimeData(malEntry) {
   const listStatus = malEntry.list_status || {};
   const mediaType = (anime.media_type || '').toLowerCase();
 
-  const mediaTypeMap = {
-    tv: 'TV',
-    ova: 'OVA',
-    ona: 'ONA',
-    special: 'Special',
-    movie: 'Movie',
-    music: 'Music'
+  // Normaliser le type d'anime pour gérer les variantes (TV Special, tv_special -> Special, etc.)
+  const normalizeAnimeType = (type) => {
+    if (!type) return 'TV';
+    
+    const trimmed = String(type).trim();
+    const normalized = trimmed.toLowerCase().replace(/[_-]/g, ' ').trim();
+    
+    // Vérifier d'abord les types contenant "special" (TV Special, tv_special, etc.)
+    if (normalized.includes('special')) {
+      return 'Special';
+    }
+    
+    // Mapping des types standardisés
+    const typeMap = {
+      'tv': 'TV',
+      'ova': 'OVA',
+      'ona': 'ONA',
+      'movie': 'Movie',
+      'music': 'Music'
+    };
+    
+    if (typeMap[normalized]) {
+      return typeMap[normalized];
+    }
+    
+    // Si c'est déjà un type reconnu (avec majuscules), le retourner tel quel
+    const recognizedTypes = ['TV', 'OVA', 'ONA', 'Movie', 'Special', 'Music'];
+    if (recognizedTypes.includes(trimmed)) {
+      return trimmed;
+    }
+    
+    // Par défaut, retourner TV
+    return 'TV';
   };
 
-  const normalizedMediaType = mediaTypeMap[mediaType] || (anime.media_type ? anime.media_type.toString() : 'TV');
+  const normalizedMediaType = normalizeAnimeType(anime.media_type);
 
   return {
     mal_id: anime.id,

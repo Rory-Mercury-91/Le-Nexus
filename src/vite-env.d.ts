@@ -130,6 +130,7 @@ interface ElectronAPI {
   minimizeToTray: () => Promise<void>;
   toggleFullscreen: () => Promise<{ success: boolean; isFullScreen?: boolean; error?: string }>;
   isFullscreen: () => Promise<{ success: boolean; isFullScreen: boolean }>;
+  copyToClipboard: (text: string) => Promise<boolean>;
   nautiljonGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number; includeTomes: boolean }>;
   nautiljonSetAutoSync: (enabled: boolean, intervalHours: number, includeTomes: boolean) => Promise<{ success: boolean; error?: string }>;
   chooseAvatarFile: () => Promise<{ success: boolean; path?: string; error?: string }>;
@@ -175,7 +176,7 @@ interface ElectronAPI {
   getAdulteGameGame: (id: number) => Promise<AdulteGame | null>;
   checkAdulteGameUpdates: (gameId: number, force?: boolean) => Promise<{ updated: number; sheetSynced: number }>;
   markAdulteGameUpdateSeen: (id: number) => Promise<{ success: boolean }>;
-  launchAdulteGameGame: (id: number, version?: string) => Promise<{ success: boolean }>;
+  launchAdulteGameGame: (id: number, version?: string) => Promise<{ success: boolean; openedWebsite?: boolean }>;
   deleteAdulteGameGame: (id: number) => Promise<{ success: boolean }>;
   getAdulteGameTagPreferences: (userId: number) => Promise<Record<string, 'liked' | 'disliked' | 'neutral'>>;
   toggleAdulteGameTagPreference: (userId: number, tag: string) => Promise<{ preference: 'liked' | 'disliked' | 'neutral' }>;
@@ -309,8 +310,8 @@ interface ElectronAPI {
       mal_id?: number | null;
     };
   }>;
-  addAnimeByMalId: (
-    malIdOrUrl: number | string,
+  addMangaByAnilistId: (
+    anilistIdOrUrl: number | string,
     options?: {
       targetSerieId?: number;
       forceCreate?: boolean;
@@ -326,12 +327,108 @@ interface ElectronAPI {
       type_volume?: string | null;
       source_donnees?: string | null;
       statut?: string | null;
+      anilist_id?: number | null;
+      mal_id?: number | null;
+    }>;
+    serie?: {
+      id: number;
+      titre: string;
+      anilist_id?: number | null;
+      mal_id?: number | null;
+    };
+  }>;
+  addAnimeByMalId: (
+    malIdOrUrl: number | string,
+    options?: {
+      targetSerieId?: number;
+      forceCreate?: boolean;
+    }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    requiresSelection?: boolean;
+    candidates?: Array<{
+      id: number;
+      titre: string;
+      type?: string;
+      source_donnees?: string;
+      statut?: string;
+      mal_id?: number;
+      anilist_id?: number;
+      similarity?: number;
+      isExactMatch?: boolean;
+      matchMethod?: string;
+    }>;
+    animeId?: number;
+    anime?: {
+      id: number;
+      titre: string;
+      type: string;
+      nb_episodes: number;
+      mal_id: number;
+    };
+    relatedAnimes?: Array<{
+      mal_id: number;
+      title: string;
+      relation: string;
+    }>;
+  }>;
+  addAnimeByAnilistId: (
+    anilistIdOrUrl: number | string,
+    options?: {
+      targetSerieId?: number;
+      forceCreate?: boolean;
+    }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    requiresSelection?: boolean;
+    anilistId?: number;
+    candidates?: Array<{
+      id: number;
+      titre: string;
+      media_type?: string | null;
+      type_volume?: string | null;
+      source_donnees?: string | null;
+      statut?: string | null;
       mal_id?: number | null;
     }>;
     anime?: {
       id: number;
       titre: string;
       mal_id?: number | null;
+    };
+  }>;
+  addAnimeByAnilistId: (
+    anilistIdOrUrl: number | string,
+    options?: {
+      targetSerieId?: number;
+      forceCreate?: boolean;
+    }
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    requiresSelection?: boolean;
+    anilistId?: number;
+    candidates?: Array<{
+      id: number;
+      titre: string;
+      type?: string;
+      source_donnees?: string;
+      statut?: string;
+      anilist_id?: number;
+      mal_id?: number;
+      similarity?: number;
+      isExactMatch?: boolean;
+      matchMethod?: string;
+    }>;
+    animeId?: number;
+    anime?: {
+      id: number;
+      titre: string;
+      type?: string;
+      anilist_id?: number;
+      mal_id?: number;
     };
   }>;
 
@@ -426,6 +523,55 @@ interface ElectronAPI {
 
   // JEUX ADULTES Favorites
   toggleAdulteGameFavorite: (gameId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
+  adulteGameMarkAsOwned: (payload: {
+    gameId: number;
+    prix: number;
+    dateAchat: string | null;
+    partageAvec: number[];
+    platforms: string[] | null;
+  }) => Promise<{ success: boolean; error?: string }>;
+  adulteGameGetOwners: (gameId: number) => Promise<{
+    success: boolean;
+    owners: Array<{
+      id: number;
+      user_id: number;
+      prix: number;
+      date_achat: string | null;
+      platforms: string | null;
+      user_name: string;
+      user_color: string;
+      user_emoji: string;
+    }>;
+    error?: string;
+  }>;
+  getRawgGameDetail: (gameId: number) => Promise<any>;
+  getRawgGameDisplaySettings: () => Promise<Record<string, boolean>>;
+  getRawgGameDisplayOverrides: (gameId: number) => Promise<Record<string, boolean>>;
+  saveRawgGameDisplaySettings: (prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
+  saveRawgGameDisplayOverrides: (gameId: number, overrides: Record<string, boolean>) => Promise<{ success: boolean }>;
+  deleteRawgGameDisplayOverrides: (gameId: number, keys: string[]) => Promise<{ success: boolean }>;
+  getRawgGameUserImages: (gameId: number) => Promise<Array<{
+    id: number;
+    type: 'url' | 'file';
+    title?: string | null;
+    url?: string;
+    file_path?: string;
+    file_name?: string;
+  }>>;
+  getRawgGameUserVideos: (gameId: number) => Promise<Array<{
+    id: number;
+    type: 'url' | 'file';
+    title?: string | null;
+    url?: string;
+    file_path?: string;
+    file_name?: string;
+  }>>;
+  addRawgGameUserImageUrl: (gameId: number, imageUrl: string, title?: string) => Promise<{ success: boolean; id?: number; error?: string }>;
+  addRawgGameUserImageFile: (gameId: number, title?: string) => Promise<{ success: boolean; id?: number; error?: string }>;
+  deleteRawgGameUserImage: (gameId: number, imageId: number) => Promise<{ success: boolean; error?: string }>;
+  addRawgGameUserVideoUrl: (gameId: number, url: string, title: string) => Promise<{ success: boolean; id?: number; error?: string }>;
+  addRawgGameUserVideoFile: (gameId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; id?: number; error?: string }>;
+  deleteRawgGameUserVideo: (gameId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
 
   // JEUX ADULTES Masquer/Démasquer
   isAdulteGameMasquee: (gameId: number) => Promise<boolean>;
@@ -457,6 +603,30 @@ interface ElectronAPI {
   createAdulteGameGame: (gameData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   importAdulteGameFromJson: (jsonData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   selectAdulteGameCoverImage: () => Promise<{ success: boolean; path?: string; error?: string }>;
+  searchRawgGames: (query: string, page?: number) => Promise<{
+    results: Array<{
+      rawgId: number;
+      name: string;
+      released: string | null;
+      backgroundImage: string | null;
+      rating: number | null;
+      metacritic: number | null;
+      platforms: string[];
+      genres: string[];
+      inLibrary: boolean;
+    }>;
+    totalResults: number;
+    totalPages: number;
+    page: number;
+  }>;
+  createGameFromRawg: (rawgId: number, autoTranslate?: boolean) => Promise<{
+    success: boolean;
+    id?: number;
+    error?: string;
+  }>;
+  getRawgCredentials: () => Promise<{ apiKey?: string } | null>;
+  setRawgCredentials: (credentials: { apiKey: string }) => Promise<{ success: boolean; error?: string }>;
+  testRawgConnection: (credentials: { apiKey: string }) => Promise<{ success: boolean; error?: string }>;
 
   // JEUX ADULTES Blacklist
   getAdulteGameBlacklist: () => Promise<Array<{
@@ -777,7 +947,7 @@ interface ElectronAPI {
   updateTome: (id: number, updates: Partial<import('./types').Tome>) => Promise<{ success: boolean }>;
   deleteTome: (id: number) => Promise<{ success: boolean }>;
   isSerieMasquee: (serieId: number) => Promise<boolean>;
-  getDevMergePreview: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number }) => Promise<{
+  getDevMergePreview: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game' | 'book'; sourceId: number; targetId: number }) => Promise<{
     success: boolean;
     error?: string;
     type?: string;
@@ -796,7 +966,7 @@ interface ElectronAPI {
       identical: boolean;
     }>;
   }>;
-  performDevMerge: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number; selectedFields: string[] }) => Promise<{
+  performDevMerge: (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game' | 'book'; sourceId: number; targetId: number; selectedFields: string[] }) => Promise<{
     success: boolean;
     error?: string;
     targetId?: number;
@@ -821,6 +991,7 @@ interface ElectronAPI {
   toggleTomePossede: (tomeId: number, possede: boolean) => Promise<{ success: boolean }>;
   toggleTomeMihon: (tomeId: number, mihon: boolean) => Promise<{ success: boolean }>;
   possederTousLesTomes: (serieId: number) => Promise<{ success: boolean; tomesUpdated?: number }>;
+  serieMarkAsOwned: (payload: { serieId: number; prixTotal: number; dateAchat?: string | null; partageAvec?: number[] }) => Promise<{ success: boolean; error?: string; tomesUpdated?: number }>;
 
   // MyAnimeList (MAL)
   getMalCredentials?: () => Promise<{ clientId: string; redirectUri: string }>;
@@ -858,6 +1029,38 @@ interface ElectronAPI {
   onMalTranslationProgress?: (callback: (event: unknown, progress: TranslationProgress) => void) => () => void;
   onMalTranslationCompleted?: (callback: (event: unknown, result: { translated: number; total: number; skipped?: number }) => void) => () => void;
   onMalTranslationError?: (callback: (event: unknown, payload: { error?: string }) => void) => () => void;
+
+  // AniList
+  anilistGetCredentials?: () => Promise<{ clientId: string; clientSecret: string; redirectUri: string }>;
+  anilistSetCredentials?: (credentials: { clientId?: string; clientSecret?: string; redirectUri?: string }) => Promise<{ success: boolean }>;
+  anilistGetStatus: () => Promise<{
+    connected: boolean;
+    user: { name?: string; picture?: string } | null;
+    lastSync: { timestamp?: string; animes?: number; mangas?: number } | null;
+    lastStatusSync?: { timestamp?: string } | null;
+  }>;
+  anilistSyncNow: () => Promise<{
+    success?: boolean;
+    error?: string;
+    requiresReconnect?: boolean;
+    mangas?: { total?: number; created?: number; updated?: number };
+    animes?: { total?: number; created?: number; updated?: number };
+  }>;
+  anilistSyncStatus?: () => Promise<{
+    success?: boolean;
+    error?: string;
+    requiresReconnect?: boolean;
+    durationMs?: number;
+    mangas?: { updated: number; missing: number };
+    animes?: { updated: number; missing: number };
+  }>;
+  anilistGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
+  anilistSetAutoSync: (enabled: boolean, intervalHours: number) => Promise<{ success: boolean; error?: string }>;
+  anilistConnect: () => Promise<{ success: boolean; user?: { name?: string } | null; error?: string }>;
+  anilistDisconnect: () => Promise<{ success: boolean; error?: string }>;
+  onAnilistSyncProgress?: (callback: (event: unknown, progress: MalSyncProgress) => void) => () => void;
+  onAnilistSyncCompleted?: (callback: (event: unknown, result: MalSyncResult) => void) => () => void;
+  onAnilistSyncError?: (callback: (event: unknown, payload: { error: string; timestamp?: string }) => void) => () => void;
   
   // Manga Relations
   getMangaByMalId: (_malId: number) => Promise<{ id: number; titre: string; mal_id: number } | null>;
@@ -875,6 +1078,87 @@ interface ElectronAPI {
     sources?: Array<{ id: string; name: string }>;
     error?: string;
   }>;
+  
+  // ========== ABONNEMENTS ==========
+  subscriptionsGet: (filters?: Record<string, unknown>) => Promise<Array<{
+    id: number;
+    name: string;
+    type: string;
+    price: number;
+    devise: string;
+    frequency: string;
+    start_date: string;
+    next_payment_date: string | null;
+    status: 'active' | 'expired' | 'cancelled';
+    notes: string | null;
+    proprietaires: Array<{ id: number; name: string; color: string; emoji: string }>;
+  }>>;
+  subscriptionsCreate: (subscriptionData: {
+    name: string;
+    type: string;
+    price: number;
+    devise?: string;
+    frequency: string;
+    start_date: string;
+    notes?: string | null;
+    proprietaires?: number[];
+  }) => Promise<{ success: boolean; id?: number; error?: string }>;
+  subscriptionsUpdate: (id: number, subscriptionData: {
+    name?: string;
+    type?: string;
+    price?: number;
+    devise?: string;
+    frequency?: string;
+    start_date?: string;
+    status?: 'active' | 'expired' | 'cancelled';
+    notes?: string | null;
+    proprietaires?: number[];
+  }) => Promise<{ success: boolean; error?: string }>;
+  subscriptionsDelete: (id: number) => Promise<{ success: boolean; error?: string }>;
+  subscriptionsUpdateNextPayments?: () => Promise<{ success: boolean }>;
+  
+  // ========== SITES D'ACHAT ==========
+  purchaseSitesGet: () => Promise<{
+    success: boolean;
+    sites?: Array<{ id: number; name: string }>;
+    error?: string;
+  }>;
+  purchaseSitesCreate: (name: string) => Promise<{ success: boolean; id?: number; error?: string }>;
+  
+  // ========== ACHATS PONCTUELS ==========
+  oneTimePurchasesGet: (filters?: Record<string, unknown>) => Promise<Array<{
+    id: number;
+    site_id: number | null;
+    site_name: string | null;
+    amount: number;
+    devise: string;
+    purchase_date: string;
+    credits_count: number | null;
+    notes: string | null;
+    proprietaires: Array<{ id: number; name: string; color: string; emoji: string }>;
+  }>>;
+  oneTimePurchasesCreate: (purchaseData: {
+    site_id?: number | null;
+    site_name?: string | null;
+    purchase_date: string;
+    amount: number;
+    devise?: string;
+    credits_count?: number | null;
+    notes?: string | null;
+    proprietaires?: number[];
+  }) => Promise<{ success: boolean; id?: number; error?: string }>;
+  oneTimePurchasesUpdate: (id: number, purchaseData: {
+    site_id?: number | null;
+    site_name?: string | null;
+    name?: string;
+    purchase_date?: string;
+    amount?: number;
+    devise?: string;
+    credits_count?: number | null;
+    notes?: string | null;
+    proprietaires?: number[];
+  }) => Promise<{ success: boolean; error?: string }>;
+  oneTimePurchasesDelete: (id: number) => Promise<{ success: boolean; error?: string }>;
   
   [key: string]: unknown;
 }

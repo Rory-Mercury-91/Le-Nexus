@@ -68,6 +68,35 @@ const platformIconMap: Record<string, string> = {
   'instagram': '/assets/instagram.svg',
   'x': '/assets/x.svg',
   'twitter': '/assets/x.svg',
+  
+  // Jeux - Stores
+  'steam': '/assets/Steam_icon_logo.svg',
+  'epic games': '/assets/Epic_Games_logo.svg',
+  'epic': '/assets/Epic_Games_logo.svg',
+  'gog': '/assets/GOG.com_logo.svg',
+  'gog.com': '/assets/GOG.com_logo.svg',
+  'nintendo': '/assets/Nintendo.svg',
+  'nintendo switch': '/assets/Nintendo.svg',
+  'playstation': '/assets/PlayStation.svg',
+  'playstation store': '/assets/PlayStation.svg',
+  // PC
+  'pc': '/assets/PC_logo.svg',
+  'windows': '/assets/PC_logo.svg',
+  'microsoft windows': '/assets/PC_logo.svg',
+  'windows pc': '/assets/PC_logo.svg',
+  // Xbox - Variantes spécifiques
+  'xbox series x': '/assets/Xbox_Series_X_S_black.svg',
+  'xbox series s': '/assets/Xbox_Series_X_S_black.svg',
+  'xbox series x/s': '/assets/Xbox_Series_X_S_black.svg',
+  'xbox series': '/assets/Xbox_Series_X_S_black.svg',
+  'xbox one': '/assets/xbox-one-logo-svgrepo-com.svg',
+  'xbox one x': '/assets/xbox-one-logo-svgrepo-com.svg',
+  'xbox one s': '/assets/xbox-one-logo-svgrepo-com.svg',
+  // Xbox - Générique (fallback)
+  'xbox': '/assets/Xbox_one_logo.svg',
+  'xbox store': '/assets/Xbox_one_logo.svg',
+  'microsoft store': '/assets/Xbox_one_logo.svg',
+  'microsoft': '/assets/Xbox_one_logo.svg',
 };
 
 /**
@@ -82,6 +111,7 @@ export function getPlatformIcon(platformName: string | null | undefined): string
   const lower = normalized.toLowerCase()
     .replace(/[+]/g, '') // Enlever les +
     .replace(/\s+/g, ' ') // Normaliser les espaces
+    .replace(/[\/]/g, '/') // Normaliser les slashes
     .trim();
   
   // Recherche exacte d'abord
@@ -89,16 +119,40 @@ export function getPlatformIcon(platformName: string | null | undefined): string
     return getAssetPath(platformIconMap[lower]);
   }
   
-  // Recherche par correspondance partielle (le nom de la plateforme contient la clé ou vice versa)
+  // Recherche par correspondance partielle avec priorité aux correspondances les plus longues
+  const matches: Array<{ key: string; value: string; score: number }> = [];
   for (const [key, value] of Object.entries(platformIconMap)) {
     const keyLower = key.toLowerCase();
     // Correspondance si le nom contient la clé ou la clé contient le nom
     if (lower.includes(keyLower) || keyLower.includes(lower)) {
-      return getAssetPath(value);
+      // Score basé sur la longueur de la correspondance (priorité aux correspondances plus longues)
+      const score = Math.min(keyLower.length, lower.length);
+      matches.push({ key, value, score });
     }
   }
   
-  // Recherche par mots-clés spécifiques
+  // Trier par score décroissant et prendre la meilleure correspondance
+  if (matches.length > 0) {
+    matches.sort((a, b) => b.score - a.score);
+    return getAssetPath(matches[0].value);
+  }
+  
+  // Recherche par mots-clés spécifiques (avec priorité aux correspondances les plus spécifiques)
+  // Xbox - Détection spécifique (doit être avant le générique)
+  if (lower.includes('xbox series x') || lower.includes('xbox series s') || lower.includes('xbox series x/s')) {
+    return getAssetPath('/assets/Xbox_Series_X_S_black.svg');
+  }
+  if (lower.includes('xbox series')) {
+    return getAssetPath('/assets/Xbox_Series_X_S_black.svg');
+  }
+  if (lower.includes('xbox one x') || lower.includes('xbox one s')) {
+    return getAssetPath('/assets/xbox-one-logo-svgrepo-com.svg');
+  }
+  if (lower.includes('xbox one')) {
+    return getAssetPath('/assets/xbox-one-logo-svgrepo-com.svg');
+  }
+  
+  // Streaming
   if (lower.includes('netflix')) return getAssetPath('/assets/netflix.svg');
   if (lower.includes('disney')) return getAssetPath('/assets/disneyplus.svg');
   if (lower.includes('prime') || lower.includes('amazon')) return getAssetPath('/assets/amazon-prime-vidéo.svg');
@@ -108,6 +162,17 @@ export function getPlatformIcon(platformName: string | null | undefined): string
   if (lower.includes('paramount')) return getAssetPath('/assets/paramount-plus.svg');
   if (lower.includes('adn') || lower.includes('animation digital')) return getAssetPath('/assets/ADN.svg');
   if (lower.includes('youtube')) return getAssetPath('/assets/youtube.svg');
+  
+  // Jeux - Stores
+  if (lower.includes('steam')) return getAssetPath('/assets/Steam_icon_logo.svg');
+  if (lower.includes('epic')) return getAssetPath('/assets/Epic_Games_logo.svg');
+  if (lower.includes('gog')) return getAssetPath('/assets/GOG.com_logo.svg');
+  if (lower.includes('nintendo')) return getAssetPath('/assets/Nintendo.svg');
+  if (lower.includes('playstation') || lower.includes('play station')) return getAssetPath('/assets/PlayStation.svg');
+  // PC
+  if (lower === 'pc' || lower.includes('windows') || (lower.includes('pc') && !lower.includes('playstation'))) return getAssetPath('/assets/PC_logo.svg');
+  // Xbox - Générique (fallback, doit être en dernier)
+  if (lower.includes('xbox') || lower.includes('microsoft')) return getAssetPath('/assets/Xbox_one_logo.svg');
   
   return null;
 }

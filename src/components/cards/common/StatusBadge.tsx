@@ -11,55 +11,71 @@ export default function StatusBadge({ status, type }: StatusBadgeProps) {
     switch (status) {
       case 'À regarder':
       case 'À lire':
-        return { 
-          color: '#ffffff', 
+        return {
+          color: '#ffffff',
           bg: '#3b82f6', // Bleu vif
           icon: '👁️',
           label: status
         };
+      case 'À jouer':
+        return {
+          color: '#ffffff',
+          bg: '#3b82f6', // Bleu vif
+          icon: '🎮',
+          label: 'À jouer'
+        };
       case 'En cours':
         // Utiliser 📺 pour les animes, séries et films, 📖 pour les mangas, 🎮 pour les jeux
-        const enCoursIcon = type === 'anime' || type === 'series' || type === 'movie' 
-          ? '📺' 
-          : type === 'adulte-game' 
-          ? '🎮' 
-          : '📖';
-        return { 
-          color: '#ffffff', 
+        const enCoursIcon = type === 'anime' || type === 'series' || type === 'movie'
+          ? '📺'
+          : type === 'adulte-game'
+            ? '🎮'
+            : '📖';
+        return {
+          color: '#ffffff',
           bg: '#8b5cf6', // Violet vif
           icon: enCoursIcon,
           label: 'En cours'
         };
       case 'Terminé':
-        return { 
-          color: '#ffffff', 
+        return {
+          color: '#ffffff',
           bg: 'var(--success)', // Vert vif
           icon: '✅',
           label: 'Terminé'
         };
       case 'Abandonné':
-        return { 
-          color: '#ffffff', 
+        return {
+          color: '#ffffff',
           bg: 'var(--error)', // Rouge vif
           icon: '🚫',
           label: 'Abandonné'
         };
       case 'En attente':
       case 'En pause':
-        return { 
-          color: '#000000', 
+        return {
+          color: '#000000',
           bg: 'var(--warning-light)', // Jaune vif
           icon: '⏸️',
           label: status
         };
       case 'Refusé':
-        return { 
-          color: '#ffffff', 
+        return {
+          color: '#ffffff',
           bg: '#7c2d12', // Rouge sombre
           icon: '❌',
           label: 'Refusé'
         };
       default:
+        // Pour les statuts non reconnus ou vides, afficher "À jouer" par défaut pour les jeux
+        if (type === 'adulte-game') {
+          return {
+            color: '#ffffff',
+            bg: '#3b82f6', // Bleu vif
+            icon: '🎮',
+            label: 'À jouer'
+          };
+        }
         return null;
     }
   };

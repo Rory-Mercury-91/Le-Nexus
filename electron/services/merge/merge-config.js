@@ -181,6 +181,43 @@ const mergeConfigs = {
       { key: 'maj_disponible', label: 'MAJ disponible', type: 'boolean' },
       { key: 'user_modified_fields', label: 'Champs modifiés (JSON)', type: 'json' }
     ]
+  },
+  book: {
+    key: 'book',
+    label: 'Livre',
+    table: 'books',
+    titleField: 'titre',
+    coverField: 'couverture_url',
+    reportType: 'books-merge',
+    previewFields: [
+      { key: 'titre', label: 'Titre', type: 'text' },
+      { key: 'titre_original', label: 'Titre original', type: 'text' },
+      { key: 'auteur', label: 'Auteur', type: 'text' },
+      { key: 'auteurs', label: 'Auteurs', type: 'chips' },
+      { key: 'isbn', label: 'ISBN', type: 'text' },
+      { key: 'isbn13', label: 'ISBN-13', type: 'text' },
+      { key: 'editeur', label: 'Éditeur', type: 'text' },
+      { key: 'date_publication', label: 'Date de publication', type: 'date' },
+      { key: 'date_publication_originale', label: 'Date publication originale', type: 'date' },
+      { key: 'nombre_pages', label: 'Nombre de pages', type: 'number' },
+      { key: 'langue', label: 'Langue', type: 'text' },
+      { key: 'langue_originale', label: 'Langue originale', type: 'text' },
+      { key: 'type_livre', label: 'Type de livre', type: 'text' },
+      { key: 'genres', label: 'Genres', type: 'chips' },
+      { key: 'description', label: 'Description', type: 'longText' },
+      { key: 'couverture_url', label: 'Couverture', type: 'image' },
+      { key: 'google_books_id', label: 'Google Books ID', type: 'badge' },
+      { key: 'open_library_id', label: 'Open Library ID', type: 'badge' },
+      { key: 'bnf_id', label: 'BNF ID', type: 'badge' },
+      { key: 'source_donnees', label: 'Source données', type: 'badge' },
+      { key: 'source_url', label: 'URL source', type: 'link' },
+      { key: 'score', label: 'Score', type: 'number' },
+      { key: 'nb_votes', label: 'Nombre de votes', type: 'number' },
+      { key: 'rating', label: 'Classification', type: 'badge' },
+      { key: 'prix_suggere', label: 'Prix suggéré', type: 'number' },
+      { key: 'devise', label: 'Devise', type: 'text' },
+      { key: 'user_modified_fields', label: 'Champs modifiés (JSON)', type: 'json' }
+    ]
   }
 };
 

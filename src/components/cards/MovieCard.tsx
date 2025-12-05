@@ -62,7 +62,8 @@ export default function MovieCard({
         display: 'flex',
         flexDirection: 'column',
         cursor: 'pointer',
-        zIndex: isMenuOpen ? 1000 : 1
+        zIndex: isMenuOpen ? 1000 : 1,
+        height: '100%'
       }}
     >
       <div style={{

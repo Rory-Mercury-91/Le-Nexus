@@ -1,8 +1,8 @@
 import { Tv } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import LabelsCardContent from '../../../components/common/LabelsCardContent';
 import CoverImage from '../../../components/common/CoverImage';
 import ExternalLinkIcon from '../../../components/common/ExternalLinkIcon';
+import LabelsCardContent from '../../../components/common/LabelsCardContent';
 import DetailStatusSection from '../../../components/details/DetailStatusSection';
 import ImageModal from '../../../components/modals/common/ImageModal';
 import { useCoverDragAndDrop } from '../../../hooks/details/useCoverDragAndDrop';
@@ -191,6 +191,15 @@ export default function AnimeCover({
           />
         )}
 
+        {(anime as any).anilist_id && (
+          <ExternalLinkIcon
+            href={`https://anilist.co/anime/${(anime as any).anilist_id}`}
+            type="anilist"
+            size={40}
+            title="Voir sur AniList"
+          />
+        )}
+
         {(anime.nautiljon_url || (anime.mal_url && anime.mal_url.includes('nautiljon.com'))) && (
           <ExternalLinkIcon
             href={anime.nautiljon_url || anime.mal_url!}
@@ -221,10 +230,10 @@ export default function AnimeCover({
           <LabelsCardContent
             itemId={anime.id}
             onLabelsChange={onLabelsChange}
-            getLabels={window.electronAPI.getAnimeLabels}
-            getAllLabels={window.electronAPI.getAllAnimeLabels}
-            addLabel={window.electronAPI.addAnimeLabel}
-            removeLabel={window.electronAPI.removeAnimeLabel}
+            getLabels={window.electronAPI.getAnimeLabels as (id: number) => Promise<Array<{ label: string; color: string }>>}
+            getAllLabels={window.electronAPI.getAllAnimeLabels as () => Promise<Array<{ label: string; color: string }>>}
+            addLabel={window.electronAPI.addAnimeLabel as (id: number, label: string, color: string) => Promise<{ success: boolean }>}
+            removeLabel={window.electronAPI.removeAnimeLabel as (id: number, label: string) => Promise<{ success: boolean }>}
             noCard={true}
           />
         </div>
@@ -241,11 +250,11 @@ export default function AnimeCover({
               streamingLinks={streamingLinks}
               showAddLinkForm={showAddLinkForm}
               newLink={newLink}
-              onShowAddForm={onShowAddForm || (() => {})}
-              onHideAddForm={onHideAddForm || (() => {})}
-              onLinkChange={onLinkChange || (() => {})}
-              onAddLink={onAddLink || (() => {})}
-              onDeleteLink={onDeleteLink || (() => {})}
+              onShowAddForm={onShowAddForm || (() => { })}
+              onHideAddForm={onHideAddForm || (() => { })}
+              onLinkChange={onLinkChange || (() => { })}
+              onAddLink={onAddLink || (() => { })}
+              onDeleteLink={onDeleteLink || (() => { })}
               shouldShow={shouldShow}
               noCard={true}
             />

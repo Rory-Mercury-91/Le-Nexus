@@ -36,7 +36,7 @@ export interface AddTmdbItemModalConfig<TResult extends TmdbSearchResultItem> {
   resultMapper: TmdbResultMapper<TResult>;
   /** Fonction pour créer l'item */
   createApi: (data: Record<string, any>) => Promise<{ success: boolean; id?: number; error?: string }>;
-  /** Fonction pour enrichir l'item après création (optionnel) */
+  /** Fonction pour enrichir l'item après création */
   enrichApi?: (tmdbId: number, options?: any) => Promise<any>;
   /** Options pour l'enrichissement */
   enrichOptions?: any;

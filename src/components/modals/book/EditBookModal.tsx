@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Book, BookType } from '../../../types';
+import { useState } from 'react';
 import { useToast } from '../../../hooks/common/useToast';
-import Modal from '../common/Modal';
+import { Book, BookType } from '../../../types';
 import CoverImageUpload from '../common/CoverImageUpload';
-import MultiSelectDropdown from '../common/MultiSelectDropdown';
+import Modal from '../common/Modal';
+import ModalHeader from '../common/ModalHeader';
 
 interface EditBookModalProps {
   book: Book;
@@ -48,7 +48,7 @@ export default function EditBookModal({ book, onClose, onSuccess }: EditBookModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!titre.trim()) {
       showToast({
         title: 'Erreur',
@@ -77,7 +77,7 @@ export default function EditBookModal({ book, onClose, onSuccess }: EditBookModa
       };
 
       const result = await window.electronAPI.booksUpdate?.({ bookId: book.id, bookData });
-      
+
       if (result?.success) {
         showToast({
           title: 'Succès',
@@ -120,249 +120,256 @@ export default function EditBookModal({ book, onClose, onSuccess }: EditBookModa
     <>
       {ToastContainer}
       <Modal
-        title="Modifier le livre"
-        onClose={onClose}
-        size="large"
+        maxWidth="900px"
+        onClickOverlay={onClose}
       >
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Titre <span style={{ color: 'var(--error)' }}>*</span>
-            </label>
-            <input
-              type="text"
-              value={titre}
-              onChange={(e) => setTitre(e.target.value)}
-              className="input"
-              placeholder="Ex: Le Seigneur des Anneaux"
-              required
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Titre original (optionnel)
-            </label>
-            <input
-              type="text"
-              value={titreOriginal}
-              onChange={(e) => setTitreOriginal(e.target.value)}
-              className="input"
-              placeholder="Ex: The Lord of the Rings"
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ padding: '24px' }}>
+          <ModalHeader
+            title="Modifier le livre"
+            onClose={onClose}
+          />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Auteur
+                Titre <span style={{ color: 'var(--error)' }}>*</span>
               </label>
               <input
                 type="text"
-                value={auteur}
-                onChange={(e) => setAuteur(e.target.value)}
+                value={titre}
+                onChange={(e) => setTitre(e.target.value)}
                 className="input"
-                placeholder="Ex: J.R.R. Tolkien"
+                placeholder="Ex: Le Seigneur des Anneaux"
+                required
               />
             </div>
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Type de livre
-              </label>
-              <select
-                value={typeLivre}
-                onChange={(e) => setTypeLivre(e.target.value as BookType)}
-                className="select"
-              >
-                <option value="">-- Sélectionner --</option>
-                {BOOK_TYPE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                ISBN
+                Titre original
               </label>
               <input
                 type="text"
-                value={isbn}
-                onChange={(e) => setIsbn(e.target.value)}
+                value={titreOriginal}
+                onChange={(e) => setTitreOriginal(e.target.value)}
                 className="input"
-                placeholder="Ex: 978-2070612758"
+                placeholder="Ex: The Lord of the Rings"
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Auteur
+                </label>
+                <input
+                  type="text"
+                  value={auteur}
+                  onChange={(e) => setAuteur(e.target.value)}
+                  className="input"
+                  placeholder="Ex: J.R.R. Tolkien"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Type de livre
+                </label>
+                <select
+                  value={typeLivre}
+                  onChange={(e) => setTypeLivre(e.target.value as BookType)}
+                  className="select"
+                >
+                  <option value="">-- Sélectionner --</option>
+                  {BOOK_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  ISBN
+                </label>
+                <input
+                  type="text"
+                  value={isbn}
+                  onChange={(e) => setIsbn(e.target.value)}
+                  className="input"
+                  placeholder="Ex: 978-2070612758"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  ISBN-13
+                </label>
+                <input
+                  type="text"
+                  value={isbn13}
+                  onChange={(e) => setIsbn13(e.target.value)}
+                  className="input"
+                  placeholder="Ex: 9782070612758"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Éditeur
+                </label>
+                <input
+                  type="text"
+                  value={editeur}
+                  onChange={(e) => setEditeur(e.target.value)}
+                  className="input"
+                  placeholder="Ex: Gallimard"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                  Date de publication
+                </label>
+                <input
+                  type="date"
+                  value={datePublication}
+                  onChange={(e) => setDatePublication(e.target.value)}
+                  className="input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Nombre de pages
+              </label>
+              <input
+                type="number"
+                value={nombrePages}
+                onChange={(e) => setNombrePages(e.target.value)}
+                className="input"
+                placeholder="Ex: 1216"
+                min="0"
               />
             </div>
 
             <div>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                ISBN-13
+                Genres
               </label>
-              <input
-                type="text"
-                value={isbn13}
-                onChange={(e) => setIsbn13(e.target.value)}
-                className="input"
-                placeholder="Ex: 9782070612758"
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Éditeur
-              </label>
-              <input
-                type="text"
-                value={editeur}
-                onChange={(e) => setEditeur(e.target.value)}
-                className="input"
-                placeholder="Ex: Gallimard"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                Date de publication
-              </label>
-              <input
-                type="date"
-                value={datePublication}
-                onChange={(e) => setDatePublication(e.target.value)}
-                className="input"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Nombre de pages
-            </label>
-            <input
-              type="number"
-              value={nombrePages}
-              onChange={(e) => setNombrePages(e.target.value)}
-              className="input"
-              placeholder="Ex: 1216"
-              min="0"
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Genres
-            </label>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-              <input
-                type="text"
-                value={genreInput}
-                onChange={(e) => setGenreInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddGenre();
-                  }
-                }}
-                className="input"
-                placeholder="Ajouter un genre"
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                onClick={handleAddGenre}
-                className="btn btn-outline"
-              >
-                Ajouter
-              </button>
-            </div>
-            {genres.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {genres.map(genre => (
-                  <span
-                    key={genre}
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: '16px',
-                      background: 'var(--primary)',
-                      color: 'white',
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    {genre}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveGenre(genre)}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  value={genreInput}
+                  onChange={(e) => setGenreInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddGenre();
+                    }
+                  }}
+                  className="input"
+                  placeholder="Ajouter un genre"
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddGenre}
+                  className="btn btn-outline"
+                >
+                  Ajouter
+                </button>
+              </div>
+              {genres.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {genres.map(genre => (
+                    <span
+                      key={genre}
                       style={{
-                        background: 'none',
-                        border: 'none',
+                        padding: '4px 12px',
+                        borderRadius: '16px',
+                        background: 'var(--primary)',
                         color: 'white',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        padding: 0,
-                        width: '20px',
-                        height: '20px',
+                        fontSize: '13px',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        gap: '8px'
                       }}
                     >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+                      {genre}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveGenre(genre)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          fontSize: '16px',
+                          padding: 0,
+                          width: '20px',
+                          height: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="input"
-              placeholder="Description du livre..."
-              rows={4}
-            />
-          </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="input"
+                placeholder="Description du livre..."
+                rows={4}
+              />
+            </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-              Couverture
-            </label>
-            <CoverImageUpload
-              imageUrl={couvertureUrl}
-              onImageChange={setCouvertureUrl}
-              placeholder="URL de la couverture ou télécharger une image"
-            />
-          </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                Couverture
+              </label>
+              <CoverImageUpload
+                imageUrl={couvertureUrl}
+                onImageChange={setCouvertureUrl}
+                mediaType="book"
+                itemTitle={titre || book.titre || 'Livre'}
+                placeholderLabel="URL de la couverture ou télécharger une image"
+              />
+            </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-outline"
-              disabled={loading}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-            >
-              {loading ? 'Modification...' : 'Modifier'}
-            </button>
-          </div>
-        </form>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn btn-outline"
+                disabled={loading}
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? 'Modification...' : 'Modifier'}
+              </button>
+            </div>
+          </form>
+        </div>
       </Modal>
     </>
   );

@@ -1,5 +1,6 @@
 import { BookOpen, Edit, Plus, Settings, Trash2 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useParams } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import EnrichmentButton from '../../components/common/EnrichmentButton';
 import ProtectedContent from '../../components/common/ProtectedContent';
@@ -7,6 +8,8 @@ import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/mod
 import AddTomeModal from '../../components/modals/manga/AddTomeModal';
 import EditSerieModal from '../../components/modals/manga/EditSerieModal';
 import EditTomeModal from '../../components/modals/manga/EditTomeModal';
+import BookOwnershipModal from '../../components/modals/book/BookOwnershipModal';
+import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import { useMangaDetail } from '../../hooks/details/useMangaDetail';
 import { Tome } from '../../types';
 import { isSensitiveManga } from '../../utils/manga-sensitivity';
@@ -19,6 +22,7 @@ import {
 
 export default function SerieDetail() {
   const location = useLocation();
+  const { id } = useParams();
   const {
     serie,
     loading,
@@ -55,6 +59,29 @@ export default function SerieDetail() {
     TomeConfirmDialog
   } = useMangaDetail();
 
+  // Flag pour s'assurer qu'on n'ouvre la modale qu'une seule fois
+  const hasOpenedEditModal = useRef(false);
+  const lastSerieId = useRef<string | undefined>(undefined);
+  const [showOwnershipModal, setShowOwnershipModal] = useState(false);
+
+  // Réinitialiser le flag si on change de série
+  useEffect(() => {
+    if (id !== lastSerieId.current) {
+      lastSerieId.current = id;
+      hasOpenedEditModal.current = false;
+    }
+  }, [id]);
+
+  // Ouvrir automatiquement le mode édition si demandé via navigation state
+  useEffect(() => {
+    if (location.state?.openEdit && !loading && serie && !hasOpenedEditModal.current) {
+      hasOpenedEditModal.current = true;
+      setShowEditSerie(true);
+      // Nettoyer le state pour éviter de rouvrir à chaque navigation
+      window.history.replaceState({ ...location.state, openEdit: undefined }, '');
+    }
+  }, [location.state, loading, serie, setShowEditSerie]);
+
   // Vérifier si le manga est sensible
   const isSensitive = serie ? isSensitiveManga(serie.rating) : false;
 
@@ -80,7 +107,7 @@ export default function SerieDetail() {
       <>
         <DetailPageHeader
           backLabel="Retour à la collection"
-          backTo={location.state?.from || '/collection'}
+          backTo={location.state?.from || '/lectures'}
           actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
@@ -171,6 +198,17 @@ export default function SerieDetail() {
                   onMarkAllChaptersRead={async () => {
                     await window.electronAPI.updateSerie(serie.id, { chapitres_lus: serie.nb_chapitres || 0 });
                     loadSerie(true);
+                  }}
+                  onMarkAsOwned={() => {
+                    if (!currentUser) {
+                      // Afficher un message d'erreur si pas d'utilisateur connecté
+                      return;
+                    }
+                    if (users.length === 0) {
+                      // Afficher un message d'erreur si pas d'utilisateurs disponibles
+                      return;
+                    }
+                    setShowOwnershipModal(true);
                   }}
                   costsByUser={costsByUser}
                   totalPrix={totalPrix}
@@ -416,6 +454,25 @@ export default function SerieDetail() {
               setShowCustomizeDisplay(false);
             }}
           />
+        )}
+
+        {showOwnershipModal && serie && (
+          <>
+            {users.length > 0 && currentUser ? (
+              <BookOwnershipModal
+                item={{ type: 'serie', serie, tomes: tomesWithSerieId }}
+                users={users}
+                currentUserId={currentUser.id}
+                onClose={() => setShowOwnershipModal(false)}
+                onSuccess={() => {
+                  loadSerie(true);
+                  setShowOwnershipModal(false);
+                }}
+              />
+            ) : (
+              <OwnershipModalLoader onClose={() => setShowOwnershipModal(false)} />
+            )}
+          </>
         )}
 
         <ConfirmDialog />

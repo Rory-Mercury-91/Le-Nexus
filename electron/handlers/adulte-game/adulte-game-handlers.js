@@ -13,6 +13,8 @@ const { registerAdulteGameUpdatesCheckHandlers } = require('./adulte-game-update
 const { registerAdulteGameSearchHandlers } = require('./adulte-game-search-handlers');
 const { registerF95ConnectionHandlers } = require('./f95-connection-handlers');
 const { registerScanHandlers } = require('./scan-handlers');
+const { registerRawgHandlers } = require('./rawg-handlers');
+const { registerOwnershipHandlers } = require('./ownership-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour la gestion des jeux adultes
@@ -20,8 +22,10 @@ const { registerScanHandlers } = require('./scan-handlers');
  * @param {Function} getDb 
  * @param {Object} store 
  * @param {Function} getPathManager - Fonction pour récupérer le PathManager
+ * @param {Object} dialog - Module dialog d'Electron
+ * @param {Function} getMainWindow - Fonction pour obtenir la fenêtre principale
  */
-function registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager) {
+function registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager, dialog, getMainWindow) {
   registerAdulteGameCrudHandlers(ipcMain, getDb, store, getPathManager);
   registerBlacklistHandlers(ipcMain, getDb, store);
   registerLabelsHandlers(ipcMain, getDb, store);
@@ -32,6 +36,8 @@ function registerAdulteGameHandlers(ipcMain, getDb, store, getPathManager) {
   registerAdulteGameSearchHandlers(ipcMain, getDb, store, getPathManager);
   registerF95ConnectionHandlers(ipcMain);
   registerScanHandlers(ipcMain, getDb, store);
+  registerRawgHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);
+  registerOwnershipHandlers(ipcMain, getDb, store);
   
   console.log('✅ Handlers jeux adultes enregistrés');
 }

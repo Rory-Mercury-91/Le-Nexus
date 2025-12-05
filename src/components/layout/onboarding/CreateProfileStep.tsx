@@ -47,7 +47,7 @@ export default function CreateProfileStep({
   showMovies,
   showSeries,
   showAdulteGame,
-  showBooks,
+  showBooks: _showBooks, // Non utilisé - synchronisé automatiquement avec showMangas
   adulteGamePassword,
   adulteGamePasswordConfirm,
   showAdulteGamePassword,
@@ -337,7 +337,7 @@ export default function CreateProfileStep({
                 color: 'var(--text)'
               }}>
                 <Lock size={16} />
-                Mot de passe jeux adultes (optionnel)
+                Mot de passe jeux adultes
               </label>
               <p style={{
                 fontSize: '12px',
@@ -454,24 +454,21 @@ export default function CreateProfileStep({
                   label: '📚 Lectures',
                   description: 'Manga, manhwa, comics, BD, livres…',
                   checked: showMangas,
-                  onChange: (checked) => {
+                  onChange: (checked: boolean) => {
                     onShowMangasChange(checked);
                     // showBooks est automatiquement synchronisé avec showMangas dans useOnboarding
                   }
                 },
                 {
-                  key: 'animes',
-                  label: '🎬 Animes',
-                  description: 'Nouveautés et suivis',
-                  checked: showAnimes,
-                  onChange: onShowAnimesChange
-                },
-                {
-                  key: 'movies',
-                  label: '🎞️ Films',
-                  description: 'Gestion et recommandations',
-                  checked: showMovies,
-                  onChange: onShowMoviesChange
+                  key: 'videos',
+                  label: '🎬 Vidéos',
+                  description: 'Animes, Films et Séries',
+                  checked: showAnimes || showMovies || showSeries,
+                  onChange: (checked: boolean) => {
+                    onShowAnimesChange(checked);
+                    onShowMoviesChange(checked);
+                    onShowSeriesChange(checked);
+                  }
                 }
               ].map(option => (
                 <div
@@ -509,15 +506,8 @@ export default function CreateProfileStep({
             }}>
               {[
                 {
-                  key: 'series',
-                  label: '📺 Séries',
-                  description: 'Suivi des séries TV',
-                  checked: showSeries,
-                  onChange: onShowSeriesChange
-                },
-                {
                   key: 'adulte-game',
-                  label: '🎮 Jeux adulte',
+                  label: '🎮 Jeux',
                   description: 'Nouveautés et suivis',
                   checked: showAdulteGame,
                   onChange: onShowAdulteGameChange
@@ -614,9 +604,7 @@ export default function CreateProfileStep({
             </div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {showMangas && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>📚</span>}
-              {showAnimes && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>🎬</span>}
-              {showMovies && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>🎞️</span>}
-              {showSeries && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>📺</span>}
+              {(showAnimes || showMovies || showSeries) && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>🎬</span>}
               {showAdulteGame && <span style={{ padding: '4px 8px', background: 'rgba(139, 92, 246, 0.15)', borderRadius: '4px', fontSize: '11px' }}>🎮</span>}
             </div>
 

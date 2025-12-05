@@ -88,7 +88,8 @@ export default function AnimeCard({
         display: 'flex',
         flexDirection: 'column',
         cursor: 'pointer',
-        zIndex: isMenuOpen ? 1000 : 1
+        zIndex: isMenuOpen ? 1000 : 1,
+        height: '100%'
       }}
     >
       {/* Couverture */}

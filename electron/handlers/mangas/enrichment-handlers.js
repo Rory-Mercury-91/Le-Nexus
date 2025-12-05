@@ -1032,6 +1032,461 @@ function registerMangaEnrichmentHandlers(ipcMain, getDb, getPathManager, store) 
       };
     }
   });
+
+  // Handler: Import rapide depuis AniList ID
+  ipcMain.handle('add-manga-by-anilist-id', async (event, anilistIdOrUrl, options = {}) => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+
+      const currentUser = store.get('currentUser', '');
+      if (!currentUser) throw new Error('Aucun utilisateur connecté');
+
+      const targetSerieId = typeof options.targetSerieId === 'number' ? options.targetSerieId : null;
+      const forceCreate = options.forceCreate === true;
+
+      // Extraire l'AniList ID depuis l'URL si nécessaire
+      let anilistId = anilistIdOrUrl;
+      if (typeof anilistIdOrUrl === 'string' && anilistIdOrUrl.includes('anilist.co')) {
+        const match = anilistIdOrUrl.match(/manga\/(\d+)/);
+        if (!match) throw new Error('URL AniList invalide');
+        anilistId = parseInt(match[1]);
+      } else {
+        anilistId = parseInt(anilistId);
+      }
+
+      if (isNaN(anilistId)) throw new Error('AniList ID invalide');
+
+      // Vérifier si le manga existe déjà
+      let existingSerie = db.prepare('SELECT * FROM manga_series WHERE anilist_id = ?').get(anilistId);
+      if (existingSerie) {
+        if (targetSerieId && existingSerie.id === targetSerieId) {
+          // OK, on met à jour cette série
+        } else if (!targetSerieId) {
+          return {
+            success: false,
+            error: `Ce manga existe déjà : ${existingSerie.titre}`,
+            mangaId: existingSerie.id
+          };
+        } else {
+          return {
+            success: false,
+            error: `Ce manga existe déjà : ${existingSerie.titre}`,
+            mangaId: existingSerie.id
+          };
+        }
+      }
+
+      // Récupérer le token AniList
+      const { getValidAccessToken } = require('../../services/anilist/anilist-token');
+      const Store = require('electron-store');
+      const anilistStore = new Store();
+      const accessToken = await getValidAccessToken(anilistStore);
+
+      if (!accessToken) {
+        throw new Error('Non connecté à AniList. Connectez-vous dans les paramètres.');
+      }
+
+      // Récupérer les données depuis AniList
+      const { getMangaById } = require('../../services/anilist/anilist-api');
+      const anilistData = await getMangaById(accessToken, anilistId);
+
+      if (!anilistData) {
+        throw new Error('Manga non trouvé sur AniList');
+      }
+
+      // Transformer les données AniList en format interne
+      // Note: transformMangaData attend un format avec listStatus, mais pour l'import direct on n'a que media
+      // On va créer un objet temporaire avec juste media
+      const tempEntry = { media: anilistData };
+      const transformedData = {
+        anilist_id: anilistData.id,
+        mal_id: anilistData.idMal || null,
+        titre: anilistData.title?.english || anilistData.title?.romaji || anilistData.title?.native || `Manga #${anilistId}`,
+        titre_romaji: anilistData.title?.romaji || null,
+        titre_anglais: anilistData.title?.english || null,
+        titre_natif: anilistData.title?.native || null,
+        titres_alternatifs: (() => {
+          const altTitles = [];
+          if (anilistData.title?.romaji && anilistData.title.romaji !== anilistData.title?.english) {
+            altTitles.push(anilistData.title.romaji);
+          }
+          if (anilistData.title?.native && anilistData.title.native !== anilistData.title?.english) {
+            altTitles.push(anilistData.title.native);
+          }
+          return altTitles.length > 0 ? JSON.stringify(altTitles) : null;
+        })(),
+        description: cleanHtmlText(anilistData.description),
+        nb_chapitres: anilistData.chapters || null,
+        nb_volumes: anilistData.volumes || null,
+        annee_publication: anilistData.startDate?.year || null,
+        date_debut: (() => {
+          if (anilistData.startDate?.year && anilistData.startDate?.month && anilistData.startDate?.day) {
+            return `${anilistData.startDate.year}-${String(anilistData.startDate.month).padStart(2, '0')}-${String(anilistData.startDate.day).padStart(2, '0')}`;
+          }
+          return anilistData.startDate?.year ? `${anilistData.startDate.year}-01-01` : null;
+        })(),
+        date_fin: (() => {
+          if (anilistData.endDate?.year && anilistData.endDate?.month && anilistData.endDate?.day) {
+            return `${anilistData.endDate.year}-${String(anilistData.endDate.month).padStart(2, '0')}-${String(anilistData.endDate.day).padStart(2, '0')}`;
+          }
+          return anilistData.endDate?.year ? `${anilistData.endDate.year}-12-31` : null;
+        })(),
+        genres: Array.isArray(anilistData.genres) ? anilistData.genres.join(', ') : null,
+        statut_publication: (() => {
+          const statusMap = {
+            'FINISHED': 'Terminée',
+            'RELEASING': 'En cours',
+            'NOT_YET_RELEASED': 'À venir',
+            'CANCELLED': 'Annulée',
+            'HIATUS': 'En pause'
+          };
+          return statusMap[anilistData.status] || 'En cours';
+        })()
+      };
+
+      // Déterminer le media_type
+      // Utiliser aussi le titre natif pour détecter manhua/manhwa quand le format est juste "MANGA"
+      const { convertAniListFormatToMediaType, cleanHtmlText } = require('../../services/anilist/anilist-transformers');
+      const normalizedMediaType = convertAniListFormatToMediaType(anilistData.format, anilistData.title?.native);
+
+      // Préparer les données pour le matching unifié
+      const sourceData = {
+        titre: transformedData.titre,
+        anilist_id: anilistId,
+        mal_id: transformedData.mal_id,
+        titre_romaji: transformedData.titre_romaji,
+        titre_natif: transformedData.titre_natif,
+        titre_anglais: transformedData.titre_anglais,
+        titres_alternatifs: transformedData.titres_alternatifs
+      };
+
+      // Utiliser le service de matching unifié
+      const { findExistingSerieUnified } = require('../../services/unified-matching-service');
+      const matchResult = findExistingSerieUnified(
+        db,
+        sourceData,
+        'anilist',
+        normalizedMediaType
+      );
+
+      // Si un match a été trouvé (exact ou avec similarité >= 75%)
+      if (matchResult && !forceCreate && !targetSerieId) {
+        if (matchResult.isExactMatch || matchResult.similarity >= 75) {
+          return {
+            success: false,
+            requiresSelection: true,
+            anilistId,
+            candidates: [{
+              id: matchResult.serie.id,
+              titre: matchResult.serie.titre,
+              media_type: matchResult.serie.media_type,
+              type_volume: matchResult.serie.type_volume,
+              source_donnees: matchResult.serie.source_donnees,
+              statut: matchResult.serie.statut,
+              anilist_id: matchResult.serie.anilist_id,
+              mal_id: matchResult.serie.mal_id,
+              similarity: matchResult.similarity,
+              isExactMatch: matchResult.isExactMatch,
+              matchMethod: matchResult.matchMethod
+            }]
+          };
+        }
+      }
+
+      let serieToUpdate = null;
+      let matchResultFinal = null;
+      
+      if (targetSerieId) {
+        serieToUpdate = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(targetSerieId);
+        if (!serieToUpdate) {
+          return {
+            success: false,
+            error: 'Série sélectionnée introuvable'
+          };
+        }
+
+        if (serieToUpdate.anilist_id && serieToUpdate.anilist_id !== anilistId) {
+          return {
+            success: false,
+            error: `Cette série est déjà liée à l'AniList ID ${serieToUpdate.anilist_id}`,
+            mangaId: serieToUpdate.id
+          };
+        }
+
+        const existingMediaType = normalizeMediaTypeValue(serieToUpdate.media_type) ||
+          normalizeMediaTypeValue(serieToUpdate.type_volume);
+        if (existingMediaType && existingMediaType !== normalizedMediaType) {
+          return {
+            success: false,
+            error: 'Le type de média détecté ne correspond pas à la série sélectionnée.'
+          };
+        }
+        
+        matchResultFinal = {
+          serie: serieToUpdate,
+          isExactMatch: true,
+          similarity: 100,
+          matchMethod: 'user_selection'
+        };
+      } else if (matchResult) {
+        matchResultFinal = matchResult;
+      }
+
+      if (serieToUpdate || matchResultFinal) {
+        existingSerie = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(
+          (serieToUpdate || matchResultFinal.serie).id
+        );
+      }
+
+      // Extraire les données AniList
+      const titre = transformedData.titre;
+      const synopsis = transformedData.description || '';
+      const nbChapitres = transformedData.nb_chapitres || null;
+      const nbVolumes = transformedData.nb_volumes || null;
+      const anneePublication = transformedData.annee_publication || null;
+      const statut = transformedData.statut_publication || 'En cours';
+      
+      // Genres et tags
+      const { deduplicateCommaSeparatedItems } = require('../../utils/data-normalization');
+      const { genreTranslations, themeTranslations } = require('../../utils/translation-dictionaries');
+      const genresRaw = transformedData.genres || null;
+      const tags = Array.isArray(anilistData.tags) ? anilistData.tags.map(t => t.name).join(', ') : null;
+      const themes = deduplicateCommaSeparatedItems(tags, themeTranslations);
+      const genres = deduplicateCommaSeparatedItems(genresRaw, genreTranslations);
+      
+      // Démographie depuis les tags
+      const demographie = tags ? (tags.toLowerCase().includes('shounen') ? 'Shounen' :
+                                  tags.toLowerCase().includes('shoujo') ? 'Shoujo' :
+                                  tags.toLowerCase().includes('seinen') ? 'Seinen' :
+                                  tags.toLowerCase().includes('josei') ? 'Josei' : null) : null;
+      
+      // Titres alternatifs
+      const titreRomaji = transformedData.titre_romaji;
+      const titreNatif = transformedData.titre_natif;
+      const titreAnglais = transformedData.titre_anglais;
+      const titresAlternatifs = transformedData.titres_alternatifs;
+      
+      // Type de volume
+      const { convertAniListFormatToTypeVolume } = require('../../services/anilist/anilist-transformers');
+      const typeVolume = convertAniListFormatToTypeVolume(anilistData.format);
+      
+      // Rating (déduire depuis les tags)
+      let rating = null;
+      const allTags = tags ? tags.toLowerCase() : '';
+      if (allTags.includes('hentai') || allTags.includes('erotica')) {
+        rating = 'erotica';
+      } else if (allTags.includes('ecchi')) {
+        rating = 'suggestive';
+      } else {
+        rating = 'safe';
+      }
+      
+      // Déduire la langue originale depuis le type de média
+      let langueOriginale = 'ja';
+      if (normalizedMediaType === 'Manhwa') {
+        langueOriginale = 'ko';
+      } else if (normalizedMediaType === 'Manhua') {
+        langueOriginale = 'zh';
+      } else if (normalizedMediaType === 'Manga') {
+        langueOriginale = 'ja';
+      }
+      
+      // Couverture
+      const coverUrl = anilistData.coverImage?.extraLarge || anilistData.coverImage?.large || anilistData.coverImage?.medium || '';
+
+      // Télécharger la couverture si disponible
+      let localCoverPath = null;
+      if (coverUrl) {
+        try {
+          const coverManager = require('../../services/cover/cover-manager');
+          const pm = getPathManager();
+          if (pm) {
+            const coverResult = await coverManager.downloadCover(
+              pm,
+              coverUrl,
+              titre,
+              'serie',
+              null,
+              {
+                mediaType: normalizedMediaType,
+                type_volume: typeVolume
+              }
+            );
+            if (coverResult && coverResult.success && coverResult.localPath) {
+              localCoverPath = coverResult.localPath;
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erreur téléchargement couverture AniList: ${error.message}`);
+        }
+      }
+
+      // Extraire les auteurs depuis staff
+      let auteurs = null;
+      if (anilistData.staff?.edges && anilistData.staff.edges.length > 0) {
+        const authorRoles = ['Story', 'Story & Art', 'Art'];
+        const authors = anilistData.staff.edges
+          .filter(edge => authorRoles.includes(edge.role))
+          .map(edge => edge.node.name.full || edge.node.name.native)
+          .filter(Boolean);
+        if (authors.length > 0) {
+          auteurs = authors.join(', ');
+        }
+      }
+
+      // Relations (simplifié pour l'instant)
+      let relations = null;
+      if (anilistData.relations?.edges && anilistData.relations.edges.length > 0) {
+        const relationsData = anilistData.relations.edges.map(edge => ({
+          relation: edge.relationType,
+          entry: [{
+            mal_id: edge.node.idMal,
+            anilist_id: edge.node.id,
+            name: edge.node.title.romaji || edge.node.title.english,
+            type: edge.node.type?.toLowerCase() || null
+          }]
+        }));
+        relations = JSON.stringify(relationsData);
+      }
+
+      // Préparer les données de la série
+      const serieData = {
+        titre,
+        statut: 'À lire',
+        type_volume: typeVolume,
+        type_contenu: 'volume',
+        couverture_url: localCoverPath,
+        description: synopsis, // Déjà nettoyé avec cleanHtmlText
+        statut_publication: statut,
+        annee_publication: anneePublication,
+        genres,
+        themes,
+        nb_volumes: nbVolumes,
+        nb_chapitres: nbChapitres,
+        langue_originale: langueOriginale,
+        demographie,
+        rating,
+        mal_id: transformedData.mal_id,
+        anilist_id: anilistId,
+        titre_romaji: titreRomaji,
+        titre_natif: titreNatif,
+        titre_anglais: titreAnglais,
+        titres_alternatifs: titresAlternatifs,
+        date_debut: transformedData.date_debut || null,
+        date_fin: transformedData.date_fin || null,
+        score_mal: anilistData.meanScore || anilistData.averageScore || null,
+        popularity_mal: anilistData.popularity || null,
+        auteurs,
+        relations,
+        media_type: normalizedMediaType,
+        source_donnees: 'anilist',
+        source_url: `https://anilist.co/manga/${anilistId}`,
+        source_id: String(anilistId)
+      };
+
+      // Créer ou mettre à jour la série
+      const { handleCreateSerie } = require('./manga-create-handlers');
+      let finalSerie;
+
+      if (existingSerie) {
+        // Mettre à jour la série existante
+        const updateFields = [];
+        const updateValues = [];
+
+        if (serieData.mal_id && !existingSerie.mal_id) {
+          updateFields.push('mal_id = ?');
+          updateValues.push(serieData.mal_id);
+        }
+        if (serieData.anilist_id && !existingSerie.anilist_id) {
+          updateFields.push('anilist_id = ?');
+          updateValues.push(serieData.anilist_id);
+        }
+        if (serieData.couverture_url && !existingSerie.couverture_url) {
+          updateFields.push('couverture_url = ?');
+          updateValues.push(serieData.couverture_url);
+        }
+        if (serieData.description && !existingSerie.description) {
+          updateFields.push('description = ?');
+          updateValues.push(serieData.description);
+        }
+        if (serieData.genres && !existingSerie.genres) {
+          updateFields.push('genres = ?');
+          updateValues.push(serieData.genres);
+        }
+        if (serieData.themes && !existingSerie.themes) {
+          updateFields.push('themes = ?');
+          updateValues.push(serieData.themes);
+        }
+        if (serieData.nb_volumes !== null && existingSerie.nb_volumes === null) {
+          updateFields.push('nb_volumes = ?');
+          updateValues.push(serieData.nb_volumes);
+        }
+        if (serieData.nb_chapitres !== null && existingSerie.nb_chapitres === null) {
+          updateFields.push('nb_chapitres = ?');
+          updateValues.push(serieData.nb_chapitres);
+        }
+        if (serieData.media_type && !existingSerie.media_type) {
+          updateFields.push('media_type = ?');
+          updateValues.push(serieData.media_type);
+        }
+
+        if (updateFields.length > 0) {
+          updateValues.push(existingSerie.id);
+          const updateQuery = `UPDATE manga_series SET ${updateFields.join(', ')} WHERE id = ?`;
+          db.prepare(updateQuery).run(...updateValues);
+        }
+
+        finalSerie = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(existingSerie.id);
+
+        // Si un mal_id a été ajouté et qu'il n'existait pas avant, lancer l'enrichissement automatique
+        if (serieData.mal_id && !existingSerie.mal_id) {
+          try {
+            const { enrichManga, getMangaEnrichmentConfig } = require('../../services/mangas/manga-enrichment-queue');
+            const enrichmentConfig = getMangaEnrichmentConfig(store);
+            
+            if (enrichmentConfig.enabled) {
+              console.log(`🔄 [AniList Import] Lancement enrichissement automatique pour MAL ID ${serieData.mal_id}...`);
+              // Lancer l'enrichissement en arrière-plan (ne pas bloquer la réponse)
+              enrichManga(
+                getDb,
+                finalSerie.id,
+                serieData.mal_id,
+                serieData.anilist_id,
+                currentUser,
+                enrichmentConfig,
+                getPathManager,
+                null,
+                false
+              ).catch(error => {
+                console.error(`❌ [AniList Import] Erreur enrichissement automatique: ${error.message}`);
+              });
+            }
+          } catch (error) {
+            console.error(`❌ [AniList Import] Erreur lancement enrichissement: ${error.message}`);
+            // Ne pas bloquer le retour si l'enrichissement échoue
+          }
+        }
+      } else {
+        // Créer une nouvelle série
+        // handleCreateSerie lance déjà l'enrichissement automatique si mal_id est présent
+        finalSerie = await handleCreateSerie(db, getPathManager, store, serieData, getDb);
+      }
+
+      return {
+        success: true,
+        serie: finalSerie,
+        mangaId: finalSerie.id
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur add-manga-by-anilist-id:', error);
+      return {
+        success: false,
+        error: error.message || 'Erreur lors de l\'import depuis AniList'
+      };
+    }
+  });
 }
 
 module.exports = { registerMangaEnrichmentHandlers };

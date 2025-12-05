@@ -2,6 +2,7 @@ import { Gamepad2, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useAdulteGameLock } from '../../hooks/useAdulteGameLock';
 import { AdulteGame } from '../../types';
+import { shouldBlurByEsrbRating } from '../../utils/esrb-rating';
 import AdulteGameLabelsModal from '../modals/adulte-game/AdulteGameLabelsModal';
 import { CardActionsMenu, CardBadge, CardCover, CardTitle, COMMON_STATUSES, FavoriteBadge, StatusBadge, useIsNew } from './common';
 
@@ -78,13 +79,13 @@ export default function AdulteGameCard({
       if (!filePath) return;
 
       const result = await window.electronAPI.saveCoverFromPath(filePath, game.titre, 'adulte-game');
-      
+
       if (result.success && result.localPath) {
         // Mettre à jour la base de données
         await window.electronAPI.updateAdulteGameGame(game.id, {
           couverture_url: result.localPath
         });
-        
+
         // Notifier le parent pour recharger les données
         if (onCoverUpdated) {
           onCoverUpdated();
@@ -95,7 +96,10 @@ export default function AdulteGameCard({
     }
   };
 
-  const shouldBlurCover = hasPassword && isLocked;
+  // Pour les jeux RAWG, flouter seulement si le code maître est présent ET que le rating ESRB nécessite un floutage
+  // Pour les autres jeux, utiliser le système de mot de passe
+  const shouldBlurByEsrb = game.game_site === 'RAWG' && shouldBlurByEsrbRating((game as any).esrb_rating);
+  const shouldBlurCover = (shouldBlurByEsrb && hasPassword && isLocked) || (game.game_site !== 'RAWG' && hasPassword && isLocked);
 
   // Mode Images uniquement : désactivé pour JEUX ADULTES (format paysage différent 16/9 vs 2/3)
   // Le paramètre _imageOnly est ignoré pour JEUX ADULTES
@@ -119,6 +123,7 @@ export default function AdulteGameCard({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        width: '100%',
         height: '100%',
         cursor: dragging ? 'copy' : 'pointer',
         zIndex: isMenuOpen ? 1000 : 1,
@@ -154,6 +159,7 @@ export default function AdulteGameCard({
             fallbackIcon={<Gamepad2 size={48} />}
             objectFit="contain"
             shouldBlur={shouldBlurCover}
+            hasMasterPassword={hasPassword}
           />
         </div>
 
@@ -181,8 +187,8 @@ export default function AdulteGameCard({
         <CardBadge show={isNew()} offsetForFavorite={!!game.is_favorite} />
 
         {/* Badge Mise à jour disponible */}
-        <CardBadge 
-          show={!!game.maj_disponible} 
+        <CardBadge
+          show={!!game.maj_disponible}
           offsetForFavorite={!!game.is_favorite}
           offsetForNew={isNew()}
           text="🔄 MAJ"
@@ -190,8 +196,8 @@ export default function AdulteGameCard({
           boxShadow="0 3px 10px rgba(99, 102, 241, 0.4)"
         />
 
-        {/* Badge Statut (Abandonné, En pause, Refusé, etc.) */}
-        <StatusBadge key={`status-${game.id}-${game.statut_perso}`} status={game.statut_perso || ''} type="adulte-game" />
+        {/* Badge Statut (toujours affiché, y compris "À jouer" par défaut) */}
+        <StatusBadge key={`status-${game.id}-${game.statut_perso}`} status={game.statut_perso || game.completion_perso || 'À jouer'} type="adulte-game" />
 
         {/* Menu actions */}
         <CardActionsMenu
@@ -221,20 +227,22 @@ export default function AdulteGameCard({
       )}
 
       {/* Contenu : Versions + Titre */}
-      <div style={{ 
-        padding: '10px 12px 6px 12px', 
-        display: 'flex', 
+      <div style={{
+        padding: '8px 10px 4px 10px',
+        display: 'flex',
         flexDirection: 'column',
-        gap: '8px',
+        gap: '6px',
         borderTop: '1px solid var(--border)',
-        flex: '1 1 auto'
+        flex: '1 1 auto',
+        minHeight: 0,
+        overflow: 'hidden'
       }}>
         {/* Informations de version */}
         <div style={{
-          fontSize: '12px',
+          fontSize: '11px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '4px'
+          gap: '3px'
         }}>
           {/* Ligne 1 : Version actuelle et Version traduite côte à côte */}
           <div style={{
@@ -251,7 +259,7 @@ export default function AdulteGameCard({
             </span>
             <span>
               <span style={{ color: 'var(--text-secondary)' }}>Version traduite : </span>
-              <span style={{ 
+              <span style={{
                 color: (() => {
                   if (!game.version_traduite) {
                     return 'var(--text-secondary)';
@@ -265,8 +273,8 @@ export default function AdulteGameCard({
                     return 'var(--error)';
                   }
                   return 'var(--success)';
-                })(), 
-                fontWeight: 600 
+                })(),
+                fontWeight: 600
               }}>
                 {game.version_traduite || 'Non connue'}
               </span>
@@ -282,7 +290,7 @@ export default function AdulteGameCard({
             </span>
           )}
         </div>
-        
+
         {/* Titre + Badges additionnels */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
           {/* Badge Traduction FR */}
@@ -307,13 +315,15 @@ export default function AdulteGameCard({
 
       <div
         style={{
-          padding: '0 12px 12px 12px',
+          padding: '0 10px 10px 10px',
           display: 'flex',
           alignItems: hasLabels ? 'center' : 'stretch',
           justifyContent: hasLabels ? 'space-between' : 'flex-start',
-          gap: '10px',
-          minHeight: '48px',
-          flexShrink: 0
+          gap: '8px',
+          minHeight: '42px',
+          maxHeight: '60px',
+          flexShrink: 0,
+          overflow: 'hidden'
         }}
       >
         {hasLabels ? (
@@ -322,7 +332,9 @@ export default function AdulteGameCard({
               display: 'flex',
               flexWrap: 'wrap',
               gap: '6px',
-              alignItems: 'center'
+              alignItems: 'center',
+              overflow: 'hidden',
+              maxHeight: '60px'
             }}
           >
             {labels.map(({ label, color }) => (

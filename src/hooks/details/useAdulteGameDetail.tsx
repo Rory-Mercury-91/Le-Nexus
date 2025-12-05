@@ -15,22 +15,85 @@ export function useAdulteGameDetail() {
   const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
-  
+
   const [game, setGame] = useState<AdulteGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [owners, setOwners] = useState<Array<{ id: number; user_id: number; prix: number; date_achat: string | null; user_name: string; user_color: string; user_emoji: string }>>([]);
+  const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: number; name: string; color: string; emoji: string } | null>(null);
+  const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     loadGame();
+    loadUsers();
+    loadCurrentUser();
   }, [id]);
+
+  // Charger les utilisateurs
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // Charger l'utilisateur actuel
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  // Charger les images de profil
+  useEffect(() => {
+    if (users.length > 0) {
+      loadProfileImages();
+    }
+  }, [users]);
+
+  // Charger les propriétaires quand le jeu change
+  useEffect(() => {
+    if (game?.id) {
+      loadOwners();
+    }
+  }, [game?.id]);
+
+  // Écouter les événements de mise à jour des propriétaires
+  useEffect(() => {
+    if (!game?.id) return;
+
+    const handleOwnershipUpdate = () => {
+      loadOwners();
+    };
+
+    window.addEventListener('adulte-game-ownership-updated', handleOwnershipUpdate);
+    return () => {
+      window.removeEventListener('adulte-game-ownership-updated', handleOwnershipUpdate);
+    };
+  }, [game?.id]);
+
+  // Écouter les changements de statut depuis la collection pour synchronisation bidirectionnelle
+  useEffect(() => {
+    if (!game?.id) return;
+
+    const handleStatusChangeFromCollection = (event: CustomEvent) => {
+      const { gameId, statutPerso } = event.detail;
+      // Mettre à jour seulement si c'est pour le jeu actuel
+      if (gameId === game.id && statutPerso !== game.statut_perso) {
+        setGame(prev => prev ? { ...prev, statut_perso: statutPerso as any } : null);
+      }
+    };
+
+    window.addEventListener('adulte-game-status-changed', handleStatusChangeFromCollection as EventListener);
+
+    return () => {
+      window.removeEventListener('adulte-game-status-changed', handleStatusChangeFromCollection as EventListener);
+    };
+  }, [game?.id, game?.statut_perso]);
 
   const loadGame = async () => {
     try {
       setLoading(true);
       const data = await window.electronAPI.getAdulteGameGame(Number(id));
       setGame(data);
-      
+
       // Marquer automatiquement comme "vu" si une mise à jour est disponible
       // (l'utilisateur a vu la notification et ouvre la page de détail)
       if (data?.maj_disponible) {
@@ -38,7 +101,7 @@ export function useAdulteGameDetail() {
           await window.electronAPI.markAdulteGameUpdateSeen(data.id);
           // Mettre à jour l'état local pour refléter le changement
           setGame({ ...data, maj_disponible: false });
-          
+
           // Notifier la page de collection pour mettre à jour les cartes
           window.dispatchEvent(new CustomEvent('adulte-game-update-seen', {
             detail: { gameId: data.id }
@@ -67,7 +130,7 @@ export function useAdulteGameDetail() {
     try {
       const result = await window.electronAPI.checkAdulteGameUpdates(game.id, false);
       await loadGame();
-      
+
       if (result.updated > 0) {
         showToast({
           title: 'Mise à jour détectée !',
@@ -116,7 +179,7 @@ export function useAdulteGameDetail() {
       'titre', 'game_version', 'game_statut', 'game_engine', 'game_developer',
       'game_site', 'tags', 'couverture_url'
     ];
-    
+
     const fieldsToUpdate = protectedFields.filter(field => checkFields.includes(field));
 
     // Demander confirmation
@@ -136,12 +199,12 @@ export function useAdulteGameDetail() {
     try {
       const result = await window.electronAPI.checkAdulteGameUpdates(game.id, true);
       await loadGame();
-      
+
       showToast({
         title: 'Force vérification terminée',
         type: 'success'
       });
-      
+
       if (result.updated > 0) {
         showToast({
           title: 'Mise à jour détectée !',
@@ -165,13 +228,22 @@ export function useAdulteGameDetail() {
     if (!game?.id) return;
 
     try {
-      await window.electronAPI.launchAdulteGameGame(game.id);
-      showToast({
-        title: 'Jeu lancé',
-        message: 'Le jeu a été lancé avec succès',
-        type: 'success'
-      });
-      
+      const result: any = await window.electronAPI.launchAdulteGameGame(game.id);
+
+      if (result?.openedWebsite) {
+        showToast({
+          title: 'Site web ouvert',
+          message: 'Le site web du jeu a été ouvert dans votre navigateur',
+          type: 'success'
+        });
+      } else {
+        showToast({
+          title: 'Jeu lancé',
+          message: 'Le jeu a été lancé avec succès',
+          type: 'success'
+        });
+      }
+
       setTimeout(() => loadGame(), 1000);
     } catch (error: any) {
       console.error('Erreur lancement jeu:', error);
@@ -193,7 +265,7 @@ export function useAdulteGameDetail() {
         message: `Version ${version} lancée avec succès`,
         type: 'success'
       });
-      
+
       setTimeout(() => loadGame(), 1000);
     } catch (error: any) {
       console.error('Erreur lancement jeu:', error);
@@ -245,17 +317,17 @@ export function useAdulteGameDetail() {
 
     try {
       await window.electronAPI.updateAdulteGameGame(game.id, { statut_perso: newStatus as any });
-      
+
       // Mettre à jour l'état local sans recharger
       if (game) {
         setGame({ ...game, statut_perso: newStatus as any });
       }
-      
+
       // Notifier la page de collection pour mettre à jour les cartes
       window.dispatchEvent(new CustomEvent('adulte-game-status-changed', {
         detail: { gameId: game.id, statutPerso: newStatus }
       }));
-      
+
       showToast({
         title: 'Statut modifié',
         type: 'success'
@@ -276,6 +348,74 @@ export function useAdulteGameDetail() {
     }
   };
 
+  const loadUsers = async () => {
+    try {
+      const allUsers = await window.electronAPI.getAllUsers();
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('Erreur chargement utilisateurs:', error);
+    }
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const userName = await window.electronAPI.getCurrentUser();
+      if (userName) {
+        const allUsers = await window.electronAPI.getAllUsers();
+        const user = allUsers.find((u: { name: string }) => u.name === userName);
+        if (user) {
+          setCurrentUser(user);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement utilisateur actuel:', error);
+    }
+  };
+
+  const loadProfileImages = async () => {
+    try {
+      const images: Record<string, string | null> = {};
+      for (const user of users) {
+        try {
+          const image = await window.electronAPI.getUserProfileImage?.(user.name);
+          images[user.name] = image || null;
+        } catch {
+          images[user.name] = null;
+        }
+      }
+      setProfileImages(images);
+    } catch (error) {
+      console.error('Erreur chargement images de profil:', error);
+    }
+  };
+
+  const loadOwners = async () => {
+    if (!game?.id) return;
+    try {
+      const api = window.electronAPI as any;
+      if (api.adulteGameGetOwners) {
+        const result = await api.adulteGameGetOwners(game.id);
+        if (result?.success && result.owners) {
+          setOwners(result.owners);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement propriétaires:', error);
+    }
+  };
+
+  // Calculer les coûts par utilisateur
+  const costsByUser = users.map(user => {
+    const userOwner = owners.find(o => o.user_id === user.id);
+    return {
+      user,
+      cost: userOwner?.prix || 0
+    };
+  }).filter(item => item.cost > 0);
+
+  // Calculer le prix total
+  const totalPrix = owners.reduce((sum, owner) => sum + (owner.prix || 0), 0);
+
   // Calculs dérivés pour les versions disponibles
   const availableVersions: GameVersion[] = (() => {
     if (!game?.chemin_executable) return [];
@@ -288,7 +428,7 @@ export function useAdulteGameDetail() {
           label: exe.label || `Version ${exe.version}`
         }));
       }
-    } catch {}
+    } catch { }
     return [];
   })();
 
@@ -308,11 +448,17 @@ export function useAdulteGameDetail() {
     loading,
     availableVersions,
     canPlay,
-    
+    owners,
+    users,
+    currentUser,
+    profileImages,
+    costsByUser,
+    totalPrix,
+
     // États UI
     isUpdating,
     showEditModal,
-    
+
     // Actions
     setShowEditModal,
     handleCheckUpdate,
@@ -324,10 +470,11 @@ export function useAdulteGameDetail() {
     handleStatusChange,
     handleNotesChange,
     loadGame,
-    
+    loadOwners,
+
     // Navigation
     navigate,
-    
+
     // Toast
     ToastContainer,
 

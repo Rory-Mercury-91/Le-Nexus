@@ -48,7 +48,7 @@ export interface EnrichmentConfigModalConfig {
   onProgress?: (progress: { current: number; total: number; item: string }) => void;
   /** Callback pour écouter la fin */
   onComplete?: (stats: { cancelled?: boolean }) => void;
-  /** Message d'avertissement (optionnel) */
+  /** Message d'avertissement */
   warningMessage?: string;
   /** Couleur du thème (pour les gradients) */
   themeColor?: {

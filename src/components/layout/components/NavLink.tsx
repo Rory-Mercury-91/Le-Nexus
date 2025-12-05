@@ -6,12 +6,13 @@ interface NavLinkProps {
   icon: ReactNode;
   children: ReactNode;
   isActive: boolean;
+  isSubCategory?: boolean; // Pour les sous-catégories avec indentation supplémentaire
 }
 
 /**
  * Lien de navigation réutilisable pour la sidebar
  */
-export default function NavLink({ to, icon, children, isActive }: NavLinkProps) {
+export default function NavLink({ to, icon, children, isActive, isSubCategory = false }: NavLinkProps) {
   return (
     <Link
       to={to}
@@ -27,7 +28,8 @@ export default function NavLink({ to, icon, children, isActive }: NavLinkProps) 
         background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
         fontWeight: isActive ? '600' : '400',
         transition: 'all 0.2s',
-        minHeight: '44px'
+        minHeight: '44px',
+        marginLeft: isSubCategory ? '24px' : '0' // Indentation supplémentaire pour les sous-catégories
       }}
     >
       <span style={{ fontSize: '20px', flexShrink: 0 }}>{icon}</span>

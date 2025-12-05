@@ -41,12 +41,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Mangas (Quick Add)
   addMangaByMalId: (malIdOrUrl, options = {}) => ipcRenderer.invoke('add-manga-by-mal-id', malIdOrUrl, options),
+  addMangaByAnilistId: (anilistIdOrUrl, options = {}) => ipcRenderer.invoke('add-manga-by-anilist-id', anilistIdOrUrl, options),
 
   // Lecture
   toggleTomeLu: (tomeId, lu) => ipcRenderer.invoke('toggle-tome-lu', tomeId, lu),
   toggleTomePossede: (tomeId, possede) => ipcRenderer.invoke('toggle-tome-possede', tomeId, possede),
   toggleTomeMihon: (tomeId, mihon) => ipcRenderer.invoke('toggle-tome-mihon', tomeId, mihon),
   possederTousLesTomes: (serieId) => ipcRenderer.invoke('posseder-tous-les-tomes', serieId),
+  serieMarkAsOwned: (payload) => ipcRenderer.invoke('serie-mark-as-owned', payload),
   marquerSerieLue: (serieId) => ipcRenderer.invoke('marquer-serie-lue', serieId),
   getLectureStatistics: () => ipcRenderer.invoke('get-lecture-statistics'),
   getRecentProgress: () => ipcRenderer.invoke('get-recent-progress'),
@@ -128,6 +130,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Animes
   createAnime: (animeData) => ipcRenderer.invoke('create-anime', animeData),
   addAnimeByMalId: (malIdOrUrl, options = {}) => ipcRenderer.invoke('add-anime-by-mal-id', malIdOrUrl, options),
+  addAnimeByAnilistId: (anilistIdOrUrl, options = {}) => ipcRenderer.invoke('add-anime-by-anilist-id', anilistIdOrUrl, options),
   importAnimeXml: (xmlContent) => ipcRenderer.invoke('import-anime-xml', xmlContent),
   onAnimeImportProgress: (callback) => {
     const subscription = (event, progress) => callback(progress);
@@ -185,6 +188,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // TMDb / TV Maze / médias
   getTmdbCredentials: () => ipcRenderer.invoke('get-tmdb-credentials'),
   setTmdbCredentials: (credentials) => ipcRenderer.invoke('set-tmdb-credentials', credentials),
+  getRawgCredentials: () => ipcRenderer.invoke('get-rawg-credentials'),
+  setRawgCredentials: (credentials) => ipcRenderer.invoke('set-rawg-credentials', credentials),
+  testRawgConnection: (credentials) => ipcRenderer.invoke('test-rawg-connection', credentials),
   searchTmdbMovies: (query, page) => ipcRenderer.invoke('movies-search-tmdb', { query, page }),
   searchTmdbSeries: (query, page) => ipcRenderer.invoke('tv-search-tmdb', { query, page }),
   testTmdbConnection: (credentials) => ipcRenderer.invoke('test-tmdb-connection', credentials),
@@ -326,6 +332,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllAdulteGameLabels: () => ipcRenderer.invoke('get-all-adulte-game-labels'),
   addAdulteGameLabel: (gameId, label, color) => ipcRenderer.invoke('add-adulte-game-label', gameId, label, color),
   removeAdulteGameLabel: (gameId, label) => ipcRenderer.invoke('remove-adulte-game-label', gameId, label),
+  
+  // Possession des jeux
+  adulteGameMarkAsOwned: (payload) => ipcRenderer.invoke('adulte-game-mark-as-owned', payload),
+  adulteGameGetOwners: (gameId) => ipcRenderer.invoke('adulte-game-get-owners', gameId),
+
+  // ========== ABONNEMENTS ==========
+  subscriptionsGet: (filters) => ipcRenderer.invoke('subscriptions-get', filters),
+  subscriptionsCreate: (subscriptionData) => ipcRenderer.invoke('subscriptions-create', subscriptionData),
+  subscriptionsUpdate: (id, subscriptionData) => ipcRenderer.invoke('subscriptions-update', id, subscriptionData),
+  subscriptionsDelete: (id) => ipcRenderer.invoke('subscriptions-delete', id),
+  subscriptionsUpdateNextPayments: () => ipcRenderer.invoke('subscriptions-update-next-payments'),
+
+  // ========== ACHATS PONCTUELS ==========
+  purchaseSitesGet: () => ipcRenderer.invoke('purchase-sites-get'),
+  purchaseSitesCreate: (name) => ipcRenderer.invoke('purchase-sites-create', name),
+  oneTimePurchasesGet: (filters) => ipcRenderer.invoke('one-time-purchases-get', filters),
+  oneTimePurchasesCreate: (purchaseData) => ipcRenderer.invoke('one-time-purchases-create', purchaseData),
+  oneTimePurchasesUpdate: (id, purchaseData) => ipcRenderer.invoke('one-time-purchases-update', id, purchaseData),
+  oneTimePurchasesDelete: (id) => ipcRenderer.invoke('one-time-purchases-delete', id),
 
   getAllTags: () => ipcRenderer.invoke('get-all-tags'),
   getAdulteGameTagPreferences: (userId) => ipcRenderer.invoke('get-adulte-game-tag-preferences', userId),
@@ -370,6 +395,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchAdulteGameGamesMinimal: (searchTerm) => ipcRenderer.invoke('search-adulte-game-games-minimal', searchTerm),
   getAdulteGameCurrentExecutables: (gameId) => ipcRenderer.invoke('get-adulte-game-current-executables', gameId),
   bulkUpdateAdulteGameExecutables: (assignments) => ipcRenderer.invoke('bulk-update-adulte-game-executables', assignments),
+
+  // ========== RAWG API ==========
+  searchRawgGames: (query, page) => ipcRenderer.invoke('games-search-rawg', { query, page }),
+  getRawgGameDetails: (rawgId) => ipcRenderer.invoke('games-get-rawg-details', rawgId),
+  syncGameFromRawg: (rawgId, gameId, autoTranslate) => ipcRenderer.invoke('games-sync-from-rawg', { rawgId, gameId, autoTranslate }),
+  enrichGameFromRawg: (gameId, rawgId, autoTranslate) => ipcRenderer.invoke('games-enrich-from-rawg', { gameId, rawgId, autoTranslate }),
+  createGameFromRawg: (rawgId, autoTranslate) => ipcRenderer.invoke('create-game-from-rawg', { rawgId, autoTranslate }),
+  getRawgGameDetail: (gameId) => ipcRenderer.invoke('get-rawg-game-detail', gameId),
+  getRawgGameDisplaySettings: () => ipcRenderer.invoke('get-rawg-game-display-settings'),
+  saveRawgGameDisplaySettings: (prefs) => ipcRenderer.invoke('save-rawg-game-display-settings', prefs),
+  getRawgGameDisplayOverrides: (gameId) => ipcRenderer.invoke('get-rawg-game-display-overrides', gameId),
+  saveRawgGameDisplayOverrides: (gameId, overrides) => ipcRenderer.invoke('save-rawg-game-display-overrides', gameId, overrides),
+  deleteRawgGameDisplayOverrides: (gameId, keys) => ipcRenderer.invoke('delete-rawg-game-display-overrides', gameId, keys),
+  
+  // Galerie d'images et vidéos utilisateur pour jeux RAWG
+  addRawgGameUserImageUrl: (gameId, imageUrl, title) => ipcRenderer.invoke('add-rawg-game-user-image-url', gameId, imageUrl, title),
+  addRawgGameUserImageFile: (gameId, title) => ipcRenderer.invoke('add-rawg-game-user-image-file', gameId, title),
+  getRawgGameUserImages: (gameId) => ipcRenderer.invoke('get-rawg-game-user-images', gameId),
+  deleteRawgGameUserImage: (gameId, imageId) => ipcRenderer.invoke('delete-rawg-game-user-image', gameId, imageId),
+  addRawgGameUserVideoUrl: (gameId, url, title) => ipcRenderer.invoke('add-rawg-game-user-video-url', { gameId, url, title }),
+  addRawgGameUserVideoFile: (gameId, title, isReference) => ipcRenderer.invoke('add-rawg-game-user-video-file', gameId, title, isReference),
+  getRawgGameUserVideos: (gameId) => ipcRenderer.invoke('get-rawg-game-user-videos', gameId),
+  deleteRawgGameUserVideo: (gameId, videoId) => ipcRenderer.invoke('delete-rawg-game-user-video', gameId, videoId),
 
   // Synchronisation traductions
   getTraductionConfig: () => ipcRenderer.invoke('get-traduction-config'),
@@ -425,6 +473,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   malTranslateSynopsis: () => ipcRenderer.invoke('mal-translate-synopsis'),
   malSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('mal-set-auto-sync', enabled, intervalHours),
   malGetAutoSyncSettings: () => ipcRenderer.invoke('mal-get-auto-sync-settings'),
+
+  // AniList Sync
+  anilistGetCredentials: () => ipcRenderer.invoke('anilist-get-credentials'),
+  anilistSetCredentials: (credentials) => ipcRenderer.invoke('anilist-set-credentials', credentials),
+  anilistConnect: () => ipcRenderer.invoke('anilist-connect'),
+  anilistDisconnect: () => ipcRenderer.invoke('anilist-disconnect'),
+  anilistGetStatus: () => ipcRenderer.invoke('anilist-get-status'),
+  anilistSyncNow: () => ipcRenderer.invoke('anilist-sync-now'),
+  anilistSyncStatus: () => ipcRenderer.invoke('anilist-sync-status'),
+  anilistSetAutoSync: (enabled, intervalHours) => ipcRenderer.invoke('anilist-set-auto-sync', enabled, intervalHours),
+  anilistGetAutoSyncSettings: () => ipcRenderer.invoke('anilist-get-auto-sync-settings'),
   nautiljonSetAutoSync: (enabled, intervalHours, includeTomes) => ipcRenderer.invoke('nautiljon-set-auto-sync', enabled, intervalHours, includeTomes),
   nautiljonGetAutoSyncSettings: () => ipcRenderer.invoke('nautiljon-get-auto-sync-settings'),
   nautiljonSyncNow: () => ipcRenderer.invoke('nautiljon-sync-now'),
@@ -474,6 +533,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const subscription = (_event, data) => callback(_event, data);
     ipcRenderer.on('mal-translation-error', subscription);
     return () => ipcRenderer.removeListener('mal-translation-error', subscription);
+  },
+  onAnilistSyncProgress: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('anilist-sync-progress', subscription);
+    return () => ipcRenderer.removeListener('anilist-sync-progress', subscription);
+  },
+  onAnilistSyncCompleted: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('anilist-sync-completed', subscription);
+    return () => ipcRenderer.removeListener('anilist-sync-completed', subscription);
+  },
+  onAnilistSyncError: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('anilist-sync-error', subscription);
+    return () => ipcRenderer.removeListener('anilist-sync-error', subscription);
   },
   openTampermonkeyInstallation: () => ipcRenderer.invoke('open-tampermonkey-installation'),
 
@@ -552,5 +626,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteUserData: (userName) => ipcRenderer.invoke('delete-user-data', userName),
   deleteAllData: () => ipcRenderer.invoke('delete-all-data'),
   toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
-  isFullscreen: () => ipcRenderer.invoke('is-fullscreen')
+  isFullscreen: () => ipcRenderer.invoke('is-fullscreen'),
+  copyToClipboard: (text) => {
+    return ipcRenderer.invoke('copy-to-clipboard', text).then(result => {
+      if (result.success) {
+        return true;
+      }
+      throw new Error(result.error || 'Erreur lors de la copie');
+    });
+  }
 });

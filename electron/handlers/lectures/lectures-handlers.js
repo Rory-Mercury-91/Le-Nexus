@@ -25,6 +25,7 @@ function handleGetAvailableContentTypes(db, store) {
     comics: 0,
     bd: 0,
     books: 0,
+    oneShot: 0,
     unclassified: 0  // Entrées sans media_type
   };
 
@@ -75,6 +76,8 @@ function handleGetAvailableContentTypes(db, store) {
     // Si media_type est NULL ou vide, compter dans "Non classé"
     if (!row.media_type || row.media_type === '') {
       result.unclassified += row.count;
+    } else if (mediaType.includes('one-shot') || mediaType.includes('oneshot')) {
+      result.oneShot += row.count;
     } else if (mediaType.includes('manga') && !mediaType.includes('manhwa') && !mediaType.includes('manhua')) {
       result.manga += row.count;
     } else if (mediaType.includes('manhwa')) {

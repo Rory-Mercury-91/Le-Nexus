@@ -412,6 +412,41 @@ async function prepareAnimeDataFromJikan(anime, malId, userId, sourceImport = 'm
     }
   }
 
+  // Normaliser le type d'anime pour gérer les variantes (TV Special, tv_special -> Special, etc.)
+  const normalizeAnimeTypeFromJikan = (type) => {
+    if (!type) return 'TV';
+    
+    const trimmed = String(type).trim();
+    const normalized = trimmed.toLowerCase().replace(/[_-]/g, ' ').trim();
+    
+    // Vérifier d'abord les types contenant "special" (TV Special, tv_special, etc.)
+    if (normalized.includes('special')) {
+      return 'Special';
+    }
+    
+    // Mapping des types standardisés
+    const typeMap = {
+      'tv': 'TV',
+      'ova': 'OVA',
+      'ona': 'ONA',
+      'movie': 'Movie',
+      'music': 'Music'
+    };
+    
+    if (typeMap[normalized]) {
+      return typeMap[normalized];
+    }
+    
+    // Si c'est déjà un type reconnu (avec majuscules), le retourner tel quel
+    const recognizedTypes = ['TV', 'OVA', 'ONA', 'Movie', 'Special', 'Music'];
+    if (recognizedTypes.includes(trimmed)) {
+      return trimmed;
+    }
+    
+    // Par défaut, retourner TV
+    return 'TV';
+  };
+
   return {
     mal_id: malId,
     mal_url: anime.url || `https://myanimelist.net/anime/${malId}`,
@@ -420,7 +455,7 @@ async function prepareAnimeDataFromJikan(anime, malId, userId, sourceImport = 'm
     titre_natif: anime.title_japanese || null,
     titre_anglais: anime.title_english || null,
     titres_alternatifs: anime.title_synonyms?.join(', ') || null,
-    type: anime.type || 'TV',
+    type: normalizeAnimeTypeFromJikan(anime.type),
     source: anime.source || null,
     nb_episodes: anime.type === 'Movie' ? 1 : (anime.episodes || 0),
     couverture_url: null, // Sera défini plus tard

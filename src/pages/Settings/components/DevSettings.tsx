@@ -2,7 +2,7 @@ import { Code, Info, Merge } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 
-type MergeType = 'manga' | 'anime' | 'movie' | 'tv' | 'game';
+type MergeType = 'manga' | 'anime' | 'movie' | 'tv' | 'game' | 'book';
 
 interface DevSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
@@ -51,7 +51,8 @@ export default function DevSettings({ showToast, onOpenMergeModal, mergePreviewL
     { value: 'anime', label: 'Animes' },
     { value: 'movie', label: 'Films' },
     { value: 'tv', label: 'Séries TV' },
-    { value: 'game', label: 'Jeux adultes' }
+    { value: 'game', label: 'Jeux' },
+    { value: 'book', label: 'Livres' }
   ] as const;
 
   const handleOpenMergeModal = async () => {

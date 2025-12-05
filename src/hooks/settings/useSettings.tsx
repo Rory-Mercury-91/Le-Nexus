@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
 import { AnimeImportProgress, AnimeImportResult, ContentPreferences } from '../../types';
 import { useConfirm } from '../common/useConfirm';
 import { useToast } from '../common/useToast';
-import { useGlobalProgress } from '../../contexts/GlobalProgressContext';
+import { useAniListSettings } from './useAniListSettings';
 import { useAppSettings } from './useAppSettings';
 import { useDatabaseSettings } from './useDatabaseSettings';
 import { useMalSettings } from './useMalSettings';
@@ -29,6 +30,7 @@ const getDefaultSectionStates = () => ({
   'dev': false, // Reste fermé par défaut
   'danger-zone': false, // Reste fermé par défaut
   'integrations-mal': true,
+  'integrations-anilist': true,
   'integrations-tmdb': true,
   'integrations-groq': true,
   'integrations-adulteGame': true,
@@ -42,6 +44,7 @@ export function useSettings() {
     showAnimes: true,
     showMovies: true,
     showSeries: true,
+    showVideos: true,
     showAdulteGame: true,
     showBooks: true
   };
@@ -51,7 +54,7 @@ export function useSettings() {
   const [animeImportResult] = useState<AnimeImportResult | null>(null);
   const [importStartTime, setImportStartTime] = useState<number>(0);
   const [importType, setImportType] = useState<'xml' | 'mal-sync'>('xml');
-  
+
   // Utiliser le contexte global pour les progressions
   const { setAnimeProgress } = useGlobalProgress();
   const [users, setUsers] = useState<UserData[]>([]);
@@ -63,6 +66,7 @@ export function useSettings() {
   const [showSeriesDisplayModal, setShowSeriesDisplayModal] = useState(false);
   const [showBooksDisplayModal, setShowBooksDisplayModal] = useState(false);
   const [showAdulteGameDisplayModal, setShowAdulteGameDisplayModal] = useState(false);
+  const [showRawgGameDisplayModal, setShowRawgGameDisplayModal] = useState(false);
   const [tmdbLanguage, setTmdbLanguage] = useState('fr-FR');
   const [tmdbRegion, setTmdbRegion] = useState('FR');
   const [tmdbAutoTranslate, setTmdbAutoTranslate] = useState<boolean>(true);
@@ -72,6 +76,7 @@ export function useSettings() {
 
   // Hooks spécialisés
   const malSettings = useMalSettings();
+  const anilistSettings = useAniListSettings();
   const nautiljonSettings = useNautiljonSettings();
   const appSettings = useAppSettings();
   const databaseSettings = useDatabaseSettings();
@@ -114,7 +119,18 @@ export function useSettings() {
       const currentUser = await window.electronAPI.getCurrentUser();
       if (currentUser) {
         const prefs = await window.electronAPI.getContentPreferences(currentUser);
-        setContentPrefs({ ...defaultContentPrefs, ...prefs });
+        const mergedPrefs = { ...defaultContentPrefs, ...prefs };
+
+        // Migration automatique : si showVideos n'existe pas, le calculer à partir des anciennes préférences
+        if (mergedPrefs.showVideos === undefined) {
+          mergedPrefs.showVideos = mergedPrefs.showAnimes || mergedPrefs.showMovies || mergedPrefs.showSeries;
+          // Sauvegarder la migration
+          if (mergedPrefs.showVideos !== undefined) {
+            await window.electronAPI.setContentPreferences(currentUser, { showVideos: mergedPrefs.showVideos });
+          }
+        }
+
+        setContentPrefs(mergedPrefs);
       } else {
         setContentPrefs({ ...defaultContentPrefs });
       }
@@ -180,12 +196,19 @@ export function useSettings() {
   const handleContentPrefChange = async (pref: keyof ContentPreferences, value: boolean) => {
     try {
       const newPrefs: ContentPreferences = { ...defaultContentPrefs, ...contentPrefs, [pref]: value };
-      
+
       // Si on change showMangas, synchroniser showBooks avec la même valeur
       if (pref === 'showMangas') {
         newPrefs.showBooks = value;
       }
-      
+
+      // Si on change showVideos, synchroniser les 3 anciennes valeurs pour compatibilité
+      if (pref === 'showVideos') {
+        newPrefs.showAnimes = value;
+        newPrefs.showMovies = value;
+        newPrefs.showSeries = value;
+      }
+
       setContentPrefs(newPrefs);
 
       const currentUser = await window.electronAPI.getCurrentUser();
@@ -285,13 +308,19 @@ export function useSettings() {
   } = malSettings;
 
   const {
+    anilistAutoSyncInterval,
+    handleAniListIntervalChange,
+    ...restAnilistSettings
+  } = anilistSettings;
+
+  const {
     nautiljonAutoSyncInterval,
     handleNautiljonIntervalChange,
     ...restNautiljonSettings
   } = nautiljonSettings;
 
   useEffect(() => {
-    const candidate = (malAutoSyncInterval ?? nautiljonAutoSyncInterval) as 1 | 3 | 6 | 12 | 24 | undefined;
+    const candidate = (malAutoSyncInterval ?? anilistAutoSyncInterval ?? nautiljonAutoSyncInterval) as 1 | 3 | 6 | 12 | 24 | undefined;
     if (!globalSyncInitialized && candidate) {
       setGlobalSyncInterval(candidate);
       setGlobalSyncInitialized(true);
@@ -303,11 +332,19 @@ export function useSettings() {
     }
 
     const malInterval = malAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
+    const anilistInterval = anilistAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
     const nautiljonInterval = nautiljonAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
 
     // Utiliser une fonction de mise à jour pour éviter la dépendance sur globalSyncInterval
     setGlobalSyncInterval((currentInterval) => {
-      if (malInterval && nautiljonInterval && malInterval === nautiljonInterval) {
+      if (malInterval && anilistInterval && nautiljonInterval && malInterval === anilistInterval && anilistInterval === nautiljonInterval) {
+        if (currentInterval !== malInterval) {
+          return malInterval;
+        }
+        return currentInterval;
+      }
+
+      if (malInterval && anilistInterval && malInterval === anilistInterval) {
         if (currentInterval !== malInterval) {
           return malInterval;
         }
@@ -318,13 +355,17 @@ export function useSettings() {
         return malInterval;
       }
 
+      if (anilistInterval && currentInterval !== anilistInterval) {
+        return anilistInterval;
+      }
+
       if (nautiljonInterval && currentInterval !== nautiljonInterval) {
         return nautiljonInterval;
       }
 
       return currentInterval;
     });
-  }, [globalSyncInitialized, globalSyncUpdating, malAutoSyncInterval, nautiljonAutoSyncInterval]);
+  }, [globalSyncInitialized, globalSyncUpdating, malAutoSyncInterval, anilistAutoSyncInterval, nautiljonAutoSyncInterval]);
 
   return {
     // State local
@@ -332,8 +373,6 @@ export function useSettings() {
     loading,
     importingAnimes,
     animeImportResult,
-    animeImportProgress: malAnimeImportProgress, // Utiliser celui du contexte global
-    mangaImportProgress: malMangaImportProgress,
     importType,
     users,
     userAvatars,
@@ -350,6 +389,8 @@ export function useSettings() {
     setShowBooksDisplayModal,
     showAdulteGameDisplayModal,
     setShowAdulteGameDisplayModal,
+    showRawgGameDisplayModal,
+    setShowRawgGameDisplayModal,
     tmdbLanguage,
     tmdbRegion,
     globalSyncInterval,
@@ -357,6 +398,7 @@ export function useSettings() {
 
     // Hooks spécialisés (sans duplication)
     ...restMalSettings,
+    ...restAnilistSettings,
     ...restNautiljonSettings,
     ...appSettings,
     ...databaseSettings, // Contient son propre confirm et ConfirmDialog
@@ -383,6 +425,7 @@ export function useSettings() {
       try {
         await Promise.all([
           handleMalIntervalChange(interval),
+          handleAniListIntervalChange(interval),
           handleNautiljonIntervalChange(interval)
         ]);
       } catch (error: any) {

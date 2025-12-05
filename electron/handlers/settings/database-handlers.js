@@ -534,6 +534,7 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     showAnimes: true,
     showMovies: true,
     showSeries: true,
+    showVideos: true, // Option pour masquer/afficher toute la section Vidéos
     showAdulteGame: true,
     showBooks: true
   };
@@ -549,6 +550,18 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
     // Synchroniser showBooks avec showMangas : si on change showMangas, showBooks suit
     if (preferences.hasOwnProperty('showMangas')) {
       mergedPrefs.showBooks = preferences.showMangas;
+    }
+    
+    // Synchroniser showVideos avec les 3 anciennes valeurs : si on change showVideos, mettre à jour les 3
+    if (preferences.hasOwnProperty('showVideos')) {
+      mergedPrefs.showAnimes = preferences.showVideos;
+      mergedPrefs.showMovies = preferences.showVideos;
+      mergedPrefs.showSeries = preferences.showVideos;
+    }
+    
+    // Migration automatique : si showVideos n'existe pas, le calculer à partir des 3 anciennes valeurs
+    if (mergedPrefs.showVideos === undefined) {
+      mergedPrefs.showVideos = mergedPrefs.showAnimes || mergedPrefs.showMovies || mergedPrefs.showSeries;
     }
     
     userPrefs[userName] = mergedPrefs;

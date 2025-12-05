@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 export interface SearchConfig<T> {
   /** Fonction pour obtenir le titre de l'item */
   getTitle: (item: T) => string;
-  /** Fonction pour obtenir le titre original de l'item (optionnel) */
+  /** Fonction pour obtenir le titre original de l'item */
   getOriginalTitle?: (item: T) => string | null | undefined;
   /** Fonction pour obtenir l'ID externe (tmdb_id, mal_id, etc.) pour recherche par ID */
   getExternalId?: (item: T) => number | null | undefined;
@@ -59,9 +59,9 @@ export interface CollectionFiltersConfig<T> {
   showFavoriteOnly?: boolean;
   /** Afficher les éléments masqués */
   showHidden?: boolean;
-  /** Afficher uniquement les éléments avec mises à jour (optionnel) */
+  /** Afficher uniquement les éléments avec mises à jour */
   showMajOnly?: boolean;
-  /** Afficher uniquement la watchlist (optionnel, pour Movies) */
+  /** Afficher uniquement la watchlist */
   showWatchlistOnly?: boolean;
   /** Option de tri actuelle */
   sortBy: string;

@@ -1,4 +1,4 @@
-const { dialog } = require('electron');
+const { dialog, shell } = require('electron');
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -25,13 +25,38 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
       }
 
       const userGame = db.prepare(`
-        SELECT ud.chemin_executable, g.titre
+        SELECT ud.chemin_executable, g.titre, g.rawg_website, g.game_site
         FROM adulte_game_games g
         INNER JOIN adulte_game_user_data ud ON g.id = ud.game_id AND ud.user_id = ?
         WHERE g.id = ?
       `).get(userId, id);
       
-      if (!userGame || !userGame.chemin_executable) {
+      if (!userGame) {
+        throw new Error('Jeu non trouvé');
+      }
+
+      // Si le jeu vient de RAWG et a un lien web, ouvrir le lien au lieu de lancer un exécutable
+      if (userGame.rawg_website && userGame.game_site === 'RAWG') {
+        if (!userGame.rawg_website.startsWith('http://') && !userGame.rawg_website.startsWith('https://')) {
+          throw new Error('Lien RAWG invalide');
+        }
+        
+        await shell.openExternal(userGame.rawg_website);
+        console.log(`🌐 Site web ouvert: "${userGame.titre}" -> ${userGame.rawg_website}`);
+        
+        // Mettre à jour la dernière session
+        db.prepare(`
+          UPDATE adulte_game_user_data 
+          SET derniere_session = datetime('now'),
+              updated_at = datetime('now')
+          WHERE game_id = ? AND user_id = ?
+        `).run(id, userId);
+        
+        return { success: true, openedWebsite: true };
+      }
+      
+      // Comportement normal : chercher un exécutable
+      if (!userGame.chemin_executable) {
         throw new Error('Aucun exécutable défini pour ce jeu');
       }
       

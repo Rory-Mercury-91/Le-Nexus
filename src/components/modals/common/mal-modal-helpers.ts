@@ -7,12 +7,29 @@ import { AddMalItemModalConfig } from './AddMalItemModal';
 export function createAnimeModalConfig(
   initialMalId?: number
 ): AddMalItemModalConfig<AnimeSearchResult> {
+  // Fonction d'import qui détecte automatiquement si c'est MAL ou AniList
+  const importDirectlyApi = async (id: number, options?: any) => {
+    // Détecter si c'est un ID AniList ou MAL
+    // On essaie d'abord MAL, puis AniList si disponible
+    try {
+      return await window.electronAPI.addAnimeByMalId(id, options);
+    } catch (error: any) {
+      // Si l'erreur indique que ce n'est pas un ID MAL valide, essayer AniList
+      if (error?.message?.includes('non trouvé') || error?.message?.includes('not found')) {
+        // Essayer AniList si disponible
+        if (window.electronAPI.addAnimeByAnilistId) {
+          return await window.electronAPI.addAnimeByAnilistId(id, options);
+        }
+      }
+      throw error;
+    }
+  };
+
   return {
     title: 'Ajouter un anime',
     mediaType: 'anime',
     searchApi: (query: string) => window.electronAPI.searchAnime(query),
-    importDirectlyApi: (malId: number, options?: any) => 
-      window.electronAPI.addAnimeByMalId(malId, options),
+    importDirectlyApi,
     createApi: async (data: Record<string, any>) => {
       const animeData = {
         titre: data.titre,
@@ -34,7 +51,7 @@ export function createAnimeModalConfig(
     createSuccessMessage: 'Anime ajouté avec succès',
     enrichSuccessMessage: 'Enrichissement terminé',
     initialMalId,
-    searchPlaceholder: 'Ex: Attack on Titan, Death Note...'
+    searchPlaceholder: 'Ex: Attack on Titan, Death Note, ou ID MAL/AniList...'
   };
 }
 
@@ -44,12 +61,30 @@ export function createAnimeModalConfig(
 export function createMangaModalConfig(
   initialMalId?: string
 ): AddMalItemModalConfig<MangaSearchResult> {
+  // Fonction d'import qui détecte automatiquement si c'est MAL ou AniList
+  const importDirectlyApi = async (id: number, options?: any) => {
+    // Détecter si c'est un ID AniList (généralement 5-6 chiffres) ou MAL (généralement 1-5 chiffres)
+    // Mais on ne peut pas vraiment savoir juste avec le nombre, donc on essaie d'abord MAL
+    // Si ça échoue avec une erreur spécifique, on peut essayer AniList
+    try {
+      return await window.electronAPI.addMangaByMalId(id, options);
+    } catch (error: any) {
+      // Si l'erreur indique que ce n'est pas un ID MAL valide, essayer AniList
+      if (error?.message?.includes('non trouvé') || error?.message?.includes('not found')) {
+        // Essayer AniList si disponible
+        if (window.electronAPI.addMangaByAnilistId) {
+          return await window.electronAPI.addMangaByAnilistId(id, options);
+        }
+      }
+      throw error;
+    }
+  };
+
   return {
     title: 'Ajouter une série',
     mediaType: 'manga',
     searchApi: (query: string) => window.electronAPI.searchManga(query),
-    importDirectlyApi: (malId: number, options?: any) => 
-      window.electronAPI.addMangaByMalId(malId, options),
+    importDirectlyApi,
     createApi: async (data: Record<string, any>) => {
       const serieData = {
         titre: data.titre,

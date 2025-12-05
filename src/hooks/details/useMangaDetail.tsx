@@ -190,7 +190,7 @@ export function useMangaDetail() {
 
     try {
       await window.electronAPI.deleteSerie(serie.id);
-      navigate('/collection', { replace: true });
+      navigate('/lectures', { replace: true });
     } catch (error) {
       console.error('Erreur suppression série:', error);
       showToast({
@@ -307,8 +307,11 @@ export function useMangaDetail() {
 
   // Enrichissement
   const handleEnrich = useCallback(async () => {
-    if (!serie?.mal_id) {
-      alert("Ce manga n'a pas de MAL ID. Ajoutez un MAL ID (via édition ou import MAL) pour lancer l'enrichissement.");
+    if (!serie?.mal_id && !(serie as any)?.anilist_id) {
+      alert("Ce manga n'a pas de MAL ID ou AniList ID. Ajoutez un MAL ID ou AniList ID (via édition ou import) pour lancer l'enrichissement.");
+      return;
+    }
+    if (!serie?.id) {
       return;
     }
     setEnriching(true);
@@ -326,8 +329,11 @@ export function useMangaDetail() {
 
   // Force vérification (ignore user_modified_fields)
   const handleForceEnrich = useCallback(async () => {
-    if (!serie?.mal_id) {
-      alert("Ce manga n'a pas de MAL ID. Ajoutez un MAL ID (via édition ou import MAL) pour lancer l'enrichissement.");
+    if (!serie?.mal_id && !(serie as any)?.anilist_id) {
+      alert("Ce manga n'a pas de MAL ID ou AniList ID. Ajoutez un MAL ID ou AniList ID (via édition ou import) pour lancer l'enrichissement.");
+      return;
+    }
+    if (!serie) {
       return;
     }
 
@@ -369,6 +375,9 @@ export function useMangaDetail() {
     });
 
     if (!confirmed) return;
+    if (!serie?.id) {
+      return;
+    }
 
     setEnriching(true);
     try {

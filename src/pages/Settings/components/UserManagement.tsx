@@ -61,10 +61,10 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
       try {
         // Marquer qu'on vient d'un changement depuis les paramètres
         sessionStorage.setItem('userSwitchFromSettings', 'true');
-        
+
         // Appeler l'API Electron pour charger la base de données de l'utilisateur
         await window.electronAPI.setCurrentUser(user.name);
-        
+
         // Sauvegarder le nouvel utilisateur dans localStorage
         localStorage.setItem('currentUser', user.name);
 
@@ -389,7 +389,7 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
                     marginBottom: '8px',
                     color: 'var(--text-secondary)'
                   }}>
-                    Avatar personnalisé (optionnel)
+                    Avatar personnalisé
                   </label>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     {avatarPreview && (

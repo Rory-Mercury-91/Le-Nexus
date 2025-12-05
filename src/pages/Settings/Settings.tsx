@@ -3,10 +3,11 @@ import BackToBottomButton from '../../components/collections/BackToBottomButton'
 import BackToTopButton from '../../components/collections/BackToTopButton';
 import CollapsibleSection from '../../components/common/CollapsibleSection';
 import { ADULTE_GAME_DISPLAY_CATEGORIES, ADULTE_GAME_DISPLAY_DEFAULTS } from '../../components/modals/adulte-game/displayConfig';
-import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
 import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import ApiKeyGuideModal from '../../components/modals/settings/ApiKeyGuideModal';
+import MergeEntitiesModal, { MergePreviewData } from '../../components/modals/settings/MergeEntitiesModal';
 import { useSettings } from '../../hooks/settings/useSettings';
+import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
 import {
   AppearanceSettings,
   DangerZone,
@@ -18,7 +19,6 @@ import {
   TampermonkeySettings,
   UserManagement
 } from './components';
-import MergeEntitiesModal, { MergePreviewData } from '../../components/modals/settings/MergeEntitiesModal';
 import type { ApiKeyProvider } from './components/apiKeyGuideTypes';
 
 export default function Settings() {
@@ -38,6 +38,15 @@ export default function Settings() {
     malLastSync,
     malLastStatusSync,
     malAutoSyncEnabled,
+    anilistConnected,
+    anilistUser,
+    anilistLastSync,
+    anilistLastStatusSync,
+    handleAnilistConnect,
+    handleAnilistDisconnect,
+    handleAnilistSyncNow,
+    anilistAutoSyncEnabled,
+    handleAnilistAutoSyncChange,
     autoTranslate,
     imageSource,
     baseDirectory,
@@ -64,6 +73,8 @@ export default function Settings() {
     setShowBooksDisplayModal,
     showAdulteGameDisplayModal,
     setShowAdulteGameDisplayModal,
+    showRawgGameDisplayModal,
+    setShowRawgGameDisplayModal,
     confirm,
     ConfirmDialog,
     malConfirmDialog: MalConfirmDialog,
@@ -101,10 +112,10 @@ export default function Settings() {
   } = useSettings();
   const [notificationHeaderActions, setNotificationHeaderActions] = useState<ReactNode | null>(null);
 
-  const handleOpenDevMergeModal = async (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game'; sourceId: number; targetId: number }) => {
+  const handleOpenDevMergeModal = async (payload: { type: 'manga' | 'anime' | 'movie' | 'tv' | 'game' | 'book'; sourceId: number; targetId: number }) => {
     setDevMergeLoading(true);
     try {
-      const preview = await window.electronAPI.getDevMergePreview?.(payload);
+      const preview = await window.electronAPI.getDevMergePreview(payload);
       if (!preview?.success) {
         showToast({
           title: 'Préparation impossible',
@@ -130,7 +141,7 @@ export default function Settings() {
     setDevMergeApplying(true);
     try {
       const result = await window.electronAPI.performDevMerge?.({
-        type: devMergePreview.type as 'manga' | 'anime' | 'movie' | 'tv' | 'game',
+        type: devMergePreview.type as 'manga' | 'anime' | 'movie' | 'tv' | 'game' | 'book',
         sourceId: devMergePreview.source.id,
         targetId: devMergePreview.target.id,
         selectedFields
@@ -148,9 +159,9 @@ export default function Settings() {
       const updatedCount = result.updatedFields?.length || 0;
       const transferSummary = result.transfers
         ? Object.entries(result.transfers)
-            .filter(([, value]) => typeof value === 'number' && value > 0)
-            .map(([key, value]) => `${value} ${key}`)
-            .join(', ')
+          .filter(([, value]) => typeof value === 'number' && value > 0)
+          .map(([key, value]) => `${value} ${key}`)
+          .join(', ')
         : '';
 
       showToast({
@@ -216,6 +227,7 @@ export default function Settings() {
           onOpenSeriesSettings={() => setShowSeriesDisplayModal(true)}
           onOpenBooksSettings={() => setShowBooksDisplayModal(true)}
           onOpenAdultGameSettings={() => setShowAdulteGameDisplayModal(true)}
+          onOpenRawgGameSettings={() => setShowRawgGameDisplayModal(true)}
         />
       ),
       span: 2
@@ -249,6 +261,15 @@ export default function Settings() {
           onMalSyncNow={handleMalSyncNow}
           malAutoSyncEnabled={malAutoSyncEnabled}
           onMalAutoSyncChange={handleMalAutoSyncChange}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          anilistAutoSyncEnabled={anilistAutoSyncEnabled}
+          onAnilistAutoSyncChange={handleAnilistAutoSyncChange}
           nautiljonAutoSyncEnabled={nautiljonAutoSyncEnabled}
           onNautiljonAutoSyncChange={handleNautiljonAutoSyncChange}
           nautiljonAutoSyncIncludeTomes={nautiljonAutoSyncIncludeTomes}
@@ -312,7 +333,7 @@ export default function Settings() {
       ),
       span: 2
     }
-  ], [notificationHeaderActions, showToast, users, userAvatars, loadSettings, confirm, theme, autoLaunch, contentPrefs, handleThemeChange, handleAutoLaunchChange, handleContentPrefChange, tmdbLanguage, tmdbRegion, handleTmdbLanguageChange, handleTmdbRegionChange, setShowMangaDisplayModal, setShowAnimeDisplayModal, setShowMovieDisplayModal, setShowSeriesDisplayModal, setShowAdulteGameDisplayModal, globalSyncInterval, malConnected, malUser, malLastSync, malLastStatusSync, handleMalConnect, handleMalDisconnect, handleMalSyncNow, malAutoSyncEnabled, handleMalAutoSyncChange, nautiljonAutoSyncEnabled, handleNautiljonAutoSyncChange, nautiljonAutoSyncIncludeTomes, handleNautiljonIncludeTomesChange, globalSyncUpdating, handleGlobalSyncIntervalChange, imageSource, handleImageSourceChange, groqApiKey, handleGroqApiKeyChange, autoTranslate, handleAutoTranslateChange, animeImportResult, sectionStates, setSectionState, baseDirectory, exporting, importing, showSuccess, showExportSuccess, showImportSuccess, handleChangeBaseDirectory, handleExport, handleImport, handleOpenDevMergeModal, devMergeLoading]);
+  ], [notificationHeaderActions, showToast, users, userAvatars, loadSettings, confirm, theme, autoLaunch, contentPrefs, handleThemeChange, handleAutoLaunchChange, handleContentPrefChange, tmdbLanguage, tmdbRegion, handleTmdbLanguageChange, handleTmdbRegionChange, setShowMangaDisplayModal, setShowAnimeDisplayModal, setShowMovieDisplayModal, setShowSeriesDisplayModal, setShowAdulteGameDisplayModal, setShowRawgGameDisplayModal, globalSyncInterval, malConnected, malUser, malLastSync, malLastStatusSync, handleMalConnect, handleMalDisconnect, handleMalSyncNow, malAutoSyncEnabled, handleMalAutoSyncChange, nautiljonAutoSyncEnabled, handleNautiljonAutoSyncChange, nautiljonAutoSyncIncludeTomes, handleNautiljonIncludeTomesChange, globalSyncUpdating, handleGlobalSyncIntervalChange, imageSource, handleImageSourceChange, groqApiKey, handleGroqApiKeyChange, autoTranslate, handleAutoTranslateChange, animeImportResult, sectionStates, setSectionState, baseDirectory, exporting, importing, showSuccess, showExportSuccess, showImportSuccess, handleChangeBaseDirectory, handleExport, handleImport, handleOpenDevMergeModal, devMergeLoading]);
 
   if (loading) {
     return (
@@ -724,6 +745,96 @@ export default function Settings() {
             setShowAdulteGameDisplayModal(false);
           }}
           onClose={() => setShowAdulteGameDisplayModal(false)}
+          showToast={showToast}
+        />
+      )}
+
+      {showRawgGameDisplayModal && (
+        <DisplaySettingsModal
+          title="Affichage des jeux vidéo"
+          description="Activez ou désactivez les sections visibles sur les fiches jeux vidéo (RAWG)."
+          fields={[
+            {
+              title: 'Présentation',
+              icon: '🎮',
+              fields: [
+                { key: 'banner', label: 'Bannière' },
+                { key: 'description', label: 'Description' },
+                { key: 'labels', label: 'Labels personnalisés' }
+              ]
+            },
+            {
+              title: 'Métadonnées',
+              icon: '📊',
+              fields: [
+                { key: 'metadata', label: 'Informations principales' },
+                { key: 'ratings', label: 'Notes et évaluations' },
+                { key: 'platforms', label: 'Plateformes' },
+                { key: 'genres', label: 'Genres' },
+                { key: 'tags', label: 'Tags' },
+                { key: 'developers', label: 'Développeurs' },
+                { key: 'publishers', label: 'Éditeurs' }
+              ]
+            },
+            {
+              title: 'Achat et disponibilité',
+              icon: '🛒',
+              fields: [
+                { key: 'stores', label: 'Boutiques' },
+                { key: 'requirements', label: 'Exigences système' }
+              ]
+            },
+            {
+              title: 'Médias',
+              icon: '🎞️',
+              fields: [
+                { key: 'screenshots', label: 'Captures d\'écran' },
+                { key: 'movies', label: 'Vidéos' },
+                { key: 'videos', label: 'Vidéos utilisateur' },
+                { key: 'images', label: 'Images utilisateur' }
+              ]
+            },
+            {
+              title: 'Communauté',
+              icon: '👥',
+              fields: [
+                { key: 'community', label: 'Statistiques communautaires' },
+                { key: 'externalLinks', label: 'Liens externes' }
+              ]
+            }
+          ] as DisplayFieldCategory[]}
+          mode="global"
+          loadGlobalPrefs={async () => {
+            const prefs = await window.electronAPI.getRawgGameDisplaySettings?.();
+            return prefs || {
+              banner: true,
+              description: true,
+              labels: true,
+              metadata: true,
+              ratings: true,
+              platforms: true,
+              genres: true,
+              tags: true,
+              developers: true,
+              publishers: true,
+              stores: true,
+              requirements: true,
+              screenshots: true,
+              movies: true,
+              videos: true,
+              images: true,
+              community: true,
+              externalLinks: true
+            };
+          }}
+          saveGlobalPrefs={async (prefs) => {
+            await window.electronAPI.saveRawgGameDisplaySettings?.(prefs);
+          }}
+          onSave={() => {
+            window.dispatchEvent(new CustomEvent('rawg-game-display-settings-updated'));
+            setShowRawgGameDisplayModal(false);
+          }}
+          onClose={() => setShowRawgGameDisplayModal(false)}
           showToast={showToast}
         />
       )}

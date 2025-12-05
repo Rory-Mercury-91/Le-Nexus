@@ -1,0 +1,211 @@
+import { ShoppingBag } from 'lucide-react';
+import { getPlatformIcon } from '../../../utils/platformIcons';
+
+interface RawgGameCostsSectionProps {
+  costsByUser: Array<{ user: { id: number; name: string; color: string; emoji: string }; cost: number; platforms?: string[] | null }>;
+  totalPrix: number;
+  profileImages: Record<string, string | null>;
+  onMarkAsOwned: () => void;
+  shouldShow: boolean;
+}
+
+export default function RawgGameCostsSection({ 
+  costsByUser, 
+  totalPrix, 
+  profileImages, 
+  onMarkAsOwned,
+  shouldShow 
+}: RawgGameCostsSectionProps) {
+  if (!shouldShow) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h4 style={{ fontSize: '18px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+          💰 Possession
+        </h4>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={onMarkAsOwned}
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '6px',
+            padding: '6px 12px',
+            fontSize: '13px'
+          }}
+        >
+          <ShoppingBag size={14} />
+          {costsByUser.length > 0 ? 'Modifier' : 'Marquer comme possédé'}
+        </button>
+      </div>
+
+      {costsByUser.length > 0 ? (
+        <>
+          <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ fontSize: '15px', color: 'var(--text)', fontWeight: '600' }}>
+              Coût total : {totalPrix.toFixed(2)}€
+            </div>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            {costsByUser.map(({ user, cost, platforms }) => {
+              const avatarUrl = profileImages[user.name];
+
+              return (
+                <div
+                  key={user.id}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    background: 'var(--surface)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)'
+                  }}
+                >
+                  {/* Avatar du propriétaire */}
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    border: `2px solid ${user.color}`,
+                    background: `${user.color}22`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: user.color,
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={user.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
+                      <span>{user.emoji || '👤'}</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                    {/* Nom du propriétaire */}
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: user.color
+                    }}>
+                      {user.name}
+                    </span>
+
+                    {/* Prix */}
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      fontVariantNumeric: 'tabular-nums',
+                      color: 'var(--text)'
+                    }}>
+                      {cost.toFixed(2)}€
+                    </span>
+                    
+                    {/* Plateformes */}
+                    {platforms && Array.isArray(platforms) && platforms.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                        marginTop: '8px',
+                        alignItems: 'center'
+                      }}>
+                        {platforms
+                          .filter((platform: string) => platform && typeof platform === 'string' && platform.trim().length > 0)
+                          .map((platform: string, idx: number) => {
+                            const platformTrimmed = platform.trim();
+                            const iconPath = getPlatformIcon(platformTrimmed);
+                            return iconPath ? (
+                              <div
+                                key={`${user.id}-platform-${idx}`}
+                                style={{
+                                  width: '48px',
+                                  height: '48px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  borderRadius: '8px',
+                                  padding: '6px',
+                                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                                  flexShrink: 0
+                                }}
+                              >
+                                <img
+                                  src={iconPath}
+                                  alt={platformTrimmed}
+                                  title={platformTrimmed}
+                                  style={{ 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    objectFit: 'contain',
+                                    filter: 'brightness(1.2) contrast(1.1)',
+                                    maxWidth: '36px',
+                                    maxHeight: '36px'
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <span
+                                key={`${user.id}-platform-${idx}`}
+                                style={{
+                                  fontSize: '12px',
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  background: 'var(--surface-light)',
+                                  border: '1px solid var(--border)',
+                                  color: 'var(--text-secondary)',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {platformTrimmed}
+                              </span>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div style={{
+          padding: '24px',
+          textAlign: 'center',
+          background: 'var(--surface)',
+          borderRadius: '8px',
+          border: '1px dashed var(--border)',
+          color: 'var(--text-secondary)'
+        }}>
+          <p style={{ margin: '0 0 12px 0', fontSize: '14px' }}>
+            Ce jeu n'est pas encore marqué comme possédé.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

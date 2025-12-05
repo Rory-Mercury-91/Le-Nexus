@@ -35,6 +35,7 @@ export function useDashboard() {
     showAnimes: true,
     showMovies: true,
     showSeries: true,
+    showVideos: true,
     showBooks: true,
     showAdulteGame: true
   };
@@ -61,7 +62,18 @@ export function useDashboard() {
     const currentUser = await window.electronAPI.getCurrentUser();
     if (currentUser) {
       const prefs = await window.electronAPI.getContentPreferences(currentUser);
-      setContentPrefs({ ...defaultContentPrefs, ...prefs });
+      const mergedPrefs = { ...defaultContentPrefs, ...prefs };
+      
+      // Migration automatique : si showVideos n'existe pas, le calculer à partir des anciennes préférences
+      if (mergedPrefs.showVideos === undefined) {
+        mergedPrefs.showVideos = mergedPrefs.showAnimes || mergedPrefs.showMovies || mergedPrefs.showSeries;
+        // Sauvegarder la migration
+        if (mergedPrefs.showVideos !== undefined) {
+          await window.electronAPI.setContentPreferences(currentUser, { showVideos: mergedPrefs.showVideos });
+        }
+      }
+      
+      setContentPrefs(mergedPrefs);
     } else {
       setContentPrefs({ ...defaultContentPrefs });
     }

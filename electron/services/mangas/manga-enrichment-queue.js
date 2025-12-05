@@ -145,7 +145,7 @@ function logMangaEnrichmentError(operation, error, context = {}) {
   }
 }
 
-async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig, getPathManager = null, runToken = null, force = false) {
+async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig, getPathManager = null, runToken = null, force = false, anilistId = null) {
   const shouldAbort = (phase) => {
     if (!runToken) {
       return false;
@@ -158,7 +158,9 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
   };
 
   try {
-    console.log(`🔍 [File d'attente] Enrichissement du manga ID ${mangaId} (MAL ${malId})${force ? ' (FORCÉ)' : ''}`);
+    const sourceId = malId || anilistId;
+    const sourceType = malId ? 'MAL' : 'AniList';
+    console.log(`🔍 [File d'attente] Enrichissement du manga ID ${mangaId} (${sourceType} ${sourceId})${force ? ' (FORCÉ)' : ''}`);
 
     if (shouldAbort('initialisation')) {
       return { success: false, cancelled: true };
@@ -175,13 +177,13 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
     if (!manga) {
       const error = new Error(`Manga ${mangaId} introuvable`);
       console.error(`❌ ${error.message}`);
-      logMangaEnrichmentError('manga-not-found', error, { mangaId, malId });
+      logMangaEnrichmentError('manga-not-found', error, { mangaId, malId, anilistId });
       return { success: false, error: error.message };
     }
 
     // Vérifier si déjà enrichi (sauf si forcé)
     if (!force && isEntityEnriched(db, 'manga_series', mangaId)) {
-      console.log(`⏭️ Manga ID ${mangaId} (MAL ${malId}) déjà enrichi, ignoré`);
+      console.log(`⏭️ Manga ID ${mangaId} (${sourceType} ${sourceId}) déjà enrichi, ignoré`);
       return { success: true, skipped: true, message: 'Déjà enrichi' };
     }
 
@@ -195,14 +197,18 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
     let enrichedData = {};
     let description = manga.description;
 
-    if (shouldAbort('préparation Jikan')) {
+    if (shouldAbort('préparation API')) {
       return { success: false, cancelled: true };
     }
 
-    // 1. Récupérer les données Jikan
-    try {
-      console.log(`📡 Jikan API pour MAL ${malId}...`);
-      const jikanData = await fetchJikanMangaData(malId);
+    // 1. Récupérer les données depuis Jikan (si mal_id) ou AniList (si anilist_id)
+    let jikanData = null;
+    let anilistData = null;
+    
+    if (malId) {
+      try {
+        console.log(`📡 Jikan API pour MAL ${malId}...`);
+        jikanData = await fetchJikanMangaData(malId);
       if (shouldAbort('réponse Jikan')) {
         return { success: false, cancelled: true };
       }
@@ -648,14 +654,51 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       }
 
       console.log(`✅ Jikan: données récupérées`);
-    } catch (jikanError) {
-      console.error(`⚠️ Erreur Jikan pour MAL ${malId}:`, jikanError.message);
-      logMangaEnrichmentError('jikan-fetch', jikanError, { mangaId, malId, title: manga.titre });
+      } catch (jikanError) {
+        console.error(`⚠️ Erreur Jikan pour MAL ${malId}:`, jikanError.message);
+        logMangaEnrichmentError('jikan-fetch', jikanError, { mangaId, malId, title: manga.titre });
+      }
+    } else if (anilistId) {
+      // Utiliser AniList si mal_id n'est pas disponible
+      try {
+        const { getMangaById } = require('../anilist/anilist-api');
+        const { getValidAccessToken } = require('../anilist/anilist-token');
+        const Store = require('electron-store');
+        const store = new Store();
+        
+        const accessToken = await getValidAccessToken(store);
+        if (!accessToken) {
+          throw new Error('Token AniList non disponible. Connectez-vous à AniList dans les paramètres.');
+        }
+        
+        console.log(`📡 AniList API pour AniList ID ${anilistId}...`);
+        anilistData = await getMangaById(accessToken, anilistId);
+        
+        if (shouldAbort('réponse AniList')) {
+          return { success: false, cancelled: true };
+        }
+        
+        if (!anilistData) {
+          throw new Error('Données AniList non trouvées');
+        }
+        
+        // Transformer les données AniList en format similaire à Jikan pour réutiliser la logique
+        const { transformAniListMangaForEnrichment } = require('../anilist/anilist-enrichment-helper');
+        jikanData = transformAniListMangaForEnrichment(anilistData);
+        
+        console.log(`✅ AniList: données récupérées et transformées`);
+      } catch (anilistError) {
+        console.error(`⚠️ Erreur AniList pour AniList ID ${anilistId}:`, anilistError.message);
+        logMangaEnrichmentError('anilist-fetch', anilistError, { mangaId, anilistId, title: manga.titre });
+        return { success: false, error: `Erreur AniList: ${anilistError.message}` };
+      }
     }
-
-    // 2. Traduction automatique du synopsis si activée
-    if (enrichmentConfig.autoTranslate && description && description === manga.description) {
-      if (shouldAbort('avant traduction synopsis')) {
+    
+    // Utiliser les données récupérées (Jikan ou AniList) pour l'enrichissement
+    if (jikanData) {
+      // 2. Traduction automatique du synopsis si activée
+      if (enrichmentConfig.autoTranslate && description && description === manga.description) {
+        if (shouldAbort('avant traduction synopsis')) {
         return { success: false, cancelled: true };
       }
       try {
@@ -682,8 +725,8 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
       } catch (translateError) {
         console.error(`⚠️ Erreur traduction pour MAL ${malId}:`, translateError.message);
         logMangaEnrichmentError('groq-translation', translateError, { mangaId, malId, title: manga.titre });
+        }
       }
-    }
 
     // 2bis. Traduction automatique du background si activée
     if (enrichmentConfig.autoTranslate && enrichedData.background) {
@@ -850,14 +893,18 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
 
     const enrichedFieldCount = Object.keys(enrichedData).length;
 
-    if (shouldAbort('avant délai inter-manga')) {
-      return { success: true, enrichedFields: enrichedFieldCount, cancelled: true };
+      if (shouldAbort('avant délai inter-manga')) {
+        return { success: true, enrichedFields: enrichedFieldCount, cancelled: true };
+      }
+
+      // Attendre avant le prochain manga
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+
+      return { success: true, enrichedFields: enrichedFieldCount };
+    } else {
+      // Aucune donnée disponible (ni Jikan ni AniList)
+      return { success: false, error: 'Aucune donnée disponible pour l\'enrichissement (MAL ID ou AniList ID requis)' };
     }
-
-    // Attendre avant le prochain manga
-    await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-
-    return { success: true, enrichedFields: enrichedFieldCount };
 
   } catch (error) {
     console.error(`❌ [File d'attente] Erreur enrichissement manga ${mangaId}:`, error.message);
@@ -940,9 +987,9 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
 
     // Exclure les mangas déjà enrichis (sauf si on force)
     const mangasToEnrich = db.prepare(`
-      SELECT id, mal_id, titre
+      SELECT id, mal_id, anilist_id, titre
       FROM manga_series
-      WHERE mal_id IS NOT NULL
+      WHERE (mal_id IS NOT NULL OR anilist_id IS NOT NULL)
         ${force ? '' : 'AND enriched_at IS NULL'}
         AND (
           themes IS NULL OR themes = ''
@@ -1019,7 +1066,7 @@ async function processEnrichmentQueue(getDb, currentUser, onProgress = null, get
         }
       }
 
-      const result = await enrichManga(getDb, manga.id, manga.mal_id, currentUser, enrichmentConfig, getPathManager, runToken, force);
+      const result = await enrichManga(getDb, manga.id, manga.mal_id || null, currentUser, enrichmentConfig, getPathManager, runToken, force, manga.anilist_id || null);
 
       if (result?.cancelled) {
         stats.processed = Math.max(0, stats.processed - 1);

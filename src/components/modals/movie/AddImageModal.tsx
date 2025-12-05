@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useEffect } from 'react';
 import { useDisableBodyScroll } from '../../../hooks/common/useDisableBodyScroll';
 
 interface AddImageModalProps {
@@ -205,7 +204,7 @@ export default function AddImageModal({ onClose, onAddUrl, onAddFile, adding = f
                     color: 'var(--text)'
                   }}
                 >
-                  Nom (optionnel)
+                  Nom
                 </label>
                 <input
                   id="image-title"

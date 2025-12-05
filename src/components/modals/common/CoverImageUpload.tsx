@@ -16,7 +16,7 @@ interface CoverImageUploadProps {
   placeholderLabel?: string;
   /** Utiliser le path direct (Electron) au lieu de convertir en buffer (pour AdulteGame) */
   useDirectPath?: boolean;
-  /** Fonction personnalisée pour sélectionner l'image (optionnel) */
+  /** Fonction personnalisée pour sélectionner l'image */
   onSelectImage?: () => Promise<{ success: boolean; path?: string; error?: string }>;
 }
 
@@ -180,7 +180,7 @@ export default function CoverImageUpload({
       </button>
       <div style={{ marginTop: '12px' }}>
         <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '13px' }}>
-          URL image (optionnel)
+          URL image
         </label>
         <input
           type="text"

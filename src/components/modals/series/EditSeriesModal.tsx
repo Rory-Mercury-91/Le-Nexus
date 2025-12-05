@@ -12,11 +12,11 @@ interface EditSeriesModalProps {
 export default function EditSeriesModal({ show, onClose, onSuccess }: EditSeriesModalProps) {
   const seriesFields: FormField[] = [
     { key: 'titre', type: 'text', label: 'Titre', placeholder: 'Ex: Breaking Bad', required: true },
-    { key: 'titre_original', type: 'text', label: 'Titre original (optionnel)', placeholder: 'Ex: Breaking Bad', required: false },
+    { key: 'titre_original', type: 'text', label: 'Titre original', placeholder: 'Ex: Breaking Bad', required: false },
     {
       key: 'type',
       type: 'select',
-      label: 'Type (optionnel)',
+      label: 'Type',
       options: [
         { value: '', label: '-- Non défini --' },
         { value: 'Scripted', label: 'Scriptée' },
@@ -31,7 +31,7 @@ export default function EditSeriesModal({ show, onClose, onSuccess }: EditSeries
     {
       key: 'statut',
       type: 'select',
-      label: 'Statut (optionnel)',
+      label: 'Statut',
       options: [
         { value: '', label: '-- Non défini --' },
         { value: 'Returning Series', label: 'En cours' },
@@ -42,14 +42,14 @@ export default function EditSeriesModal({ show, onClose, onSuccess }: EditSeries
       ],
       required: false
     },
-    { key: 'date_premiere', type: 'date', label: 'Date de première diffusion (optionnel)', required: false },
-    { key: 'date_derniere', type: 'date', label: 'Date de dernière diffusion (optionnel)', required: false },
-    { key: 'nb_saisons', type: 'number', label: 'Nombre de saisons (optionnel)', placeholder: 'Ex: 5', min: 0, required: false },
-    { key: 'nb_episodes', type: 'number', label: 'Nombre d\'épisodes (optionnel)', placeholder: 'Ex: 62', min: 0, required: false },
-    { key: 'duree_episode', type: 'number', label: 'Durée épisode (minutes, optionnel)', placeholder: 'Ex: 45', min: 0, required: false },
-    { key: 'note_moyenne', type: 'number', label: 'Note moyenne (optionnel)', placeholder: 'Ex: 9.5', min: 0, max: 10, step: '0.001', required: false },
-    { key: 'popularite', type: 'number', label: 'Popularité (optionnel)', placeholder: 'Ex: 100.5', min: 0, step: '0.1', required: false },
-    { key: 'synopsis', type: 'textarea', label: 'Synopsis (optionnel)', placeholder: 'Description de la série...', required: false },
+    { key: 'date_premiere', type: 'date', label: 'Date de première diffusion', required: false },
+    { key: 'date_derniere', type: 'date', label: 'Date de dernière diffusion', required: false },
+    { key: 'nb_saisons', type: 'number', label: 'Nombre de saisons', placeholder: 'Ex: 5', min: 0, required: false },
+    { key: 'nb_episodes', type: 'number', label: 'Nombre d\'épisodes', placeholder: 'Ex: 62', min: 0, required: false },
+    { key: 'duree_episode', type: 'number', label: 'Durée épisode (minutes)', placeholder: 'Ex: 45', min: 0, required: false },
+    { key: 'note_moyenne', type: 'number', label: 'Note moyenne', placeholder: 'Ex: 9.5', min: 0, max: 10, step: '0.001', required: false },
+    { key: 'popularite', type: 'number', label: 'Popularité', placeholder: 'Ex: 100.5', min: 0, step: '0.1', required: false },
+    { key: 'synopsis', type: 'textarea', label: 'Synopsis', placeholder: 'Description de la série...', required: false },
     { key: 'poster_path', type: 'text', label: 'URL image (géré par CoverImageUpload)', required: false },
     { key: 'backdrop_path', type: 'text', label: 'Backdrop (non utilisé)', required: false }
   ];

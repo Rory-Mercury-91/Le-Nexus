@@ -339,9 +339,9 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
       const db = getDb();
       if (!db) return { success: false, error: 'Base de données non initialisée' };
       const currentUser = store.get('currentUser', '');
-      const serie = db.prepare('SELECT id, mal_id, titre FROM manga_series WHERE id = ?').get(mangaId);
+      const serie = db.prepare('SELECT id, mal_id, anilist_id, titre FROM manga_series WHERE id = ?').get(mangaId);
       if (!serie) return { success: false, error: 'Manga introuvable' };
-      if (!serie.mal_id) return { success: false, error: 'MAL ID manquant' };
+      if (!serie.mal_id && !serie.anilist_id) return { success: false, error: 'MAL ID ou AniList ID manquant' };
 
       const { enrichManga } = require('../../services/mangas/manga-enrichment-queue');
       const { resetEnrichmentStatus } = require('../../utils/enrichment-helpers');
@@ -404,7 +404,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         }
       };
 
-      const result = await enrichManga(getDb, serie.id, serie.mal_id, currentUser, finalConfig, getPathManager, null, force);
+      const result = await enrichManga(getDb, serie.id, serie.mal_id || null, currentUser, finalConfig, getPathManager, null, force, serie.anilist_id || null);
       return result;
     } catch (error) {
       console.error('❌ enrich-manga-now:', error);

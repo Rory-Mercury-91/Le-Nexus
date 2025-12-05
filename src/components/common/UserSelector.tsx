@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import FullScreenOverlay from './FullScreenOverlay';
-import GradientTitle from './GradientTitle';
+import NexusLogo from './NexusLogo';
 import LoadingSpinner from './LoadingSpinner';
 
 interface UserSelectorProps {
@@ -72,9 +72,7 @@ export default function UserSelector({
       {/* Logo/Titre */}
       <div style={{ marginBottom: isInOnboarding ? '32px' : '48px', textAlign: 'center' }}>
         {!isInOnboarding && (
-          <GradientTitle fontSize="42px" style={{ marginBottom: '12px' }}>
-            Nexus
-          </GradientTitle>
+          <NexusLogo height={56} style={{ marginBottom: '12px' }} />
         )}
         <h1 style={{
           fontSize: isInOnboarding ? '28px' : '24px',

@@ -62,7 +62,7 @@ export default function MangaHeader({
       }}
     >
       <Link
-        to="/collection"
+        to="/lectures"
         className="btn"
         style={{
           display: 'inline-flex',

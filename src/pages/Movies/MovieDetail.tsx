@@ -1,6 +1,6 @@
 import { ArrowLeft, Edit, Plus, Settings, Star, Trash2 } from 'lucide-react';
 import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CardCover, CardTitle } from '../../components/cards/common';
 import { BackToBottomButton, BackToTopButton } from '../../components/collections';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
@@ -45,6 +45,7 @@ const movieDisplayDefaults: MovieDisplayPrefs = {
 
 export default function MovieDetail() {
   const { tmdbId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { showToast, ToastContainer } = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
@@ -233,7 +234,7 @@ export default function MovieDetail() {
           message: `"${movie.titre}" a été supprimé de votre collection.`,
           type: 'success'
         });
-        navigate('/movies');
+        navigate('/videos/movies');
       } else {
         showToast({
           title: 'Erreur',
@@ -404,7 +405,7 @@ export default function MovieDetail() {
       {ToastContainer}
       <DetailPageHeader
         backLabel="Retour aux films"
-        backTo="/movies"
+        backTo={(location.state as { from?: string } | null)?.from || '/movies'}
         actions={
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button

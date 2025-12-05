@@ -62,6 +62,36 @@ const PROVIDERS: ProviderConfig[] = [
     ]
   },
   {
+    id: 'anilist',
+    name: 'AniList',
+    icon: '📺',
+    accent: 'linear-gradient(135deg, #02a9ff, #0284c7)',
+    url: 'https://anilist.co/settings/developer',
+    urlLabel: 'Paramètres développeur AniList',
+    summary: 'Requis pour la synchronisation et l\'enrichissement de votre collection anime/manga depuis AniList.',
+    recommendedName: 'Nexus (usage personnel)',
+    steps: [
+      'Cliquez sur le bouton « Paramètres développeur AniList » (ci-dessus) : AniList vous demandera de vous connecter si nécessaire.',
+      'Cliquez sur « Create New Client ».',
+      {
+        text: 'Remplissez les champs obligatoires :',
+        bullets: [
+          'App Name * : indiquez un nom explicite, par exemple « Nexus (usage personnel) ».',
+          { text: 'App Redirect URL * : utilisez le bouton « Copier » pour coller l\'URL.', copyValue: 'http://localhost:8888/anilist-callback' },
+          'App Description * : précisez « Synchronisation et consultation privée de ma collection dans Nexus » (ou formulation équivalente).',
+          'App Website * : vous pouvez indiquer https://github.com/Rory-Mercury-91/le-nexus (ou votre page personnelle).'
+        ]
+      },
+      'Validez la création, puis copiez le Client ID et le Client Secret affichés.',
+      'Collez le Client ID et le Client Secret dans les paramètres AniList de Nexus.'
+    ],
+    notes: [
+      'Ne partagez pas votre Client ID et Client Secret publiquement.',
+      'Chaque utilisateur doit générer son propre Client ID et Client Secret : AniList limite les quotas par compte.',
+      'Le Client Secret n\'est affiché qu\'une seule fois lors de la création : notez-le immédiatement dans un gestionnaire de mots de passe.'
+    ]
+  },
+  {
     id: 'tmdb',
     name: 'The Movie Database (TMDb)',
     icon: '🎬',
@@ -121,6 +151,55 @@ const PROVIDERS: ProviderConfig[] = [
     ]
   },
   {
+    id: 'rawg',
+    name: 'RAWG (Jeux Vidéo)',
+    icon: '🎮',
+    accent: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    url: 'https://rawg.io/apidocs',
+    urlLabel: 'Documentation API RAWG',
+    summary: 'Nécessaire pour enrichir votre bibliothèque de jeux avec des métadonnées complètes (description, genres, plateformes, notes Metacritic, images haute qualité, etc.).',
+    recommendedName: 'Nexus (jeux vidéo)',
+    recommendedWebsite: 'https://github.com/Rory-Mercury-91/le-nexus',
+    steps: [
+      'Cliquez sur le bouton « Documentation API RAWG » (ci-dessus) : RAWG vous demandera de vous connecter si nécessaire.',
+      'Créez un compte RAWG si vous n\'en avez pas déjà un (gratuit).',
+      'Une fois connecté, accédez à votre profil et allez dans la section « API » ou « Developer ».',
+      'Cliquez sur « Create API Key » ou « Generate API Key ».',
+      {
+        text: 'Remplissez les informations demandées :',
+        bullets: [
+          'Application Name * : indiquez un nom explicite, par exemple « Nexus (jeux vidéo) ».',
+          'Application URL * : vous pouvez indiquer https://github.com/Rory-Mercury-91/le-nexus (ou votre page personnelle).',
+          'Description * : précisez « Enrichissement et consultation privée de ma bibliothèque de jeux dans Nexus » (ou formulation équivalente).'
+        ]
+      },
+      'Validez la création : la clé API est affichée immédiatement.',
+      'Copiez la clé API et collez-la dans la section RAWG de Nexus.',
+      'Testez la connexion avec le bouton « Tester la connexion » pour vérifier que tout fonctionne.'
+    ],
+    notes: [
+      'La clé API RAWG est gratuite pour un usage personnel et non commercial.',
+      'Ne partagez pas votre clé API publiquement.',
+      'RAWG propose une limite de 20 000 requêtes par mois en gratuit, ce qui est largement suffisant pour un usage personnel.',
+      'La clé API permet d\'enrichir vos jeux avec des métadonnées complètes : description, genres, plateformes, notes, dates de sortie, etc.',
+      'Vous pouvez utiliser RAWG pour rechercher et ajouter des jeux directement depuis le modal d\'ajout dans Nexus.'
+    ],
+    extra: (
+      <div
+        style={{
+          marginTop: '12px',
+          padding: '12px',
+          borderRadius: '8px',
+          border: '1px solid rgba(245, 158, 11, 0.35)',
+          background: 'rgba(245, 158, 11, 0.12)',
+          color: 'var(--text)'
+        }}
+      >
+        💡 Astuce : RAWG couvre plus de 500 000 jeux (indépendants et AAA). Utilisez l'onglet RAWG dans le modal d'ajout de jeux pour rechercher et enrichir automatiquement vos entrées.
+      </div>
+    )
+  },
+  {
     id: 'adulteGame',
     name: 'Jeux Adultes & Discord',
     icon: '🕹️',
@@ -151,12 +230,48 @@ export default function ApiKeyGuideModal({ initialProvider, onClose }: ApiKeyGui
   // Désactiver le scroll du body quand la modale est ouverte
   useDisableBodyScroll(true);
   
-  const handleCopy = useCallback((value: string) => {
-    if (navigator?.clipboard?.writeText) {
-      void navigator.clipboard.writeText(value).then(() => {
+  const handleCopy = useCallback(async (value: string) => {
+    try {
+      // Utiliser l'API Electron clipboard si disponible (plus fiable)
+      if (window.electronAPI?.copyToClipboard) {
+        await window.electronAPI.copyToClipboard(value);
         setCopiedValue(value);
         setTimeout(() => setCopiedValue(null), 2000);
-      }).catch(() => undefined);
+        return;
+      }
+      
+      // Fallback : utiliser l'API Clipboard moderne du navigateur
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value);
+        setCopiedValue(value);
+        setTimeout(() => setCopiedValue(null), 2000);
+        return;
+      }
+      
+      // Fallback final : utiliser l'ancienne API execCommand
+      const textArea = document.createElement('textarea');
+      textArea.value = value;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          setCopiedValue(value);
+          setTimeout(() => setCopiedValue(null), 2000);
+        } else {
+          console.error('Échec de la copie avec execCommand');
+        }
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la copie dans le presse-papiers:', error);
+      // Afficher un message d'erreur à l'utilisateur si possible
     }
   }, []);
 

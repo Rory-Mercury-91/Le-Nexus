@@ -1,5 +1,8 @@
 import { RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import AddLectureTypeModal from '../../components/modals/lectures/AddLectureTypeModal';
+import AddVideoTypeModal from '../../components/modals/videos/AddVideoTypeModal';
 import { useDashboard } from '../../hooks/useDashboard';
 import {
   CostsByOwner,
@@ -27,6 +30,8 @@ export default function Dashboard() {
     hasPassword,
     handleRefresh
   } = useDashboard();
+  const [showAddVideoModal, setShowAddVideoModal] = useState(false);
+  const [showAddLectureModal, setShowAddLectureModal] = useState(false);
 
   if (loading) {
     return (
@@ -46,177 +51,227 @@ export default function Dashboard() {
   const coutTotal = users.reduce((sum: number, user: { id: number }) => sum + (stats.totaux[user.id] || 0), 0);
 
 
+  const handleAddVideoComplete = () => {
+    handleRefresh(); // Recharger les données après l'ajout
+  };
+
   return (
-    <div className="fade-in" style={{ padding: '32px 40px 60px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '32px' }}>🏠</span>
-            Tableau de bord
-          </h1>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="btn btn-outline"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <RefreshCw size={18} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Actualiser
-          </button>
-        </div>
-
-        <ProgressionSection
-          contentPrefs={contentPrefs}
-          lectureStats={lectureStats}
-          animes={animes}
-          movies={movies}
-          tvShows={tvShows}
-          adulteGames={adulteGames}
-          hasPassword={hasPassword}
+    <>
+      {showAddVideoModal && (
+        <AddVideoTypeModal
+          onClose={() => setShowAddVideoModal(false)}
+          onComplete={handleAddVideoComplete}
         />
+      )}
 
-        <RecentProgressSection
-          recentProgress={recentProgress}
-          adulteGames={adulteGames}
-          hasPassword={hasPassword}
+      {showAddLectureModal && (
+        <AddLectureTypeModal
+          onClose={() => setShowAddLectureModal(false)}
+          onComplete={() => {
+            setShowAddLectureModal(false);
+            handleRefresh();
+          }}
         />
+      )}
 
-        <KpiCards stats={stats} lectureStats={lectureStats} coutTotal={coutTotal} />
+      <div className="fade-in" style={{ padding: '32px 40px 60px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h1 style={{ fontSize: '32px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '32px' }}>🏠</span>
+              Tableau de bord
+            </h1>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="btn btn-outline"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <RefreshCw size={18} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+              Actualiser
+            </button>
+          </div>
 
-        {evolutionStats && <EvolutionChart evolutionStats={evolutionStats} />}
+          <ProgressionSection
+            contentPrefs={contentPrefs}
+            lectureStats={lectureStats}
+            animes={animes}
+            movies={movies}
+            tvShows={tvShows}
+            adulteGames={adulteGames}
+            hasPassword={hasPassword}
+          />
 
-        <RepartitionChart stats={stats} />
+          <RecentProgressSection
+            recentProgress={recentProgress}
+            adulteGames={adulteGames}
+            hasPassword={hasPassword}
+          />
 
-        <CostsByOwner stats={stats} coutTotal={coutTotal} />
+          <KpiCards stats={stats} lectureStats={lectureStats} coutTotal={coutTotal} />
 
-        {/* Section d'ajout pour collections vides */}
-        {(() => {
-          const emptyCollections = [];
+          {evolutionStats && <EvolutionChart evolutionStats={evolutionStats} />}
 
-          // Vérifier chaque type de contenu selon les préférences
-          if (contentPrefs.showMangas && stats.nbSeries === 0) {
-            emptyCollections.push({
-              icon: '📚',
-              label: 'Ajoute ta première lecture',
-              route: '/collection',
-              color: '#f59e0b'
-            });
-          }
+          <RepartitionChart stats={stats} />
 
-          if (contentPrefs.showAnimes && animes.length === 0) {
-            emptyCollections.push({
-              icon: '🎬',
-              label: 'Ajoute ton premier animé',
-              route: '/animes',
-              color: '#3b82f6'
-            });
-          }
+          <CostsByOwner stats={stats} coutTotal={coutTotal} />
 
-          if (contentPrefs.showMovies && movies.length === 0) {
-            emptyCollections.push({
-              icon: '🎞️',
-              label: 'Ajoute ton premier film',
-              route: '/movies',
-              color: '#22c55e'
-            });
-          }
+          {/* Section d'ajout pour collections vides */}
+          {(() => {
+            const emptyCollections = [];
 
-          if (contentPrefs.showSeries && tvShows.length === 0) {
-            emptyCollections.push({
-              icon: '📺',
-              label: 'Ajoute ta première série',
-              route: '/series',
-              color: '#6366f1'
-            });
-          }
+            // Vérifier chaque type de contenu selon les préférences
+            // Pour Lectures : compter toutes les lectures (séries + livres) comme un tout
+            const hasAnyLectures = (stats.nbSeries || 0) > 0 || books.length > 0;
+            if (contentPrefs.showMangas && !hasAnyLectures) {
+              emptyCollections.push({
+                icon: '📚',
+                label: 'Ajoute ta première lecture',
+                route: '/lectures',
+                color: '#f59e0b',
+                openModal: () => setShowAddLectureModal(true) // Fonction pour ouvrir la modale
+              });
+            }
 
-          if (contentPrefs.showMangas && books.length === 0) {
-            emptyCollections.push({
-              icon: '📖',
-              label: 'Ajoute ton premier livre',
-              route: '/books',
-              color: '#8b5cf6'
-            });
-          }
+            const showVideos = contentPrefs.showVideos !== undefined
+              ? contentPrefs.showVideos
+              : (contentPrefs.showAnimes || contentPrefs.showMovies || contentPrefs.showSeries);
 
-          if (contentPrefs.showAdulteGame && adulteGames.length === 0) {
-            emptyCollections.push({
-              icon: '🎮',
-              label: 'Ajoute ton premier jeu adulte',
-              route: '/adulte-game',
-              color: '#ec4899'
-            });
-          }
+            if (showVideos && (animes.length === 0 && movies.length === 0 && tvShows.length === 0)) {
+              emptyCollections.push({
+                icon: '🎬',
+                label: 'Ajoute ta première vidéo',
+                route: '/videos/all',
+                color: '#3b82f6',
+                openModal: () => setShowAddVideoModal(true) // Fonction pour ouvrir la modale
+              });
+            }
 
-          if (emptyCollections.length === 0) {
-            return null;
-          }
+            if (contentPrefs.showAdulteGame && adulteGames.length === 0) {
+              emptyCollections.push({
+                icon: '🎮',
+                label: 'Ajoute ton premier jeu',
+                route: '/games/all',
+                color: '#ec4899'
+              });
+            }
 
-          return (
-            <div style={{
-              textAlign: 'center',
-              padding: '60px 20px',
-              background: 'var(--surface)',
-              borderRadius: '16px'
-            }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px' }}>
-                Commencez votre collection
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-                Ajoutez vos premiers contenus à votre collection !
-              </p>
+            if (emptyCollections.length === 0) {
+              return null;
+            }
+
+            return (
               <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '12px',
-                justifyContent: 'center',
-                alignItems: 'center'
+                textAlign: 'center',
+                padding: '60px 20px',
+                background: 'var(--surface)',
+                borderRadius: '16px'
               }}>
-                {emptyCollections.map((collection, index) => (
-                  <Link
-                    key={index}
-                    to={collection.route}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      minWidth: '200px',
-                      justifyContent: 'center',
-                      padding: '12px 20px',
-                      borderRadius: '10px',
-                      background: 'var(--surface-light)',
-                      border: '1px solid var(--border)',
-                      color: 'var(--text)',
-                      textDecoration: 'none',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'all 0.2s',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--surface)';
-                      e.currentTarget.style.borderColor = collection.color;
-                      e.currentTarget.style.color = collection.color;
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, 0.15)`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'var(--surface-light)';
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.color = 'var(--text)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <span style={{ fontSize: '20px' }}>{collection.icon}</span>
-                    {collection.label}
-                  </Link>
-                ))}
+                <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px' }}>
+                  Commencez votre collection
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
+                  Ajoutez vos premiers contenus à votre collection !
+                </p>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  {emptyCollections.map((collection, index) => {
+                    // Si la collection a une fonction openModal, utiliser un bouton, sinon un Link
+                    if (collection.openModal) {
+                      return (
+                        <button
+                          key={index}
+                          onClick={collection.openModal}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            minWidth: '200px',
+                            justifyContent: 'center',
+                            padding: '12px 20px',
+                            borderRadius: '10px',
+                            background: 'var(--surface-light)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text)',
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--surface)';
+                            e.currentTarget.style.borderColor = collection.color;
+                            e.currentTarget.style.color = collection.color;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, 0.15)`;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--surface-light)';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.color = 'var(--text)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <span style={{ fontSize: '20px' }}>{collection.icon}</span>
+                          {collection.label}
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={index}
+                        to={collection.route}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          minWidth: '200px',
+                          justifyContent: 'center',
+                          padding: '12px 20px',
+                          borderRadius: '10px',
+                          background: 'var(--surface-light)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          transition: 'all 0.2s',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'var(--surface)';
+                          e.currentTarget.style.borderColor = collection.color;
+                          e.currentTarget.style.color = collection.color;
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, 0.15)`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'var(--surface-light)';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                          e.currentTarget.style.color = 'var(--text)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <span style={{ fontSize: '20px' }}>{collection.icon}</span>
+                        {collection.label}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

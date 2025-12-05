@@ -4,6 +4,7 @@ type IconType =
   | 'tmdb'
   | 'imdb'
   | 'mal'
+  | 'anilist'
   | 'nautiljon'
   | 'youtube'
   | 'facebook'
@@ -33,6 +34,8 @@ interface ExternalLinkIconProps {
   title?: string;
   className?: string;
   base64Image?: string; // Support pour les images base64
+  showLabel?: boolean; // Afficher le label dans le bouton
+  label?: string; // Label personnalisé à afficher
 }
 
 // Mapping des URLs vers les types d'icônes
@@ -41,6 +44,7 @@ function detectIconType(url: string): IconType {
   if (lowerUrl.includes('themoviedb.org')) return 'tmdb';
   if (lowerUrl.includes('imdb.com')) return 'imdb';
   if (lowerUrl.includes('myanimelist.net')) return 'mal';
+  if (lowerUrl.includes('anilist.co')) return 'anilist';
   if (lowerUrl.includes('nautiljon.com')) return 'nautiljon';
   if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
   if (lowerUrl.includes('facebook.com')) return 'facebook';
@@ -69,7 +73,9 @@ export default function ExternalLinkIcon({
   size = 32,
   title,
   className,
-  base64Image
+  base64Image,
+  showLabel = false,
+  label
 }: ExternalLinkIconProps) {
   const iconType = useMemo(() => type || detectIconType(href), [href, type]);
 
@@ -99,6 +105,8 @@ export default function ExternalLinkIcon({
         return getAssetPath('/assets/imdb.svg');
       case 'mal':
         return getAssetPath('/assets/MyAnimeList_favicon.svg');
+      case 'anilist':
+        return null; // Utiliser le style texte comme MAL et Nautiljon
       case 'nautiljon':
         return getAssetPath('/assets/logo_nautiljon.webp');
       case 'youtube':
@@ -143,7 +151,7 @@ export default function ExternalLinkIcon({
     }
   }, [iconType, base64Image]);
 
-  // Cas spéciaux pour MyAnimeList et Nautiljon : afficher le texte en grand au lieu de l'icône
+  // Cas spéciaux pour MyAnimeList, AniList et Nautiljon : afficher le texte en grand au lieu de l'icône
   if (iconType === 'mal') {
     return (
       <button
@@ -184,6 +192,51 @@ export default function ExternalLinkIcon({
           letterSpacing: '0.5px'
         }}>
           MyAnimeList
+        </span>
+      </button>
+    );
+  }
+
+  if (iconType === 'anilist') {
+    return (
+      <button
+        onClick={handleClick}
+        className={className}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '10px 16px',
+          background: '#02a9ff',
+          border: '2px solid #02a9ff',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          flexShrink: 0,
+          width: 'auto',
+          height: 'auto'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = '#0284c7';
+          e.currentTarget.style.borderColor = '#0284c7';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 169, 255, 0.4)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = '#02a9ff';
+          e.currentTarget.style.borderColor = '#02a9ff';
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+        title={title || href}
+      >
+        <span style={{
+          color: '#ffffff',
+          fontSize: '14px',
+          fontWeight: '700',
+          letterSpacing: '0.5px'
+        }}>
+          AniList
         </span>
       </button>
     );
@@ -247,7 +300,61 @@ export default function ExternalLinkIcon({
         }}
         title={title || href}
       >
-        🔗 Lien externe
+        🔗 {label || 'Lien externe'}
+      </button>
+    );
+  }
+
+  // Si showLabel est activé, afficher le label dans le bouton
+  if (showLabel && label) {
+    return (
+      <button
+        onClick={handleClick}
+        className={className}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          padding: '8px 12px',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          flexShrink: 0,
+          height: 'auto',
+          width: 'auto'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-secondary)';
+          e.currentTarget.style.borderColor = 'var(--primary)';
+          e.currentTarget.style.transform = 'translateY(-1px)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'var(--surface)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.transform = 'translateY(0)';
+        }}
+        title={title || href}
+      >
+        <img
+          src={iconPath}
+          alt={iconType}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            objectFit: 'contain',
+            flexShrink: 0
+          }}
+        />
+        <span style={{
+          fontSize: '14px',
+          color: 'var(--text)',
+          fontWeight: '500'
+        }}>
+          {label}
+        </span>
       </button>
     );
   }

@@ -484,6 +484,8 @@ function handleCreateAnime(db, store, animeData) {
  * Enregistre les handlers IPC pour les opérations de création
  */
 function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
+  const { handleAddAnimeByAnilistId } = require('./anime-anilist-handler');
+  
   // Ajouter un anime par MAL ID ou URL
   ipcMain.handle('add-anime-by-mal-id', async (event, malIdOrUrl, options = {}) => {
     try {
@@ -492,6 +494,36 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
       return await handleAddAnimeByMalId(db, store, malIdOrUrl, options);
     } catch (error) {
       console.error('❌ Erreur lors de l\'ajout de l\'anime:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // Ajouter un anime par AniList ID ou URL
+  ipcMain.handle('add-anime-by-anilist-id', async (event, anilistIdOrUrl, options = {}) => {
+    try {
+      const db = getDb();
+      if (!db) throw new Error('Base de données non initialisée');
+      // Créer une fonction helper pour obtenir getPathManager depuis le store
+      const { PathManager } = require('../../utils/paths');
+      const fs = require('fs');
+      const getPathManager = () => {
+        const baseDirectory = store.get('baseDirectory');
+        if (baseDirectory && fs.existsSync(baseDirectory)) {
+          try {
+            return new PathManager(baseDirectory);
+          } catch (error) {
+            console.warn('⚠️ Erreur création PathManager:', error.message);
+            return null;
+          }
+        }
+        return null;
+      };
+      return await handleAddAnimeByAnilistId(db, store, anilistIdOrUrl, options, getDb, getPathManager);
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'ajout de l\'anime depuis AniList:', error);
       return {
         success: false,
         error: error.message

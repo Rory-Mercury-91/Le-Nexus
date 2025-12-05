@@ -5,7 +5,7 @@
  * @param {Store} store - Instance d'electron-store
  */
 function registerStatisticsHandlers(ipcMain, getDb, store) {
-  
+
   // Récupérer les statistiques générales
   ipcMain.handle('get-statistics', () => {
     try {
@@ -23,6 +23,22 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         nbTomes: 0,
         nbTomesParProprietaire: {},
         nbTomesParProprietaireParType: {}, // Nouveau : nombre de manga_tomes par type par propriétaire
+        nbMangasParProprietaire: {}, // Nombre de mangas par propriétaire
+        nbBdParProprietaire: {}, // Nombre de BD par propriétaire
+        nbComicsParProprietaire: {}, // Nombre de Comics par propriétaire
+        nbLivresParProprietaire: {}, // Nombre de livres par propriétaire
+        nbJeuxParProprietaire: {}, // Nombre de jeux par propriétaire
+        nbJeuxVideosParProprietaire: {}, // Nombre de jeux vidéos (RAWG) par propriétaire
+        nbJeuxAdultesParProprietaire: {}, // Nombre de jeux adultes par propriétaire
+        coutsMangasParProprietaire: {}, // Coûts des mangas par propriétaire
+        coutsBdParProprietaire: {}, // Coûts des BD par propriétaire
+        coutsComicsParProprietaire: {}, // Coûts des Comics par propriétaire
+        coutsLivresParProprietaire: {}, // Coûts des livres par propriétaire
+        coutsJeuxVideosParProprietaire: {}, // Coûts des jeux vidéos par propriétaire
+        coutsJeuxAdultesParProprietaire: {}, // Coûts des jeux adultes par propriétaire
+        coutsAbonnementsParProprietaire: {}, // Coût mensuel des abonnements par propriétaire
+        coutsAchatsPonctuelsParProprietaire: {}, // Coût total des achats ponctuels par propriétaire
+        nbAbonnementsActifs: 0, // Nombre total d'abonnements actifs
         users: [] // Nouveau : liste des utilisateurs avec leurs couleurs
       };
 
@@ -35,6 +51,21 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         stats.totaux[user.id] = 0;
         stats.nbTomesParProprietaire[user.id] = 0;
         stats.nbTomesParProprietaireParType[user.id] = {};
+        stats.nbMangasParProprietaire[user.id] = 0;
+        stats.nbBdParProprietaire[user.id] = 0;
+        stats.nbComicsParProprietaire[user.id] = 0;
+        stats.nbLivresParProprietaire[user.id] = 0;
+        stats.nbJeuxParProprietaire[user.id] = 0;
+        stats.nbJeuxVideosParProprietaire[user.id] = 0;
+        stats.nbJeuxAdultesParProprietaire[user.id] = 0;
+        stats.coutsMangasParProprietaire[user.id] = 0;
+        stats.coutsBdParProprietaire[user.id] = 0;
+        stats.coutsComicsParProprietaire[user.id] = 0;
+        stats.coutsLivresParProprietaire[user.id] = 0;
+        stats.coutsJeuxVideosParProprietaire[user.id] = 0;
+        stats.coutsJeuxAdultesParProprietaire[user.id] = 0;
+        stats.coutsAbonnementsParProprietaire[user.id] = 0;
+        stats.coutsAchatsPonctuelsParProprietaire[user.id] = 0;
       });
 
       // Calcul dynamique des coûts et manga_tomes par propriétaire
@@ -43,14 +74,14 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         FROM manga_tomes t
         JOIN manga_series s ON t.serie_id = s.id
       `).all();
-      
+
       manga_tomes.forEach(tome => {
         // Calculer le total Mihon (gain)
         if (tome.mihon === 1) {
           stats.totalMihon = (stats.totalMihon || 0) + tome.prix;
           return; // Exclure les manga_tomes Mihon du coût global
         }
-        
+
         // Récupérer les propriétaires de ce tome
         const proprietaires = db.prepare(`
           SELECT user_id FROM manga_manga_tomes_proprietaires WHERE tome_id = ?
@@ -59,17 +90,31 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         if (proprietaires.length > 0) {
           // Diviser le coût entre tous les propriétaires
           const coutParProprietaire = tome.prix / proprietaires.length;
-          
+
           proprietaires.forEach(prop => {
             stats.totaux[prop.user_id] = (stats.totaux[prop.user_id] || 0) + coutParProprietaire;
             stats.nbTomesParProprietaire[prop.user_id] = (stats.nbTomesParProprietaire[prop.user_id] || 0) + 1;
-            
+
             // Compter par type
             const typeVolume = tome.type_volume || 'Broché';
             if (!stats.nbTomesParProprietaireParType[prop.user_id][typeVolume]) {
               stats.nbTomesParProprietaireParType[prop.user_id][typeVolume] = 0;
             }
             stats.nbTomesParProprietaireParType[prop.user_id][typeVolume]++;
+
+            // Séparer Mangas, BD, Comics et leurs coûts
+            const typeLower = (typeVolume || '').toLowerCase();
+            if (typeLower.includes('bd') || typeLower.includes('bande dessinée')) {
+              stats.nbBdParProprietaire[prop.user_id] = (stats.nbBdParProprietaire[prop.user_id] || 0) + 1;
+              stats.coutsBdParProprietaire[prop.user_id] = (stats.coutsBdParProprietaire[prop.user_id] || 0) + coutParProprietaire;
+            } else if (typeLower.includes('comic')) {
+              stats.nbComicsParProprietaire[prop.user_id] = (stats.nbComicsParProprietaire[prop.user_id] || 0) + 1;
+              stats.coutsComicsParProprietaire[prop.user_id] = (stats.coutsComicsParProprietaire[prop.user_id] || 0) + coutParProprietaire;
+            } else {
+              // Par défaut, considérer comme manga (Broché, Kindle, Light Novel, etc.)
+              stats.nbMangasParProprietaire[prop.user_id] = (stats.nbMangasParProprietaire[prop.user_id] || 0) + 1;
+              stats.coutsMangasParProprietaire[prop.user_id] = (stats.coutsMangasParProprietaire[prop.user_id] || 0) + coutParProprietaire;
+            }
           });
         }
       });
@@ -81,7 +126,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         JOIN manga_series s ON t.serie_id = s.id
         GROUP BY s.type_volume
       `).all();
-      
+
       parType.forEach(row => {
         stats.parType[row.type_volume] = {
           count: row.count,
@@ -94,6 +139,186 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       parStatut.forEach(row => {
         stats.parStatut[row.statut] = row.count;
       });
+
+      // Calculer les coûts des livres par propriétaire
+      try {
+        const tableExists = db.prepare(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='book_proprietaires'
+        `).get();
+
+        if (tableExists) {
+          const bookOwners = db.prepare(`
+            SELECT 
+              p.book_id,
+              p.user_id,
+              p.prix
+            FROM book_proprietaires p
+          `).all();
+
+          // Grouper par livre pour calculer le coût par propriétaire
+          const booksMap = new Map();
+          bookOwners.forEach(owner => {
+            if (!booksMap.has(owner.book_id)) {
+              booksMap.set(owner.book_id, []);
+            }
+            booksMap.get(owner.book_id).push(owner);
+          });
+
+          // Calculer les coûts
+          booksMap.forEach((owners, bookId) => {
+            const totalPrix = owners.reduce((sum, o) => sum + (o.prix || 0), 0);
+            const coutParProprietaire = totalPrix / owners.length;
+
+            owners.forEach(owner => {
+              stats.totaux[owner.user_id] = (stats.totaux[owner.user_id] || 0) + coutParProprietaire;
+              stats.nbLivresParProprietaire[owner.user_id] = (stats.nbLivresParProprietaire[owner.user_id] || 0) + 1;
+              stats.coutsLivresParProprietaire[owner.user_id] = (stats.coutsLivresParProprietaire[owner.user_id] || 0) + coutParProprietaire;
+            });
+          });
+        }
+      } catch (error) {
+        console.warn('Erreur calcul coûts livres:', error);
+      }
+
+      // Calculer les coûts des jeux par propriétaire
+      try {
+        // Vérifier si la table existe
+        const tableExists = db.prepare(`
+          SELECT name FROM sqlite_master WHERE type='table' AND name='adulte_game_proprietaires'
+        `).get();
+
+        if (tableExists) {
+          // Récupérer tous les jeux avec leurs propriétaires
+          const gameOwners = db.prepare(`
+            SELECT 
+              p.game_id,
+              p.user_id,
+              p.prix,
+              g.game_site
+            FROM adulte_game_proprietaires p
+            JOIN adulte_game_games g ON p.game_id = g.id
+          `).all();
+
+          // Grouper par jeu pour calculer le coût par propriétaire
+          const gamesMap = new Map();
+          gameOwners.forEach(owner => {
+            if (!gamesMap.has(owner.game_id)) {
+              gamesMap.set(owner.game_id, []);
+            }
+            gamesMap.get(owner.game_id).push(owner);
+          });
+
+          // Calculer les coûts
+          gamesMap.forEach((owners, gameId) => {
+            const totalPrix = owners.reduce((sum, o) => sum + (o.prix || 0), 0);
+            const coutParProprietaire = totalPrix / owners.length;
+            const gameSite = owners[0]?.game_site || '';
+
+            owners.forEach(owner => {
+              stats.totaux[owner.user_id] = (stats.totaux[owner.user_id] || 0) + coutParProprietaire;
+              stats.nbJeuxParProprietaire[owner.user_id] = (stats.nbJeuxParProprietaire[owner.user_id] || 0) + 1;
+
+              // Séparer les jeux vidéos et les jeux adultes
+              if (gameSite === 'RAWG') {
+                stats.nbJeuxVideosParProprietaire[owner.user_id] = (stats.nbJeuxVideosParProprietaire[owner.user_id] || 0) + 1;
+                stats.coutsJeuxVideosParProprietaire[owner.user_id] = (stats.coutsJeuxVideosParProprietaire[owner.user_id] || 0) + coutParProprietaire;
+              } else {
+                stats.nbJeuxAdultesParProprietaire[owner.user_id] = (stats.nbJeuxAdultesParProprietaire[owner.user_id] || 0) + 1;
+                stats.coutsJeuxAdultesParProprietaire[owner.user_id] = (stats.coutsJeuxAdultesParProprietaire[owner.user_id] || 0) + coutParProprietaire;
+              }
+            });
+          });
+        }
+      } catch (error) {
+        console.warn('Erreur calcul coûts jeux:', error);
+        // Continuer même si les jeux ne sont pas disponibles
+      }
+
+      // Calculer les coûts des abonnements
+      try {
+        // Récupérer tous les abonnements actifs avec leurs propriétaires
+        const allSubscriptions = db.prepare(`
+          SELECT DISTINCT s.id, s.price, s.frequency, s.status
+          FROM subscriptions s
+          WHERE s.status = 'active'
+        `).all();
+
+        // Récupérer le premier utilisateur comme fallback pour les abonnements sans propriétaires
+        const firstUser = users.length > 0 ? users[0] : null;
+
+        allSubscriptions.forEach(sub => {
+          // Récupérer les propriétaires de cet abonnement
+          const owners = db.prepare('SELECT user_id FROM subscription_proprietaires WHERE subscription_id = ?').all(sub.id);
+          const ownerIds = owners.map(o => o.user_id).filter(id => id != null);
+          
+          // Si aucun propriétaire, utiliser le premier utilisateur comme fallback
+          const finalOwnerIds = ownerIds.length > 0 ? ownerIds : (firstUser ? [firstUser.id] : []);
+          
+          if (finalOwnerIds.length === 0) {
+            // Aucun utilisateur disponible, ignorer cet abonnement
+            return;
+          }
+          
+          // Calculer le coût mensuel
+          let monthlyCost = sub.price;
+          if (sub.frequency === 'quarterly') {
+            monthlyCost = sub.price / 3;
+          } else if (sub.frequency === 'yearly') {
+            monthlyCost = sub.price / 12;
+          }
+          
+          // Diviser le coût par le nombre de propriétaires
+          const costPerOwner = monthlyCost / finalOwnerIds.length;
+          
+          // Ajouter le coût à chaque propriétaire
+          finalOwnerIds.forEach(userId => {
+            stats.coutsAbonnementsParProprietaire[userId] = (stats.coutsAbonnementsParProprietaire[userId] || 0) + costPerOwner;
+            stats.totaux[userId] = (stats.totaux[userId] || 0) + costPerOwner;
+          });
+        });
+
+        // Compter les abonnements actifs
+        stats.nbAbonnementsActifs = db.prepare('SELECT COUNT(*) as count FROM subscriptions WHERE status = \'active\'').get().count;
+      } catch (error) {
+        console.warn('Erreur calcul coûts abonnements:', error);
+      }
+
+      // Calculer les coûts des achats ponctuels
+      try {
+        // Récupérer tous les achats ponctuels
+        const allPurchases = db.prepare(`
+          SELECT id, amount
+          FROM one_time_purchases
+        `).all();
+
+        // Récupérer le premier utilisateur comme fallback pour les achats sans propriétaires
+        const firstUser = users.length > 0 ? users[0] : null;
+
+        allPurchases.forEach(purchase => {
+          // Récupérer les propriétaires de cet achat
+          const owners = db.prepare('SELECT user_id FROM one_time_purchase_proprietaires WHERE purchase_id = ?').all(purchase.id);
+          const ownerIds = owners.map(o => o.user_id).filter(id => id != null);
+          
+          // Si aucun propriétaire, utiliser le premier utilisateur comme fallback
+          const finalOwnerIds = ownerIds.length > 0 ? ownerIds : (firstUser ? [firstUser.id] : []);
+          
+          if (finalOwnerIds.length === 0) {
+            // Aucun utilisateur disponible, ignorer cet achat
+            return;
+          }
+          
+          // Diviser le coût par le nombre de propriétaires
+          const costPerOwner = purchase.amount / finalOwnerIds.length;
+          
+          // Ajouter le coût à chaque propriétaire
+          finalOwnerIds.forEach(userId => {
+            stats.coutsAchatsPonctuelsParProprietaire[userId] = (stats.coutsAchatsPonctuelsParProprietaire[userId] || 0) + costPerOwner;
+            stats.totaux[userId] = (stats.totaux[userId] || 0) + costPerOwner;
+          });
+        });
+      } catch (error) {
+        console.warn('Erreur calcul coûts achats ponctuels:', error);
+      }
 
       // Totaux généraux
       stats.nbSeries = db.prepare('SELECT COUNT(*) as count FROM manga_series').get().count;
@@ -175,7 +400,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         FROM manga_series s
         WHERE (SELECT COUNT(*) FROM manga_tomes WHERE serie_id = s.id) > 0
       `).all();
-      
+
       for (const serie of manga_seriesWithTomes) {
         const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serie.id, userId);
         if (userData && userData.tome_progress) {
@@ -230,7 +455,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         JOIN manga_series s ON mud.serie_id = s.id
         WHERE mud.user_id = ? AND mud.tome_progress IS NOT NULL
       `).all(userId);
-      
+
       for (const userData of userDataWithProgress) {
         const tomeProgress = safeJsonParse(userData.tome_progress, []);
         if (Array.isArray(tomeProgress)) {
@@ -251,7 +476,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           }
         }
       }
-      
+
       // Trier par date_lecture décroissante et prendre les 10 premiers
       derniersTomesLus.sort((a, b) => {
         if (!a.date_lecture && !b.date_lecture) return 0;
@@ -259,9 +484,9 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         if (!b.date_lecture) return -1;
         return new Date(b.date_lecture) - new Date(a.date_lecture);
       });
-      
+
       const derniersTomesLusLimited = derniersTomesLus.slice(0, 10);
-      
+
       // Ancienne requête (commentée pour référence)
       /*
       const derniersTomesLus = db.prepare(`
@@ -274,7 +499,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         LIMIT 10
       `).all(userId);
       */
-      
+
       // Réassigner pour utiliser la version limitée
       derniersTomesLus.length = 0;
       derniersTomesLus.push(...derniersTomesLusLimited);
@@ -357,7 +582,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       // Récupérer tome_progress existant
       const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(tome.serie_id, userId);
       let tomeProgress = safeJsonParse(userData?.tome_progress, []);
-      
+
       // Trouver ou créer l'entrée pour ce tome
       const existingIndex = tomeProgress.findIndex(tp => tp.tome_id === tomeId);
       if (existingIndex >= 0) {
@@ -478,7 +703,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       // Récupérer tous les manga_tomes de la série
       const manga_tomes = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ?').all(serieId);
-      
+
       let manga_tomesUpdated = 0;
       for (const tome of manga_tomes) {
         db.prepare(`
@@ -492,6 +717,85 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
     } catch (error) {
       console.error('Erreur posseder-tous-les-manga_tomes:', error);
       throw error;
+    }
+  });
+
+  // Marquer une série comme possédée (tous les tomes) avec prix total et propriétaires
+  ipcMain.handle('serie-mark-as-owned', async (event, { serieId, prixTotal, dateAchat, partageAvec }) => {
+    try {
+      const db = getDb();
+      if (!db) {
+        throw new Error('Base de données non initialisée');
+      }
+
+      const currentUser = store.get('currentUser', '');
+      if (!currentUser) {
+        return { success: false, error: 'Aucun utilisateur connecté' };
+      }
+
+      const { getUserIdByName } = require('../common-helpers');
+      const userId = getUserIdByName(db, currentUser);
+      if (!userId) {
+        return { success: false, error: 'Utilisateur non trouvé' };
+      }
+
+      // Liste des utilisateurs qui possèdent la série (utilisateur actuel + partage)
+      const userIds = [userId];
+      if (partageAvec && Array.isArray(partageAvec) && partageAvec.length > 0) {
+        userIds.push(...partageAvec);
+      }
+
+      // Récupérer tous les tomes de la série avec leurs prix actuels
+      const tomes = db.prepare('SELECT id, prix FROM manga_tomes WHERE serie_id = ?').all(serieId);
+
+      if (tomes.length === 0) {
+        return { success: false, error: 'Aucun tome disponible pour cette série' };
+      }
+
+      // Calculer le prix total actuel des tomes
+      const prixTotalActuel = tomes.reduce((sum, tome) => sum + (tome.prix || 0), 0);
+
+      // Si un prix total est fourni, répartir la différence entre les tomes
+      let prixParTome = 0;
+      if (prixTotal && prixTotal > 0) {
+        prixParTome = prixTotal / tomes.length;
+
+        // Mettre à jour le prix de chaque tome
+        const updatePrixStmt = db.prepare('UPDATE manga_tomes SET prix = ? WHERE id = ?');
+        for (const tome of tomes) {
+          updatePrixStmt.run(prixParTome, tome.id);
+        }
+      } else {
+        // Utiliser les prix actuels
+        prixParTome = prixTotalActuel / tomes.length;
+      }
+
+      // Marquer tous les tomes comme possédés pour chaque propriétaire
+      let tomesUpdated = 0;
+      const insertProprietaireStmt = db.prepare(`
+        INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
+        VALUES (?, ?, ?)
+      `);
+
+      // Mettre à jour la date d'achat pour chaque tome
+      if (dateAchat) {
+        const updateDateAchatStmt = db.prepare('UPDATE manga_tomes SET date_achat = ? WHERE id = ?');
+        for (const tome of tomes) {
+          updateDateAchatStmt.run(dateAchat, tome.id);
+        }
+      }
+
+      for (const tome of tomes) {
+        for (const propUserId of userIds) {
+          insertProprietaireStmt.run(serieId, tome.id, propUserId);
+        }
+        tomesUpdated++;
+      }
+
+      return { success: true, tomesUpdated };
+    } catch (error) {
+      console.error('Erreur serie-mark-as-owned:', error);
+      return { success: false, error: error.message };
     }
   });
 
@@ -591,7 +895,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         JOIN manga_series s ON mud.serie_id = s.id
         WHERE mud.user_id = ? AND mud.tome_progress IS NOT NULL
       `).all(userId);
-      
+
       for (const userData of userDataWithProgress) {
         const tomeProgress = safeJsonParse(userData.tome_progress, []);
         if (Array.isArray(tomeProgress)) {
@@ -612,7 +916,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
           }
         }
       }
-      
+
       // Trier par date_lecture décroissante et prendre les 10 premiers
       derniersTomesLus.sort((a, b) => {
         if (!a.date_lecture && !b.date_lecture) return 0;
@@ -620,9 +924,9 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         if (!b.date_lecture) return -1;
         return new Date(b.date_lecture) - new Date(a.date_lecture);
       });
-      
+
       const derniersTomesLusLimited = derniersTomesLus.slice(0, 10);
-      
+
       console.log(`  ✅ ${derniersTomesLusLimited.length} manga_tomes lus récents`);
 
       // 2. Dernières progressions de chapitres (scans/manhwa + mangas MAL)
@@ -641,7 +945,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         ORDER BY s.updated_at DESC
         LIMIT 10
       `).all();
-      
+
       console.log(`  ✅ ${dernieresProgressionsChapitres.length} progressions chapitres/mangas MAL`);
 
       // 3. Dernières progressions d'épisodes (animes)
@@ -661,7 +965,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         ORDER BY date_progression DESC
         LIMIT 10
       `).all(userId);
-      
+
       console.log(`  ✅ ${dernieresProgressionsEpisodes.length} progressions épisodes animes`);
 
       // 4. Derniers films vus ou en cours
@@ -710,7 +1014,7 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       `).all(userId);
 
       console.log(`  ✅ ${manga_seriesTvRecents.length} progressions séries TV`);
-      
+
       const totalItems = derniersTomesLus.length + dernieresProgressionsChapitres.length + dernieresProgressionsEpisodes.length + filmsRecents.length + manga_seriesTvRecents.length;
       console.log(`  📊 Total: ${totalItems} éléments de progression récente`);
 
@@ -796,18 +1100,18 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       // Récupérer tous les manga_tomes de la série, triés par numéro
       const manga_tomes = db.prepare('SELECT id FROM manga_tomes WHERE serie_id = ? ORDER BY numero ASC').all(serieId);
-      
+
       // Récupérer tome_progress existant
       const userData = db.prepare('SELECT tome_progress FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
       let tomeProgress = safeJsonParse(userData?.tome_progress, []);
-      
+
       // Marquer tous les manga_tomes comme lus avec des timestamps espacés de quelques secondes
       // pour conserver l'ordre chronologique (1 seconde entre chaque tome)
       const baseDate = new Date();
       manga_tomes.forEach((tome, index) => {
         const dateLecture = new Date(baseDate.getTime() + (index * 1000)); // +1 seconde par tome
         const dateLectureStr = dateLecture.toISOString().replace('T', ' ').replace('Z', '');
-        
+
         // Trouver ou créer l'entrée pour ce tome
         const existingIndex = tomeProgress.findIndex(tp => tp.tome_id === tome.id);
         if (existingIndex >= 0) {

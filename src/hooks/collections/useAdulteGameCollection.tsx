@@ -821,6 +821,11 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
       // Utiliser la fonction commune pour mettre à jour
       updateGameInState(gameId, { statut_perso: newStatus as AdulteGameStatutPerso });
 
+      // Notifier la page de détail pour synchronisation bidirectionnelle
+      window.dispatchEvent(new CustomEvent('adulte-game-status-changed', {
+        detail: { gameId, statutPerso: newStatus }
+      }));
+
       showToast({
         title: 'Statut modifié',
         type: 'success'

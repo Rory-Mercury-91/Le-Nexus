@@ -20,12 +20,15 @@ export default function ProgressionSection({
   hasPassword
 }: ProgressionSectionProps) {
   // Vérifier si la section doit être affichée
+  const showVideos = contentPrefs.showVideos !== undefined
+    ? contentPrefs.showVideos
+    : (contentPrefs.showAnimes || contentPrefs.showMovies || contentPrefs.showSeries);
+  const hasVideos = showVideos && (animes.length > 0 || movies.length > 0 || tvShows.length > 0);
+
   if (
     !(
       (contentPrefs.showMangas && lectureStats && (lectureStats.tomesTotal > 0 || lectureStats.chapitresTotal > 0)) ||
-      (contentPrefs.showAnimes && animes.length > 0) ||
-      (contentPrefs.showMovies && movies.length > 0) ||
-      (contentPrefs.showSeries && tvShows.length > 0) ||
+      hasVideos ||
       (!hasPassword && contentPrefs.showAdulteGame && adulteGames.length > 0)
     )
   ) {
@@ -37,7 +40,7 @@ export default function ProgressionSection({
       <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         📊 Progression
       </h2>
-      
+
       {/* Progression Lectures */}
       {contentPrefs.showMangas && lectureStats && (lectureStats.tomesTotal > 0 || lectureStats.chapitresTotal > 0) && (
         <div style={{ marginBottom: '16px' }}>
@@ -46,17 +49,17 @@ export default function ProgressionSection({
             const hasChapitres = lectureStats.chapitresTotal > 0;
             const progressionTomes = hasTomes
               ? Math.round(
-                  lectureStats.progressionTomes != null
-                    ? lectureStats.progressionTomes
-                    : (lectureStats.tomesLus / lectureStats.tomesTotal) * 100
-                )
+                lectureStats.progressionTomes != null
+                  ? lectureStats.progressionTomes
+                  : (lectureStats.tomesLus / lectureStats.tomesTotal) * 100
+              )
               : null;
             const progressionChapitres = hasChapitres
               ? Math.round(
-                  lectureStats.progressionChapitres != null
-                    ? lectureStats.progressionChapitres
-                    : (lectureStats.chapitresLus / lectureStats.chapitresTotal) * 100
-                )
+                lectureStats.progressionChapitres != null
+                  ? lectureStats.progressionChapitres
+                  : (lectureStats.chapitresLus / lectureStats.chapitresTotal) * 100
+              )
               : null;
 
             return (
@@ -172,7 +175,7 @@ export default function ProgressionSection({
       )}
 
       {/* Progression Animes */}
-      {contentPrefs.showAnimes && animes.length > 0 && (() => {
+      {showVideos && animes.length > 0 && (() => {
         const episodesVus = animes.reduce((acc, a) => acc + (a.episodes_vus || 0), 0);
         const episodesTotal = animes.reduce((acc, a) => acc + (a.nb_episodes || 0), 0);
         const animesAvecProgression = animes.filter(a => (a.episodes_vus || 0) > 0).length;
@@ -220,7 +223,7 @@ export default function ProgressionSection({
       })()}
 
       {/* Progression Films */}
-      {contentPrefs.showMovies && movies.length > 0 && (() => {
+      {showVideos && movies.length > 0 && (() => {
         const totalFilms = movies.length;
         const filmsEnCours = movies.filter((movie) => movie.statut_visionnage === 'En cours').length;
         const filmsTermines = movies.filter((movie) => movie.statut_visionnage === 'Terminé').length;
@@ -278,7 +281,7 @@ export default function ProgressionSection({
       })()}
 
       {/* Progression Séries TV */}
-      {contentPrefs.showSeries && tvShows.length > 0 && (() => {
+      {showVideos && tvShows.length > 0 && (() => {
         const seriesTotal = tvShows.length;
         const seriesEnCours = tvShows.filter((show) => show.statut_visionnage === 'En cours').length;
         const seriesTerminees = tvShows.filter((show) => show.statut_visionnage === 'Terminé').length;
@@ -330,17 +333,73 @@ export default function ProgressionSection({
         );
       })()}
 
+      {/* Progression Jeux vidéo (RAWG) */}
+      {!hasPassword && contentPrefs.showAdulteGame && adulteGames.length > 0 && (() => {
+        const rawgGames = adulteGames.filter(g => g.game_site === 'RAWG');
+        const jeuxVideosJoues = rawgGames.filter(g => {
+          const statut = g.statut_perso || g.completion_perso || '';
+          // Pour les jeux RAWG, considérer comme joué si le statut n'est pas vide et différent de "À lire"
+          return statut && statut !== 'À lire';
+        }).length;
+        const jeuxVideosTotal = rawgGames.length;
+        const progressionVideos = jeuxVideosTotal > 0 ? (jeuxVideosJoues / jeuxVideosTotal) * 100 : 0;
+
+        if (jeuxVideosTotal === 0) return null;
+
+        return (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>🎮</span>
+                <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Jeux vidéo :</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#eab308' }}>
+                  {jeuxVideosJoues}/{jeuxVideosTotal} jeux joués
+                </span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>|</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#8b5cf6' }}>
+                  {progressionVideos.toFixed(0)}%
+                </span>
+              </div>
+            </div>
+            <div style={{
+              width: '100%',
+              height: '8px',
+              background: 'var(--surface)',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              border: '1px solid var(--border)'
+            }}>
+              <div style={{
+                width: `${progressionVideos}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--primary), var(--secondary))',
+                transition: 'width 0.5s ease'
+              }} />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Progression Jeux adulte (conditionnelle si pas de mot de passe) */}
       {!hasPassword && contentPrefs.showAdulteGame && adulteGames.length > 0 && (() => {
-        const jeuxJoues = adulteGames.filter(g => g.statut_perso && g.statut_perso !== 'À lire').length;
-        const jeuxTotal = adulteGames.length;
+        const adulteGamesOnly = adulteGames.filter(g => g.game_site !== 'RAWG');
+        const jeuxJoues = adulteGamesOnly.filter(g => {
+          const statut = g.statut_perso || g.completion_perso || '';
+          // Pour les jeux adultes, considérer comme joué si le statut n'est pas vide et différent de "À lire"
+          return statut && statut !== 'À lire';
+        }).length;
+        const jeuxTotal = adulteGamesOnly.length;
         const progression = jeuxTotal > 0 ? (jeuxJoues / jeuxTotal) * 100 : 0;
+
+        if (jeuxTotal === 0) return null;
 
         return (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>🎮</span>
+                <span style={{ fontSize: '18px' }}>🔞</span>
                 <span style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text)' }}>Jeux adulte :</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

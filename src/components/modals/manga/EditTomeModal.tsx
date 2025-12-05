@@ -1,9 +1,9 @@
 import { Check, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../hooks/common/useToast';
 import { Tome, User } from '../../../types';
 import CoverImage from '../../common/CoverImage';
 import MultiSelectDropdown from '../../common/MultiSelectDropdown';
-import { useToast } from '../../../hooks/common/useToast';
 import Modal from '../common/Modal';
 import ModalHeader from '../common/ModalHeader';
 import { useModalEscape } from '../common/useModalEscape';
@@ -19,7 +19,7 @@ interface EditTomeModalProps {
 
 export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume, onClose, onSuccess }: EditTomeModalProps) {
   const { showToast, ToastContainer } = useToast();
-  
+
   // Valeurs initiales
   const initialValues = {
     numero: tome.numero.toString(),
@@ -30,7 +30,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
     couvertureUrl: tome.couverture_url || '',
     typeTome: (tome.type_tome || 'Standard') as 'Standard' | 'Collector' | 'Deluxe' | 'Intégrale' | 'Coffret' | 'Numérique' | 'Autre'
   };
-  
+
   const [numero, setNumero] = useState(initialValues.numero);
   const [prix, setPrix] = useState(initialValues.prix);
   const [proprietaireIds, setProprietaireIds] = useState<number[]>(initialValues.proprietaireIds);
@@ -41,12 +41,12 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
   const [typeTome, setTypeTome] = useState<'Standard' | 'Collector' | 'Deluxe' | 'Intégrale' | 'Coffret' | 'Numérique' | 'Autre'>(initialValues.typeTome);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
-  
+
   // Tracker les champs modifiés (pour afficher l'icône ✅)
   const [, setChangedFields] = useState<Set<string>>(new Set());
   // Tracker les champs validés par l'utilisateur (icône ✅ cliquée)
   const [validatedFields, setValidatedFields] = useState<Set<string>>(new Set());
-  
+
   // Fonction pour vérifier si un champ a changé
   const isFieldChanged = (fieldKey: string): boolean => {
     const currentValue = {
@@ -58,7 +58,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
       couvertureUrl,
       typeTome
     }[fieldKey];
-    
+
     const initialValue = {
       numero: initialValues.numero,
       prix: initialValues.prix,
@@ -68,7 +68,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
       couvertureUrl: initialValues.couvertureUrl,
       typeTome: initialValues.typeTome
     }[fieldKey];
-    
+
     // Normaliser pour la comparaison
     const normalize = (val: any): string | null => {
       if (val === null || val === undefined || val === '') return null;
@@ -78,10 +78,10 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
       }
       return String(val);
     };
-    
+
     return normalize(currentValue) !== normalize(initialValue);
   };
-  
+
   // Fonction pour valider/invalider un champ
   const toggleFieldValidation = (fieldKey: string) => {
     setValidatedFields(prev => {
@@ -94,21 +94,21 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
       return newSet;
     });
   };
-  
+
   // Composant pour l'icône de validation
   const ValidationIcon = ({ fieldKey }: { fieldKey: string }) => {
     const hasChanged = isFieldChanged(fieldKey);
     const isValidated = validatedFields.has(fieldKey);
-    
+
     // Si le champ est validé, TOUJOURS afficher l'icône verte (même si modifié à nouveau)
     // Sinon, afficher l'icône jaune seulement si le champ a changé
     if (!isValidated && !hasChanged) return null;
-    
+
     // Si validé, l'icône est toujours verte, peu importe si le champ a changé à nouveau
     const iconColor = isValidated ? '#22c55e' : '#eab308';
     const iconBackground = isValidated ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)';
     const iconBorder = isValidated ? 'rgba(34, 197, 94, 0.5)' : 'rgba(234, 179, 8, 0.5)';
-    
+
     return (
       <button
         type="button"
@@ -131,12 +131,12 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
         }}
         title={isValidated ? 'Champ validé (sera sauvegardé) - Cliquer pour invalider' : 'Cliquer pour valider ce champ'}
       >
-        <Check 
-          size={16} 
-          style={{ 
+        <Check
+          size={16}
+          style={{
             color: iconColor,
             opacity: isValidated ? 1 : 0.7
-          }} 
+          }}
         />
       </button>
     );
@@ -228,7 +228,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
     // Si des champs sont validés, n'envoyer que ceux-là
     // Sinon, envoyer tous les champs (comportement par défaut pour compatibilité)
     const updateData: Record<string, any> = {};
-    
+
     if (validatedFields.size > 0) {
       // Normaliser UNIQUEMENT les champs validés par l'utilisateur
       for (const fieldKey of validatedFields) {
@@ -252,7 +252,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
           updateData.type_tome = typeTome || 'Standard';
         }
       }
-      
+
       // Toujours inclure les champs requis même s'ils ne sont pas validés
       if (!updateData.numero) {
         const num = Number(numero);
@@ -276,7 +276,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
     setSaving(true);
     try {
       await window.electronAPI.updateTome(tome.id, updateData);
-      
+
       showToast({ title: 'Tome modifié avec succès', type: 'success' });
       // Réinitialiser les champs validés après une sauvegarde réussie
       setValidatedFields(new Set());
@@ -380,7 +380,7 @@ export default function EditTomeModal({ tome, serieTitre, mediaType, typeVolume,
             </button>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '12px' }}>
-                URL (optionnel)
+                URL
               </label>
               <input
                 type="text"

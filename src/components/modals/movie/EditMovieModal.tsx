@@ -12,15 +12,15 @@ interface EditMovieModalProps {
 export default function EditMovieModal({ movie, onClose, onSuccess }: EditMovieModalProps) {
   const movieFields: FormField[] = [
     { key: 'titre', type: 'text', label: 'Titre', placeholder: 'Ex: Inception', required: true },
-    { key: 'titre_original', type: 'text', label: 'Titre original (optionnel)', placeholder: 'Ex: Inception', required: false },
-    { key: 'date_sortie', type: 'date', label: 'Date de sortie (optionnel)', required: false },
-    { key: 'duree', type: 'number', label: 'Durée (minutes, optionnel)', placeholder: 'Ex: 148', min: 0, required: false },
-    { key: 'note_moyenne', type: 'number', label: 'Note moyenne (optionnel)', placeholder: 'Ex: 8.5', min: 0, max: 10, step: '0.001', required: false },
-    { key: 'popularite', type: 'number', label: 'Popularité (optionnel)', placeholder: 'Ex: 100.5', min: 0, step: '0.1', required: false },
+    { key: 'titre_original', type: 'text', label: 'Titre original', placeholder: 'Ex: Inception', required: false },
+    { key: 'date_sortie', type: 'date', label: 'Date de sortie', required: false },
+    { key: 'duree', type: 'number', label: 'Durée (minutes)', placeholder: 'Ex: 148', min: 0, required: false },
+    { key: 'note_moyenne', type: 'number', label: 'Note moyenne', placeholder: 'Ex: 8.5', min: 0, max: 10, step: '0.001', required: false },
+    { key: 'popularite', type: 'number', label: 'Popularité', placeholder: 'Ex: 100.5', min: 0, step: '0.1', required: false },
     {
       key: 'statut',
       type: 'select',
-      label: 'Statut (optionnel)',
+      label: 'Statut',
       options: [
         { value: '', label: '-- Non défini --' },
         { value: 'Released', label: 'Sorti' },
@@ -31,7 +31,7 @@ export default function EditMovieModal({ movie, onClose, onSuccess }: EditMovieM
       ],
       required: false
     },
-    { key: 'synopsis', type: 'textarea', label: 'Synopsis (optionnel)', placeholder: 'Description du film...', required: false },
+    { key: 'synopsis', type: 'textarea', label: 'Synopsis', placeholder: 'Description du film...', required: false },
     { key: 'poster_path', type: 'text', label: 'URL image (géré par CoverImageUpload)', required: false },
     { key: 'backdrop_path', type: 'text', label: 'Backdrop (non utilisé)', required: false }
   ];

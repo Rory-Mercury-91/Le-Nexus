@@ -26,7 +26,7 @@ interface AddMalSearchSectionProps<T extends MalSearchResult> {
 
 /**
  * Composant générique pour la section de recherche MAL/Jikan
- * Utilisé par AddAnimeModal et AddSerieModal
+ * Utilisé par AddAnimeModal et AddMangaModal
  */
 export default function AddMalSearchSection<T extends MalSearchResult>({
   searchTerm,

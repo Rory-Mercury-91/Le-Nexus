@@ -135,7 +135,7 @@ export function useBookDetail() {
       bookId: item.id,
       statut: item.statut_lecture
     }),
-    redirectRoute: '/books',
+    redirectRoute: '/lectures/books',
     itemName: 'livre',
     getItemTitle: (item) => item.titre,
     getCurrentStatus: (item) => item.statut_lecture || 'À lire'

@@ -8,17 +8,16 @@ const COLORS = {
   tomes: '#d946ef'        // Magenta pour Tomes
 };
 
-const TYPES_VOLUME = [
-  'Tous les tomes',
-  'Broché',
-  'Broché Collector',
-  'Coffret',
-  'Kindle',
-  'Webtoon',
-  'Webtoon Physique',
-  'Light Novel',
-  'Scan Manga',
-  'Scan Webtoon'
+const FILTER_OPTIONS = [
+  { value: 'global', label: '🌐 Global' },
+  { value: 'mangas', label: '📖 Mangas' },
+  { value: 'bd', label: '📚 BD' },
+  { value: 'comics', label: '💥 Comics' },
+  { value: 'livres', label: '📗 Livres' },
+  { value: 'jeux-videos', label: '🎮 Jeux vidéo' },
+  { value: 'jeux-adultes', label: '🔞 Jeux adultes' },
+  { value: 'abonnements', label: '💳 Abonnements' },
+  { value: 'achats-ponctuels', label: '🛒 Achats ponctuels' }
 ];
 
 interface RepartitionChartProps {
@@ -27,10 +26,10 @@ interface RepartitionChartProps {
 
 export default function RepartitionChart({ stats }: RepartitionChartProps) {
   const [showRepartition, setShowRepartition] = useState(false);
-  const [filtreType, setFiltreType] = useState<string>('Tous les tomes');
-  
+  const [filtrePage, setFiltrePage] = useState<string>('global');
+
   const users = stats.users || [];
-  
+
   if (users.length === 0) {
     return null;
   }
@@ -57,12 +56,12 @@ export default function RepartitionChart({ stats }: RepartitionChartProps) {
           </h3>
           {showRepartition ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </button>
-        
-        {/* Dropdown pour filtrer par type */}
+
+        {/* Dropdown pour filtrer par page */}
         {showRepartition && (
           <select
-            value={filtreType}
-            onChange={(e) => setFiltreType(e.target.value)}
+            value={filtrePage}
+            onChange={(e) => setFiltrePage(e.target.value)}
             style={{
               padding: '8px 12px',
               borderRadius: '8px',
@@ -75,50 +74,82 @@ export default function RepartitionChart({ stats }: RepartitionChartProps) {
               outline: 'none'
             }}
           >
-            {TYPES_VOLUME.map(type => (
-              <option key={type} value={type}>{type}</option>
+            {FILTER_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         )}
       </div>
-      
+
       {showRepartition && (
         <>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart 
+            <BarChart
               data={users.map(user => {
-                // Calculer le nombre de tomes selon le filtre
-                let nbTomes = 0;
-                if (filtreType === 'Tous les tomes') {
-                  nbTomes = stats.nbTomesParProprietaire[user.id] || 0;
-                } else {
-                  // Vérification de sécurité : si nbTomesParProprietaireParType n'existe pas, afficher 0
-                  nbTomes = stats.nbTomesParProprietaireParType?.[user.id]?.[filtreType] || 0;
+                // Calculer le nombre d'items et le coût selon le filtre
+                let nbItems = 0;
+                let cout = 0;
+
+                if (filtrePage === 'global') {
+                  // Global : tous les coûts
+                  cout = stats.totaux[user.id] || 0;
+                  // Compter tous les items (incluant abonnements et achats ponctuels)
+                  nbItems = (stats.nbTomesParProprietaire?.[user.id] || 0) +
+                    (stats.nbLivresParProprietaire?.[user.id] || 0) +
+                    (stats.nbJeuxParProprietaire?.[user.id] || 0) +
+                    ((stats.coutsAbonnementsParProprietaire?.[user.id] || 0) > 0 ? 1 : 0) +
+                    ((stats.coutsAchatsPonctuelsParProprietaire?.[user.id] || 0) > 0 ? 1 : 0);
+                } else if (filtrePage === 'mangas') {
+                  nbItems = stats.nbMangasParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsMangasParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'bd') {
+                  nbItems = stats.nbBdParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsBdParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'comics') {
+                  nbItems = stats.nbComicsParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsComicsParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'livres') {
+                  nbItems = stats.nbLivresParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsLivresParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'jeux-videos') {
+                  nbItems = stats.nbJeuxVideosParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsJeuxVideosParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'jeux-adultes') {
+                  nbItems = stats.nbJeuxAdultesParProprietaire?.[user.id] || 0;
+                  cout = stats.coutsJeuxAdultesParProprietaire?.[user.id] || 0;
+                } else if (filtrePage === 'abonnements') {
+                  // Pour les abonnements, on affiche le coût mensuel (pas de nombre d'items)
+                  cout = stats.coutsAbonnementsParProprietaire?.[user.id] || 0;
+                  nbItems = cout > 0 ? 1 : 0; // On met 1 pour avoir une barre visible
+                } else if (filtrePage === 'achats-ponctuels') {
+                  // Pour les achats ponctuels, on affiche le coût total
+                  cout = stats.coutsAchatsPonctuelsParProprietaire?.[user.id] || 0;
+                  nbItems = cout > 0 ? 1 : 0; // On met 1 pour avoir une barre visible
                 }
-                
+
                 return {
                   name: user.name,
-                  tomes: nbTomes,
-                  cout: stats.totaux[user.id] || 0
+                  items: nbItems,
+                  cout: Math.max(0, cout) // S'assurer que le coût n'est pas négatif
                 };
               })}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis 
-                dataKey="name" 
-                stroke="var(--text-secondary)" 
-                style={{ fontSize: '12px', fontWeight: '600' }} 
+              <XAxis
+                dataKey="name"
+                stroke="var(--text-secondary)"
+                style={{ fontSize: '12px', fontWeight: '600' }}
               />
-              <YAxis 
+              <YAxis
                 yAxisId="left"
-                stroke="var(--text-secondary)" 
+                stroke="var(--text-secondary)"
                 style={{ fontSize: '12px' }}
-                label={{ value: 'Tomes', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
+                label={{ value: 'Items', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
               />
-              <YAxis 
+              <YAxis
                 yAxisId="right"
                 orientation="right"
-                stroke="var(--text-secondary)" 
+                stroke="var(--text-secondary)"
                 style={{ fontSize: '12px' }}
                 label={{ value: 'Coût (€)', angle: 90, position: 'insideRight', style: { fill: 'var(--text-secondary)', fontSize: '12px' } }}
               />
@@ -132,38 +163,48 @@ export default function RepartitionChart({ stats }: RepartitionChartProps) {
                   fontWeight: '600'
                 }}
                 formatter={(value, name) => {
-                  if (name === 'tomes') {
-                    return [`${value} tome${Number(value) > 1 ? 's' : ''}`, filtreType];
+                  if (name === 'items') {
+                    const filterLabel = FILTER_OPTIONS.find(opt => opt.value === filtrePage)?.label || filtrePage;
+                    if (filtrePage === 'abonnements' || filtrePage === 'achats-ponctuels') {
+                      // Pour les abonnements et achats ponctuels, on n'affiche pas le nombre d'items
+                      return [null, null];
+                    }
+                    return [`${value} item${Number(value) > 1 ? 's' : ''}`, filterLabel];
                   } else {
-                    return [`${Number(value).toFixed(2)}€`, 'Coût total'];
+                    if (filtrePage === 'abonnements') {
+                      return [`${Number(value).toFixed(2)}€/mois`, 'Coût mensuel'];
+                    }
+                    return [`${Number(value).toFixed(2)}€`, 'Coût'];
                   }
                 }}
               />
-              {/* Barre des tomes (filtrée) */}
-              <Bar 
+              {/* Barre des items (filtrée) */}
+              <Bar
                 yAxisId="left"
-                dataKey="tomes" 
+                dataKey="items"
                 fill={COLORS.tomes}
                 radius={[8, 8, 0, 0]}
               />
-              {/* Barre du coût (fixe) */}
-              <Bar 
+              {/* Barre du coût (filtrée) */}
+              <Bar
                 yAxisId="right"
-                dataKey="cout" 
+                dataKey="cout"
                 fill={COLORS.series}
                 radius={[8, 8, 0, 0]}
               />
             </BarChart>
           </ResponsiveContainer>
-          
+
           <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '16px', fontSize: '13px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS.tomes }} />
-              <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Tomes ({filtreType})</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>
+                {FILTER_OPTIONS.find(opt => opt.value === filtrePage)?.label || filtrePage}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: COLORS.series }} />
-              <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Coût total</span>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>Coût</span>
             </div>
           </div>
         </>
