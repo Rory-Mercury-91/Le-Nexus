@@ -1,5 +1,7 @@
+import { Languages, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '../../../hooks/common/useToast';
+import { useTranslation } from '../../../hooks/common/useTranslation';
 import { RawgGameDetail } from '../../../hooks/details/useRawgGameDetail';
 import CoverImageUpload from '../common/CoverImageUpload';
 import Modal from '../common/Modal';
@@ -14,6 +16,7 @@ interface EditRawgGameModalProps {
 
 export default function EditRawgGameModal({ game, onClose, onSuccess }: EditRawgGameModalProps) {
   const { showToast, ToastContainer } = useToast();
+  const { translate, translating } = useTranslation();
   const [saving, setSaving] = useState(false);
 
   // Valeurs initiales
@@ -198,6 +201,43 @@ export default function EditRawgGameModal({ game, onClose, onSuccess }: EditRawg
                       resize: 'vertical'
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      translate({
+                        text: description || '',
+                        onTranslated: (translatedText) => setDescription(translatedText),
+                        minLength: 10,
+                        errorMessage: 'La description est trop courte pour être traduite'
+                      });
+                    }}
+                    disabled={!description || description.length < 10 || translating || saving}
+                    className="btn"
+                    style={{
+                      marginTop: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '13px',
+                      padding: '8px 12px',
+                      background: translating ? 'var(--surface)' : 'rgba(99, 102, 241, 0.1)',
+                      color: translating ? 'var(--text-secondary)' : 'var(--primary)',
+                      border: '1px solid',
+                      borderColor: translating ? 'var(--border)' : 'var(--primary)'
+                    }}
+                  >
+                    {translating ? (
+                      <>
+                        <Loader2 size={16} className="spin" />
+                        Traduction en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Languages size={16} />
+                        Traduire en français
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 {/* Tags */}

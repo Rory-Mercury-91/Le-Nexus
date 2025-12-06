@@ -161,9 +161,11 @@ export default function MovieDetail() {
   }, [movie?.id]);
   const addVideoUrlApi = useCallback((id: number, url: string, title: string) => window.electronAPI.addMovieUserVideoUrl?.(id, url, title), []);
   const addVideoFileApi = useCallback((id: number, title?: string, isReference?: boolean) => window.electronAPI.addMovieUserVideoFile?.(id, title, isReference), []);
-  const deleteVideoApi = useCallback((videoId: number) => {
+  const deleteVideoApi = useCallback((_itemId: number, videoId: number | string) => {
     if (!movie?.id) return Promise.resolve({ success: false, error: 'Film introuvable' });
-    return window.electronAPI.deleteMovieUserVideo?.(movie.id, videoId);
+    // Convertir videoId en string si nécessaire car les IDs sont stockés comme strings dans le JSON
+    const videoIdStr = typeof videoId === 'string' ? videoId : videoId.toString();
+    return window.electronAPI.deleteMovieUserVideo?.(movie.id, videoIdStr);
   }, [movie?.id]);
 
   // Hook pour la galerie média (images/vidéos utilisateur)
@@ -206,6 +208,8 @@ export default function MovieDetail() {
     deleteVideoApi
   });
   const [selectedImageMeta, setSelectedImageMeta] = useState<{ url: string; fileName?: string } | null>(null);
+
+
   useEffect(() => {
     if (!selectedImage) {
       setSelectedImageMeta(null);
@@ -536,10 +540,26 @@ export default function MovieDetail() {
                               position: 'relative',
                               display: 'inline-block'
                             }}
+                            onClick={(e) => {
+                              // Empêcher le clic sur le div de déclencher d'autres actions si c'est sur le bouton de suppression
+                              const target = e.target as HTMLElement;
+                              if (target.closest('button[title="Supprimer cette vidéo"]')) {
+                                e.stopPropagation();
+                              }
+                            }}
                           >
                             <button
                               className="btn btn-outline"
-                              onClick={() => {
+                              onClick={(e) => {
+                                // Ne pas déclencher si le clic vient du bouton de suppression
+                                const target = e.target as HTMLElement;
+                                const deleteButton = target.closest('button[title="Supprimer cette vidéo"]');
+                                if (deleteButton) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  return;
+                                }
+
                                 // Seules les vidéos locales s'ouvrent dans le player intégré
                                 if (isLocalFile && (video as any).url) {
                                   setSelectedVideo({
@@ -573,8 +593,20 @@ export default function MovieDetail() {
                               <button
                                 type="button"
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
                                   handleDeleteUserVideoClick(videoId);
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
+                                }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
                                 }}
                                 style={{
                                   position: 'absolute',
@@ -590,7 +622,9 @@ export default function MovieDetail() {
                                   justifyContent: 'center',
                                   color: 'white',
                                   width: '20px',
-                                  height: '20px'
+                                  height: '20px',
+                                  zIndex: 1000,
+                                  pointerEvents: 'auto'
                                 }}
                                 title="Supprimer cette vidéo"
                               >
@@ -917,7 +951,7 @@ export default function MovieDetail() {
         />
       )}
 
-      {videoToDelete && (
+      {videoToDelete !== null && videoToDelete !== undefined && (
         <ConfirmModal
           title="Supprimer la vidéo"
           message="Êtes-vous sûr de vouloir supprimer cette vidéo ?"

@@ -5,6 +5,80 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.5-Fix2] - 2025-12-06
+
+### 🐛 Corrigé
+- **Suppression de vidéos indépendante du contrôle du chemin d'accès**
+  - La suppression des vidéos fonctionne maintenant même si le fichier a été déplacé ou n'existe plus
+  - Correction appliquée aux films, séries et épisodes de séries
+  - La suppression de l'entrée en base de données se fait toujours, même si le fichier physique est introuvable
+  - Message d'avertissement loggé si le fichier est introuvable, sans bloquer la suppression
+
+- **Correction de la suppression de vidéos (films et séries)**
+  - Correction de la signature de `deleteVideoApi` pour accepter correctement les deux paramètres (itemId, videoId)
+  - Support des IDs de vidéos stockés comme strings dans le JSON
+  - Conversion automatique des IDs en string pour correspondre au format stocké en base
+  - Correction appliquée aux films, séries et épisodes de séries
+
+- **Correction du transcodage FFmpeg pour fichiers MKV**
+  - Correction du mapping des streams : utilisation de `-map 0:0` au lieu de `-map 0:v` pour éviter de transcoder les images JPEG intégrées
+  - Ajout de `-max_muxing_queue_size 1024` pour limiter la taille de la queue et éviter l'erreur "Too many packets buffered"
+  - Ajout de `-fflags +genpts` pour générer les timestamps si manquants
+  - Le transcodage fonctionne maintenant correctement même pour les fichiers MKV avec images intégrées
+
+- **Gestion des clics sur les boutons de suppression de vidéos**
+  - Correction de la propagation des événements pour empêcher le déclenchement de la lecture lors du clic sur la poubelle
+  - Ajout de protections supplémentaires (`stopImmediatePropagation`, `onMouseDown`, `onPointerDown`)
+  - Positionnement absolu du bouton de suppression pour éviter les conflits avec le bouton de lecture
+
+### 🔧 Amélioré
+- **Masquage des champs API TMDb**
+  - Ajout du masquage et de l'icône d'œil pour les champs "TMDb API Key (v3)" et "Jeton d'accès lecture (v4)"
+  - Cohérence avec les autres champs sensibles de l'application (Groq, MAL, AniList)
+  - Les champs sont maintenant masqués par défaut avec possibilité de les afficher via l'icône d'œil
+
+- **Interface des paramètres RAWG**
+  - Déplacement de l'information "La clé API RAWG permet d'enrichir..." dans un tooltip (icône d'information)
+  - Suppression du paragraphe redondant avec le lien "Obtenir une clé API RAWG" (déjà présent dans le guide)
+  - Remplacement du message de succès long par un message court "Connexion RAWG validée" affiché sur la même ligne que le label
+  - Suppression de l'encadré de succès, seul l'encadré d'erreur reste affiché en cas d'échec
+
+- **Interface des paramètres d'intégrations**
+  - Suppression de l'information redondante "Dernière sync : ..." sous le bouton de synchronisation AniList
+  - Uniformisation du design du bouton "Synchroniser maintenant" avec les autres boutons de l'interface
+  - Déplacement des informations détaillées de synchronisation (date, nombre d'animes/lectures) dans les encadrés de connexion pour MAL et AniList
+  - Suppression de l'encadré séparé qui affichait ces informations de manière redondante
+
+- **Affichage des cartes de jeux RAWG**
+  - Masquage des informations de version (Version actuelle, Version traduite, Dernière version jouée) pour les jeux RAWG
+  - Seul le titre du jeu est affiché pour les jeux venant de RAWG, cohérent avec le fait que les jeux vidéo n'ont pas de versions comme les jeux adultes
+
+- **Bouton de traduction dans les modales d'édition**
+  - Ajout du bouton "Traduire en français" pour les champs synopsis/description/background dans toutes les modales d'édition
+  - Support dans les modales : Films, Séries, Épisodes, Livres, Jeux RAWG
+  - Utilisation du hook `useTranslation` pour une traduction cohérente via l'API Groq
+  - Le bouton est désactivé si le texte fait moins de 10 caractères
+  - Affichage d'un loader pendant la traduction avec message "Traduction en cours..."
+
+- **Ajout rapide de jeux RAWG depuis la barre de recherche**
+  - Détection automatique des URLs RAWG (`rawg.io/games/...`) et des IDs numériques dans la barre de recherche
+  - Support des slugs RAWG (ex: `rawg.io/games/grand-theft-auto-v`) et des IDs numériques
+  - Bouton "Ajouter depuis RAWG" qui apparaît automatiquement si aucun résultat n'est trouvé mais qu'un ID/URL RAWG est détecté
+  - Fonctionnement identique à l'ajout rapide F95Zone pour une expérience utilisateur cohérente
+  - La recherche textuelle inclut maintenant les IDs RAWG pour trouver les jeux existants
+
+- **Bouton d'aide dans toutes les pages de collection**
+  - Ajout du bouton d'aide (icône "?") dans la barre de recherche de toutes les pages de collection
+  - Modale d'aide complète avec explications détaillées pour : Vidéos (Tout), Lectures (toutes les pages)
+  - Configuration spécifique pour chaque type de collection (Animes, Mangas, Films, Séries, Livres, Jeux)
+  - Les pages de jeux avaient déjà le bouton d'aide, maintenant toutes les pages en bénéficient
+
+- **Guide d'aide pour les jeux**
+  - Mise à jour du guide d'aide pour inclure les informations sur l'ajout rapide RAWG
+  - Exemples de recherche mis à jour avec des URLs RAWG
+  - Description améliorée expliquant la détection automatique des IDs/URLs
+  - Configuration spécifique pour les jeux vidéo RAWG avec filtres adaptés
+
 ## [1.0.5-Fix] - 2025-12-05
 
 ### ✨ Ajouté
@@ -707,8 +781,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.5-Fix2]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5-Fix2
+[1.0.5-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5-Fix
 [1.0.5]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5
-[1.0.4-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.4-Fix
 [1.0.4]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.4
 [1.0.3]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Rory-Mercury-91/le-nexus/releases/tag/v1.0.2

@@ -128,11 +128,13 @@ interface UseAdulteGameCollectionReturn {
   handleChangeStatus: (gameId: number, newStatus: string) => Promise<void>;
   handleToggleHidden: (gameId: number) => Promise<void>;
   handleImportFromF95Directly: (f95Id: string) => Promise<void>;
+  handleImportFromRawgDirectly: (rawgIdOrSlug: string | number) => Promise<void>;
 
   // Détection URL/ID
-  detectUrlOrId: (input: string) => { type: 'f95' | 'lewdcorner' | 'id' | null; id: string | null };
+  detectUrlOrId: (input: string) => { type: 'f95' | 'lewdcorner' | 'rawg' | 'id' | null; id: string | null };
   showAddFromUrl: boolean;
   importingF95: boolean;
+  importingRawg: boolean;
 
   // Messages
   message: { type: 'success' | 'error'; text: string } | null;
@@ -255,6 +257,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   const [showAddModal, setShowAddModal] = useState(false);
   const [initialSearchId, setInitialSearchId] = useState<string | null>(null);
   const [importingF95, setImportingF95] = useState(false);
+  const [importingRawg, setImportingRawg] = useState(false);
   const [updateKey, setUpdateKey] = useState(0); // Clé pour forcer le re-render
 
   // Utilisateur
@@ -440,7 +443,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     const handleUpdateSeenFromDetail = (event: Event) => {
       const customEvent = event as CustomEvent<{ gameId: number }>;
       const { gameId } = customEvent.detail;
-      
+
       // Mettre à jour l'état local pour retirer le badge de mise à jour
       updateGameInState(gameId, { maj_disponible: false });
     };
@@ -499,10 +502,31 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   }, [loadGames]);
 
   // Détecter URL ou ID
-  const detectUrlOrId = useCallback((input: string): { type: 'f95' | 'lewdcorner' | 'id' | null; id: string | null } => {
+  const detectUrlOrId = useCallback((input: string): { type: 'f95' | 'lewdcorner' | 'rawg' | 'id' | null; id: string | null } => {
     const trimmed = input.trim();
 
+    // Détecter URL RAWG
+    if (trimmed.includes('rawg.io/games/')) {
+      // Pattern 1: URL avec slug suivi de l'ID (ex: https://rawg.io/games/grand-theft-auto-v)
+      // On ne peut pas extraire l'ID depuis le slug, donc on cherche par slug
+      const slugMatch = trimmed.match(/rawg\.io\/games\/([^/?]+)/);
+      if (slugMatch) {
+        // Pour les URLs RAWG avec slug, on retourne le slug comme identifiant
+        // L'API RAWG peut rechercher par slug
+        return { type: 'rawg', id: slugMatch[1] };
+      }
+      // Pattern 2: URL avec ID numérique direct (ex: https://rawg.io/games/12345)
+      const idMatch = trimmed.match(/rawg\.io\/games\/(\d+)/);
+      if (idMatch) {
+        return { type: 'rawg', id: idMatch[1] };
+      }
+    }
+
+    // Si c'est juste un nombre, on assume que c'est un ID F95 (plus commun pour les jeux adultes)
+    // Mais on peut aussi vérifier si c'est un ID RAWG valide (généralement 5-6 chiffres)
     if (/^\d+$/.test(trimmed)) {
+      // Les IDs RAWG sont généralement plus longs (5-6 chiffres), mais on ne peut pas être sûr
+      // On retourne 'id' et on laissera la logique décider
       return { type: 'id', id: trimmed };
     }
 
@@ -543,10 +567,15 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     sortBy,
     searchConfig: {
       getTitle: (game) => game.titre,
-      getExternalId: (game) => game.f95_thread_id || null,
+      getExternalId: (game) => game.f95_thread_id || game.rawg_id || null,
       detectIdFromSearch: (searchTerm: string) => {
         const detected = detectUrlOrId(searchTerm);
         if (detected.id) {
+          // Pour RAWG, on peut avoir un slug (string) ou un ID (number)
+          if (detected.type === 'rawg' && !/^\d+$/.test(detected.id)) {
+            // C'est un slug, on ne peut pas le convertir en ID directement
+            return null;
+          }
           return { id: parseInt(detected.id, 10) };
         }
         // Recherche numérique directe
@@ -605,16 +634,28 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
           }
         }
 
-        // Recherche spéciale pour URLs F95Zone/LewdCorner (si la recherche textuelle n'a pas déjà matché)
+        // Recherche spéciale pour URLs F95Zone/LewdCorner/RAWG (si la recherche textuelle n'a pas déjà matché)
         const normalizedSearch = searchTerm.trim().toLowerCase();
         if (normalizedSearch) {
           const urlOrIdForSearch = detectUrlOrId(searchTerm);
           if (urlOrIdForSearch.id) {
-            const searchId = parseInt(urlOrIdForSearch.id, 10);
-            const isLewdCorner = game.lien_f95?.includes('lewdcorner.com');
-            const matchesId = game.f95_thread_id === searchId ||
-              (isLewdCorner && game.lien_f95?.includes(`/threads/${searchId}/`));
-            if (!matchesId) return false;
+            if (urlOrIdForSearch.type === 'rawg') {
+              // Pour RAWG, vérifier si c'est un ID numérique ou un slug
+              if (/^\d+$/.test(urlOrIdForSearch.id)) {
+                const searchId = parseInt(urlOrIdForSearch.id, 10);
+                if (game.rawg_id !== searchId) return false;
+              } else {
+                // C'est un slug, on ne peut pas le matcher directement ici
+                // La recherche textuelle devrait déjà l'avoir trouvé si le titre correspond
+                return true; // Laisser passer pour que la recherche textuelle fonctionne
+              }
+            } else {
+              const searchId = parseInt(urlOrIdForSearch.id, 10);
+              const isLewdCorner = game.lien_f95?.includes('lewdcorner.com');
+              const matchesId = game.f95_thread_id === searchId ||
+                (isLewdCorner && game.lien_f95?.includes(`/threads/${searchId}/`));
+              if (!matchesId) return false;
+            }
           }
         }
 
@@ -690,7 +731,84 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
   const urlOrIdForSearch = detectUrlOrId(searchTerm);
   const detectedUrlOrId = hasSearchTerm ? urlOrIdForSearch : { type: null, id: null };
   const hasNoResults = !loading && sortedGames.length === 0 && hasSearchTerm;
-  const showAddFromUrl = hasNoResults && detectedUrlOrId.id !== null && !importingF95 && detectedUrlOrId.type !== 'lewdcorner';
+  const showAddFromUrl = hasNoResults && detectedUrlOrId.id !== null && !importingF95 && !importingRawg && detectedUrlOrId.type !== 'lewdcorner';
+
+  // Importer depuis RAWG directement
+  const handleImportFromRawgDirectly = useCallback(async (rawgIdOrSlug: string | number) => {
+    if (importingRawg) return;
+
+    setImportingRawg(true);
+    try {
+      // Si c'est un slug (string non numérique), on doit d'abord rechercher le jeu
+      let rawgId: number;
+      if (typeof rawgIdOrSlug === 'string' && !/^\d+$/.test(rawgIdOrSlug)) {
+        // C'est un slug, rechercher le jeu
+        const searchResult = await window.electronAPI.searchRawgGames(rawgIdOrSlug, 1);
+        if (!searchResult.success || !searchResult.results || searchResult.results.length === 0) {
+          throw new Error('Jeu RAWG introuvable');
+        }
+        // Prendre le premier résultat
+        const firstResult = searchResult.results[0];
+        if (!firstResult.rawgId) {
+          throw new Error('ID RAWG manquant dans les résultats');
+        }
+        rawgId = firstResult.rawgId;
+      } else {
+        // C'est un ID numérique
+        rawgId = typeof rawgIdOrSlug === 'number' ? rawgIdOrSlug : parseInt(rawgIdOrSlug, 10);
+        if (isNaN(rawgId)) {
+          throw new Error('ID RAWG invalide');
+        }
+      }
+
+      const result = await window.electronAPI.createGameFromRawg(rawgId, true);
+
+      if (result.success) {
+        showToast({
+          title: `✅ Jeu RAWG ajouté avec succès !`,
+          type: 'success'
+        });
+        setSearchTerm('');
+        setSelectedStatutJeu('all');
+        setSelectedStatutPerso('all');
+        setSelectedPlateforme('all');
+        setTranslationFilter('all');
+        setShowMajOnly(false);
+        setShowFavoriteOnly(false);
+        setShowHidden(false);
+        setSelectedTags([]);
+        setSelectedLabels([]);
+        await loadGames(true, {});
+      } else {
+        if (result.error?.includes('existe déjà')) {
+          setSearchTerm('');
+          setSelectedStatutJeu('all');
+          setSelectedStatutPerso('all');
+          setSelectedPlateforme('all');
+          setTranslationFilter('all');
+          setShowMajOnly(false);
+          setShowFavoriteOnly(false);
+          setShowHidden(false);
+          setSelectedTags([]);
+          setSelectedLabels([]);
+          await loadGames(true, {});
+        } else {
+          showToast({
+            title: result.error || 'Erreur lors de l\'ajout',
+            type: 'error'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erreur import RAWG direct:', error);
+      showToast({
+        title: error instanceof Error ? error.message : 'Erreur lors de l\'import depuis RAWG',
+        type: 'error'
+      });
+    } finally {
+      setImportingRawg(false);
+    }
+  }, [importingRawg, loadGames, showToast, setSearchTerm, setSelectedStatutJeu, setSelectedStatutPerso, setSelectedPlateforme, setTranslationFilter, setShowMajOnly, setShowFavoriteOnly, setShowHidden, setSelectedTags, setSelectedLabels]);
 
   // Importer depuis F95Zone directement
   const handleImportFromF95Directly = useCallback(async (f95Id: string) => {
@@ -1066,9 +1184,11 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     handleToggleHidden,
     updateKey,
     handleImportFromF95Directly,
+    handleImportFromRawgDirectly,
     detectUrlOrId,
     showAddFromUrl,
     importingF95,
+    importingRawg,
     message,
     showAddModal,
     setShowAddModal,

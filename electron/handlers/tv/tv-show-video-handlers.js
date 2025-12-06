@@ -170,7 +170,7 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
 
       const paths = getPaths();
       const ext = path.extname(sourcePath).toLowerCase();
-      
+
       // Déterminer le mime type
       const mimeTypes = {
         '.mp4': 'video/mp4',
@@ -186,7 +186,7 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
       let finalFilePath;
       let finalFileName;
       let finalFileSize;
-      
+
       if (isReference) {
         // Pour les références, utiliser le chemin absolu du fichier source
         finalFilePath = sourcePath;
@@ -280,7 +280,7 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
           processed.file_name = video.file_name;
           processed.file_size = video.file_size;
           processed.mime_type = video.mime_type;
-          
+
           // Si c'est une référence, utiliser directement le chemin absolu
           // Sinon, construire le chemin relatif depuis la base
           let fullPath;
@@ -291,11 +291,11 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
             // C'est un chemin relatif, construire le chemin complet
             fullPath = path.join(paths.base, video.file_path);
           }
-          
+
           // Vérifier si le fichier existe
           if (fs.existsSync(fullPath)) {
             processed.exists = true;
-            
+
             // Si c'est un MKV ou AVI, utiliser le serveur de streaming pour transcoder
             const ext = path.extname(fullPath).toLowerCase();
             if (needsTranscoding(fullPath)) {
@@ -341,8 +341,12 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
       }
 
       const videos = getUserVideos(db, showId, userId);
-      const videoIndex = videos.findIndex(vid => vid.id === videoId || vid.id?.toString() === videoId?.toString());
-      
+      const videoIndex = videos.findIndex(vid => {
+        const vidId = vid.id?.toString();
+        const searchId = videoId?.toString();
+        return vidId === searchId || vid.id === videoId;
+      });
+
       if (videoIndex === -1) {
         return { success: false, error: 'Vidéo introuvable' };
       }
@@ -350,7 +354,8 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
       const video = videos[videoIndex];
       const paths = getPaths();
 
-      // Supprimer le fichier si c'est un fichier local (seulement si ce n'est pas une référence)
+      // Essayer de supprimer le fichier si c'est un fichier local (seulement si ce n'est pas une référence)
+      // La suppression de l'entrée en base se fera même si le fichier n'existe plus
       if (video.type === 'file' && video.file_path && !video.is_reference) {
         let absolutePath;
         if (video.is_reference === 1 || video.is_reference === true) {
@@ -360,7 +365,8 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
           // C'est une copie, construire le chemin depuis la base
           absolutePath = path.join(paths.base, video.file_path);
         }
-        
+
+        // Essayer de supprimer le fichier s'il existe, mais ne pas bloquer la suppression de l'entrée en base
         if (fs.existsSync(absolutePath)) {
           try {
             fs.unlinkSync(absolutePath);
@@ -368,10 +374,12 @@ function registerTvShowVideoHandlers(ipcMain, getDb, store, dialog, getMainWindo
           } catch (error) {
             console.warn('⚠️ Impossible de supprimer le fichier:', error.message);
           }
+        } else {
+          console.warn(`⚠️ Fichier vidéo introuvable (peut-être déplacé): ${absolutePath}`);
         }
       }
 
-      // Retirer la vidéo du JSON array
+      // Retirer la vidéo du JSON array (toujours effectué, même si le fichier n'existe plus)
       videos.splice(videoIndex, 1);
       saveUserVideos(db, showId, userId, videos);
 

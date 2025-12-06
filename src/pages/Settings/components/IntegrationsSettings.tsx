@@ -27,7 +27,8 @@ const tooltipTexts = {
   anilistClientSecret: "Clé secrète générée sur anilist.co/settings/developer (OAuth).",
   anilistAutoSync: "Met à jour vos progressions AniList automatiquement à l'intervalle défini.",
   anilistManualSync: "Permet de lancer immédiatement une synchronisation complète AniList.",
-  mihonImport: "L'import du backup doit contenir les données suivantes uniquement :\n\n• Séries de la bibliothèque\n• Chapitres\n• Suivi\n• Historique\n\nLes autres options ne sont pas utiles pour cette application."
+  mihonImport: "L'import du backup doit contenir les données suivantes uniquement :\n\n• Séries de la bibliothèque\n• Chapitres\n• Suivi\n• Historique\n\nLes autres options ne sont pas utiles pour cette application.",
+  rawgKey: "La clé API RAWG permet d'enrichir votre bibliothèque de jeux avec des métadonnées complètes (description, genres, plateformes, notes, etc.)."
 } as const;
 
 type TooltipId = keyof typeof tooltipTexts;
@@ -301,9 +302,6 @@ export default function IntegrationsSettings({
     onSectionStateChange(storageKey, !getNestedSectionState(key));
   };
 
-  const lastSyncDate = malLastSync?.timestamp
-    ? new Date(malLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-    : null;
   const handleAnimeEnrichmentSaved = (config: AnimeEnrichmentConfig) => {
     if (config) {
       setAnimeEnrichmentEnabled(config.enabled || false);
@@ -730,13 +728,9 @@ export default function IntegrationsSettings({
                 style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid var(--success)' }}
               />
             )}
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
                 {malUser?.name}
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                Dernière synchronisation :{' '}
-                {lastSyncDate || 'Jamais'}
               </p>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
                 Dernier état progression :{' '}
@@ -744,6 +738,32 @@ export default function IntegrationsSettings({
                   ? new Date(malLastStatusSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
                   : '—'}
               </p>
+              {malLastSync?.timestamp && (
+                <>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', margin: '8px 0 4px 0' }}>
+                    📊 Dernière synchronisation
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
+                    {new Date(malLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                  {(malLastSync.animes !== undefined || malLastSync.mangas !== undefined) && (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      {malLastSync.animes !== undefined && (
+                        <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                          <span style={{ fontWeight: 600 }}>Animes :</span>{' '}
+                          <span style={{ color: 'var(--success)' }}>{malLastSync.animes}</span>
+                        </div>
+                      )}
+                      {malLastSync.mangas !== undefined && (
+                        <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                          <span style={{ fontWeight: 600 }}>Lectures :</span>{' '}
+                          <span style={{ color: 'var(--success)' }}>{malLastSync.mangas}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <button
@@ -805,9 +825,6 @@ export default function IntegrationsSettings({
 
   const renderAniListStatus = () => {
     if (anilistConnected) {
-      const lastSyncDate = anilistLastSync?.timestamp
-        ? new Date(anilistLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-        : null;
       return (
         <div
           style={{
@@ -831,13 +848,9 @@ export default function IntegrationsSettings({
                 style={{ width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #02a9ff' }}
               />
             )}
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
                 {anilistUser?.name}
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                Dernière synchronisation :{' '}
-                {lastSyncDate || 'Jamais'}
               </p>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
                 Dernier état progression :{' '}
@@ -845,6 +858,32 @@ export default function IntegrationsSettings({
                   ? new Date(anilistLastStatusSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
                   : '—'}
               </p>
+              {anilistLastSync?.timestamp && (
+                <>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', margin: '8px 0 4px 0' }}>
+                    📊 Dernière synchronisation
+                  </p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
+                    {new Date(anilistLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                  {(anilistLastSync.animes !== undefined || anilistLastSync.mangas !== undefined) && (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      {anilistLastSync.animes !== undefined && (
+                        <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                          <span style={{ fontWeight: 600 }}>Animes :</span>{' '}
+                          <span style={{ color: 'var(--success)' }}>{anilistLastSync.animes}</span>
+                        </div>
+                      )}
+                      {anilistLastSync.mangas !== undefined && (
+                        <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                          <span style={{ fontWeight: 600 }}>Lectures :</span>{' '}
+                          <span style={{ color: 'var(--success)' }}>{anilistLastSync.mangas}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <button
@@ -1012,18 +1051,22 @@ export default function IntegrationsSettings({
               <TooltipIcon id="anilistManualSync" />
             </div>
             <button
-              onClick={onAnilistSyncNow}
-              className="btn"
+              onClick={() => Promise.resolve(onAnilistSyncNow())}
+              className="btn btn-primary"
               disabled={!anilistConnected}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                borderRadius: '10px',
+                fontSize: '14px',
                 opacity: !anilistConnected ? 0.5 : 1,
                 cursor: !anilistConnected ? 'not-allowed' : 'pointer',
-                padding: '8px 16px',
-                fontSize: '13px',
-                borderRadius: '8px',
               }}
             >
-              <RefreshCw size={14} style={{ marginRight: '6px', display: 'inline' }} />
+              <RefreshCw size={14} style={{ animation: 'none' }} />
               Synchroniser maintenant
             </button>
             {!anilistConnected && (
@@ -1033,11 +1076,6 @@ export default function IntegrationsSettings({
             )}
           </div>
         </div>
-        {anilistConnected && anilistLastSync?.timestamp && (
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '18px' }}>
-            Dernière sync : {new Date(anilistLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
-          </p>
-        )}
       </div>
     );
   };
@@ -1297,44 +1335,6 @@ export default function IntegrationsSettings({
             )}
           </div>
         </div>
-        {malConnected && malLastSync?.timestamp && (
-          <div
-            style={{
-              marginTop: '12px',
-              padding: '16px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 8px 18px rgba(15, 23, 42, 0.18)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
-              📊 Dernière synchronisation
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              {new Date(malLastSync.timestamp).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
-            </div>
-            {(malLastSync.animes !== undefined || malLastSync.mangas !== undefined) && (
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {malLastSync.animes !== undefined && (
-                  <div style={{ fontSize: '12px', color: 'var(--text)' }}>
-                    <span style={{ fontWeight: 600 }}>Animes :</span>{' '}
-                    <span style={{ color: 'var(--success)' }}>{malLastSync.animes}</span>
-                  </div>
-                )}
-                {malLastSync.mangas !== undefined && (
-                  <div style={{ fontSize: '12px', color: 'var(--text)' }}>
-                    <span style={{ fontWeight: 600 }}>Lectures :</span>{' '}
-                    <span style={{ color: 'var(--success)' }}>{malLastSync.mangas}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -1441,11 +1441,10 @@ export default function IntegrationsSettings({
 
       const result = await window.electronAPI.testRawgConnection({ apiKey: key });
       if (result?.success) {
-        const message = 'Connexion RAWG validée. Les services d\'enrichissement de jeux sont opérationnels.';
-        setRawgTestResult({ success: true, message });
+        setRawgTestResult({ success: true, message: 'Connexion RAWG validée' });
         showToast?.({
           title: 'Connexion RAWG réussie',
-          message,
+          message: 'Connexion RAWG validée',
           type: 'success'
         });
       } else {
@@ -1497,6 +1496,12 @@ export default function IntegrationsSettings({
               <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Clé API RAWG <span style={{ color: '#f97316' }}>*</span>
               </label>
+              <TooltipIcon id="rawgKey" />
+              {rawgTestResult?.success && (
+                <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 500 }}>
+                  Connexion RAWG validée
+                </span>
+              )}
             </div>
             <button
               onClick={handleTestRawgConnection}
@@ -1563,13 +1568,13 @@ export default function IntegrationsSettings({
               Sauvegarde en cours…
             </div>
           )}
-          {rawgTestResult && (
+          {rawgTestResult && !rawgTestResult.success && (
             <div
               style={{
                 fontSize: '12px',
-                color: rawgTestResult.success ? 'var(--success)' : 'var(--error)',
-                border: `1px solid ${rawgTestResult.success ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.35)'}`,
-                background: rawgTestResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                color: 'var(--error)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                background: 'rgba(239, 68, 68, 0.08)',
                 borderRadius: '8px',
                 padding: '10px 12px',
                 display: 'flex',
@@ -1582,18 +1587,6 @@ export default function IntegrationsSettings({
               {rawgTestResult.message}
             </div>
           )}
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-            La clé API RAWG permet d'enrichir votre bibliothèque de jeux avec des métadonnées complètes (description, genres, plateformes, notes, etc.).
-            <br />
-            <a
-              href="https://rawg.io/apidocs"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: 'var(--primary)', textDecoration: 'underline' }}
-            >
-              Obtenir une clé API RAWG
-            </a>
-          </p>
         </div>
       </div>
     </div>

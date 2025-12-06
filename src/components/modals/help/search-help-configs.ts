@@ -22,7 +22,7 @@ export interface CustomFilter {
 }
 
 export interface SearchHelpConfig {
-  collectionType: 'animes' | 'mangas' | 'movies' | 'series' | 'adulte-game' | 'books';
+  collectionType: 'animes' | 'mangas' | 'movies' | 'series' | 'adulte-game' | 'books' | 'videos';
   collectionName: string;
   searchPlaceholder: string;
   searchExamples: string[];
@@ -217,13 +217,15 @@ export const SERIES_SEARCH_HELP_CONFIG: SearchHelpConfig = {
 export const ADULTE_GAME_SEARCH_HELP_CONFIG: SearchHelpConfig = {
   collectionType: 'adulte-game',
   collectionName: 'Jeux adultes',
-  searchPlaceholder: 'Rechercher un jeu (titre, F95 ID, LewdCorner ID)...',
+  searchPlaceholder: 'Rechercher un jeu (titre, F95 ID, LewdCorner ID, RAWG ID/URL)...',
   searchExamples: [
     'Being a DIK',
     '123456',
-    'https://f95zone.to/threads/being-a-dik.123456/'
+    'https://f95zone.to/threads/being-a-dik.123456/',
+    'https://rawg.io/games/grand-theft-auto-v',
+    '3498'
   ],
-  searchDescription: 'Vous pouvez rechercher par titre, ID F95 ou ID LewdCorner. Les URLs F95 sont automatiquement détectées.',
+  searchDescription: 'Vous pouvez rechercher par titre, ID F95, ID LewdCorner, ou ID/URL RAWG. Les URLs F95 et RAWG sont automatiquement détectées. Si aucun résultat n\'est trouvé mais qu\'un ID/URL est détecté, un bouton d\'ajout rapide apparaît.',
   sortOptions: [
     { value: 'title-asc', label: '📖 Titre (A → Z)', description: 'Trier par titre alphabétique croissant' },
     { value: 'title-desc', label: '📖 Titre (Z → A)', description: 'Trier par titre alphabétique décroissant' },
@@ -258,6 +260,86 @@ export const ADULTE_GAME_SEARCH_HELP_CONFIG: SearchHelpConfig = {
   ]
 };
 
+export const VIDEOS_ALL_SEARCH_HELP_CONFIG: SearchHelpConfig = {
+  collectionType: 'videos',
+  collectionName: 'Vidéos (Tout)',
+  searchPlaceholder: 'Rechercher une vidéo (titre, MAL ID, TMDb ID...)',
+  searchExamples: [
+    'Attack on Titan',
+    'Inception',
+    'Breaking Bad',
+    '12345',
+    'https://myanimelist.net/anime/16498',
+    'https://www.themoviedb.org/movie/27205'
+  ],
+  searchDescription: 'Vous pouvez rechercher par titre, ID MAL (pour les animes) ou ID TMDb (pour les films et séries). Les URLs sont automatiquement détectées.',
+  sortOptions: [
+    { value: 'title-asc', label: '📖 Titre (A → Z)', description: 'Trier par titre alphabétique croissant' },
+    { value: 'title-desc', label: '📖 Titre (Z → A)', description: 'Trier par titre alphabétique décroissant' },
+    { value: 'date-desc', label: '🆕 Ajout récent', description: 'Afficher les vidéos ajoutées récemment en premier' },
+    { value: 'date-asc', label: '🕐 Ajout ancien', description: 'Afficher les vidéos ajoutées en premier en dernier' }
+  ],
+  statusOptions: [
+    { value: 'À regarder', label: 'À regarder', description: 'Vidéos que vous n\'avez pas encore commencées' },
+    { value: 'En cours', label: 'En cours', description: 'Vidéos que vous regardez actuellement' },
+    { value: 'Terminé', label: 'Terminé', description: 'Vidéos que vous avez terminées' },
+    { value: 'En pause', label: 'En pause', description: 'Vidéos mises en pause temporairement' },
+    { value: 'Abandonné', label: 'Abandonné', description: 'Vidéos que vous avez abandonnées' }
+  ],
+  filterToggles: [
+    { name: 'MAJ', icon: '🔔', description: 'Affiche uniquement les vidéos avec de nouveaux épisodes disponibles (pour les animes et séries)' },
+    { name: 'Favoris', icon: '❤️', description: 'Affiche uniquement vos vidéos favorites' },
+    { name: 'Vidéos masquées', icon: '👁️', description: 'Affiche uniquement les vidéos que vous avez masquées. Les vidéos masquées sont cachées par défaut.' }
+  ],
+  customFilters: [
+    { name: 'Genres', description: 'Filtre par un ou plusieurs genres. Tous les genres sélectionnés doivent être présents dans la vidéo.' },
+    { name: 'Thèmes', description: 'Filtre par un ou plusieurs thèmes (pour les animes uniquement). Tous les thèmes sélectionnés doivent être présents.' },
+    { name: 'Labels', description: 'Filtre par labels personnalisés (pour les animes uniquement). Au moins un label sélectionné doit être présent.' }
+  ],
+  additionalFilters: [
+    { name: 'Type', description: 'Filtre par type : Anime (TV, Film, OVA, ONA, Spécial), Film, ou Série TV' },
+    { name: 'Complétion', description: 'Filtre par statut de visionnage' },
+    { name: 'Statut œuvre', description: 'Filtre par statut de diffusion/publication : En cours, Terminée, etc.' }
+  ]
+};
+
+export const RAWG_GAME_SEARCH_HELP_CONFIG: SearchHelpConfig = {
+  collectionType: 'adulte-game',
+  collectionName: 'Jeux vidéo (RAWG)',
+  searchPlaceholder: 'Rechercher un jeu vidéo (titre, ID RAWG ou URL)...',
+  searchExamples: [
+    'Grand Theft Auto V',
+    '3498',
+    'https://rawg.io/games/grand-theft-auto-v',
+    'https://rawg.io/games/3498'
+  ],
+  searchDescription: 'Vous pouvez rechercher par titre, ID RAWG numérique, ou URL RAWG (avec slug ou ID). Les URLs RAWG sont automatiquement détectées. Si aucun résultat n\'est trouvé mais qu\'un ID/URL RAWG est détecté, un bouton d\'ajout rapide apparaît.',
+  sortOptions: [
+    { value: 'title-asc', label: '📖 Titre (A → Z)', description: 'Trier par titre alphabétique croissant' },
+    { value: 'title-desc', label: '📖 Titre (Z → A)', description: 'Trier par titre alphabétique décroissant' },
+    { value: 'date-desc', label: '🆕 Ajout récent', description: 'Afficher les jeux ajoutés récemment en premier' },
+    { value: 'date-asc', label: '🕐 Ajout ancien', description: 'Afficher les jeux ajoutés en premier en dernier' },
+    { value: 'platform-asc', label: '📦 Plateforme (A → Z)', description: 'Trier par plateforme alphabétique croissante' },
+    { value: 'platform-desc', label: '📦 Plateforme (Z → A)', description: 'Trier par plateforme alphabétique décroissante' }
+  ],
+  statusOptions: [
+    { value: 'À lire', label: 'À lire', description: 'Jeux que vous n\'avez pas encore commencés' },
+    { value: 'En cours', label: 'En cours', description: 'Jeux que vous jouez actuellement' },
+    { value: 'Terminé', label: 'Terminé', description: 'Jeux que vous avez terminés' },
+    { value: 'En pause', label: 'En pause', description: 'Jeux mis en pause temporairement' },
+    { value: 'Abandonné', label: 'Abandonné', description: 'Jeux que vous avez abandonnés' }
+  ],
+  filterToggles: [
+    { name: 'Favoris', icon: '❤️', description: 'Affiche uniquement vos jeux favoris' },
+    { name: 'Jeux masqués', icon: '👁️', description: 'Affiche uniquement les jeux que vous avez masqués. Les jeux masqués sont cachés par défaut.' }
+  ],
+  customFilters: [
+    { name: 'Genres', description: 'Filtre par un ou plusieurs genres RAWG. Tous les genres sélectionnés doivent être présents dans le jeu.' },
+    { name: 'Labels', description: 'Filtre par labels personnalisés. Au moins un label sélectionné doit être présent sur le jeu.' },
+    { name: 'Plateforme', description: 'Filtre par plateforme : PC, PlayStation, Xbox, Nintendo Switch, etc.' }
+  ]
+};
+
 export const SEARCH_HELP_CONFIGS: Record<string, SearchHelpConfig> = {
   'animes': ANIMES_SEARCH_HELP_CONFIG,
   'mangas': MANGAS_SEARCH_HELP_CONFIG,
@@ -265,4 +347,6 @@ export const SEARCH_HELP_CONFIGS: Record<string, SearchHelpConfig> = {
   'series': SERIES_SEARCH_HELP_CONFIG,
   'books': BOOKS_SEARCH_HELP_CONFIG,
   'adulte-game': ADULTE_GAME_SEARCH_HELP_CONFIG,
+  'videos': VIDEOS_ALL_SEARCH_HELP_CONFIG,
+  'rawg-game': RAWG_GAME_SEARCH_HELP_CONFIG,
 };

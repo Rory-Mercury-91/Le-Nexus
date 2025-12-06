@@ -267,7 +267,11 @@ export default function SeriesDetail() {
   const deleteImageApi = useCallback((id: number, imageId: number) => window.electronAPI.deleteTvShowUserImage?.(id, imageId), []);
   const addVideoUrlApi = useCallback((id: number, url: string, title: string) => window.electronAPI.addTvShowUserVideoUrl?.(id, url, title), []);
   const addVideoFileApi = useCallback((id: number, title?: string, isReference?: boolean) => window.electronAPI.addTvShowUserVideoFile?.(id, title, isReference), []);
-  const deleteVideoApi = useCallback((id: number, videoId: number) => window.electronAPI.deleteTvShowUserVideo?.(id, videoId), []);
+  const deleteVideoApi = useCallback((id: number, videoId: number | string) => {
+    // Convertir videoId en string si nécessaire car les IDs sont stockés comme strings dans le JSON
+    const videoIdStr = typeof videoId === 'string' ? videoId : videoId.toString();
+    return window.electronAPI.deleteTvShowUserVideo?.(id, videoIdStr);
+  }, []);
 
   // Hook pour la galerie média (images/vidéos utilisateur)
   const {
@@ -638,7 +642,11 @@ export default function SeriesDetail() {
     if (!episodeVideoToDelete) return;
 
     try {
-      const result = await window.electronAPI.deleteTvEpisodeUserVideo?.(episodeVideoToDelete.episodeId, episodeVideoToDelete.videoId);
+      // Convertir videoId en string si nécessaire car les IDs sont stockés comme strings dans le JSON
+      const videoIdStr = typeof episodeVideoToDelete.videoId === 'string'
+        ? episodeVideoToDelete.videoId
+        : episodeVideoToDelete.videoId.toString();
+      const result = await window.electronAPI.deleteTvEpisodeUserVideo?.(episodeVideoToDelete.episodeId, videoIdStr);
       if (result?.success) {
         showToast({
           title: 'Vidéo supprimée',
@@ -665,8 +673,20 @@ export default function SeriesDetail() {
     }
   }, [episodeVideoToDelete, loadEpisodeVideos, showToast]);
 
-  const handlePlayEpisodeVideo = useCallback((video: { site?: string | null; video_key?: string | null; url?: string; mime_type?: string; title?: string | null }) => {
+  const handlePlayEpisodeVideo = useCallback((video: { site?: string | null; video_key?: string | null; url?: string; mime_type?: string; title?: string | null }, event?: React.MouseEvent) => {
     if (!video.url) return;
+
+    // Vérifier si le clic vient du bouton de suppression
+    if (event) {
+      const target = event.target as HTMLElement;
+      if (target.closest('button[type="button"]')?.querySelector('svg[data-lucide="trash-2"]')) {
+        return;
+      }
+      // Vérifier aussi si le clic vient directement du bouton de suppression
+      if (target.closest('button')?.getAttribute('data-action') === 'delete') {
+        return;
+      }
+    }
 
     // Vérifier si c'est un fichier local (manga://) ou une URL de streaming (serveur local)
     const isLocalFile = video.url.startsWith('manga://');
@@ -1249,10 +1269,26 @@ export default function SeriesDetail() {
                               position: 'relative',
                               display: 'inline-block'
                             }}
+                            onClick={(e) => {
+                              // Empêcher le clic sur le div de déclencher d'autres actions si c'est sur le bouton de suppression
+                              const target = e.target as HTMLElement;
+                              if (target.closest('button[title="Supprimer cette vidéo"]')) {
+                                e.stopPropagation();
+                              }
+                            }}
                           >
                             <button
                               className="btn btn-outline"
-                              onClick={() => {
+                              onClick={(e) => {
+                                // Ne pas déclencher si le clic vient du bouton de suppression
+                                const target = e.target as HTMLElement;
+                                const deleteButton = target.closest('button[title="Supprimer cette vidéo"]');
+                                if (deleteButton) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  return;
+                                }
+
                                 // Seules les vidéos locales s'ouvrent dans le player intégré
                                 if (isLocalFile && (video as any).url) {
                                   setSelectedVideo({
@@ -1286,8 +1322,21 @@ export default function SeriesDetail() {
                               <button
                                 type="button"
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
+                                  console.log('🗑️ Clic sur bouton suppression, videoId:', videoId);
                                   handleDeleteUserVideoClick(videoId);
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
+                                }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
                                 }}
                                 style={{
                                   position: 'absolute',
@@ -1303,7 +1352,9 @@ export default function SeriesDetail() {
                                   justifyContent: 'center',
                                   color: 'white',
                                   width: '20px',
-                                  height: '20px'
+                                  height: '20px',
+                                  zIndex: 1000,
+                                  pointerEvents: 'auto'
                                 }}
                                 title="Supprimer cette vidéo"
                               >
@@ -1793,7 +1844,7 @@ export default function SeriesDetail() {
         />
       )}
 
-      {videoToDelete !== null && (
+      {videoToDelete !== null && videoToDelete !== undefined && (
         <ConfirmModal
           title="Supprimer la vidéo"
           message="Êtes-vous sûr de vouloir supprimer cette vidéo ?"
@@ -2292,13 +2343,14 @@ function SeasonCard({
                                     borderRadius: '8px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '8px'
+                                    gap: '8px',
+                                    position: 'relative'
                                   }}
                                 >
                                   <button
                                     type="button"
                                     onClick={(e) => {
+                                      e.preventDefault();
                                       e.stopPropagation();
                                       onPlayEpisodeVideo(video);
                                     }}
@@ -2310,32 +2362,45 @@ function SeasonCard({
                                       color: 'var(--text)',
                                       cursor: 'pointer',
                                       fontSize: '12px',
-                                      padding: 0,
+                                      padding: '0 24px 0 0',
                                       display: 'flex',
                                       alignItems: 'center',
-                                      gap: '6px'
+                                      gap: '6px',
+                                      minWidth: 0
                                     }}
                                   >
                                     <Play size={14} style={{ flexShrink: 0 }} />
-                                    <span>{video.title || (video.site || 'Vidéo')}</span>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {video.title || (video.site || 'Vidéo')}
+                                    </span>
                                   </button>
                                   <button
                                     type="button"
                                     onClick={(e) => {
+                                      e.preventDefault();
                                       e.stopPropagation();
                                       onDeleteEpisodeVideo(episode.id, video.id);
                                     }}
                                     style={{
-                                      padding: '4px',
-                                      background: 'transparent',
+                                      position: 'absolute',
+                                      top: '4px',
+                                      right: '4px',
+                                      background: 'rgba(239, 68, 68, 0.9)',
                                       border: 'none',
-                                      color: 'var(--text-secondary)',
+                                      borderRadius: '6px',
+                                      padding: '4px',
                                       cursor: 'pointer',
                                       display: 'flex',
-                                      alignItems: 'center'
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: 'white',
+                                      width: '20px',
+                                      height: '20px',
+                                      zIndex: 10
                                     }}
+                                    title="Supprimer cette vidéo"
                                   >
-                                    <Trash2 size={14} />
+                                    <Trash2 size={12} />
                                   </button>
                                 </div>
                               ))}

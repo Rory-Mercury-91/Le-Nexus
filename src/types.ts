@@ -660,6 +660,7 @@ export interface AdulteGame {
   // IDs des plateformes (nouveaux champs)
   f95_thread_id?: number | null;
   Lewdcorner_thread_id?: number | null;
+  rawg_id?: number | null; // ID RAWG pour les jeux vidéo
   
   // Données générales (nouveaux noms)
   titre: string;

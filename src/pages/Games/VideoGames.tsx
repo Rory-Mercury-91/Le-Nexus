@@ -6,7 +6,7 @@ const config: GameCollectionPageConfig = {
   storageKey: 'games.video',
   title: 'Collection Jeux - Jeux Vidéo',
   icon: '🎮',
-  searchPlaceholder: 'Rechercher un jeu vidéo (titre, ID RAWG)...',
+  searchPlaceholder: 'Rechercher un jeu vidéo (titre, ID RAWG ou URL)...',
   emptyMessage: 'Aucun jeu vidéo dans votre collection',
   emptyIconEmoji: '🎮'
 };

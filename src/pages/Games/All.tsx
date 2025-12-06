@@ -6,7 +6,7 @@ const config: GameCollectionPageConfig = {
   storageKey: 'games.all',
   title: 'Collection Jeux',
   icon: '🎮',
-  searchPlaceholder: 'Rechercher un jeu (titre, F95 ID, LewdCorner ID)...',
+  searchPlaceholder: 'Rechercher un jeu (titre, F95 ID, LewdCorner ID, RAWG ID/URL)...',
   emptyMessage: 'Aucun jeu dans votre collection',
   emptyIconEmoji: '🎮'
 };

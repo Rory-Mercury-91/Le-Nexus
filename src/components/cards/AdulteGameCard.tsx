@@ -237,59 +237,61 @@ export default function AdulteGameCard({
         minHeight: 0,
         overflow: 'hidden'
       }}>
-        {/* Informations de version */}
-        <div style={{
-          fontSize: '11px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '3px'
-        }}>
-          {/* Ligne 1 : Version actuelle et Version traduite côte à côte */}
+        {/* Informations de version (masquées pour les jeux RAWG) */}
+        {game.game_site !== 'RAWG' && (
           <div style={{
+            fontSize: '11px',
             display: 'flex',
-            gap: '12px',
-            flexWrap: 'wrap',
-            alignItems: 'center'
+            flexDirection: 'column',
+            gap: '3px'
           }}>
-            <span>
-              <span style={{ color: 'var(--text-secondary)' }}>Version actuelle : </span>
-              <span style={{ color: 'var(--text)', fontWeight: 600 }}>
-                {game.version || 'Non connue'}
+            {/* Ligne 1 : Version actuelle et Version traduite côte à côte */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'center'
+            }}>
+              <span>
+                <span style={{ color: 'var(--text-secondary)' }}>Version actuelle : </span>
+                <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+                  {game.version || 'Non connue'}
+                </span>
               </span>
-            </span>
-            <span>
-              <span style={{ color: 'var(--text-secondary)' }}>Version traduite : </span>
-              <span style={{
-                color: (() => {
-                  if (!game.version_traduite) {
-                    return 'var(--text-secondary)';
-                  }
-                  // Si c'est "intégré", couleur neutre
-                  if (game.version_traduite.toLowerCase().includes('intégré')) {
-                    return 'var(--text)';
-                  }
-                  // Sinon, comparer avec la version actuelle
-                  if (game.version && game.version_traduite !== game.version) {
-                    return 'var(--error)';
-                  }
-                  return 'var(--success)';
-                })(),
-                fontWeight: 600
-              }}>
-                {game.version_traduite || 'Non connue'}
+              <span>
+                <span style={{ color: 'var(--text-secondary)' }}>Version traduite : </span>
+                <span style={{
+                  color: (() => {
+                    if (!game.version_traduite) {
+                      return 'var(--text-secondary)';
+                    }
+                    // Si c'est "intégré", couleur neutre
+                    if (game.version_traduite.toLowerCase().includes('intégré')) {
+                      return 'var(--text)';
+                    }
+                    // Sinon, comparer avec la version actuelle
+                    if (game.version && game.version_traduite !== game.version) {
+                      return 'var(--error)';
+                    }
+                    return 'var(--success)';
+                  })(),
+                  fontWeight: 600
+                }}>
+                  {game.version_traduite || 'Non connue'}
+                </span>
               </span>
-            </span>
+            </div>
+            {/* Ligne 2 : Dernière version jouée (uniquement si renseignée) */}
+            {game.version_jouee && (
+              <span>
+                <span style={{ color: 'var(--text-secondary)' }}>Dernière version jouée : </span>
+                <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+                  {game.version_jouee}
+                </span>
+              </span>
+            )}
           </div>
-          {/* Ligne 2 : Dernière version jouée (uniquement si renseignée) */}
-          {game.version_jouee && (
-            <span>
-              <span style={{ color: 'var(--text-secondary)' }}>Dernière version jouée : </span>
-              <span style={{ color: 'var(--text)', fontWeight: 600 }}>
-                {game.version_jouee}
-              </span>
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Titre + Badges additionnels */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>

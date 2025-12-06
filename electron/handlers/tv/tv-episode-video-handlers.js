@@ -95,7 +95,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
       // Récupérer et mettre à jour episode_videos JSON
       const episodeVideos = getEpisodeVideos(db, episode.show_id, userId);
       const episodeIdStr = String(episodeId);
-      
+
       if (!episodeVideos[episodeIdStr]) {
         episodeVideos[episodeIdStr] = [];
       }
@@ -114,7 +114,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
         is_reference: 0,
         created_at: new Date().toISOString()
       };
-      
+
       episodeVideos[episodeIdStr].push(newVideo);
       saveEpisodeVideos(db, episode.show_id, userId, episodeVideos);
 
@@ -178,7 +178,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
 
       const sourcePath = result.filePaths[0];
       let ext = path.extname(sourcePath).toLowerCase();
-      
+
       // Si pas d'extension, détecter depuis les magic bytes
       if (!ext) {
         try {
@@ -188,27 +188,27 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
             ext = '.mkv';
           }
           // AVI: RIFF...AVI 
-          else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && 
-                   buffer[8] === 0x41 && buffer[9] === 0x56 && buffer[10] === 0x49 && buffer[11] === 0x20) {
+          else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+            buffer[8] === 0x41 && buffer[9] === 0x56 && buffer[10] === 0x49 && buffer[11] === 0x20) {
             ext = '.avi';
           }
           // MP4: ftyp
           else if ((buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) ||
-                   (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0x00 && buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70)) {
+            (buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0x00 && buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70)) {
             ext = '.mp4';
           }
         } catch (detectError) {
           console.warn('Impossible de détecter le type de fichier:', detectError);
         }
       }
-      
+
       // Valider l'extension
       const supportedExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m4v'];
       if (!ext || !supportedExtensions.includes(ext)) {
         const supportedList = supportedExtensions.map(e => e.toUpperCase().substring(1)).join(', ');
-        return { 
-          success: false, 
-          error: `Format vidéo non supporté. Formats supportés : ${supportedList}` 
+        return {
+          success: false,
+          error: `Format vidéo non supporté. Formats supportés : ${supportedList}`
         };
       }
 
@@ -247,9 +247,9 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
         try {
           fs.copyFileSync(sourcePath, destPath);
         } catch (copyError) {
-          return { 
-            success: false, 
-            error: `Impossible de copier le fichier : ${copyError.message}` 
+          return {
+            success: false,
+            error: `Impossible de copier le fichier : ${copyError.message}`
           };
         }
 
@@ -261,7 +261,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
       // Récupérer et mettre à jour episode_videos JSON
       const episodeVideos = getEpisodeVideos(db, episode.show_id, userId);
       const episodeIdStr = String(episodeId);
-      
+
       if (!episodeVideos[episodeIdStr]) {
         episodeVideos[episodeIdStr] = [];
       }
@@ -280,7 +280,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
         is_reference: isReference ? 1 : 0,
         created_at: new Date().toISOString()
       };
-      
+
       episodeVideos[episodeIdStr].push(newVideo);
       saveEpisodeVideos(db, episode.show_id, userId, episodeVideos);
 
@@ -331,7 +331,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
       const videos = episodeVideos[episodeIdStr] || [];
 
       const paths = getPaths();
-      
+
       // Traiter les vidéos pour ajouter les URLs
       const processedVideos = await Promise.all(videos.map(async (video) => {
         const processed = {
@@ -343,7 +343,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
           created_at: video.created_at,
           is_reference: video.is_reference === 1 || video.is_reference === true
         };
-        
+
         if (video.type === 'url' && video.url) {
           // Vidéo URL (YouTube, Vimeo, etc.)
           processed.url = video.url;
@@ -353,7 +353,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
           processed.file_name = video.file_name;
           processed.file_size = video.file_size;
           processed.mime_type = video.mime_type;
-          
+
           // Si c'est une référence, utiliser directement le chemin absolu
           // Sinon, construire le chemin relatif depuis la base
           let fullPath;
@@ -364,11 +364,11 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
             // C'est un chemin relatif, construire le chemin complet
             fullPath = path.join(paths.base, video.file_path);
           }
-          
+
           // Vérifier si le fichier existe
           if (fs.existsSync(fullPath)) {
             processed.exists = true;
-            
+
             // Si c'est un MKV ou AVI, utiliser le serveur de streaming pour transcoder
             const ext = path.extname(fullPath).toLowerCase();
             if (needsTranscoding(fullPath)) {
@@ -384,7 +384,7 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
             console.warn(`⚠️ Fichier vidéo introuvable: ${fullPath}`);
           }
         }
-        
+
         return processed;
       }));
 
@@ -424,9 +424,13 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
       const episodeVideos = getEpisodeVideos(db, episode.show_id, userId);
       const episodeIdStr = String(episodeId);
       const videos = episodeVideos[episodeIdStr] || [];
-      
-      const videoIndex = videos.findIndex(vid => vid.id === videoId || vid.id?.toString() === videoId?.toString());
-      
+
+      const videoIndex = videos.findIndex(vid => {
+        const vidId = vid.id?.toString();
+        const searchId = videoId?.toString();
+        return vidId === searchId || vid.id === videoId;
+      });
+
       if (videoIndex === -1) {
         return { success: false, error: 'Vidéo introuvable' };
       }
@@ -434,28 +438,34 @@ function registerTvEpisodeVideoHandlers(ipcMain, getDb, store, dialog, getMainWi
       const video = videos[videoIndex];
       const paths = getPaths();
 
-      // Supprimer le fichier si c'est un fichier local et que ce n'est PAS une référence
-      if (video.type === 'file' && video.file_path && !video.is_reference) {
-        let absolutePath;
-        if (video.is_reference === 1 || video.is_reference === true) {
-          // C'est une référence, utiliser le chemin absolu directement
-          absolutePath = video.file_path;
-        } else {
+      // Essayer de supprimer le fichier si c'est un fichier local et que ce n'est PAS une référence
+      // La suppression de l'entrée en base se fera même si le fichier n'existe plus
+      if (video.type === 'file' && video.file_path) {
+        const isReference = video.is_reference === 1 || video.is_reference === true;
+
+        // Ne supprimer le fichier que si ce n'est pas une référence
+        if (!isReference) {
           // C'est une copie, construire le chemin depuis la base
-          absolutePath = path.join(paths.base, video.file_path);
-        }
-        
-        if (fs.existsSync(absolutePath)) {
-          try {
-            fs.unlinkSync(absolutePath);
-            console.log(`✅ Fichier vidéo supprimé: ${absolutePath}`);
-          } catch (error) {
-            console.warn('⚠️ Impossible de supprimer le fichier:', error.message);
+          const absolutePath = path.join(paths.base, video.file_path);
+
+          // Essayer de supprimer le fichier s'il existe, mais ne pas bloquer la suppression de l'entrée en base
+          if (fs.existsSync(absolutePath)) {
+            try {
+              fs.unlinkSync(absolutePath);
+              console.log(`✅ Fichier vidéo supprimé: ${absolutePath}`);
+            } catch (error) {
+              console.warn('⚠️ Impossible de supprimer le fichier:', error.message);
+            }
+          } else {
+            console.warn(`⚠️ Fichier vidéo introuvable (peut-être déplacé): ${absolutePath}`);
           }
+        } else {
+          // C'est une référence, on ne supprime pas le fichier mais on log pour information
+          console.log(`ℹ️ Vidéo référence supprimée (fichier conservé): ${video.file_path}`);
         }
       }
 
-      // Retirer la vidéo du JSON array
+      // Retirer la vidéo du JSON array (toujours effectué, même si le fichier n'existe plus ou si c'est une référence)
       videos.splice(videoIndex, 1);
       if (videos.length === 0) {
         delete episodeVideos[episodeIdStr];

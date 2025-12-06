@@ -20,7 +20,7 @@ import AddAdulteGameModal from '../../../../components/modals/adulte-game/AddAdu
 import AdulteGameUnlockModal from '../../../../components/modals/adulte-game/AdulteGameUnlockModal';
 import ScanExecutablesModal from '../../../../components/modals/adulte-game/ScanExecutablesModal';
 import SearchHelpModal from '../../../../components/modals/help/SearchHelpModal';
-import { ADULTE_GAME_SEARCH_HELP_CONFIG } from '../../../../components/modals/help/search-help-configs';
+import { ADULTE_GAME_SEARCH_HELP_CONFIG, RAWG_GAME_SEARCH_HELP_CONFIG } from '../../../../components/modals/help/search-help-configs';
 import { useGlobalProgress } from '../../../../contexts/GlobalProgressContext';
 import { useAdulteGameCollection } from '../../../../hooks/collections/useAdulteGameCollection';
 import { useMultiDelete } from '../../../../hooks/collections/useMultiDelete';
@@ -106,9 +106,11 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
     handleChangeStatus,
     handleToggleHidden,
     handleImportFromF95Directly,
+    handleImportFromRawgDirectly,
     detectUrlOrId,
     showAddFromUrl,
     importingF95,
+    importingRawg,
     message,
     showAddModal,
     setShowAddModal,
@@ -147,7 +149,8 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
         const titleMatch = game.titre?.toLowerCase().includes(normalizedSearch);
         const f95IdMatch = game.f95_thread_id?.toString().includes(normalizedSearch);
         const lcIdMatch = game.Lewdcorner_thread_id?.toString().includes(normalizedSearch);
-        return titleMatch || f95IdMatch || lcIdMatch;
+        const rawgIdMatch = game.rawg_id?.toString().includes(normalizedSearch);
+        return titleMatch || f95IdMatch || lcIdMatch || rawgIdMatch;
       });
     }
 
@@ -990,16 +993,21 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
             />
           )}
 
-          {/* Message d'ajout depuis URL/ID F95Zone */}
+          {/* Message d'ajout depuis URL/ID F95Zone ou RAWG */}
           {showAddFromUrl && (() => {
             const detected = detectUrlOrId(searchTerm);
+            const isRawg = detected.type === 'rawg';
+            const isF95 = detected.type === 'f95' || detected.type === 'id';
+
+            if (!isRawg && !isF95) return null;
+
             return (
               <div style={{
                 padding: '20px',
                 marginBottom: '24px',
                 borderRadius: '12px',
-                background: 'rgba(139, 92, 246, 0.1)',
-                border: '2px solid #8b5cf6',
+                background: isRawg ? 'rgba(2, 169, 255, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                border: `2px solid ${isRawg ? '#02a9ff' : '#8b5cf6'}`,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px'
@@ -1008,7 +1016,7 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  color: '#8b5cf6',
+                  color: isRawg ? '#02a9ff' : '#8b5cf6',
                   fontSize: '15px',
                   fontWeight: '600'
                 }}>
@@ -1021,18 +1029,36 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
                   margin: 0,
                   lineHeight: '1.6'
                 }}>
-                  ID F95Zone détecté : <strong>{detected.id}</strong>. Souhaitez-vous ajouter ce jeu depuis F95Zone ?
+                  {isRawg ? (
+                    <>ID ou URL RAWG détecté : <strong>{detected.id}</strong>. Souhaitez-vous ajouter ce jeu depuis RAWG ?</>
+                  ) : (
+                    <>ID F95Zone détecté : <strong>{detected.id}</strong>. Souhaitez-vous ajouter ce jeu depuis F95Zone ?</>
+                  )}
                 </p>
                 <button
-                  onClick={() => detected.id && handleImportFromF95Directly(detected.id)}
+                  onClick={() => {
+                    if (detected.id) {
+                      if (isRawg) {
+                        // Si c'est un nombre, convertir en number, sinon garder comme string (slug)
+                        const rawgId = /^\d+$/.test(detected.id) ? parseInt(detected.id, 10) : detected.id;
+                        handleImportFromRawgDirectly(rawgId);
+                      } else {
+                        handleImportFromF95Directly(detected.id);
+                      }
+                    }
+                  }}
                   className="btn btn-primary"
-                  disabled={importingF95}
+                  disabled={isRawg ? importingRawg : importingF95}
                   style={{
                     alignSelf: 'flex-start',
                     marginTop: '8px'
                   }}
                 >
-                  {importingF95 ? 'Import en cours...' : 'Ajouter depuis F95Zone'}
+                  {isRawg ? (
+                    importingRawg ? 'Import en cours...' : 'Ajouter depuis RAWG'
+                  ) : (
+                    importingF95 ? 'Import en cours...' : 'Ajouter depuis F95Zone'
+                  )}
                 </button>
               </div>
             );
@@ -1140,7 +1166,7 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
       <SearchHelpModal
         isOpen={showHelpModal}
         onClose={() => setShowHelpModal(false)}
-        config={ADULTE_GAME_SEARCH_HELP_CONFIG}
+        config={config.filterType === 'rawg' ? RAWG_GAME_SEARCH_HELP_CONFIG : ADULTE_GAME_SEARCH_HELP_CONFIG}
       />
 
       {/* Modale de déverrouillage pour /games/all */}

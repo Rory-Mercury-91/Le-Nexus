@@ -1,7 +1,8 @@
+import { Check, Languages, Loader2 } from 'lucide-react';
 import { Fragment, useState } from 'react';
-import { Check } from 'lucide-react';
 import { FormField, useFormValidation } from '../../../hooks/common/useFormValidation';
 import { useToast } from '../../../hooks/common/useToast';
+import { useTranslation } from '../../../hooks/common/useTranslation';
 import { getTmdbImageUrl } from '../../../utils/tmdb';
 import CoverImageUpload from './CoverImageUpload';
 import Modal from './Modal';
@@ -73,21 +74,22 @@ export default function EditItemModal<TItem extends { id: number | string; titre
 
   const { showToast, ToastContainer } = useToast();
   const { validateAndNormalize } = useFormValidation();
+  const { translate, translating } = useTranslation();
   const [saving, setSaving] = useState(false);
 
   // Extraire les valeurs initiales
   const initialValues = extractInitialValues(item);
-  
+
   // Tracker les champs modifiés (pour afficher l'icône ✅)
   const [, setChangedFields] = useState<Set<string>>(new Set());
   // Tracker les champs validés par l'utilisateur (icône ✅ cliquée)
   const [validatedFields, setValidatedFields] = useState<Set<string>>(new Set());
-  
+
   // Fonction pour vérifier si un champ a changé
   const isFieldChanged = (fieldKey: string): boolean => {
     const currentValue = formData[fieldKey];
     const initialValue = normalizedInitialValues[fieldKey];
-    
+
     // Normaliser pour la comparaison
     const normalize = (val: any): string | null => {
       if (val === null || val === undefined || val === '') return null;
@@ -97,10 +99,10 @@ export default function EditItemModal<TItem extends { id: number | string; titre
       }
       return String(val);
     };
-    
+
     return normalize(currentValue) !== normalize(initialValue);
   };
-  
+
   // Fonction pour valider/invalider un champ
   const toggleFieldValidation = (fieldKey: string) => {
     setValidatedFields(prev => {
@@ -151,18 +153,18 @@ export default function EditItemModal<TItem extends { id: number | string; titre
     // Si des champs sont validés, n'envoyer que ceux-là (comme EditMalItemModal)
     // Sinon, envoyer tous les champs (comportement par défaut pour compatibilité)
     let submitData: Record<string, any>;
-    
+
     if (validatedFields.size > 0) {
       // Normaliser UNIQUEMENT les champs validés par l'utilisateur
       submitData = {};
-      
+
       for (const fieldKey of validatedFields) {
         const field = formFields.find(f => f.key === fieldKey);
         if (!field) continue;
-        
+
         const value = formData[fieldKey];
         let normalizedValue: any;
-        
+
         if (field.type === 'number') {
           if (value === '' || value === null || value === undefined) {
             continue;
@@ -200,15 +202,15 @@ export default function EditItemModal<TItem extends { id: number | string; titre
           }
           normalizedValue = value;
         }
-        
+
         // Normaliser les chemins d'image
         if (field.key === 'poster_path' || field.key === 'backdrop_path') {
           normalizedValue = normalizePathForSave(normalizedValue);
         }
-        
+
         submitData[fieldKey] = normalizedValue;
       }
-      
+
       // Préserver les genres si présents dans l'item original
       if ('genres' in item && (item as any).genres) {
         submitData.genres = (item as any).genres;
@@ -273,12 +275,12 @@ export default function EditItemModal<TItem extends { id: number | string; titre
       // Si le champ est validé, TOUJOURS afficher l'icône verte (même si modifié à nouveau)
       // Sinon, afficher l'icône jaune seulement si le champ a changé
       if (!isValidated && !hasChanged) return null;
-      
+
       // Si validé, l'icône est toujours verte, peu importe si le champ a changé à nouveau
       const iconColor = isValidated ? '#22c55e' : '#eab308';
       const iconBackground = isValidated ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)';
       const iconBorder = isValidated ? 'rgba(34, 197, 94, 0.5)' : 'rgba(234, 179, 8, 0.5)';
-      
+
       return (
         <button
           type="button"
@@ -301,12 +303,12 @@ export default function EditItemModal<TItem extends { id: number | string; titre
           }}
           title={isValidated ? 'Champ validé (sera sauvegardé) - Cliquer pour invalider' : 'Cliquer pour valider ce champ'}
         >
-          <Check 
-            size={16} 
-            style={{ 
+          <Check
+            size={16}
+            style={{
               color: iconColor,
               opacity: isValidated ? 1 : 0.7
-            }} 
+            }}
           />
         </button>
       );
@@ -344,6 +346,52 @@ export default function EditItemModal<TItem extends { id: number | string; titre
               style={{ resize: 'vertical' }}
               required={field.required}
             />
+            {/* Bouton de traduction pour synopsis/description */}
+            {(field.key === 'synopsis' || field.key === 'description') && (
+              <button
+                type="button"
+                onClick={() => {
+                  translate({
+                    text: value || '',
+                    onTranslated: (translatedText) => {
+                      setFormData({ ...formData, [field.key]: translatedText });
+                      setTimeout(() => {
+                        setChangedFields(prev => new Set(prev).add(field.key));
+                        setValidatedFields(prev => new Set(prev).add(field.key));
+                      }, 0);
+                    },
+                    minLength: 10,
+                    errorMessage: 'Le texte est trop court pour être traduit'
+                  });
+                }}
+                disabled={!value || value.length < 10 || translating || saving}
+                className="btn"
+                style={{
+                  marginTop: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '13px',
+                  padding: '8px 12px',
+                  background: translating ? 'var(--surface)' : 'rgba(99, 102, 241, 0.1)',
+                  color: translating ? 'var(--text-secondary)' : 'var(--primary)',
+                  border: '1px solid',
+                  borderColor: translating ? 'var(--border)' : 'var(--primary)'
+                }}
+              >
+                {translating ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    Traduction en cours...
+                  </>
+                ) : (
+                  <>
+                    <Languages size={16} />
+                    Traduire en français
+                  </>
+                )}
+              </button>
+            )}
           </div>
         );
 

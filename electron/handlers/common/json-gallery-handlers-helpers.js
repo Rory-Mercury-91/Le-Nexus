@@ -20,7 +20,7 @@ function ensureUserDataRow(db, tableName, itemIdColumnName, userIdColumnName, it
   } catch (error) {
     // Colonnes déjà existantes ou erreur, continuer
   }
-  
+
   const existing = db.prepare(`SELECT id FROM ${tableName} WHERE ${itemIdColumnName} = ? AND ${userIdColumnName} = ?`).get(itemId, userId);
   if (!existing) {
     db.prepare(`
@@ -37,7 +37,7 @@ function getUserImages(db, tableName, itemIdColumnName, userIdColumnName, itemId
   // Vérifier si la colonne existe
   const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
   const hasColumn = tableInfo.some(col => col.name === imageColumnName);
-  
+
   if (!hasColumn) {
     // Ajouter la colonne si elle n'existe pas
     try {
@@ -48,7 +48,7 @@ function getUserImages(db, tableName, itemIdColumnName, userIdColumnName, itemId
       return [];
     }
   }
-  
+
   const row = db.prepare(`SELECT ${imageColumnName} FROM ${tableName} WHERE ${itemIdColumnName} = ? AND ${userIdColumnName} = ?`).get(itemId, userId);
   if (!row || !row[imageColumnName]) {
     return [];
@@ -67,7 +67,7 @@ function saveUserImages(db, tableName, itemIdColumnName, userIdColumnName, itemI
   } catch (error) {
     // Colonne déjà existante ou erreur, continuer
   }
-  
+
   const imagesJson = JSON.stringify(images);
   db.prepare(`
     UPDATE ${tableName} 
@@ -83,7 +83,7 @@ function getUserVideos(db, tableName, itemIdColumnName, userIdColumnName, itemId
   // Vérifier si la colonne existe
   const tableInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
   const hasColumn = tableInfo.some(col => col.name === videoColumnName);
-  
+
   if (!hasColumn) {
     // Ajouter la colonne si elle n'existe pas
     try {
@@ -94,7 +94,7 @@ function getUserVideos(db, tableName, itemIdColumnName, userIdColumnName, itemId
       return [];
     }
   }
-  
+
   const row = db.prepare(`SELECT ${videoColumnName} FROM ${tableName} WHERE ${itemIdColumnName} = ? AND ${userIdColumnName} = ?`).get(itemId, userId);
   if (!row || !row[videoColumnName]) {
     return [];
@@ -113,7 +113,7 @@ function saveUserVideos(db, tableName, itemIdColumnName, userIdColumnName, itemI
   } catch (error) {
     // Colonne déjà existante ou erreur, continuer
   }
-  
+
   const videosJson = JSON.stringify(videos);
   db.prepare(`
     UPDATE ${tableName} 
@@ -401,7 +401,7 @@ function createDeleteImageHandlerJson(config) {
 
       const images = getUserImages(db, userDataTableName, itemIdColumnName, userIdColumnName, itemId, userId, imageColumnName);
       const imageIndex = images.findIndex(img => img.id === imageId || img.id?.toString() === imageId?.toString());
-      
+
       if (imageIndex === -1) {
         return { success: false, error: 'Image introuvable' };
       }
@@ -613,7 +613,7 @@ function createAddVideoFromFileHandlerJson(config) {
         if (!fs.existsSync(videosDir)) {
           fs.mkdirSync(videosDir, { recursive: true });
         }
-        
+
         // Copier le fichier dans le dossier galleries
         const fileName = `${filePrefix}${itemId}_user_${userId}_${Date.now()}${ext}`;
         const destPath = path.join(videosDir, fileName);
@@ -798,7 +798,8 @@ function createDeleteVideoHandlerJson(config) {
       const video = videos[videoIndex];
       const paths = getPathsFn();
 
-      // Supprimer le fichier si c'est un fichier local (seulement si ce n'est pas une référence)
+      // Essayer de supprimer le fichier si c'est un fichier local (seulement si ce n'est pas une référence)
+      // La suppression de l'entrée en base se fera même si le fichier n'existe plus
       if (video.type === 'file' && video.file_path && !video.is_reference) {
         let absolutePath;
         if (video.is_reference === 1 || video.is_reference === true) {
@@ -809,6 +810,7 @@ function createDeleteVideoHandlerJson(config) {
           absolutePath = path.join(paths.base, video.file_path);
         }
 
+        // Essayer de supprimer le fichier s'il existe, mais ne pas bloquer la suppression de l'entrée en base
         if (fs.existsSync(absolutePath)) {
           try {
             fs.unlinkSync(absolutePath);
@@ -816,10 +818,12 @@ function createDeleteVideoHandlerJson(config) {
           } catch (error) {
             console.warn('⚠️ Impossible de supprimer le fichier:', error.message);
           }
+        } else {
+          console.warn(`⚠️ Fichier vidéo introuvable (peut-être déplacé): ${absolutePath}`);
         }
       }
 
-      // Retirer la vidéo du JSON array
+      // Retirer la vidéo du JSON array (toujours effectué, même si le fichier n'existe plus)
       videos.splice(videoIndex, 1);
       saveUserVideos(db, userDataTableName, itemIdColumnName, userIdColumnName, itemId, userId, videos, videoColumnName);
 

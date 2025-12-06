@@ -875,16 +875,16 @@ interface ElectronAPI {
   addTvShowUserVideoUrl: (showId: number, url: string, title?: string) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'url'; url?: string; title?: string | null; site?: string | null; video_key?: string | null; error?: string }>;
   addTvShowUserVideoFile: (showId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
   getTvShowUserVideos: (showId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string; is_reference?: boolean }>; error?: string }>;
-  deleteTvShowUserVideo: (showId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteTvShowUserVideo: (showId: number, videoId: number | string) => Promise<{ success: boolean; error?: string }>;
   
   // Vidéos utilisateur pour épisodes de séries TV
   addTvEpisodeUserVideoUrl: (episodeId: number, url: string, title?: string) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'url'; url?: string; title?: string | null; site?: string | null; video_key?: string | null; error?: string }>;
   addTvEpisodeUserVideoFile: (episodeId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
   getTvEpisodeUserVideos: (episodeId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string; is_reference?: boolean }>; error?: string }>;
-  deleteTvEpisodeUserVideo: (episodeId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteTvEpisodeUserVideo: (episodeId: number, videoId: number | string) => Promise<{ success: boolean; error?: string }>;
   addMovieUserVideoFile: (movieId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; canceled?: boolean; videoId?: number; type?: 'file'; filePath?: string; fileName?: string; title?: string; url?: string; isReference?: boolean; error?: string }>;
   getMovieUserVideos: (movieId: number) => Promise<{ success: boolean; videos: Array<{ id: number; type: 'url' | 'file'; title?: string | null; url?: string; file_path?: string; file_name?: string; file_size?: number; mime_type?: string; site?: string | null; video_key?: string | null; created_at?: string }>; error?: string }>;
-  deleteMovieUserVideo: (movieId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteMovieUserVideo: (movieId: number, videoId: number | string) => Promise<{ success: boolean; error?: string }>;
   getVideoTracks: (filePath: string) => Promise<{ success: boolean; tracks?: { audio: Array<{ index: number; audioIndex?: number; language: string; title: string; codec: string }>; subtitles: Array<{ index: number; language: string; title: string; codec: string }> }; error?: string }>;
   syncTvShowFromTmdb: (_tmdbId: number, _options?: { autoTranslate?: boolean; includeEpisodes?: boolean }) => Promise<{ id: number | null; tmdbId: number; seasons: number; episodes: number }>;
   getTvShows: (_filters?: TvQueryFilters) => Promise<TvShowListItem[]>;

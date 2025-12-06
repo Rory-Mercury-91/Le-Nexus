@@ -13,6 +13,8 @@ import {
 } from '../../components/collections';
 import CollectionView from '../../components/common/CollectionView';
 import ListItem from '../../components/common/ListItem';
+import SearchHelpModal from '../../components/modals/help/SearchHelpModal';
+import { VIDEOS_ALL_SEARCH_HELP_CONFIG } from '../../components/modals/help/search-help-configs';
 import AddVideoTypeModal from '../../components/modals/videos/AddVideoTypeModal';
 import { useCollectionViewMode } from '../../hooks/collections/useCollectionViewMode';
 import { usePagination } from '../../hooks/collections/usePagination';
@@ -37,6 +39,7 @@ export default function All() {
   const [series, setSeries] = useState<TvShowListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // États de recherche et tri
   const [searchTerm, setSearchTerm] = usePersistentState<string>(
@@ -696,7 +699,7 @@ export default function All() {
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             searchPlaceholder="Rechercher une vidéo (titre, MAL ID, TMDb ID...)"
-            onOpenHelp={undefined}
+            onOpenHelp={() => setShowHelpModal(true)}
             sortBy={sortBy as any}
             onSortChange={(value) => setSortBy(value as VideoSortOption)}
             sortOptions={VIDEO_SORT_OPTIONS as any}
@@ -868,6 +871,12 @@ export default function All() {
           <BackToBottomButton />
         </div>
       </div>
+
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={VIDEOS_ALL_SEARCH_HELP_CONFIG}
+      />
     </>
   );
 }

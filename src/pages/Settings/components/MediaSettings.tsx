@@ -1,4 +1,4 @@
-import { Globe2, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Globe2, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface MediaSettingsProps {
@@ -18,6 +18,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiTokenVisible, setApiTokenVisible] = useState(false);
   const autoSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasPendingChanges = useRef(false);
   const latestValuesRef = useRef({
@@ -209,24 +211,46 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
               {testing ? 'Test en cours…' : 'Tester la connexion'}
             </button>
           </div>
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => {
-              setApiKey(e.target.value);
-              scheduleAutoSave();
-            }}
-            onBlur={() => {
-              flushAutoSave().catch((error) => {
-                console.error('Erreur sauvegarde API key (blur):', error);
-              });
-            }}
-            placeholder="Clé API publique (v3)"
-            className="input"
-            style={{
-              flex: 1
-            }}
-          />
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type={apiKeyVisible ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value);
+                scheduleAutoSave();
+              }}
+              onBlur={() => {
+                flushAutoSave().catch((error) => {
+                  console.error('Erreur sauvegarde API key (blur):', error);
+                });
+              }}
+              placeholder="Clé API publique (v3)"
+              className="input"
+              style={{
+                flex: 1,
+                letterSpacing: apiKeyVisible ? '0.4px' : '0.6px'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setApiKeyVisible((prev) => !prev)}
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                borderRadius: '8px',
+                width: '42px',
+                height: '42px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)'
+              }}
+              aria-label={apiKeyVisible ? 'Masquer la clé API' : 'Afficher la clé API'}
+            >
+              {apiKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             Requise pour les requêtes REST principales (recherche, détails, images).
           </p>
@@ -269,24 +293,46 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
             </label>
             <div style={{ minWidth: '190px', height: '36px' }} />
           </div>
-          <input
-            type="text"
-            value={apiToken}
-            onChange={(e) => {
-              setApiToken(e.target.value);
-              scheduleAutoSave();
-            }}
-            onBlur={() => {
-              flushAutoSave().catch((error) => {
-                console.error('Erreur sauvegarde token (blur):', error);
-              });
-            }}
-            placeholder="Token v4 (Bearer)"
-            className="input"
-            style={{
-              flex: 1
-            }}
-          />
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input
+              type={apiTokenVisible ? 'text' : 'password'}
+              value={apiToken}
+              onChange={(e) => {
+                setApiToken(e.target.value);
+                scheduleAutoSave();
+              }}
+              onBlur={() => {
+                flushAutoSave().catch((error) => {
+                  console.error('Erreur sauvegarde token (blur):', error);
+                });
+              }}
+              placeholder="Token v4 (Bearer)"
+              className="input"
+              style={{
+                flex: 1,
+                letterSpacing: apiTokenVisible ? '0.4px' : '0.6px'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setApiTokenVisible((prev) => !prev)}
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--background)',
+                borderRadius: '8px',
+                width: '42px',
+                height: '42px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)'
+              }}
+              aria-label={apiTokenVisible ? 'Masquer le token' : 'Afficher le token'}
+            >
+              {apiTokenVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             Optionnel. Utilisé si vous préférez l'authentification Bearer pour certaines routes (découverte avancée).
           </p>

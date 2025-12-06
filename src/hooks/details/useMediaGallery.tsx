@@ -19,7 +19,7 @@ export interface MediaGalleryConfig {
   /** API pour ajouter une vidéo par fichier */
   addVideoFileApi?: (itemId: number, title?: string, isReference?: boolean) => Promise<{ success: boolean; error?: string; canceled?: boolean }>;
   /** API pour supprimer une vidéo */
-  deleteVideoApi?: (itemId: number, videoId: number) => Promise<{ success: boolean; error?: string }>;
+  deleteVideoApi?: (itemId: number, videoId: number | string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface UserImage {
@@ -69,7 +69,7 @@ export function useMediaGallery(config: MediaGalleryConfig) {
   const [addingVideo, setAddingVideo] = useState(false);
   const [showAddVideoModal, setShowAddVideoModal] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<{ site: 'local'; videoUrl?: string; mimeType?: string; title?: string } | null>(null);
-  const [videoToDelete, setVideoToDelete] = useState<number | null>(null);
+  const [videoToDelete, setVideoToDelete] = useState<number | string | null>(null);
 
   // Charger les images
   const loadUserImages = useCallback(async () => {
@@ -184,7 +184,7 @@ export function useMediaGallery(config: MediaGalleryConfig) {
 
   const handleConfirmDeleteImage = useCallback(async () => {
     if (!imageToDelete || !deleteImageApi || !itemId) return;
-    
+
     try {
       const result = await deleteImageApi(itemId, imageToDelete.id);
       if (result?.success) {
@@ -280,22 +280,26 @@ export function useMediaGallery(config: MediaGalleryConfig) {
   }, [itemId, addVideoFileApi, addingVideo, loadUserVideos, showToast]);
 
   // Supprimer vidéo
-  const handleDeleteUserVideoClick = useCallback((videoId: number) => {
+  const handleDeleteUserVideoClick = useCallback((videoId: number | string) => {
     setVideoToDelete(videoId);
   }, []);
 
   const handleConfirmDeleteVideo = useCallback(async () => {
-    if (!videoToDelete || !deleteVideoApi || !itemId) return;
-    
+    if (!videoToDelete || !deleteVideoApi || !itemId) {
+      return;
+    }
+
     try {
-      const result = await deleteVideoApi(itemId, videoToDelete);
+      const result = await deleteVideoApi(itemId, videoToDelete as number | string);
+
       if (result?.success) {
+        setVideoToDelete(null); // Fermer le modal immédiatement
         showToast({
           title: 'Vidéo supprimée',
           message: 'La vidéo a été supprimée',
           type: 'success'
         });
-        await loadUserVideos();
+        await loadUserVideos(); // Recharger la liste des vidéos
       } else {
         showToast({
           title: 'Erreur',

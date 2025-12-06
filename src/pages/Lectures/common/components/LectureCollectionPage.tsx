@@ -12,6 +12,8 @@ import {
   ProgressionStats
 } from '../../../../components/collections';
 import CollectionView from '../../../../components/common/CollectionView';
+import SearchHelpModal from '../../../../components/modals/help/SearchHelpModal';
+import { BOOKS_SEARCH_HELP_CONFIG, MANGAS_SEARCH_HELP_CONFIG } from '../../../../components/modals/help/search-help-configs';
 import AddBookComicBdModal from '../../../../components/modals/lectures/AddBookComicBdModal';
 import AddLectureTypeModal from '../../../../components/modals/lectures/AddLectureTypeModal';
 import AddMangaModal from '../../../../components/modals/lectures/AddMangaModal';
@@ -41,6 +43,7 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
   const [stats, setStats] = useState<ProgressionStats>({});
   const [viewMode, handleViewModeChange] = useCollectionViewMode('mangas');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // États de recherche et tri
   const [searchTerm, setSearchTerm] = usePersistentState<string>(
@@ -733,6 +736,7 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             searchPlaceholder={config.searchPlaceholder}
+            onOpenHelp={() => setShowHelpModal(true)}
             sortBy={sortBy}
             onSortChange={setSortBy}
             statusFilter={statusFilter}
@@ -901,6 +905,17 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
           )}
         </>
       )}
+
+      {/* Modale d'aide */}
+      <SearchHelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        config={
+          config.contentType === 'books' || config.contentType === 'bd' || config.contentType === 'comics'
+            ? BOOKS_SEARCH_HELP_CONFIG
+            : MANGAS_SEARCH_HELP_CONFIG
+        }
+      />
     </>
   );
 }

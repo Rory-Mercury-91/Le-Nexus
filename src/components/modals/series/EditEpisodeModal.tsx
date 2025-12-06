@@ -1,5 +1,7 @@
+import { Languages, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '../../../hooks/common/useToast';
+import { useTranslation } from '../../../hooks/common/useTranslation';
 import Modal from '../common/Modal';
 import ModalHeader from '../common/ModalHeader';
 
@@ -20,6 +22,7 @@ interface EditEpisodeModalProps {
 
 export default function EditEpisodeModal({ showId, episode, onClose, onSaved }: EditEpisodeModalProps) {
   const { showToast, ToastContainer } = useToast();
+  const { translate, translating } = useTranslation();
   const [title, setTitle] = useState(episode.titre || `Épisode ${episode.episode_numero}`);
   const [synopsis, setSynopsis] = useState(episode.synopsis || '');
   const [dateDiffusion, setDateDiffusion] = useState(episode.date_diffusion || '');
@@ -123,6 +126,43 @@ export default function EditEpisodeModal({ showId, episode, onClose, onSaved }: 
                   placeholder="Résumé de l'épisode..."
                   style={{ resize: 'vertical' }}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    translate({
+                      text: synopsis || '',
+                      onTranslated: (translatedText) => setSynopsis(translatedText),
+                      minLength: 10,
+                      errorMessage: 'Le synopsis est trop court pour être traduit'
+                    });
+                  }}
+                  disabled={!synopsis || synopsis.length < 10 || translating || saving}
+                  className="btn"
+                  style={{
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '8px 12px',
+                    background: translating ? 'var(--surface)' : 'rgba(99, 102, 241, 0.1)',
+                    color: translating ? 'var(--text-secondary)' : 'var(--primary)',
+                    border: '1px solid',
+                    borderColor: translating ? 'var(--border)' : 'var(--primary)'
+                  }}
+                >
+                  {translating ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Traduction en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Languages size={16} />
+                      Traduire en français
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

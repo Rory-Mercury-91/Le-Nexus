@@ -295,8 +295,9 @@ function startStreamingServer() {
         const ffmpegCommand = ffmpeg(decodedPath);
 
         // Configurer le mapping des pistes
-        // Par défaut, on prend la vidéo (0:v) et la première piste audio (0:a:0)
-        let mapOptions = ['-map', '0:v'];
+        // Par défaut, on prend uniquement le premier stream vidéo (0:0) et la première piste audio (0:a:0)
+        // Ne pas utiliser 0:v car cela mappe TOUS les streams vidéo, y compris les images JPEG
+        let mapOptions = ['-map', '0:0']; // Premier stream vidéo uniquement
 
         if (audioTrackIndex !== null && !isNaN(audioTrackIndex) && audioTrackIndex >= 0) {
           // Utiliser la piste audio spécifiée
@@ -334,7 +335,9 @@ function startStreamingServer() {
             '-preset', 'ultrafast', // Transcodage rapide
             '-tune', 'zerolatency', // Latence minimale
             '-threads', '0', // Utiliser tous les threads disponibles
-            '-g', '30' // GOP size pour améliorer le seeking
+            '-g', '30', // GOP size pour améliorer le seeking
+            '-max_muxing_queue_size', '1024', // Limiter la taille de la queue pour éviter "Too many packets buffered"
+            '-fflags', '+genpts' // Générer les timestamps si manquants
           ])
           .on('start', (commandLine) => {
             const formatName = ext === '.mkv' ? 'MKV' : 'AVI';
