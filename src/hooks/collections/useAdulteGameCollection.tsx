@@ -366,9 +366,8 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     // if (selectedMoteur !== 'all' && selectedMoteur !== UNKNOWN_MOTOR_VALUE) {
     //   filters.moteur = selectedMoteur as AdulteGameMoteur;
     // }
-    if (translationFilter === 'translated') filters.traduction_fr_disponible = true;
-    if (translationFilter === 'not-translated') filters.traduction_fr_disponible = false;
-    if (translationFilter === 'integrated') filters.statut_traduction = 'Traduction intégré';
+    // Les filtres de traduction sont gérés côté client car ils nécessitent des conditions complexes sur version_traduite
+    // (traduit = version_traduite existe et n'est pas "intégré", intégré = version_traduite contient "intégré", non traduit = version_traduite null/vide)
 
     return filters;
   }, [searchTerm, selectedStatutJeu, selectedStatutPerso, translationFilter]);
@@ -604,9 +603,18 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
 
         if (selectedPlateforme !== 'all' && game.plateforme !== selectedPlateforme) return false;
 
-        const hasTranslation = Boolean(game.traduction_fr_disponible);
-        if (translationFilter === 'translated' && !hasTranslation) return false;
-        if (translationFilter === 'not-translated' && hasTranslation) return false;
+        // Filtres de traduction basés sur version_traduite
+        if (translationFilter === 'translated') {
+          // Jeux traduits = version_traduite existe, non vide, et n'est pas "intégré"
+          if (!game.version_traduite || game.version_traduite.trim() === '') return false;
+          if (game.version_traduite.toLowerCase().includes('intégré')) return false;
+        } else if (translationFilter === 'not-translated') {
+          // Jeux non traduits = version_traduite est null, vide ou undefined
+          if (game.version_traduite && game.version_traduite.trim() !== '') return false;
+        } else if (translationFilter === 'integrated') {
+          // Traduction intégrée = version_traduite contient "intégré"
+          if (!game.version_traduite || !game.version_traduite.toLowerCase().includes('intégré')) return false;
+        }
 
         if (selectedTags.length > 0) {
           if (!game.tags || game.tags.length === 0) return false;

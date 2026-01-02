@@ -70,7 +70,7 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
           width: '100%',
           height: '400px',
           position: 'relative',
-          borderRadius: '12px',
+          borderRadius: '0',
           overflow: 'hidden',
           border: isDragging ? '4px dashed var(--primary)' : 'none',
           background: isDragging ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
@@ -161,7 +161,7 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
             height: '100%',
             width: '100%',
             transition: 'transform 0.2s',
-            borderRadius: '12px',
+            borderRadius: '0',
             overflow: 'hidden'
           }}
         >
@@ -174,7 +174,7 @@ const AdulteGameBanner: React.FC<AdulteGameBannerProps> = ({ coverUrl, title, ga
               objectFit: 'contain',
               opacity: isDragging ? 0.3 : 1,
               transition: 'opacity 0.2s',
-              borderRadius: '12px'
+              borderRadius: '0'
             }}
           />
         </div>

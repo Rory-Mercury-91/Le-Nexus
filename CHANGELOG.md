@@ -5,6 +5,21 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.6] - 2026-01-02
+
+### 🐛 Corrigé
+- **Affichage des liens LewdCorner sur les pages détails de jeux adultes**
+  - Les liens des threads LewdCorner s'affichent maintenant correctement sur la page détail
+  - Correction de la condition d'affichage dans `AdulteGameInfoCard` pour inclure `lien_lewdcorner` et `Lewdcorner_thread_id`
+  - Les liens LewdCorner sont désormais visibles sur la page de détail, au même titre que les liens F95Zone
+
+- **Filtres de traduction dans la collection de jeux adultes**
+  - Correction complète de la logique de filtrage basée sur `version_traduite`
+  - **Jeux traduits** : affiche les jeux avec `version_traduite` contenant un numéro de version (ex: "v1.0")
+  - **Traduction intégrée** : affiche les jeux avec `version_traduite` contenant "intégré" (insensible à la casse)
+  - **Jeux non traduits** : affiche les jeux sans `version_traduite` (null ou vide)
+  - Les trois options de filtre fonctionnent désormais correctement selon la valeur de `version_traduite`
+
 ## [1.0.5-Fix2] - 2025-12-06
 
 ### 🐛 Corrigé

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Edit, Play, Settings, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Play, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import CheckUpdateButton from '../../../components/common/CheckUpdateButton';
 import { useGlobalProgress } from '../../../contexts/GlobalProgressContext';
@@ -20,8 +20,17 @@ interface AdulteGameHeaderProps {
   onDelete: () => void;
   isUpdating?: boolean;
   canPlay?: boolean;
-  onCustomizeDisplay?: () => void;
+  statut_perso?: string | null;
+  onStatusChange?: (nextStatus: string) => void;
 }
+
+const STATUSES = [
+  { value: 'À lire', label: '🎮 À jouer', color: 'var(--warning)' },
+  { value: 'En cours', label: '🎮 En cours', color: 'var(--primary)' },
+  { value: 'En pause', label: '⏸️ En pause', color: 'var(--warning)' },
+  { value: 'Terminé', label: '✅ Terminé', color: 'var(--success)' },
+  { value: 'Abandonné', label: '❌ Abandonné', color: 'var(--error)' }
+];
 
 export default function AdulteGameHeader({
   onBack,
@@ -34,10 +43,15 @@ export default function AdulteGameHeader({
   onDelete,
   isUpdating = false,
   canPlay = false,
-  onCustomizeDisplay
+  statut_perso,
+  onStatusChange
 }: AdulteGameHeaderProps) {
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const hasMultipleVersions = availableVersions.length > 1;
+
+  const getStatusColor = (status?: string | null) => {
+    return STATUSES.find((s) => s.value === status)?.color || 'var(--text-secondary)';
+  };
 
   // Calculer la hauteur de la barre de progression pour ajuster le top du header
   const {
@@ -81,49 +95,65 @@ export default function AdulteGameHeader({
         transition: 'top 0.3s ease'
       }}
     >
-      {/* Bouton Retour */}
-      <button
-        onClick={onBack}
-        className="btn"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-          border: 'none',
-          color: 'white',
-          textDecoration: 'none',
-          transition: 'box-shadow 0.2s ease'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-1px)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
-      >
-        <ArrowLeft size={18} />
-        Retour à la liste
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+        {/* Bouton Retour */}
+        <button
+          onClick={onBack}
+          className="btn"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            padding: 0,
+            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+            border: 'none',
+            color: 'white',
+            textDecoration: 'none',
+            transition: 'box-shadow 0.2s ease',
+            borderRadius: '8px'
+          }}
+          title="Retour à la liste"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <ArrowLeft size={18} />
+        </button>
+      </div>
 
       {/* Actions à droite */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {onCustomizeDisplay && (
-          <button
-            type="button"
-            onClick={onCustomizeDisplay}
-            className="btn btn-outline"
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
+        {/* Statut de completion */}
+        {statut_perso && onStatusChange && (
+          <select
+            value={statut_perso || 'À lire'}
+            onChange={(e) => onStatusChange(e.target.value)}
+            className="select"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px'
+              border: `2px solid ${getStatusColor(statut_perso)}`,
+              fontSize: '14px',
+              padding: '8px 12px',
+              fontWeight: '600',
+              background: `${getStatusColor(statut_perso)}15`,
+              color: getStatusColor(statut_perso),
+              height: '40px',
+              width: 'auto',
+              minWidth: '150px'
             }}
           >
-            <Settings size={16} />
-            Personnaliser l'affichage
-          </button>
+            {STATUSES.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
         )}
 
         {/* Bouton Vérifier MAJ */}
@@ -132,8 +162,6 @@ export default function AdulteGameHeader({
             onCheckUpdate={onCheckUpdate}
             onForceCheckUpdate={onForceCheckUpdate}
             isUpdating={isUpdating}
-            buttonLabel="Vérifier MAJ"
-            forceButtonLabel="🔄 Force vérification"
           />
         )}
 
@@ -150,13 +178,15 @@ export default function AdulteGameHeader({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    justifyContent: 'center',
+                    width: '40px',
+                    height: '40px',
+                    padding: 0,
                     opacity: canPlay ? 1 : 0.5
                   }}
+                  title="Jouer"
                 >
                   <Play size={18} />
-                  Jouer
-                  <ChevronDown size={16} />
                 </button>
 
                 {showVersionMenu && canPlay && (
@@ -228,12 +258,15 @@ export default function AdulteGameHeader({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  justifyContent: 'center',
+                  width: '40px',
+                  height: '40px',
+                  padding: 0,
                   opacity: canPlay ? 1 : 0.5
                 }}
+                title="Jouer"
               >
                 <Play size={18} />
-                Jouer
               </button>
             )}
           </div>
@@ -246,11 +279,14 @@ export default function AdulteGameHeader({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            padding: 0
           }}
+          title="Modifier"
         >
           <Edit size={18} />
-          Modifier
         </button>
 
         {/* Bouton Supprimer */}
@@ -260,11 +296,14 @@ export default function AdulteGameHeader({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            padding: 0
           }}
+          title="Supprimer"
         >
           <Trash2 size={18} />
-          Supprimer
         </button>
       </div>
 

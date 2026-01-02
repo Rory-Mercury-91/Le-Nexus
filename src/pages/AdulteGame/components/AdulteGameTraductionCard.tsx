@@ -1,4 +1,4 @@
-import { Download, ExternalLink, Flag, Languages, User } from 'lucide-react';
+import { Download, ExternalLink, User } from 'lucide-react';
 import React from 'react';
 
 interface Traduction {
@@ -41,98 +41,271 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
   
   return (
     <div className="card">
-      <h2
-        style={{
-          fontSize: '20px',
-          fontWeight: '700',
-          color: 'var(--text)',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px'
-        }}
-      >
-        <Flag size={24} style={{ color: 'var(--primary)' }} />
-        Traduction française
-      </h2>
-
       {hasMultipleTraductions ? (
-        /* PLUSIEURS TRADUCTIONS */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div
-            style={{
-              fontSize: '14px',
-              color: 'var(--text-secondary)',
-              fontStyle: 'italic'
-            }}
-          >
-            {traductions.length} traductions disponibles pour ce jeu
-          </div>
-          
-          {traductions.map((trad, index) => (
+        /* PLUSIEURS TRADUCTIONS - Affichage en grille 4 colonnes x 2 lignes */
+        (() => {
+          // Prendre les 2 premières traductions
+          const displayTranslations = traductions.slice(0, 2);
+          const hasSameTranslator = displayTranslations.length === 2 && 
+            displayTranslations[0].traducteur === displayTranslations[1].traducteur;
+
+          return (
             <div
-              key={index}
               style={{
-                background: 'var(--surface-light)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                gridTemplateRows: 'auto auto',
+                gap: '20px 24px',
+                alignItems: 'start'
               }}
             >
-              {/* Version */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Download size={16} style={{ color: 'var(--primary)' }} />
-                <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text)' }}>
-                  Version {trad.version}
-                </span>
-              </div>
-
-              {/* Type + Traducteur */}
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <div className="badge badge-primary">
-                  <Languages size={12} style={{ marginRight: '4px' }} />
-                  {trad.type}
-                </div>
-                <div className="badge badge-secondary">
-                  <User size={12} style={{ marginRight: '4px' }} />
-                  {trad.traducteur}
-                </div>
-              </div>
-
-              {/* Lien */}
-              <a
-                href={trad.lien}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-success"
+              {/* Colonne 1 : Traducteur */}
+              <div
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  textDecoration: 'none',
-                  width: '100%'
+                  gridRow: hasSameTranslator ? '1 / 3' : '1 / 2',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
-                <ExternalLink size={16} />
-                Télécharger cette traduction
-              </a>
+                <div
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  <User size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                  Traducteur
+                </div>
+                <div
+                  style={{
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: 'var(--secondary)'
+                  }}
+                >
+                  {displayTranslations[0].traducteur || 'Inconnu'}
+                </div>
+              </div>
+
+              {/* Colonnes 2-4 pour la première traduction */}
+              {displayTranslations[0].type && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Type de traduction
+                  </div>
+                  <div className="badge badge-primary">
+                    {displayTranslations[0].type
+                      .replace(/^(Traduction\s+)?(Type\s+(de\s+)?traduction\s*:?\s*)?/i, '')
+                      .trim() || displayTranslations[0].type}
+                  </div>
+                </div>
+              )}
+
+              {displayTranslations[0].version && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                    Version traduite
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: version_actuelle && displayTranslations[0].version !== version_actuelle
+                        ? 'var(--error)'
+                        : 'var(--success)'
+                    }}
+                  >
+                    {displayTranslations[0].version}
+                  </div>
+                </div>
+              )}
+
+              {displayTranslations[0].lien && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Patch de traduction
+                  </div>
+                  <a
+                    href={displayTranslations[0].lien}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-success"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      padding: '8px 16px'
+                    }}
+                  >
+                    <ExternalLink size={16} />
+                    Lien du patch FR
+                  </a>
+                </div>
+              )}
+
+              {/* Ligne 2 : Traducteur (si différent) ou contenu traduction 2 */}
+              {displayTranslations.length > 1 && (
+                <>
+                  {!hasSameTranslator && (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        <User size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                        Traducteur
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '15px',
+                          fontWeight: '500',
+                          color: 'var(--secondary)'
+                        }}
+                      >
+                        {displayTranslations[1].traducteur || 'Inconnu'}
+                      </div>
+                    </div>
+                  )}
+
+                  {displayTranslations[1].type && (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        Type de traduction
+                      </div>
+                      <div className="badge badge-primary">
+                        {displayTranslations[1].type
+                          .replace(/^(Traduction\s+)?(Type\s+(de\s+)?traduction\s*:?\s*)?/i, '')
+                          .trim() || displayTranslations[1].type}
+                      </div>
+                    </div>
+                  )}
+
+                  {displayTranslations[1].version && (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
+                        Version traduite
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          color: version_actuelle && displayTranslations[1].version !== version_actuelle
+                            ? 'var(--error)'
+                            : 'var(--success)'
+                        }}
+                      >
+                        {displayTranslations[1].version}
+                      </div>
+                    </div>
+                  )}
+
+                  {displayTranslations[1].lien && (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}
+                      >
+                        Patch de traduction
+                      </div>
+                      <a
+                        href={displayTranslations[1].lien}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-success"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          textDecoration: 'none',
+                          fontSize: '14px',
+                          padding: '8px 16px'
+                        }}
+                      >
+                        <ExternalLink size={16} />
+                        Lien du patch FR
+                      </a>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })()
       ) : (
         /* UNE SEULE TRADUCTION (affichage classique) */
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr',
             gap: '20px 24px'
           }}
         >
-          {/* Ligne 1 : Traducteur | Type de traduction */}
+          {/* Ligne : Traducteur | Type de traduction | Version traduite | Patch de traduction */}
           {traducteur && (
             <div>
               <div
@@ -172,16 +345,16 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                   letterSpacing: '0.5px'
                 }}
               >
-                <Languages size={14} style={{ display: 'inline', marginRight: '6px' }} />
                 Type de traduction
               </div>
               <div className="badge badge-primary">
-                {type_trad_fr}
+                {type_trad_fr
+                  .replace(/^(Traduction\s+)?(Type\s+(de\s+)?traduction\s*:?\s*)?/i, '')
+                  .trim() || type_trad_fr}
               </div>
             </div>
           )}
 
-          {/* Ligne 2 : Version traduite | Patch de traduction */}
           {version_traduite && (
             <div>
               <div
@@ -251,7 +424,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                 }}
               >
                 <ExternalLink size={16} />
-                Télécharger le patch FR
+                Lien du patch FR
               </a>
             </div>
           )}

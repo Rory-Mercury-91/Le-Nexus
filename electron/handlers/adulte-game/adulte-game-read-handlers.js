@@ -81,6 +81,10 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
         conditions.push(`g.statut_traduction = ?`);
         params.push(filters.statut_traduction);
       }
+      if (filters.type_traduction) {
+        conditions.push(`g.type_traduction = ?`);
+        params.push(filters.type_traduction);
+      }
       if (filters.search) {
         conditions.push(`g.titre LIKE ?`);
         params.push(`%${filters.search}%`);

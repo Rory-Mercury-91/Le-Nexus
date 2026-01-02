@@ -1,6 +1,6 @@
-import { FileText, FolderOpen, Plus, Settings, X } from 'lucide-react';
+import { Folder, FolderOpen, Plus, Settings, Tag, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
-import AdulteGameCostsSection from './AdulteGameCostsSection';
+import { createPortal } from 'react-dom';
 
 interface ExecutablePath {
   version: string;
@@ -10,48 +10,46 @@ interface ExecutablePath {
 
 interface AdulteGameParamsCardProps {
   gameId: number;
-  statut_perso?: string | null;
-  notes_privees?: string | null;
   chemin_executable?: string | null;
-  onStatusChange: (nextStatus: string) => void;
-  onNotesChange: (nextNotes: string) => void;
+  version_jouee?: string | null;
+  derniere_session?: string | null;
   onExecutableChange: () => void;
-  costsByUser?: Array<{ user: { id: number; name: string; color: string; emoji: string }; cost: number }>;
-  totalPrix?: number;
-  profileImages?: Record<string, string | null>;
-  onMarkAsOwned?: () => void;
+  onLabelsChange?: () => void;
 }
 
 const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
   gameId,
-  statut_perso,
-  notes_privees,
   chemin_executable,
-  onStatusChange,
-  onNotesChange,
+  version_jouee,
+  derniere_session,
   onExecutableChange,
-  costsByUser = [],
-  totalPrix = 0,
-  profileImages = {},
-  onMarkAsOwned
+  onLabelsChange
 }) => {
-  const [notes, setNotes] = useState(notes_privees || '');
-  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isSelectingExecutable, setIsSelectingExecutable] = useState(false);
   const [executables, setExecutables] = useState<ExecutablePath[]>([]);
   const [isSavingExecutables, setIsSavingExecutables] = useState(false);
+  const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
+  
+  // États pour les labels
+  const [labels, setLabels] = useState<Array<{ label: string; color: string }>>([]);
+  const [allLabels, setAllLabels] = useState<Array<{ label: string; color: string }>>([]);
+  const [showAddLabelForm, setShowAddLabelForm] = useState(false);
+  const [newLabelText, setNewLabelText] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#8b5cf6');
+  const [filteredSuggestions, setFilteredSuggestions] = useState<Array<{ label: string; color: string }>>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+  const [selectedExistingLabel, setSelectedExistingLabel] = useState<string>('');
 
-  const STATUSES = [
-    { value: 'À lire', label: '🎮 À jouer', color: 'var(--warning)' },
-    { value: 'En cours', label: '🎮 En cours', color: 'var(--primary)' },
-    { value: 'En pause', label: '⏸️ En pause', color: 'var(--warning)' },
-    { value: 'Terminé', label: '✅ Terminé', color: 'var(--success)' },
-    { value: 'Abandonné', label: '❌ Abandonné', color: 'var(--error)' }
+  const PRESET_COLORS = [
+    '#8b5cf6', // Violet
+    '#ec4899', // Rose
+    '#f59e0b', // Orange
+    '#10b981', // Vert
+    '#3b82f6', // Bleu
+    '#ef4444', // Rouge
+    '#f97316', // Orange vif
+    '#14b8a6', // Teal
   ];
-
-  useEffect(() => {
-    setNotes(notes_privees || '');
-  }, [notes_privees]);
 
   useEffect(() => {
     // Parser les chemins d'exécutables (rétrocompatibilité avec string simple)
@@ -75,27 +73,133 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
         setExecutables([]);
       }
     }
-
   }, [chemin_executable]);
 
-  const handleNotesBlur = async () => {
-    if (notes === notes_privees) return;
+  // Charger les labels
+  useEffect(() => {
+    loadLabels();
+    loadAllLabels();
+  }, [gameId]);
 
-    setIsSavingNotes(true);
+  useEffect(() => {
+    // Filtrer les suggestions en fonction du texte saisi
+    if (newLabelText.trim()) {
+      const filtered = allLabels.filter(
+        (l) =>
+          l.label.toLowerCase().includes(newLabelText.toLowerCase()) &&
+          !labels.some((existing) => existing.label.toLowerCase() === l.label.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+    } else {
+      setFilteredSuggestions([]);
+    }
+  }, [newLabelText, allLabels, labels]);
+
+  const loadLabels = async () => {
     try {
-      await window.electronAPI.updateAdulteGameNotes(gameId, notes);
-      onNotesChange(notes);
+      const data = await window.electronAPI.getAdulteGameLabels(gameId);
+      setLabels(data);
     } catch (error) {
-      console.error('Erreur sauvegarde notes:', error);
-      setNotes(notes_privees || '');
-    } finally {
-      setIsSavingNotes(false);
+      console.error('Erreur chargement labels:', error);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    return STATUSES.find((s) => s.value === status)?.color || 'var(--text-secondary)';
+  const loadAllLabels = async () => {
+    try {
+      const data = await window.electronAPI.getAllAdulteGameLabels();
+      setAllLabels(data);
+    } catch (error) {
+      console.error('Erreur chargement tous les labels:', error);
+    }
   };
+
+  const handleAddLabel = async () => {
+    if (!newLabelText.trim() || labelsLoading) return;
+
+    setLabelsLoading(true);
+    try {
+      await window.electronAPI.addAdulteGameLabel(gameId, newLabelText.trim(), newLabelColor);
+      await loadLabels();
+      await loadAllLabels();
+      setNewLabelText('');
+      setNewLabelColor('#8b5cf6');
+      setShowAddLabelForm(false);
+      
+      if (onLabelsChange) {
+        onLabelsChange();
+      }
+    } catch (error) {
+      console.error('Erreur ajout label:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
+
+  const handleRemoveLabel = async (label: string) => {
+    if (labelsLoading) return;
+
+    setLabelsLoading(true);
+    try {
+      await window.electronAPI.removeAdulteGameLabel(gameId, label);
+      await loadLabels();
+      
+      if (onLabelsChange) {
+        onLabelsChange();
+      }
+    } catch (error) {
+      console.error('Erreur suppression label:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion: { label: string; color: string }) => {
+    setNewLabelText(suggestion.label);
+    setNewLabelColor(suggestion.color);
+    setFilteredSuggestions([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0) {
+        handleSelectSuggestion(filteredSuggestions[0]);
+      } else {
+        handleAddLabel();
+      }
+    } else if (e.key === 'Escape') {
+      setShowAddLabelForm(false);
+      setNewLabelText('');
+      setFilteredSuggestions([]);
+    }
+  };
+
+  const handleAddExistingLabel = async (labelName: string) => {
+    if (!labelName || labelsLoading) return;
+
+    const labelToAdd = allLabels.find(l => l.label === labelName);
+    if (!labelToAdd) return;
+
+    setLabelsLoading(true);
+    try {
+      await window.electronAPI.addAdulteGameLabel(gameId, labelToAdd.label, labelToAdd.color);
+      await loadLabels();
+      setSelectedExistingLabel('');
+      
+      if (onLabelsChange) {
+        onLabelsChange();
+      }
+    } catch (error) {
+      console.error('Erreur ajout label existant:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
+
+  // Filtrer les labels disponibles (ceux qui ne sont pas déjà ajoutés)
+  const availableLabels = allLabels.filter(
+    (l) => !labels.some((existing) => existing.label.toLowerCase() === l.label.toLowerCase())
+  );
 
   const persistExecutables = async (nextExecutables: ExecutablePath[]) => {
     setIsSavingExecutables(true);
@@ -138,7 +242,7 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
     try {
       const result = await window.electronAPI.selectAdulteGameExecutable();
       if (result.success && result.path) {
-        const selectedPath = result.path; // Extraire pour garantir le type
+        const selectedPath = result.path;
         const nextExecutables = executables.map((exe) =>
           exe.version === version ? { ...exe, path: selectedPath } : exe
         );
@@ -185,9 +289,25 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
     [executables]
   );
 
+  const formatDateTime = (dateString?: string | null) => {
+    if (!dateString) return 'Jamais';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Date invalide';
+    }
+  };
+
   return (
     <div className="card">
-      <h2
+      {/* <h2
         style={{
           fontSize: '20px',
           fontWeight: '700',
@@ -200,96 +320,354 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
       >
         <Settings size={24} style={{ color: 'var(--secondary)' }} />
         Paramètres personnels
-      </h2>
+      </h2> */}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Statut et Notes sur la même ligne */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          {/* Statut */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-secondary)',
-                marginBottom: '8px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}
-            >
-              Statut de complétion
-            </label>
-            <select
-              value={statut_perso || 'À lire'}
-              onChange={(e) => onStatusChange(e.target.value)}
-              className="select"
-              style={{
-                border: `2px solid ${getStatusColor(statut_perso || 'À lire')}`
-              }}
-            >
-              {STATUSES.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Labels personnalisés */}
+        <div>
+          <div
+            style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--text-secondary)',
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Tag size={14} />
+            Labels personnalisés
           </div>
 
-          {/* Notes privées */}
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-secondary)',
-                marginBottom: '8px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}
-            >
-              <FileText size={14} style={{ display: 'inline', marginRight: '6px' }} />
-              Notes privées
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={handleNotesBlur}
-              placeholder="Vos notes personnelles..."
-              rows={3}
-              className="input"
-              style={{
-                width: '100%',
-                resize: 'vertical',
-                fontFamily: 'inherit',
-                minHeight: '60px'
-              }}
-            />
-            {isSavingNotes && (
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--primary)',
-                  marginTop: '6px'
-                }}
-              >
-                Sauvegarde en cours...
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Liste des labels existants */}
+            {labels.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {labels.map((label, index) => (
+                  <div
+                    key={`${label.label}-${index}`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: `${label.color}20`,
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: label.color,
+                      border: `1.5px solid ${label.color}40`
+                    }}
+                  >
+                    <Tag size={14} />
+                    {label.label}
+                    <button
+                      onClick={() => handleRemoveLabel(label.label)}
+                      disabled={labelsLoading}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: labelsLoading ? 'not-allowed' : 'pointer',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        opacity: labelsLoading ? 0.5 : 1,
+                        color: label.color,
+                        transition: 'opacity 0.2s'
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
+                      onMouseLeave={(e) => (e.currentTarget.style.opacity = labelsLoading ? '0.5' : '1')}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
+
+            {/* Boutons d'ajout/sélection */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {/* Bouton pour créer un nouveau label */}
+              <button
+                onClick={() => setShowAddLabelForm(true)}
+                className="btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '14px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Plus size={16} />
+                Ajouter un label
+              </button>
+              
+              {/* Select pour labels existants */}
+              {availableLabels.length > 0 && (
+                <select
+                  value={selectedExistingLabel}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedExistingLabel(value);
+                    if (value) {
+                      handleAddExistingLabel(value);
+                    }
+                  }}
+                  disabled={labelsLoading}
+                  className="select"
+                  style={{
+                    width: 'auto',
+                    minWidth: '200px',
+                    maxWidth: '300px',
+                    cursor: labelsLoading ? 'not-allowed' : 'pointer',
+                    opacity: labelsLoading ? 0.5 : 1
+                  }}
+                >
+                  <option value="">Sélectionner un label existant...</option>
+                  {availableLabels.map((label, index) => (
+                    <option key={index} value={label.label}>
+                      {label.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
           </div>
 
-          {/* Section des coûts */}
-          {onMarkAsOwned && (
-            <div style={{ marginTop: '24px' }}>
-              <AdulteGameCostsSection
-                costsByUser={costsByUser}
-                totalPrix={totalPrix}
-                profileImages={profileImages}
-                onMarkAsOwned={onMarkAsOwned}
-                shouldShow={true}
+          {/* Modal d'ajout de label */}
+          {showAddLabelForm && createPortal(
+            <>
+              {/* Overlay */}
+              <div
+                onClick={() => {
+                  setShowAddLabelForm(false);
+                  setNewLabelText('');
+                  setFilteredSuggestions([]);
+                }}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  zIndex: 999,
+                  backdropFilter: 'blur(4px)'
+                }}
               />
-            </div>
+              
+              {/* Modal */}
+              <div
+                style={{
+                  position: 'fixed',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 1000,
+                  width: '90%',
+                  maxWidth: '500px',
+                  background: 'var(--surface)',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                  padding: '24px'
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: 'var(--text)',
+                    marginBottom: '20px'
+                  }}
+                >
+                  Créer un nouveau label
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Nom du label */}
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Nom du label
+                    </label>
+                    <input
+                      type="text"
+                      value={newLabelText}
+                      onChange={(e) => setNewLabelText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Entrez le nom du label..."
+                      autoFocus
+                      className="input"
+                      style={{
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  {/* Couleur */}
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Couleur
+                    </label>
+                    
+                    {/* Couleurs prédéfinies */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                      {PRESET_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setNewLabelColor(color)}
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '8px',
+                            background: color,
+                            border: newLabelColor === color ? '3px solid var(--text)' : '2px solid var(--border)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            transform: newLabelColor === color ? 'scale(1.1)' : 'scale(1)',
+                            boxShadow: newLabelColor === color ? '0 4px 8px rgba(0, 0, 0, 0.3)' : 'none'
+                          }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* Color picker personnalisé */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="color"
+                        value={newLabelColor}
+                        onChange={(e) => setNewLabelColor(e.target.value)}
+                        style={{
+                          width: '80px',
+                          height: '36px',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          backgroundColor: 'transparent'
+                        }}
+                      />
+                      <span style={{ 
+                        fontSize: '13px', 
+                        color: 'var(--text-secondary)',
+                        fontFamily: 'monospace'
+                      }}>
+                        ou choisir une couleur personnalisée
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Suggestions */}
+                  {filteredSuggestions.length > 0 && (
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '8px'
+                        }}
+                      >
+                        Suggestions
+                      </label>
+                      <div
+                        style={{
+                          background: 'var(--surface-light)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          maxHeight: '150px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {filteredSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => handleSelectSuggestion(suggestion)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              background: 'none',
+                              border: 'none',
+                              borderBottom:
+                                index < filteredSuggestions.length - 1
+                                  ? '1px solid var(--border)'
+                                  : 'none',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              color: 'var(--text)',
+                              fontSize: '14px',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = 'var(--surface)')
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = 'none')
+                            }
+                          >
+                            <div
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '50%',
+                                background: suggestion.color
+                              }}
+                            />
+                            {suggestion.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Boutons d'action */}
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        setShowAddLabelForm(false);
+                        setNewLabelText('');
+                        setFilteredSuggestions([]);
+                      }}
+                      className="btn"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleAddLabel}
+                      disabled={!newLabelText.trim() || labelsLoading}
+                      className="btn btn-primary"
+                      style={{
+                        opacity: !newLabelText.trim() || labelsLoading ? 0.5 : 1,
+                        cursor: !newLabelText.trim() || labelsLoading ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Ajouter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>,
+            document.body
           )}
         </div>
 
@@ -303,13 +681,13 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
               fontSize: '13px',
               fontWeight: '600',
               color: 'var(--text-secondary)',
-              marginBottom: '8px',
+              marginBottom: '12px',
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}
           >
-            <span>
-              <FolderOpen size={14} style={{ display: 'inline', marginRight: '6px' }} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FolderOpen size={14} />
               Chemins des exécutables
             </span>
             <button
@@ -322,7 +700,7 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
                 alignItems: 'center',
                 gap: '6px',
                 fontSize: '12px',
-                padding: '4px 10px',
+                padding: '6px 12px',
                 minWidth: 'auto',
                 opacity: isSelectingExecutable ? 0.6 : 1
               }}
@@ -335,7 +713,7 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
 
           {/* Liste des exécutables configurés */}
           {sortedExecutables.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {sortedExecutables.map((exe, index) => (
                 <div
                   key={exe.version}
@@ -343,57 +721,81 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
                     display: 'flex',
                     gap: '12px',
                     alignItems: 'center',
-                    padding: '10px',
-                    background: 'var(--surface-light)',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)'
+                    padding: '12px',
+                    background: 'transparent',
+                    borderRadius: '8px'
                   }}
                 >
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {/* Icône dossier avec tooltip */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    onMouseEnter={() => setTooltipVisible(exe.version)}
+                    onMouseLeave={() => setTooltipVisible(null)}
+                  >
+                    <Folder size={20} style={{ color: 'var(--text-secondary)' }} />
+                    {tooltipVisible === exe.version && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 'calc(100% + 12px)',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'var(--surface)',
+                          color: 'var(--text)',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                          border: '1px solid var(--border)',
+                          zIndex: 1000,
+                          pointerEvents: 'none'
+                        }}
+                      >
+                        {exe.path}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Champs de saisie pour le nom */}
+                  <div style={{ flex: 1 }}>
                     <input
                       value={exe.label || ''}
                       onChange={(e) => handleLabelChange(exe.version, e.target.value)}
                       onBlur={() => handleLabelBlur(exe.version)}
-                      placeholder={`Libellé (ex: Version ${index + 1})`}
+                      placeholder={`Nom de l'exécutable (ex: Version ${index + 1})`}
                       className="input"
-                      style={{ fontSize: '13px', fontWeight: 600 }}
+                      style={{ fontSize: '13px', fontWeight: 500 }}
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          fontSize: '13px',
-                          color: 'var(--text)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          flex: 1
-                        }}
-                        title={exe.path}
-                      >
-                        {exe.path}
-                      </div>
-                      <button
-                        onClick={() => handleBrowseExecutable(exe.version)}
-                        className="btn btn-outline"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          minWidth: 'auto',
-                          padding: '6px 10px'
-                        }}
-                        disabled={isSelectingExecutable}
-                      >
-                        <FolderOpen size={14} />
-                        Parcourir
-                      </button>
-                    </div>
                   </div>
+
+                  {/* Bouton parcourir */}
+                  <button
+                    onClick={() => handleBrowseExecutable(exe.version)}
+                    className="btn btn-outline"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      minWidth: 'auto',
+                      padding: '8px 12px'
+                    }}
+                    disabled={isSelectingExecutable}
+                    title="Parcourir"
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+
+                  {/* Bouton supprimer */}
                   <button
                     onClick={() => handleRemoveExecutable(exe.version)}
                     className="btn"
                     style={{
-                      padding: '6px',
+                      padding: '8px',
                       minWidth: 'auto',
                       color: 'var(--error)',
                       border: '1px solid var(--error)',
@@ -414,25 +816,14 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
                 fontSize: '13px',
                 color: 'var(--text-secondary)',
                 fontStyle: 'italic',
-                padding: '12px',
-                background: 'var(--surface-light)',
-                borderRadius: '6px',
+                padding: '16px',
+                background: 'transparent',
+                borderRadius: '8px',
+                border: '1px dashed var(--border)',
                 textAlign: 'center'
               }}
             >
-              Aucun exécutable configuré pour le moment. Utilisez le bouton « Ajouter » pour choisir un fichier.
-            </div>
-          )}
-
-          {sortedExecutables.length > 0 && (
-            <div
-              style={{
-                fontSize: '12px',
-                color: 'var(--success)',
-                marginTop: '8px'
-              }}
-            >
-              ✓ {sortedExecutables.length} exécutable{sortedExecutables.length > 1 ? 's' : ''} configuré{sortedExecutables.length > 1 ? 's' : ''}
+              Aucun exécutable configuré pour le moment. Utilisez le bouton « Ajouter » pour choisir un fichier.
             </div>
           )}
 
@@ -441,12 +832,63 @@ const AdulteGameParamsCard: React.FC<AdulteGameParamsCardProps> = ({
               style={{
                 fontSize: '12px',
                 color: 'var(--primary)',
-                marginTop: '6px'
+                marginTop: '8px'
               }}
             >
               Sauvegarde des chemins...
             </div>
           )}
+        </div>
+
+        {/* Version jouée | Dernière session */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '20px 24px' }}>
+          <div>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Version jouée
+            </div>
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: '500',
+                color: 'var(--text)'
+              }}
+            >
+              {version_jouee || 'Non définie'}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}
+            >
+              Dernière session
+            </div>
+            <div
+              style={{
+                fontSize: '15px',
+                fontWeight: '500',
+                color: 'var(--text)'
+              }}
+            >
+              {formatDateTime(derniere_session)}
+            </div>
+          </div>
         </div>
       </div>
     </div>

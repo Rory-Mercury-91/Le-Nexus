@@ -1,4 +1,4 @@
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface CheckUpdateButtonProps {
@@ -45,15 +45,18 @@ export default function CheckUpdateButton({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          justifyContent: 'center',
+          width: '40px',
+          height: '40px',
+          padding: 0,
           opacity: isUpdating ? 0.6 : 1
         }}
+        title={isUpdating ? 'Vérification...' : buttonLabel}
       >
         <RefreshCw
           size={18}
           style={isUpdating ? { animation: 'spin 1s linear infinite' } : {}}
         />
-        {isUpdating ? 'Vérification...' : buttonLabel}
       </button>
     );
   }
@@ -71,16 +74,18 @@ export default function CheckUpdateButton({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          justifyContent: 'center',
+          width: '40px',
+          height: '40px',
+          padding: 0,
           opacity: isUpdating ? 0.6 : 1
         }}
+        title={isUpdating ? 'Vérification...' : buttonLabel}
       >
         <RefreshCw
           size={18}
           style={isUpdating ? { animation: 'spin 1s linear infinite' } : {}}
         />
-        {isUpdating ? 'Vérification...' : buttonLabel}
-        {!isUpdating && <ChevronDown size={16} />}
       </button>
 
       {showMenu && !isUpdating && (

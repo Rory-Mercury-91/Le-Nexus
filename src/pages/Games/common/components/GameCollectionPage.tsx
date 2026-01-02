@@ -171,11 +171,17 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
 
     if (translationFilter !== 'all') {
       if (translationFilter === 'translated') {
-        filtered = filtered.filter(game => game.traduction_fr_disponible === true);
+        // Jeux traduits = version_traduite existe, non vide, et n'est pas "intégré"
+        filtered = filtered.filter(game => {
+          if (!game.version_traduite || game.version_traduite.trim() === '') return false;
+          return !game.version_traduite.toLowerCase().includes('intégré');
+        });
       } else if (translationFilter === 'not-translated') {
-        filtered = filtered.filter(game => !game.traduction_fr_disponible);
+        // Jeux non traduits = version_traduite est null, vide ou undefined
+        filtered = filtered.filter(game => !game.version_traduite || game.version_traduite.trim() === '');
       } else if (translationFilter === 'integrated') {
-        filtered = filtered.filter(game => game.statut_traduction === 'Traduction intégré' || game.type_traduction === 'Automatique');
+        // Traduction intégrée = version_traduite contient "intégré"
+        filtered = filtered.filter(game => game.version_traduite && game.version_traduite.toLowerCase().includes('intégré'));
       }
     }
 
