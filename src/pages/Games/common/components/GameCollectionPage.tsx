@@ -203,13 +203,22 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
       filtered = filtered.filter(game => game.is_favorite === true || game.is_favorite === 1);
     }
 
-    if (!showHidden) {
+    // Filtre : jeux masqués
+    // Si showHidden est true, afficher UNIQUEMENT les jeux masqués
+    // Si showHidden est false, afficher UNIQUEMENT les jeux non masqués
+    if (showHidden) {
+      filtered = filtered.filter(game => game.is_hidden === true || game.is_hidden === 1);
+    } else {
       filtered = filtered.filter(game => !game.is_hidden || game.is_hidden === 0);
     }
 
     if (showOutdatedTranslation) {
       filtered = filtered.filter(game => {
         if (!game.traduction_fr_disponible) return false;
+        // Exclure les jeux avec "version intégrée" car ils sont par défaut à jour
+        if (game.version_traduite && game.version_traduite.toLowerCase().includes('intégré')) {
+          return false;
+        }
         const gameVersion = game.game_version || game.version || '0.0';
         const tradVersion = game.version_traduite || '0.0';
         return gameVersion !== tradVersion;
@@ -598,7 +607,7 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
         title={game.titre}
         subtitle={subtitle}
         progression={progression}
-        currentStatus={game.statut_perso || game.completion_perso || 'À lire'}
+        currentStatus={game.statut_perso || game.completion_perso || 'À jouer'}
         availableStatuses={[...COMMON_STATUSES.ADULTE_GAME]}
         isFavorite={!!game.is_favorite}
         badges={badges}
@@ -880,7 +889,7 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
                 style={{ width: 'auto', flex: '0 0 auto' }}
               >
                 <option value="all">🔍 Toutes les complétions</option>
-                <option value="À lire">🎮 À jouer</option>
+                <option value="À jouer">🎮 À jouer</option>
                 <option value="En cours">🎮 En cours</option>
                 <option value="En pause">⏸️ En pause</option>
                 <option value="Terminé">✅ Terminé</option>

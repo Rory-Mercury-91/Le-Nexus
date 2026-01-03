@@ -59,8 +59,14 @@ function registerAdulteGameReadHandlers(ipcMain, getDb, store) {
         }
       }
       if (filters.statut_perso) {
-        conditions.push(`COALESCE(ud.completion_perso, '') = ?`);
-        params.push(filters.statut_perso);
+        // Pour "À jouer", inclure aussi les jeux sans statut (NULL)
+        if (filters.statut_perso === 'À jouer') {
+          conditions.push(`(ud.completion_perso = ? OR ud.completion_perso IS NULL)`);
+          params.push(filters.statut_perso);
+        } else {
+          conditions.push(`ud.completion_perso = ?`);
+          params.push(filters.statut_perso);
+        }
       }
       if (filters.statut_jeu) {
         conditions.push(`g.game_statut = ?`);

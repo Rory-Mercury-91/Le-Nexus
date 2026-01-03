@@ -203,7 +203,7 @@ export default function AdulteGameCard({
         <CardActionsMenu
           isFavorite={!!game.is_favorite}
           isHidden={isHidden}
-          currentStatus={game.statut_perso || 'À lire'}
+          currentStatus={game.statut_perso || 'À jouer'}
           availableStatuses={COMMON_STATUSES.ADULTE_GAME}
           onToggleFavorite={onToggleFavorite}
           onToggleHidden={onToggleHidden}

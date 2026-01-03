@@ -5,6 +5,35 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.7-Fix] - (A venir)
+
+### 🐛 Corrigé
+- **Script Tampermonkey pour LewdCorner**
+  - Correction de l'extraction des données pour la nouvelle architecture du site LewdCorner
+  - Extraction de l'ID depuis l'URL (format `/threads/nom.669416/`) au lieu du JSON-LD
+  - Amélioration de l'extraction du nom du jeu avec nettoyage des préfixes (KN, DAZ, etc.)
+  - Ajout de l'extraction du développeur depuis les crochets du titre
+  - Méthodes de fallback multiples pour une meilleure robustesse (JSON-LD, titre de page, URL, titre HTML)
+  - Version du script mise à jour de 2.0.4 à 2.0.7
+
+- **Affichage du sélecteur de statut utilisateur dans la page détails des jeux adultes**
+  - Le sélecteur de statut s'affiche maintenant même si aucun statut n'a été défini auparavant
+  - Correction de la condition d'affichage pour permettre la modification du statut dès l'ouverture de la page détails
+
+- **Réinitialisation de la recherche dans la modal de sélection d'exécutables**
+  - Lors de l'effacement du champ de recherche, la sélection du jeu et les résultats sont maintenant complètement réinitialisés
+  - Possibilité de recommencer une nouvelle recherche proprement après avoir effacé le texte
+  - Correction du problème où les résultats de recherche précédents restaient affichés après l'effacement
+
+- **Filtre "jeux masqués" dans la collection de jeux adultes**
+  - Correction de la logique du filtre pour afficher UNIQUEMENT les jeux masqués quand le filtre est activé
+  - Auparavant, le filtre affichait tous les jeux (masqués et non masqués) quand activé
+  - Maintenant, quand le filtre est activé, seuls les jeux masqués sont affichés (comportement cohérent avec les autres collections)
+
+- **Filtre "jeux non à jour" dans la collection de jeux adultes**
+  - Les jeux avec "version intégrée" sont maintenant exclus du filtre "jeux non à jour"
+  - Les traductions intégrées sont considérées comme étant à jour par défaut et n'apparaissent plus dans les jeux non à jour
+
 ## [1.0.7] - 2026-01-03
 
 ### ✨ Ajouté
@@ -899,6 +928,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.7-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.7-Fix
 [1.0.7]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.7
 [1.0.6]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.6
 [1.0.5-Fix2]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5-Fix2

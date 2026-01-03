@@ -21,7 +21,7 @@ const isAdulteGameSortOption = (value: unknown): value is AdulteGameSortOption =
   typeof value === 'string' && ADULTE_GAME_SORT_SET.has(value);
 type TranslationFilter = 'all' | 'translated' | 'not-translated' | 'integrated';
 const ADULTE_GAME_STATUT_JEU_SET = new Set<AdulteGameStatutJeu>(['TERMINÉ', 'ABANDONNÉ', 'EN COURS']);
-const ADULTE_GAME_STATUT_PERSO_SET = new Set<AdulteGameStatutPerso>(['Terminé', 'En cours', 'En pause', 'À lire', 'Abandonné']);
+const ADULTE_GAME_STATUT_PERSO_SET = new Set<AdulteGameStatutPerso>(['Terminé', 'En cours', 'En pause', 'À jouer', 'Abandonné']);
 const PLATEFORME_FILTER_SET = new Set(['all', 'F95Zone', 'LewdCorner']);
 const TRANSLATION_FILTER_SET = new Set<TranslationFilter>(['all', 'translated', 'not-translated', 'integrated']);
 const ADULTE_GAME_MOTEUR_SET = new Set<AdulteGameMoteur>(['RenPy', 'Unity', 'RPGM', 'Unreal', 'HTML', 'Flash', 'QSP', 'Autre']);
@@ -587,7 +587,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
     filterConfig: {
       getIsHidden: (game) => !!game.is_hidden,
       getIsFavorite: (game) => !!game.is_favorite,
-      getStatus: (game) => game.statut_perso || null,
+      getStatus: (game) => game.statut_perso || 'À jouer',
       getHasUpdates: (game) => !!game.maj_disponible,
       customFilter: (game) => {
         // Filtres spécifiques AdulteGame

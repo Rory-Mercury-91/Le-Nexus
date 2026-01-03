@@ -1,4 +1,4 @@
-import { Search, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Search, X, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useToast } from '../../../hooks/common/useToast';
 import '../../../index.css';
@@ -122,7 +122,17 @@ export default function ScanExecutablesModal({ onClose, onSuccess }: ScanExecuta
         const item = prev[index];
         if (!item) return prev;
         const updated = [...prev];
-        updated[index] = { ...item, searchTerm: '', searchResults: [], isSearching: false };
+        // Réinitialiser complètement : recherche, résultats et sélection
+        updated[index] = { 
+          ...item, 
+          searchTerm: '', 
+          searchResults: [], 
+          isSearching: false,
+          selectedGameId: null,
+          selectedGame: null,
+          action: null,
+          currentExecutables: undefined
+        };
         return updated;
       });
       return;
@@ -428,22 +438,78 @@ export default function ScanExecutablesModal({ onClose, onSuccess }: ScanExecuta
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              opacity: scanning ? 0.6 : 1
+              opacity: scanning ? 0.6 : 1,
+              cursor: scanning ? 'not-allowed' : 'pointer'
             }}
           >
-            <Search size={16} />
-            {scanning ? 'Scan en cours...' : 'Scanner un dossier'}
+            {scanning ? (
+              <>
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                <span>Analyse en cours...</span>
+              </>
+            ) : (
+              <>
+                <Search size={16} />
+                <span>Scanner un dossier</span>
+              </>
+            )}
           </button>
           
-          {executables.length > 0 && (
+          {executables.length > 0 && !scanning && (
             <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
               {executables.length} exécutable(s) trouvé(s)
             </div>
           )}
         </div>
 
+        {/* Indicateur de scan en cours */}
+        {scanning && (
+          <div style={{
+            padding: '20px',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            minHeight: '200px'
+          }}>
+            <Loader2 
+              size={48} 
+              style={{ 
+                color: 'var(--primary)',
+                animation: 'spin 1s linear infinite'
+              }} 
+            />
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: 'var(--text)'
+              }}>
+                🔍 Analyse du disque en cours...
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-secondary)',
+                maxWidth: '400px'
+              }}>
+                Veuillez patienter pendant que l'application scanne les dossiers à la recherche d'exécutables de jeux.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Contenu principal - Deux colonnes */}
-        {executables.length > 0 && (
+        {executables.length > 0 && !scanning && (
           <div style={{
             display: 'flex',
             gap: '20px',
@@ -864,6 +930,15 @@ export default function ScanExecutablesModal({ onClose, onSuccess }: ScanExecuta
           </div>
         </div>
       </Modal>
+      
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </>
   );
 }

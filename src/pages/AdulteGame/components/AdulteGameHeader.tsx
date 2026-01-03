@@ -24,7 +24,7 @@ interface AdulteGameHeaderProps {
 }
 
 const STATUSES = [
-  { value: 'À lire', label: '🎮 À jouer', color: 'var(--warning)' },
+  { value: 'À jouer', label: '🎮 À jouer', color: 'var(--warning)' },
   { value: 'En cours', label: '🎮 En cours', color: 'var(--primary)' },
   { value: 'En pause', label: '⏸️ En pause', color: 'var(--warning)' },
   { value: 'Terminé', label: '✅ Terminé', color: 'var(--success)' },
@@ -109,9 +109,9 @@ export default function AdulteGameHeader({
       {/* Actions à droite */}
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
         {/* Statut de completion */}
-        {statut_perso && onStatusChange && (
+        {onStatusChange && (
           <select
-            value={statut_perso || 'À lire'}
+            value={statut_perso || 'À jouer'}
             onChange={(e) => onStatusChange(e.target.value)}
             className="select"
             style={{

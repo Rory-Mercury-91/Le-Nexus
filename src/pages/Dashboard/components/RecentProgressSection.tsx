@@ -30,7 +30,7 @@ export default function RecentProgressSection({
     // Ajouter les jeux adultes récents si pas de mot de passe
     ...(!hasPassword && adulteGames.length > 0
       ? adulteGames
-          .filter(g => g.statut_perso && g.statut_perso !== 'À lire' && (g.derniere_session || g.updated_at))
+          .filter(g => g.statut_perso && g.statut_perso !== 'À jouer' && (g.derniere_session || g.updated_at))
           .map(g => ({
             type: 'jeu' as const,
             gameId: g.id,

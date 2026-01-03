@@ -648,7 +648,7 @@ export interface User {
 // Jeux adultes (Adult Visual Novels)
 // ========================================
 
-export type AdulteGameStatutPerso = 'Terminé' | 'En cours' | 'En pause' | 'À lire' | 'Abandonné';
+export type AdulteGameStatutPerso = 'Terminé' | 'En cours' | 'En pause' | 'À jouer' | 'Abandonné';
 export type AdulteGameStatutJeu = 'TERMINÉ' | 'ABANDONNÉ' | 'EN COURS';
 export type AdulteGameMoteur = 'ADRIFT' | 'Flash' | 'HTML' | 'Java' | 'Others' | 'QSP' | 'RAGS' | 'RPGM' | 'RenPy' | 'Ren\'Py' | 'Tads' | 'Unity' | 'Unreal Engine' | 'Unreal' | 'WebGL' | 'WolfRPG' | 'Wolf RPG' | 'Autre';
 export type AdulteGameStatutTraduction = 'Traduction' | 'Traduction (Mod inclus)' | 'Traduction intégré' | '';
