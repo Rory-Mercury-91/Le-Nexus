@@ -5,6 +5,109 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.7] - 2026-01-03
+
+### ✨ Ajouté
+- **Migration vers UUID pour la gestion de la possession**
+  - Ajout de la colonne `user_uuid` dans toutes les tables de propriétaires :
+    - `manga_manga_tomes_proprietaires`
+    - `book_proprietaires`
+    - `subscription_proprietaires`
+    - `one_time_purchase_proprietaires`
+    - `adulte_game_proprietaires`
+  - Migration automatique des UUIDs existants pour les données déjà présentes
+  - Utilisation des UUIDs pour une meilleure cohérence lors de la synchronisation cloud
+  - Fonction helper `getUserUuidById()` ajoutée pour récupérer l'UUID d'un utilisateur par son ID
+
+### 🔧 Amélioré
+- **Barre de progression globale déplacée dans la sidebar**
+  - La barre de progression globale a été déplacée du haut de la page principale vers la sidebar
+  - Nouveau composant `GlobalProgressSidebar` créé pour remplacer `GlobalProgressFooter`
+  - Affichage en bas de la sidebar avec un header collapsible
+  - Chevron inversé (haut quand réduit, bas quand étendu) pour mieux refléter la position en bas de la sidebar
+  - Boutons pause/reprendre/arrêter déplacés dans le header de la section pour une meilleure accessibilité
+  - Suppression du padding de compensation dans la zone de contenu principal
+  - Nettoyage des headers de pages de détails : suppression de `useGlobalProgress` et des calculs de `progressHeaderHeight` (MangaHeader, AdulteGameHeader, DetailPageHeader)
+
+- **Fusion de données améliorée**
+  - Priorité des données Nautiljon : les données avec `source_donnees='nautiljon'` ou `'mal+nautiljon'` ont désormais priorité sur toutes les autres sources lors de la fusion
+  - Recherche améliorée de séries existantes : utilisation de `titre_alternatif` et `titre_original` en plus du titre principal pour détecter les doublons
+  - Utilisation de la fonction de normalisation existante (`normalizeTitle`) pour une meilleure correspondance des titres
+  - Division automatique des titres par `/` ou `|` pour comparer toutes les variantes
+  - Détection plus précise des séries lors de la fusion, évitant la création de doublons
+
+### 🔧 Technique
+- **Handlers mis à jour pour utiliser `user_uuid`**
+  - Tous les handlers de possession/utilisateur utilisent maintenant `user_uuid` au lieu de `user_id` uniquement :
+    - Handlers de tomes (`toggle-tome-possede`, `posseder-tous-les-tomes`, `serie-mark-as-owned`, `create-tome`, `update-tome`)
+    - Handlers de livres (`books-add-proprietaire`, `books-remove-proprietaire`, `books-mark-as-owned`, `books-create`)
+    - Handlers d'abonnements (`subscriptions-create`, `subscriptions-update`)
+    - Handlers d'achats ponctuels (`one-time-purchases-create`, `one-time-purchases-update`)
+    - Handlers de jeux adultes (`adulte-game-mark-as-owned`)
+    - Services d'import (`tomes-import-service`)
+    - Services de fusion (`merge-service`)
+  - Les suppressions utilisent maintenant `user_uuid` pour une meilleure précision
+  - Les insertions incluent toujours `user_uuid` en plus de `user_id`
+
+### 🔧 Amélioré
+- **Refactorisation de la page des paramètres**
+  - Réorganisation de la section "Intégrations" avec des sous-onglets pour chaque service (MyAnimeList, AniList, TMDb, Groq, RAWG, Jeux adultes, Nautiljon, Mihon, Tampermonkey)
+  - Création d'une nouvelle section "Synchronisation" dans l'onglet "Données" pour centraliser tous les paramètres de synchronisation automatique
+  - Déplacement de la "Fréquence de Synchronisation Globale" dans la section "Synchronisation" pour éviter la répétition
+  - Regroupement de tous les schedulers de synchronisation (MyAnimeList, AniList, Nautiljon) dans une seule section dédiée
+  - Refactorisation de la section "Scripts Tampermonkey" avec un layout plus propre et organisé
+    - Suppression des cartes imbriquées pour une interface plus claire
+    - Section "Installation guidée" avec titre, description fusionnée et bouton d'accès
+    - Présentation des trois catégories (Lectures, Animes, Jeux adultes) en grille de cartes distinctes
+  - Uniformisation des couleurs des cartes principales dans toute la fenêtre des paramètres
+    - Utilisation de `var(--surface)` et `var(--card-shadow)` pour toutes les cartes principales
+    - Correction appliquée aux sections MyAnimeList, AniList, TMDb, Groq, RAWG, Jeux adultes
+  - Ajout des boutons "Guide" sur toutes les sections d'intégration (MyAnimeList, AniList, TMDb, Groq, RAWG)
+    - Accès cohérent aux guides d'installation pour tous les services
+    - Style uniforme pour tous les boutons de guide
+
+### 🐛 Corrigé
+- **Détection des doublons lors de la fusion**
+  - Correction de la recherche de séries existantes pour utiliser aussi `titre_alternatif` et `titre_original`
+  - Les séries avec des titres alternatifs ou originaux similaires sont maintenant correctement détectées comme étant la même entrée
+  - Exemple : "2.5-Jigen no Yuuwaku / 2.5-Jigen no Yūwaku" et "2.5-jigen no Ririsa / 2.5次元の誘惑" sont maintenant correctement associées
+
+- **Correction de `ReferenceError: users is not defined` dans `MangaTomesList.tsx`**
+  - Ajout des props `users` et `profileImages` dans la destructuration des props du composant `MangaTomesList`
+  - Résolution de l'erreur de référence causée par l'utilisation de `users` sans l'avoir déstructuré des props
+
+### 🧹 Nettoyage
+- **Suppression du code inutilisé**
+  - Suppression du composant `NestedSection` et de son interface `NestedSectionProps` (remplacés par les sous-onglets)
+  - Suppression des constantes et styles liés aux sections imbriquées (`nestedSectionIds`, `nestedHeaderStyle`, `nestedContainerStyle`, `nestedBodyStyle`)
+  - Suppression des fonctions `getNestedSectionState` et `toggleNestedSection` non utilisées
+  - Retrait des props `sectionStates` et `onSectionStateChange` de `IntegrationsSettings` (devenues obsolètes)
+  - Suppression des commandes npm obsolètes `clean:electron-builder` et `clear-cache` du package.json (conservation uniquement de `clean:all`)
+
+### 🔧 Amélioré
+- **Synchronisation cloud des couvertures**
+  - Ajout de logs détaillés pour le diagnostic de l'upload des couvertures
+  - Comptage et affichage du nombre de fichiers non trouvés localement
+  - Meilleure gestion des erreurs avec messages explicites
+  - Logs indiquant le nombre de chemins trouvés dans la base de données et le nombre de fichiers uploadés/non trouvés
+
+- **Statut de synchronisation cloud**
+  - Ajout du handler `get-cloud-sync-history` pour récupérer l'historique de synchronisation
+  - Implémentation de `loadLastSync()` dans le composant `CloudSyncSettings`
+  - Le statut "Dernière sync" se met maintenant à jour correctement après chaque synchronisation
+  - Affichage de la date de dernière synchronisation dans l'interface utilisateur
+
+### 🐛 Corrigé
+- **Erreur SQL dans l'extraction des chemins de couverture**
+  - Correction de l'erreur `no such column: ""` dans `extractCoverPathsFromDatabase`
+  - Remplacement de `!= ""` par `LENGTH(column) > 0` dans toutes les requêtes SQL pour une compatibilité correcte avec SQLite
+  - Correction appliquée à toutes les tables (manga_series, manga_tomes, anime_series, movies, tv_shows, adulte_game_games, books)
+
+- **Synchronisation cloud des couvertures**
+  - Correction de la double déclaration de `performCloudSyncInternalRef` dans `cloud-sync-handlers.js`
+  - Le scheduler de synchronisation cloud est maintenant correctement initialisé au démarrage et lors de la sauvegarde de la configuration
+  - Les couvertures sont maintenant correctement synchronisées lors des synchronisations manuelles et automatiques
+
 ## [1.0.6] - 2026-01-02
 
 ### 🐛 Corrigé
@@ -796,6 +899,8 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ---
 
+[1.0.7]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.7
+[1.0.6]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.6
 [1.0.5-Fix2]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5-Fix2
 [1.0.5-Fix]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5-Fix
 [1.0.5]: https://github.com/Rory-Mercury-91/Le-Nexus/releases/tag/v1.0.5
