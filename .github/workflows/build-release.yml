@@ -226,18 +226,37 @@ jobs:
             Write-Host "✅ Release créée avec l'ID: $releaseId"
             Write-Host "   URL: $($releaseResponse.html_url)"
           } catch {
-            $statusCode = $_.Exception.Response.StatusCode.value__
+            $statusCode = $null
             $errorMessage = $_.Exception.Message
+            $responseBody = $null
             
-            # Essayer de récupérer plus de détails depuis la réponse
+            # Récupérer le code de statut si disponible
             if ($_.Exception.Response) {
-              $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-              $responseBody = $reader.ReadToEnd()
-              Write-Host "   Réponse complète: $responseBody"
+              try {
+                $statusCode = $_.Exception.Response.StatusCode.value__
+              } catch {
+                try {
+                  $statusCode = [int]$_.Exception.Response.StatusCode
+                } catch {
+                  $statusCode = $null
+                }
+              }
+              
+              # Essayer de récupérer plus de détails depuis la réponse (compatible PowerShell Core)
+              try {
+                if ($_.Exception.Response.Content) {
+                  $responseBody = $_.Exception.Response.Content.ReadAsStringAsync().Result
+                  Write-Host "   Réponse complète: $responseBody"
+                }
+              } catch {
+                # Si la lecture échoue, ignorer silencieusement
+              }
             }
             
             Write-Host "❌ Erreur lors de la création de la release:"
-            Write-Host "   Status: $statusCode"
+            if ($statusCode) {
+              Write-Host "   Status: $statusCode"
+            }
             Write-Host "   Message: $errorMessage"
             Write-Host ""
             Write-Host "💡 Vérifiez que:"
@@ -247,7 +266,7 @@ jobs:
             Write-Host "   4. Le token n'a pas expiré"
             
             # Si c'est une 404 et qu'on utilise GH_PAT, essayer avec GITHUB_TOKEN
-            if ($statusCode -eq 404 -and $usePAT -and $env:GITHUB_TOKEN) {
+            if ($statusCode -and $statusCode -eq 404 -and $usePAT -and $env:GITHUB_TOKEN) {
               Write-Host ""
               Write-Host "🔄 Tentative avec GITHUB_TOKEN en fallback..."
               $token = $env:GITHUB_TOKEN
