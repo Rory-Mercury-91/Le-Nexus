@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle, Eye, EyeOff, Lock, Palette, Smile, Upload, User, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Eye, EyeOff, Info, Lock, Palette, Smile, Upload, User, X } from 'lucide-react';
 import Toggle from '../../common/Toggle';
 import { PRESET_COLORS } from './constants';
 
@@ -13,6 +13,7 @@ interface CreateProfileStepProps {
   showSeries: boolean;
   showAdulteGame: boolean;
   showBooks: boolean;
+  showSubscriptions: boolean;
   adulteGamePassword: string;
   adulteGamePasswordConfirm: string;
   showAdulteGamePassword: boolean;
@@ -27,6 +28,7 @@ interface CreateProfileStepProps {
   onShowMoviesChange: (show: boolean) => void;
   onShowSeriesChange: (show: boolean) => void;
   onShowAdulteGameChange: (show: boolean) => void;
+  onShowSubscriptionsChange: (show: boolean) => void;
   onAdulteGamePasswordChange: (password: string) => void;
   onAdulteGamePasswordConfirmChange: (password: string) => void;
   onShowAdulteGamePasswordToggle: () => void;
@@ -48,6 +50,7 @@ export default function CreateProfileStep({
   showSeries,
   showAdulteGame,
   showBooks: _showBooks, // Non utilisé - synchronisé automatiquement avec showMangas
+  showSubscriptions,
   adulteGamePassword,
   adulteGamePasswordConfirm,
   showAdulteGamePassword,
@@ -62,6 +65,7 @@ export default function CreateProfileStep({
   onShowMoviesChange,
   onShowSeriesChange,
   onShowAdulteGameChange,
+  onShowSubscriptionsChange,
   onAdulteGamePasswordChange,
   onAdulteGamePasswordConfirmChange,
   onShowAdulteGamePasswordToggle,
@@ -511,6 +515,13 @@ export default function CreateProfileStep({
                   description: 'Jeux vidéos et jeux adultes',
                   checked: showAdulteGame,
                   onChange: onShowAdulteGameChange
+                },
+                {
+                  key: 'subscriptions',
+                  label: '💳 Abonnements',
+                  description: 'Abonnements et achats ponctuels',
+                  checked: showSubscriptions,
+                  onChange: onShowSubscriptionsChange
                 }
               ].map(option => (
                 <div
@@ -624,6 +635,21 @@ export default function CreateProfileStep({
                 {adulteGamePassword ? 'Protection activée' : 'Protection non configurée'}
               </div>
             )}
+
+            <div style={{
+              marginTop: '12px',
+              padding: '8px',
+              background: 'var(--background)',
+              borderRadius: '6px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <Info size={12} />
+              Un UUID unique sera généré et stocké dans vos paramètres pour la synchronisation cloud (optionnelle)
+            </div>
           </div>
 
           {/* Boutons de navigation */}

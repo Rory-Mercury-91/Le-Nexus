@@ -34,6 +34,7 @@ export interface ContentPreferences {
   showVideos?: boolean; // Option pour masquer/afficher toute la section Vidéos (remplace showAnimes/showMovies/showSeries)
   showAdulteGame: boolean;
   showBooks: boolean;
+  showSubscriptions: boolean;
 }
 
 export interface Serie {
@@ -122,6 +123,7 @@ export interface Tome {
   lu?: number; // 0 = non lu, 1 = lu
   date_lecture?: string | null;
   mihon?: number; // 0 = non mihon, 1 = mihon
+  mihon_user_id?: number | null; // ID de l'utilisateur qui a coché la case Mihon
 }
 
 export interface Statistics {

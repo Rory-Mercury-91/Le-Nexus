@@ -26,8 +26,9 @@ import { AnimeSerie, MovieListItem, TvShowListItem } from '../../types';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
 import { formatAirDate } from '../../utils/tmdb';
 import { translateStatus } from '../../utils/translations';
+import VideoNavigationTabs from './common/components/VideoNavigationTabs';
 import { isVideoSortOption, isVideoStatusFilter, VIDEO_SORT_OPTIONS, VIDEO_STATUS_OPTIONS, VideoSortOption } from './common/utils/constants';
-import { normalizeWorkStatus, resolveAnimeStatus } from './common/utils/video-helpers';
+import { normalizeAnimeType, normalizeWorkStatus, resolveAnimeStatus } from './common/utils/video-helpers';
 import { VideoItem } from './common/utils/video-types';
 
 export default function All() {
@@ -112,6 +113,19 @@ export default function All() {
 
   // Statuts de l'œuvre disponibles (statut_diffusion pour animes, statut pour movies/series)
   const [availableWorkStatuses, setAvailableWorkStatuses] = useState<string[]>([]);
+  const [animeTypeCounts, setAnimeTypeCounts] = useState<{
+    TV: number;
+    OVA: number;
+    ONA: number;
+    Movie: number;
+    Special: number;
+    Unclassified: number;
+  }>({ TV: 0, OVA: 0, ONA: 0, Movie: 0, Special: 0, Unclassified: 0 });
+  const [videoCounts, setVideoCounts] = useState<{
+    movies: number;
+    series: number;
+    total: number;
+  }>({ movies: 0, series: 0, total: 0 });
 
   const [viewMode, handleViewModeChange] = useCollectionViewMode('videos');
   const [stats, setStats] = useState<ProgressionStats>({});
@@ -217,6 +231,36 @@ export default function All() {
       });
 
       setAvailableWorkStatuses(Array.from(allWorkStatuses).sort());
+
+      // Calculer les compteurs d'anime types
+      const typeCounts = {
+        TV: 0,
+        OVA: 0,
+        ONA: 0,
+        Movie: 0,
+        Special: 0,
+        Unclassified: 0
+      };
+      const visibleAnimes = loadedAnimes.filter(a => !a.is_masquee);
+      visibleAnimes.forEach(anime => {
+        const normalizedType = normalizeAnimeType(anime.type);
+        if (normalizedType === 'TV') typeCounts.TV++;
+        else if (normalizedType === 'OVA') typeCounts.OVA++;
+        else if (normalizedType === 'ONA') typeCounts.ONA++;
+        else if (normalizedType === 'Movie') typeCounts.Movie++;
+        else if (normalizedType === 'Special') typeCounts.Special++;
+        else typeCounts.Unclassified++;
+      });
+      setAnimeTypeCounts(typeCounts);
+
+      // Calculer les compteurs de videos
+      const visibleMovies = loadedMovies.filter(m => !m.is_hidden);
+      const visibleSeries = loadedSeries.filter(s => !s.is_hidden);
+      setVideoCounts({
+        movies: visibleMovies.length,
+        series: visibleSeries.length,
+        total: visibleAnimes.length + visibleMovies.length + visibleSeries.length
+      });
 
       // Calculer les stats combinées
       const animesEnCours = loadedAnimes.filter(a => {
@@ -689,6 +733,9 @@ export default function All() {
               </button>
             )}
           />
+
+          {/* Barre de sous-onglets */}
+          <VideoNavigationTabs videoCounts={videoCounts} animeTypeCounts={animeTypeCounts} />
 
           <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
             <ProgressionHeader type="anime" stats={stats} />

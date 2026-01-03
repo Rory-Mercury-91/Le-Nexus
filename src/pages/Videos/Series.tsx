@@ -43,6 +43,7 @@ export default function Series() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast, ToastContainer } = useToast();
+  const { videoCounts, animeTypeCounts } = useVideoCounts();
   const [series, setSeries] = useState<TvShowListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = usePersistentState<string>(
@@ -400,6 +401,9 @@ export default function Series() {
               </button>
             )}
           />
+
+          {/* Barre de sous-onglets */}
+          <VideoNavigationTabs videoCounts={videoCounts} animeTypeCounts={animeTypeCounts} />
 
           <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
             <ProgressionHeader type="series" stats={seriesStats} />

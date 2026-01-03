@@ -63,25 +63,28 @@ export default function AnimeCover({
   const [showImageModal, setShowImageModal] = useState(false);
 
   // Calculer le statut actuel selon la progression
+  // Le statut de completion utilisateur prime sur la logique basée sur les épisodes
   const currentStatus = useMemo(() => {
-    // Si aucun épisode n'est vu → "À regarder"
-    if (episodesVus === 0) {
-      return 'À regarder';
+    const statutUtilisateur = anime.statut_visionnage;
+
+    // Priorité 1 : Le statut utilisateur "En pause" prime (qu'il vienne de MAL ou d'un clic utilisateur)
+    if (statutUtilisateur === 'En pause') {
+      return 'En pause';
     }
 
-    // Si tous les épisodes sont vus, c'est terminé
+    // Priorité 2 : Si tous les épisodes sont vus, c'est terminé
     if (nbEpisodes > 0 && episodesVus >= nbEpisodes) {
       return 'Terminé';
     }
 
-    // Si au moins 1 épisode est vu → "En cours"
+    // Priorité 3 : Si au moins 1 épisode est vu → "En cours"
     if (episodesVus >= 1) {
       return 'En cours';
     }
 
-    // Sinon, utiliser le statut actuel ou "À regarder" par défaut
+    // Priorité 4 : Si aucun épisode n'est vu → "À regarder" ou utiliser le statut utilisateur
     // Mapper "En attente" vers "En pause" car "En attente" n'est pas dans les statuts valides
-    const statut = anime.statut_visionnage || 'À regarder';
+    const statut = statutUtilisateur || 'À regarder';
     return statut === 'En attente' ? 'En pause' : (statut as AnimeStatus);
   }, [anime.statut_visionnage, episodesVus, nbEpisodes]);
 

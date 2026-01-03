@@ -26,7 +26,6 @@ function mergeDatabases(sourceDbPath, destDbPath) {
       { name: 'manga_user_data', strategy: 'skip_duplicates' },
       { name: 'anime_series', strategy: 'skip_duplicates' },
       { name: 'anime_proprietaires', strategy: 'skip_duplicates' },
-      { name: 'anime_episodes', strategy: 'skip_duplicates' },
       { name: 'anime_user_data', strategy: 'skip_duplicates' },
       { name: 'adulte_game_games', strategy: 'skip_duplicates' },
       { name: 'adulte_game_user_data', strategy: 'skip_duplicates' },

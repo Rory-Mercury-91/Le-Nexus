@@ -4,9 +4,6 @@ import { Book } from '../../types';
 import { useDetailPage } from './useDetailPage';
 import { useItemActions } from './useItemActions';
 
-type BookDisplayPrefs = Record<string, boolean>;
-
-const bookDisplayDefaults: BookDisplayPrefs = {};
 
 export function useBookDetail() {
   const { id } = useParams();
@@ -16,15 +13,6 @@ export function useBookDetail() {
     return data || null;
   }, []);
 
-  const loadDisplaySettingsApi = useCallback(async () => {
-    const result = await window.electronAPI.getBooksDisplaySettings?.();
-    return result || null;
-  }, []);
-
-  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
-    const result = await window.electronAPI.getBooksDisplayOverrides?.(itemId);
-    return result || null;
-  }, []);
 
   const isEventForCurrentItem = useCallback((event: CustomEvent, _item: Book | null, itemId: string | undefined) => {
     const { bookId } = event.detail;
@@ -46,19 +34,13 @@ export function useBookDetail() {
     item: book,
     setItem: setBook,
     loading,
-    displayPrefs,
-    showDisplaySettingsModal,
-    setShowDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
     loadDetail
-  } = useDetailPage<Book, BookDisplayPrefs>({
+  } = useDetailPage<Book, Record<string, never>>({
     itemId: id,
-    displayDefaults: bookDisplayDefaults,
+    displayDefaults: {},
     loadDetailApi,
-    displayPreferencesMode: 'global-local',
-    loadDisplaySettingsApi,
-    loadDisplayOverridesApi,
     statusEventName: 'book-status-changed',
     isEventForCurrentItem,
     reloadAfterEvent,
@@ -159,9 +141,9 @@ export function useBookDetail() {
   // Utiliser prix_total du livre si disponible, sinon calculer depuis les propriétaires
   const totalPrix = book?.prix_total || (book?.proprietaires?.reduce((sum, p) => sum + (p.prix || 0), 0) || 0);
 
-  const shouldShow = useCallback((field: string): boolean => {
-    return displayPrefs[field] !== false;
-  }, [displayPrefs]);
+  const shouldShow = useCallback((_field?: string): boolean => {
+    return true;
+  }, []);
 
   return {
     // Données
@@ -175,12 +157,9 @@ export function useBookDetail() {
 
     // États UI
     showEditModal,
-    showCustomizeDisplay: showDisplaySettingsModal,
-    displayPrefs,
 
     // Actions
     setShowEditModal,
-    setShowCustomizeDisplay: setShowDisplaySettingsModal,
     handleDelete,
     handleStatusChange,
     handleToggleFavorite,

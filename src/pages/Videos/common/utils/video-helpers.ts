@@ -93,23 +93,30 @@ export function normalizeWorkStatus(status: string | null | undefined): string {
 
 /**
  * Résout le statut de visionnage d'un anime basé sur la progression des épisodes
+ * Le statut de completion utilisateur prime sur la logique basée sur les épisodes
  */
 export function resolveAnimeStatus(anime: AnimeSerie): string {
   const episodesVus = anime.episodes_vus || 0;
   const episodesTotal = anime.nb_episodes || 0;
+  const statutUtilisateur = anime.statut_visionnage;
 
-  // Priorité 1 : Si tous les épisodes sont vus, c'est terminé (peu importe le statut_visionnage)
+  // Priorité 1 : Le statut utilisateur "En pause" prime (qu'il vienne de MAL ou d'un clic utilisateur)
+  if (statutUtilisateur === 'En pause') {
+    return 'En pause';
+  }
+
+  // Priorité 2 : Si tous les épisodes sont vus, c'est terminé (peu importe le statut_visionnage)
   if (episodesTotal > 0 && episodesVus >= episodesTotal) {
     return 'Terminé';
   }
 
-  // Priorité 2 : Si au moins 1 épisode est vu, c'est en cours
+  // Priorité 3 : Si au moins 1 épisode est vu, c'est en cours (sauf si statut utilisateur est "En pause")
   if (episodesVus > 0) {
     return 'En cours';
   }
 
-  // Priorité 3 : Utiliser le statut_visionnage s'il existe, sinon "À regarder"
-  return anime.statut_visionnage || 'À regarder';
+  // Priorité 4 : Utiliser le statut_visionnage s'il existe, sinon "À regarder"
+  return statutUtilisateur || 'À regarder';
 }
 
 /**

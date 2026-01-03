@@ -57,8 +57,10 @@ export default function AdulteGameTranslatorsSettings({
     <div
       style={{
         padding: '16px',
-        background: 'var(--surface-light)',
-        borderRadius: '8px'
+        background: 'var(--surface)',
+        borderRadius: '8px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--card-shadow)'
       }}
     >
       <label

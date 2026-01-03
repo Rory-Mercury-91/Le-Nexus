@@ -1,4 +1,4 @@
-import { Code, Info, Merge } from 'lucide-react';
+import { Code, Download, FileUp, Info, Merge } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 
@@ -133,6 +133,64 @@ export default function DevSettings({ showToast, onOpenMergeModal, mergePreviewL
     }
   };
 
+  const handleExportApiKeys = async () => {
+    try {
+      const result = await window.electronAPI.exportApiKeys?.();
+      if (result?.success) {
+        showToast({
+          type: 'success',
+          title: 'Clés API exportées',
+          message: 'Toutes les clés API ont été exportées et chiffrées avec succès',
+          duration: 3000
+        });
+      } else if (result?.canceled) {
+        // L'utilisateur a annulé, pas besoin d'afficher d'erreur
+        return;
+      } else {
+        showToast({
+          type: 'error',
+          title: 'Erreur d\'export',
+          message: result?.error || 'Impossible d\'exporter les clés API'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.message || 'Impossible d\'exporter les clés API'
+      });
+    }
+  };
+
+  const handleImportApiKeys = async () => {
+    try {
+      const result = await window.electronAPI.importApiKeys?.();
+      if (result?.success) {
+        showToast({
+          type: 'success',
+          title: 'Clés API importées',
+          message: 'Toutes les clés API ont été importées et déchiffrées avec succès. Vous devrez peut-être redémarrer l\'application.',
+          duration: 4000
+        });
+      } else if (result?.canceled) {
+        // L'utilisateur a annulé, pas besoin d'afficher d'erreur
+        return;
+      } else {
+        showToast({
+          type: 'error',
+          title: 'Erreur d\'import',
+          message: result?.error || 'Impossible d\'importer les clés API'
+        });
+      }
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.message || 'Impossible d\'importer les clés API'
+      });
+    }
+  };
+
   const TooltipIcon = ({ id, placement = 'center' }: { id: TooltipId; placement?: 'center' | 'end' }) => (
     <span
       onMouseEnter={() => setActiveTooltip(id)}
@@ -196,76 +254,64 @@ export default function DevSettings({ showToast, onOpenMergeModal, mergePreviewL
     <div>
       <div
         style={{
-          padding: '20px',
-          background: 'var(--surface)',
-          borderRadius: '12px',
-          border: '1px solid var(--border)',
           display: 'flex',
-          flexDirection: 'column',
-          gap: '18px'
+          flexWrap: 'wrap',
+          gap: '16px'
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '16px'
-          }}
-        >
-          {[
-            {
-              key: 'dev-mode',
-              title: 'Mode développeur',
-              description: 'Active les DevTools et affiche les IDs sur les pages de détails.',
-              checked: devMode,
-              onChange: handleDevModeChange
-            },
-            {
-              key: 'verbose-logs',
-              title: 'Logs verbose (backend)',
-              description: 'Affiche tous les logs du backend dans la console DevTools (F12).',
-              checked: verboseLogging,
-              onChange: handleVerboseLoggingChange
-            }
-          ].map(({ key, title, description, checked, onChange }) => (
+        {[
+          {
+            key: 'dev-mode',
+            title: 'Mode développeur',
+            description: 'Active les DevTools et affiche les IDs sur les pages de détails.',
+            checked: devMode,
+            onChange: handleDevModeChange
+          },
+          {
+            key: 'verbose-logs',
+            title: 'Logs verbose (backend)',
+            description: 'Affiche tous les logs du backend dans la console DevTools (F12).',
+            checked: verboseLogging,
+            onChange: handleVerboseLoggingChange
+          }
+        ].map(({ key, title, description, checked, onChange }) => (
+          <div
+            key={key}
+            style={{
+              flex: '1 1 320px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              padding: '16px 18px',
+              borderRadius: '10px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-light)'
+            }}
+          >
             <div
-              key={key}
               style={{
-                flex: '1 1 320px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: 'rgba(99, 102, 241, 0.15)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px',
-                padding: '16px 18px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)'
+                justifyContent: 'center',
+                color: 'var(--primary)'
               }}
             >
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--primary)'
-                }}
-              >
-                <Code size={20} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
-                  {title}
-                  <TooltipIcon id={key as TooltipId} />
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{description}</div>
-              </div>
-              <Toggle checked={checked} onChange={onChange} />
+              <Code size={20} />
             </div>
-          ))}
-        </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
+                {title}
+                <TooltipIcon id={key as TooltipId} />
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{description}</div>
+            </div>
+            <Toggle checked={checked} onChange={onChange} />
+          </div>
+        ))}
       </div>
 
       {devMode && (
@@ -417,6 +463,38 @@ export default function DevSettings({ showToast, onOpenMergeModal, mergePreviewL
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Export/Import des clés API */}
+          <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '12px' }}>
+              🔑 Gestion des clés API
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.5 }}>
+              Sauvegardez ou restaurez toutes les clés API de l'application (Groq, TMDb, RAWG, Cloudflare R2, MyAnimeList, AniList). Utile après une réinstallation complète ou une restauration manuelle.
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleExportApiKeys}
+                className="btn btn-outline"
+                style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                title="Exporter toutes les clés API (chiffrées)"
+              >
+                <Download size={14} />
+                Exporter les clés API
+              </button>
+              <button
+                type="button"
+                onClick={handleImportApiKeys}
+                className="btn btn-outline"
+                style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                title="Importer les clés API (chiffrées)"
+              >
+                <FileUp size={14} />
+                Importer les clés API
+              </button>
             </div>
           </div>
         </div>

@@ -8,9 +8,6 @@ import { useDetailPage } from './useDetailPage';
 import { useItemActions } from './useItemActions';
 import { useStreamingLinks } from './useStreamingLinks';
 
-type AnimeDisplayPrefs = Record<string, boolean>;
-
-const animeDisplayDefaults: AnimeDisplayPrefs = {};
 
 export function useAnimeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,15 +24,6 @@ export function useAnimeDetail() {
     return null;
   }, []);
 
-  const loadDisplaySettingsApi = useCallback(async () => {
-    const result = await window.electronAPI.getAnimeDisplaySettings?.();
-    return result || null;
-  }, []);
-
-  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
-    const result = await window.electronAPI.getAnimeDisplayOverrides?.(itemId);
-    return result || null;
-  }, []);
 
   const isEventForCurrentItem = useCallback((event: CustomEvent, _item: AnimeSerie | null, itemId: string | undefined) => {
     const { animeId } = event.detail;
@@ -60,20 +48,13 @@ export function useAnimeDetail() {
     item: anime,
     setItem: setAnime,
     loading,
-    displayPrefs,
-    showDisplaySettingsModal,
-    setShowDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
-    loadDetail,
-    refreshDisplayPrefs
-  } = useDetailPage<AnimeSerie, AnimeDisplayPrefs>({
+    loadDetail
+  } = useDetailPage<AnimeSerie, Record<string, never>>({
     itemId: id,
-    displayDefaults: animeDisplayDefaults,
+    displayDefaults: {},
     loadDetailApi,
-    displayPreferencesMode: 'global-local',
-    loadDisplaySettingsApi,
-    loadDisplayOverridesApi,
     statusEventName: 'anime-status-changed',
     isEventForCurrentItem,
     reloadAfterEvent,
@@ -323,8 +304,8 @@ export function useAnimeDetail() {
   const liensStreaming = anime?.liens_streaming ? JSON.parse(anime.liens_streaming) : [];
   const liensExternes = anime?.liens_externes ? JSON.parse(anime.liens_externes) : [];
 
-  const shouldShow = (field: string): boolean => {
-    return displayPrefs[field] !== false;
+  const shouldShow = (_field?: string): boolean => {
+    return true;
   };
 
   return {
@@ -339,14 +320,12 @@ export function useAnimeDetail() {
 
     // États UI
     showEditModal,
-    showCustomizeDisplay: showDisplaySettingsModal,
     showAddLinkForm,
     newLink,
     enriching,
 
     // Actions
     setShowEditModal,
-    setShowCustomizeDisplay: setShowDisplaySettingsModal,
     setShowAddLinkForm,
     setNewLink,
     handleDelete,
@@ -360,7 +339,6 @@ export function useAnimeDetail() {
     handleEnrich,
     handleForceEnrich,
     loadAnime,
-    reloadDisplayPreferences: refreshDisplayPrefs,
     shouldShow,
 
     // Toast

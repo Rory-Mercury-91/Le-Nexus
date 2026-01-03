@@ -30,12 +30,6 @@ export default function AdulteGameDetail() {
     ConfirmDialog
   } = useAdulteGameDetail();
 
-  // Préférences d'affichage - tout activé par défaut
-  const displayPrefs = {
-    main_info: true,
-    user_params: true,
-    translation: true
-  };
 
   // Loading state
   if (loading) {
@@ -126,26 +120,24 @@ export default function AdulteGameDetail() {
             }}
           >
             {/* Colonne 1 : Informations principales */}
-            {displayPrefs.main_info && (
-              <AdulteGameInfoCard
-                titre={game.titre}
-                statut_jeu={game.statut_jeu}
-                moteur={game.moteur}
-                developpeur={game.developpeur}
-                plateforme={game.plateforme}
-                version={game.version}
-                tags={game.tags}
-                f95_thread_id={game.f95_thread_id}
-                lien_f95={game.lien_f95}
-                Lewdcorner_thread_id={game.Lewdcorner_thread_id}
-                lien_lewdcorner={game.lien_lewdcorner}
-              />
-            )}
+            <AdulteGameInfoCard
+              titre={game.titre}
+              statut_jeu={game.statut_jeu}
+              moteur={game.moteur}
+              developpeur={game.developpeur}
+              plateforme={game.plateforme}
+              version={game.version}
+              tags={game.tags}
+              f95_thread_id={game.f95_thread_id}
+              lien_f95={game.lien_f95}
+              Lewdcorner_thread_id={game.Lewdcorner_thread_id}
+              lien_lewdcorner={game.lien_lewdcorner}
+            />
 
             {/* Colonne 2 : Traduction + Paramètres personnels */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Ligne 1 : Traduction française */}
-              {displayPrefs.translation && !!game.traduction_fr_disponible ? (
+              {!!game.traduction_fr_disponible ? (
                 <AdulteGameTraductionCard
                   version_traduite={game.version_traduite}
                   version_actuelle={game.version}
@@ -154,24 +146,22 @@ export default function AdulteGameDetail() {
                   lien_traduction={game.lien_traduction}
                   traductions_multiples={game.traductions_multiples}
                 />
-              ) : displayPrefs.translation ? (
+              ) : (
                 <div className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '14px', textAlign: 'center' }}>
                     Aucune traduction disponible
                   </div>
                 </div>
-              ) : null}
+              )}
 
               {/* Ligne 2 : Paramètres personnels */}
-              {displayPrefs.user_params && (
-                <AdulteGameParamsCard
-                  gameId={game.id}
-                  chemin_executable={game.chemin_executable}
-                  version_jouee={game.version_jouee}
-                  derniere_session={game.derniere_session}
-                  onExecutableChange={loadGame}
-                />
-              )}
+              <AdulteGameParamsCard
+                gameId={game.id}
+                chemin_executable={game.chemin_executable}
+                version_jouee={game.version_jouee}
+                derniere_session={game.derniere_session}
+                onExecutableChange={loadGame}
+              />
             </div>
           </div>
         </div>

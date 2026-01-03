@@ -22,10 +22,12 @@ import { useCollectionFilters } from '../../hooks/common/useCollectionFilters';
 import { usePersistentState } from '../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../hooks/common/useScrollRestoration';
 import { useToast } from '../../hooks/common/useToast';
+import { useVideoCounts } from '../../hooks/videos/useVideoCounts';
 import { MovieListItem } from '../../types';
 import { COMMON_STATUSES, formatStatusLabel } from '../../utils/status';
 import { formatAirDate, formatRuntime } from '../../utils/tmdb';
 import { translateStatus } from '../../utils/translations';
+import VideoNavigationTabs from './common/components/VideoNavigationTabs';
 import { normalizeWorkStatus } from './common/utils/video-helpers';
 
 const MOVIE_STATUS_OPTIONS = COMMON_STATUSES.MOVIE;
@@ -43,6 +45,7 @@ export default function Movies() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast, ToastContainer } = useToast();
+  const { videoCounts, animeTypeCounts } = useVideoCounts();
   const [movies, setMovies] = useState<MovieListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = usePersistentState<string>(
@@ -434,6 +437,9 @@ export default function Movies() {
               </button>
             )}
           />
+
+          {/* Barre de sous-onglets */}
+          <VideoNavigationTabs videoCounts={videoCounts} animeTypeCounts={animeTypeCounts} />
 
           <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
             <ProgressionHeader type="movie" stats={movieStats} />

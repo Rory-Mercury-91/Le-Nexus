@@ -1,6 +1,5 @@
-import { CheckCircle, ChevronDown, Clock, Database, Download, FolderOpen, RefreshCw, Trash2, Upload } from 'lucide-react';
+import { CheckCircle, ChevronDown, Database, Download, FolderOpen, Info, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Toggle from '../../../components/common/Toggle';
 import { useConfirm } from '../../../hooks/common/useConfirm';
 
 interface DatabaseSettingsProps {
@@ -18,14 +17,14 @@ interface DatabaseSettingsProps {
   onSectionStateChange: (sectionId: string, isOpen: boolean) => void;
 }
 
-type BackupFrequency = 'daily' | 'weekly' | 'manual';
+type BackupFrequency = 'daily' | 'weekly';
 
 interface BackupConfigState {
-  enabled: boolean;
+  enabled: boolean; // Toujours true, conservé pour compatibilité avec le backend
   frequency: BackupFrequency;
   day: number;
   hour: string;
-  keepCount: number;
+  keepCount: number; // Toujours 10, conservé pour compatibilité avec le backend
   lastBackup: string | null;
   backupOnStartup: boolean;
   backupOnShutdown: boolean;
@@ -57,11 +56,11 @@ export default function DatabaseSettings({
 
   // États pour le backup automatique
   const [backupConfig, setBackupConfig] = useState<BackupConfigState>({
-    enabled: false,
+    enabled: true, // Toujours activé
     frequency: 'weekly',
     day: 0,
     hour: '02:00',
-    keepCount: 7,
+    keepCount: 10, // Valeur fixe non configurable
     lastBackup: null,
     backupOnStartup: true,
     backupOnShutdown: true
@@ -72,9 +71,9 @@ export default function DatabaseSettings({
   const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  
-  const showBackupConfig = sectionStates['database-backup-config'] ?? true;
-  const showBackupsList = sectionStates['database-backups-list'] ?? true;
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+
+  const showBackupSection = sectionStates['database-backup'] ?? true;
 
   // Charger la configuration au montage
   useEffect(() => {
@@ -101,34 +100,25 @@ export default function DatabaseSettings({
     try {
       const config = await window.electronAPI.getBackupConfig();
       setBackupConfig(prev => {
-        const legacyRetention = typeof (config as any).retention === 'number' ? (config as any).retention : undefined;
         const rawFrequency = (config as any).frequency as string | undefined;
+        // Migration : 'manual' devient 'weekly'
         const normalizedFrequency: BackupFrequency =
-          rawFrequency === 'weekly' || rawFrequency === 'daily' || rawFrequency === 'manual'
+          rawFrequency === 'weekly' || rawFrequency === 'daily'
             ? rawFrequency
-            : rawFrequency === 'monthly'
-              ? 'manual'
+            : rawFrequency === 'manual'
+              ? 'weekly'
               : prev.frequency;
 
         return {
           ...prev,
-          enabled: typeof (config as any).enabled === 'boolean' ? (config as any).enabled : prev.enabled,
+          enabled: true, // Toujours activé
           frequency: normalizedFrequency,
           day: typeof (config as any).day === 'number' ? (config as any).day : prev.day,
           hour: typeof (config as any).hour === 'string' ? (config as any).hour : prev.hour,
-          keepCount:
-            typeof (config as any).keepCount === 'number'
-              ? (config as any).keepCount
-              : legacyRetention ?? prev.keepCount,
+          keepCount: 10, // Valeur fixe
           lastBackup: typeof (config as any).lastBackup === 'string' ? (config as any).lastBackup : prev.lastBackup,
-          backupOnStartup:
-            typeof (config as any).backupOnStartup === 'boolean'
-              ? (config as any).backupOnStartup
-              : prev.backupOnStartup,
-          backupOnShutdown:
-            typeof (config as any).backupOnShutdown === 'boolean'
-              ? (config as any).backupOnShutdown
-              : prev.backupOnShutdown
+          backupOnStartup: true, // Toujours activé
+          backupOnShutdown: true // Toujours activé
         };
       });
     } catch (error) {
@@ -168,15 +158,17 @@ export default function DatabaseSettings({
     }
   };
 
-  const handleBackupEnabledChange = (checked: boolean) => {
-    setHasUserInteracted(true);
-    setBackupConfig(prev => ({ ...prev, enabled: checked }));
-    // Ne pas modifier showBackupConfig automatiquement, laisser l'utilisateur contrôler
-  };
-
   const handleSaveBackupConfig = async (silent = false) => {
     try {
-      const result = await window.electronAPI.saveBackupConfig(backupConfig);
+      // S'assurer que enabled est toujours true, keepCount toujours 10, et backupOnStartup/backupOnShutdown toujours true
+      const configToSave = {
+        ...backupConfig,
+        enabled: true,
+        keepCount: 10,
+        backupOnStartup: true,
+        backupOnShutdown: true
+      };
+      const result = await window.electronAPI.saveBackupConfig(configToSave);
       if (result.success && !silent) {
         showToast({
           type: 'success',
@@ -413,73 +405,110 @@ export default function DatabaseSettings({
           </div>
         )}
 
-        <p style={{
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-          padding: '12px',
-          background: 'var(--surface)',
-          borderRadius: '8px',
-          borderLeft: '3px solid var(--primary)'
-        }}>
-          💡 Tous les utilisateurs partagent cette base de données. Idéal pour une utilisation cloud (Proton Drive, OneDrive, etc.).
-        </p>
-
-        {/* Backup automatique (collapsible) */}
+        {/* Backup */}
         <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '16px',
-              marginBottom: backupConfig.enabled && showBackupConfig ? '16px' : '0'
+              marginBottom: showBackupSection ? '16px' : '0'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={18} />
-              <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>Backup automatique</h3>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Activer le backup automatique</span>
-              <Toggle checked={backupConfig.enabled} onChange={handleBackupEnabledChange} />
-              <button
-                type="button"
-                onClick={() => {
-                  const newState = !showBackupConfig;
-                  onSectionStateChange('database-backup-config', newState);
-                }}
-                disabled={!backupConfig.enabled}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                cursor: 'pointer',
+                flex: 1
+              }}
+              onClick={() => {
+                const newState = !showBackupSection;
+                onSectionStateChange('database-backup', newState);
+              }}
+            >
+              <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Database size={18} />
+                Backup
+                {!loadingBackups && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>({backups.length})</span>}
+                {loadingBackups && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Chargement...</span>}
+                <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setIsTooltipVisible(true)}
+                    onMouseLeave={() => setIsTooltipVisible(false)}
+                    onFocus={() => setIsTooltipVisible(true)}
+                    onBlur={() => setIsTooltipVisible(false)}
+                    aria-label="Informations sur les backups"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    <Info size={16} />
+                  </button>
+                  {isTooltipVisible && (
+                    <div
+                      role="tooltip"
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'var(--surface-light)',
+                        color: 'var(--text)',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+                        border: '1px solid var(--border)',
+                        minWidth: '280px',
+                        zIndex: 20,
+                        textAlign: 'left'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong>Rétention :</strong> 10 backups sont conservés automatiquement
+                        </div>
+                        <div>
+                          <strong>Stockage :</strong> AppData/Roaming/Nexus/backups/
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </span>
+              </h3>
+              <ChevronDown
+                size={20}
                 style={{
-                  border: 'none',
-                  background: 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  cursor: backupConfig.enabled ? 'pointer' : 'not-allowed',
-                  opacity: backupConfig.enabled ? 1 : 0.35,
-                  transition: 'opacity 0.2s ease'
+                  transform: showBackupSection ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s'
                 }}
-                aria-label={showBackupConfig ? 'Réduire les options de backup automatique' : 'Développer les options de backup automatique'}
-              >
-                <ChevronDown
-                  size={20}
-                  style={{
-                    transform: showBackupConfig ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s',
-                    color: backupConfig.enabled ? '#ffffff' : 'rgba(255,255,255,0.6)'
-                  }}
-                />
-              </button>
+              />
             </div>
+            <button
+              onClick={handleCreateBackup}
+              className="btn btn-primary"
+              disabled={creatingBackup}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <RefreshCw size={18} />
+              {creatingBackup ? 'Création...' : 'Créer un backup'}
+            </button>
           </div>
 
-          {backupConfig.enabled && showBackupConfig && (
-            <>
+          {showBackupSection && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {backupMessage && (
                 <div style={{
-                  marginBottom: '16px',
                   padding: '12px',
                   background: backupMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                   borderRadius: '8px',
@@ -495,8 +524,8 @@ export default function DatabaseSettings({
 
               {/* Configuration */}
               <div style={{ display: 'grid', gap: '16px' }}>
-                {/* Tout sur une ligne en 4 colonnes : Fréquence | Jour | Heure | Backups à conserver */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                {/* Tout sur une ligne en 3 colonnes : Fréquence | Jour | Heure */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
                       Fréquence
@@ -512,7 +541,6 @@ export default function DatabaseSettings({
                     >
                       <option value="daily">Quotidien</option>
                       <option value="weekly">Hebdomadaire</option>
-                      <option value="manual">Manuel</option>
                     </select>
                   </div>
 
@@ -555,224 +583,123 @@ export default function DatabaseSettings({
                       style={{ width: '100%' }}
                     />
                   </div>
-
-                  <div>
-                    <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
-                      Backups à conserver
-                    </label>
-                    <select
-                      value={backupConfig.keepCount}
-                      onChange={(e) => {
-                        setHasUserInteracted(true);
-                        setBackupConfig({ ...backupConfig, keepCount: parseInt(e.target.value) });
-                      }}
-                      className="select"
-                      style={{ width: '100%' }}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                        <option key={num} value={num}>{num} backup{num > 1 ? 's' : ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Toggles création automatique sur deux colonnes */}
-                <div style={{ marginTop: '8px', padding: '16px', background: 'var(--surface)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <Toggle
-                        checked={backupConfig.backupOnStartup}
-                        onChange={(checked) => {
-                          setHasUserInteracted(true);
-                          setBackupConfig({ ...backupConfig, backupOnStartup: checked });
-                        }}
-                      />
-                      <span style={{ fontSize: '13px', color: 'var(--text)' }}>Créer un backup au démarrage de l'application</span>
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
-                      <Toggle
-                        checked={backupConfig.backupOnShutdown}
-                        onChange={(checked) => {
-                          setHasUserInteracted(true);
-                          setBackupConfig({ ...backupConfig, backupOnShutdown: checked });
-                        }}
-                      />
-                      <span style={{ fontSize: '13px', color: 'var(--text)' }}>Créer un backup à la fermeture de l'application</span>
-                    </label>
-                  </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
 
-        {/* Bloc combiné : backup manuel et gestion */}
-        <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-              marginBottom: showBackupsList ? '16px' : '0'
-            }}
-            onClick={() => {
-              const newState = !showBackupsList;
-              onSectionStateChange('database-backups-list', newState);
-            }}
-          >
-            <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Database size={18} />
-              Backup manuel et gestion des restaurations
-              {!loadingBackups && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>({backups.length})</span>}
-              {loadingBackups && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Chargement...</span>}
-            </h3>
-            <ChevronDown
-              size={20}
-              style={{
-                transform: showBackupsList ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s'
-              }}
-            />
-          </div>
-
-          {showBackupsList && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  background: 'var(--surface)',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)'
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  <span>Dernier backup :{' '}
-                    <strong style={{ color: 'var(--text)' }}>
-                      {backupConfig.lastBackup ? formatDate(new Date(backupConfig.lastBackup)) : 'Jamais'}
-                    </strong>
-                  </span>
-                  <span>Backups conservés : {backups.length}</span>
-                </div>
-                <button
-                  onClick={handleCreateBackup}
-                  className="btn btn-primary"
-                  disabled={creatingBackup}
-                >
-                  <RefreshCw size={18} />
-                  {creatingBackup ? 'Création...' : 'Créer un backup'}
-                </button>
+              {/* Liste des backups */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <span>Dernier backup :{' '}
+                  <strong style={{ color: 'var(--text)' }}>
+                    {backupConfig.lastBackup ? formatDate(new Date(backupConfig.lastBackup)) : 'Jamais'}
+                  </strong>
+                </span>
+                <span>Backups conservés : {backups.length}</span>
               </div>
-
-              {backupMessage && (
-                <div style={{
-                  padding: '12px',
-                  background: backupMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                  borderRadius: '8px',
-                  color: backupMessage.type === 'success' ? 'var(--success)' : '#ef4444',
-                  fontSize: '13px'
-                }}>
-                  {backupMessage.text}
-                </div>
-              )}
 
               {backups.length === 0 ? (
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '12px', background: 'var(--surface)', borderRadius: '8px' }}>
                   Aucun backup disponible. Créez-en un pour commencer.
                 </p>
               ) : (
-                <div style={{ display: 'grid', gap: '8px', maxHeight: '320px', overflowY: 'auto' }}>
-                  {backups.map((backup) => (
-                    <div
-                      key={backup.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        background: 'var(--surface)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)'
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '4px' }}>
-                          {backup.name}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gridTemplateRows: 'repeat(2, auto)',
+                  gap: '8px'
+                }}>
+                  {backups.slice(0, 10).map((backup, index) => {
+                    const isLatest = index === 0;
+                    return (
+                      <div
+                        key={backup.name}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          padding: '12px',
+                          background: 'var(--surface)',
+                          borderRadius: '8px',
+                          border: isLatest ? '2px solid var(--primary)' : '1px solid var(--border)',
+                          position: 'relative'
+                        }}
+                      >
+                        {isLatest && (
+                          <span style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            fontSize: '12px',
+                            color: 'var(--primary)',
+                            fontWeight: 'bold'
+                          }}>
+                            ⭐
+                          </span>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0, paddingRight: isLatest ? '20px' : '0' }}>
+                          <div style={{
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            marginBottom: '4px'
+                          }}>
+                            {backup.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span>📅 {formatDate(backup.date)}</span>
+                            <span>💾 {formatBytes(backup.size)}</span>
+                          </div>
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', gap: '12px' }}>
-                          <span>📅 {formatDate(backup.date)}</span>
-                          <span>💾 {formatBytes(backup.size)}</span>
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void handleRestoreBackup(backup.path);
+                            }}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              minWidth: '32px',
+                              height: '32px'
+                            }}
+                            title="Restaurer ce backup"
+                            type="button"
+                          >
+                            <RefreshCw size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void handleDeleteBackup(backup.path, backup.name);
+                            }}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px',
+                              color: '#ef4444',
+                              borderColor: '#ef4444',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              minWidth: '32px',
+                              height: '32px'
+                            }}
+                            title="Supprimer ce backup"
+                            type="button"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void handleRestoreBackup(backup.path);
-                          }}
-                          className="btn btn-outline"
-                          style={{
-                            padding: '8px 16px',
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer',
-                            minWidth: '100px'
-                          }}
-                          title="Restaurer ce backup"
-                          type="button"
-                        >
-                          <RefreshCw size={16} />
-                          Restaurer
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            void handleDeleteBackup(backup.path, backup.name);
-                          }}
-                          className="btn btn-outline"
-                          style={{
-                            padding: '8px 12px',
-                            fontSize: '13px',
-                            color: '#ef4444',
-                            borderColor: '#ef4444',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer',
-                            minWidth: '100px'
-                          }}
-                          title="Supprimer ce backup"
-                          type="button"
-                        >
-                          <Trash2 size={16} />
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
-
-              <p style={{
-                fontSize: '12px',
-                color: 'var(--text-secondary)',
-                padding: '12px',
-                background: 'var(--surface)',
-                borderRadius: '8px',
-                borderLeft: '3px solid var(--primary)'
-              }}>
-                💡 Les backups sont stockés dans : AppData/Roaming/Nexus/backups/
-              </p>
             </div>
           )}
         </div>

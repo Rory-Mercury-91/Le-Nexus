@@ -236,6 +236,8 @@ export default function GlobalProgressFooter() {
     translationProgress,
     adulteGameUpdating,
     adulteGameProgress,
+    cloudSyncing,
+    cloudSyncProgress,
     onStopAnimeEnrichment,
     onStopMangaEnrichment,
     onPauseAnimeEnrichment,
@@ -258,6 +260,8 @@ export default function GlobalProgressFooter() {
     setTranslationProgress,
     setAdulteGameUpdating,
     setAdulteGameProgress,
+    setCloudSyncing,
+    setCloudSyncProgress,
     isProgressCollapsed,
     setIsProgressCollapsed
   } = useGlobalProgress();
@@ -268,7 +272,9 @@ export default function GlobalProgressFooter() {
     mangaProgress !== null ||
     translating ||
     adulteGameUpdating ||
-    adulteGameProgress !== null;
+    adulteGameProgress !== null ||
+    cloudSyncing ||
+    cloudSyncProgress !== null;
 
   // Vérifier si toutes les progressions sont terminées (phase: 'complete' ou progressions null)
   const allCompleted = useMemo(() => {
@@ -279,12 +285,14 @@ export default function GlobalProgressFooter() {
         (mangaProgress && mangaProgress.phase !== 'complete') ||
         translating ||
         adulteGameUpdating ||
-        (adulteGameProgress && adulteGameProgress.phase !== 'complete');
+        (adulteGameProgress && adulteGameProgress.phase !== 'complete') ||
+        cloudSyncing ||
+        (cloudSyncProgress && cloudSyncProgress.phase !== 'complete');
 
       return !hasActiveOperation;
     }
     return false;
-  }, [hasActive, malSyncing, animeProgress, mangaProgress, translating, adulteGameUpdating, adulteGameProgress]);
+  }, [hasActive, malSyncing, animeProgress, mangaProgress, translating, adulteGameUpdating, adulteGameProgress, cloudSyncing, cloudSyncProgress]);
 
   const handleCloseAll = useCallback(() => {
     setMalSyncing(false);
@@ -294,12 +302,14 @@ export default function GlobalProgressFooter() {
     setTranslationProgress(null);
     setAdulteGameUpdating(false);
     setAdulteGameProgress(null);
-  }, [setMalSyncing, setAnimeProgress, setMangaProgress, setTranslating, setTranslationProgress, setAdulteGameUpdating, setAdulteGameProgress]);
+    setCloudSyncing(false);
+    setCloudSyncProgress(null);
+  }, [setMalSyncing, setAnimeProgress, setMangaProgress, setTranslating, setTranslationProgress, setAdulteGameUpdating, setAdulteGameProgress, setCloudSyncing, setCloudSyncProgress]);
 
   // Fermer automatiquement la section si tous les enrichissements sont terminés/arrêtés
   useEffect(() => {
     // Vérifier si seuls les enrichissements étaient actifs et qu'ils sont tous terminés/arrêtés
-    const onlyEnrichmentsActive = !malSyncing && !translating && !adulteGameUpdating &&
+    const onlyEnrichmentsActive = !malSyncing && !translating && !adulteGameUpdating && !cloudSyncing &&
       (animeProgress !== null || mangaProgress !== null);
 
     const allEnrichmentsComplete = onlyEnrichmentsActive &&
@@ -314,7 +324,39 @@ export default function GlobalProgressFooter() {
 
       return () => clearTimeout(timeout);
     }
-  }, [animeProgress, mangaProgress, malSyncing, translating, adulteGameUpdating, handleCloseAll]);
+  }, [animeProgress, mangaProgress, malSyncing, translating, adulteGameUpdating, cloudSyncing, handleCloseAll]);
+
+  // Fermer automatiquement la section si seule la synchronisation cloud est active et terminée
+  useEffect(() => {
+    const onlyCloudSyncActive = !malSyncing && !translating && !adulteGameUpdating &&
+      animeProgress === null && mangaProgress === null && adulteGameProgress === null &&
+      cloudSyncProgress !== null;
+
+    const cloudSyncComplete = onlyCloudSyncActive &&
+      cloudSyncProgress &&
+      cloudSyncProgress.phase === 'complete';
+
+    if (cloudSyncComplete && onlyCloudSyncActive) {
+      // Fermer automatiquement après 3 secondes pour permettre à l'utilisateur de voir le résultat
+      const timeout = setTimeout(() => {
+        handleCloseAll();
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [cloudSyncProgress, malSyncing, translating, adulteGameUpdating, animeProgress, mangaProgress, adulteGameProgress, handleCloseAll]);
+
+  // Fermer automatiquement si toutes les opérations sont terminées (fallback général)
+  useEffect(() => {
+    if (allCompleted && hasActive) {
+      // Fermer automatiquement après 3 secondes si toutes les opérations sont terminées
+      const timeout = setTimeout(() => {
+        handleCloseAll();
+      }, 3000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [allCompleted, hasActive, handleCloseAll]);
 
   if (!hasActive) {
     return null;
@@ -488,7 +530,7 @@ export default function GlobalProgressFooter() {
               paused={pausedAnimeEnrichment}
               showStopButton={true}
             />
-          ) : malSyncing && !animeProgress && !mangaProgress && !translating && !adulteGameUpdating ? (
+          ) : malSyncing && !animeProgress && !mangaProgress && !translating && !adulteGameUpdating && !cloudSyncing ? (
             <div style={{
               padding: '8px 12px',
               background: 'rgba(59, 130, 246, 0.1)',
@@ -536,8 +578,70 @@ export default function GlobalProgressFooter() {
             </div>
           ) : null}
 
-          {/* Colonne 3: Traduction, Jeux Adultes, ou vide */}
-          {translating && translationProgress ? (
+          {/* Colonne 3: Traduction, Synchronisation Cloud, Jeux Adultes, ou vide */}
+          {cloudSyncProgress && cloudSyncProgress.phase ? (
+            <div style={{
+              padding: '8px 12px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '6px',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+              fontSize: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: '600', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                  ☁️ Synchronisation Cloud
+                </span>
+                {cloudSyncProgress.total > 0 && (
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                    {cloudSyncProgress.current} / {cloudSyncProgress.total} ({cloudSyncProgress.percentage}%)
+                  </span>
+                )}
+                {cloudSyncProgress.total === 0 && (
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                    {cloudSyncProgress.message || 'Synchronisation en cours...'}
+                  </span>
+                )}
+              </div>
+              {cloudSyncProgress.message && cloudSyncProgress.total > 0 && (
+                <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                  {cloudSyncProgress.message}
+                </span>
+              )}
+              {cloudSyncProgress.item && (
+                <span style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '10px',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {cloudSyncProgress.item}
+                </span>
+              )}
+              {cloudSyncProgress.total > 0 && (
+                <div style={{
+                  width: '100%',
+                  height: '4px',
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  borderRadius: '2px',
+                  overflow: 'hidden',
+                  marginTop: '4px'
+                }}>
+                  <div style={{
+                    width: `${cloudSyncProgress.percentage}%`,
+                    height: '100%',
+                    background: 'var(--primary)',
+                    transition: 'width 0.3s ease',
+                    borderRadius: '2px'
+                  }} />
+                </div>
+              )}
+            </div>
+          ) : translating && translationProgress ? (
             <div style={{
               padding: '8px 12px',
               background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',

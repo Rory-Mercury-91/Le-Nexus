@@ -12,10 +12,7 @@
     "build": "node scripts/build-vite-quiet.js",
     "build:win": "npm run build && electron-builder --win --x64",
     "build:win:clean": "npm run build && electron-builder --win --x64 --publish never",
-    "clean:electron-builder": "node scripts/clean-electron-builder-cache.js",
-    "build:win:fresh": "npm run clean:electron-builder && npm run build:win",
     "preview": "vite preview",
-    "clear-cache": "node scripts/clear-cache.js",
     "clean:all": "node scripts/clean-all.js",
     "lint": "eslint . --ext .ts,.tsx",
     "version:update": "node scripts/update-version.js"
@@ -55,6 +52,7 @@
     }
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.958.0",
     "@ffmpeg-installer/ffmpeg": "1.1.0",
     "bcrypt": "6.0.0",
     "better-sqlite3": "12.4.6",

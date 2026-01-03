@@ -627,8 +627,23 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Base de données non initialisée');
       }
 
-      // Mettre à jour directement le champ mihon dans la table manga_tomes
-      db.prepare('UPDATE manga_tomes SET mihon = ? WHERE id = ?').run(mihon ? 1 : 0, tomeId);
+      // Récupérer l'utilisateur actuel
+      const currentUser = store.get('currentUser', '');
+      if (!currentUser) {
+        throw new Error('Aucun utilisateur connecté');
+      }
+
+      const { getUserIdByName } = require('../common-helpers');
+      const userId = getUserIdByName(db, currentUser);
+      
+      // Mettre à jour le champ mihon et l'utilisateur qui a fait la modification
+      if (mihon) {
+        // Si on coche Mihon, enregistrer l'utilisateur actuel
+        db.prepare('UPDATE manga_tomes SET mihon = ?, mihon_user_id = ? WHERE id = ?').run(1, userId, tomeId);
+      } else {
+        // Si on décoche, mettre à jour mihon mais conserver mihon_user_id pour l'historique
+        db.prepare('UPDATE manga_tomes SET mihon = ? WHERE id = ?').run(0, tomeId);
+      }
 
       return { success: true };
     } catch (error) {
@@ -650,10 +665,16 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      const { getUserIdByName } = require('../common-helpers');
+      const { getUserIdByName, getUserUuidByName } = require('../common-helpers');
       const userId = getUserIdByName(db, currentUser);
       if (!userId) {
         throw new Error('Utilisateur non trouvé');
+      }
+
+      // Récupérer l'UUID de l'utilisateur (pour la synchronisation cloud)
+      const userUuid = getUserUuidByName(db, currentUser);
+      if (!userUuid) {
+        throw new Error('Impossible de récupérer l\'UUID de l\'utilisateur');
       }
 
       const tome = db.prepare('SELECT serie_id FROM manga_tomes WHERE id = ?').get(tomeId);
@@ -662,17 +683,23 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       }
 
       if (possede) {
-        // Ajouter l'utilisateur comme propriétaire
-        db.prepare(`
-          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
-          VALUES (?, ?, ?)
-        `).run(tome.serie_id, tomeId, userId);
+        // Ajouter l'utilisateur comme propriétaire (uniquement l'utilisateur connecté)
+        // Utiliser user_uuid pour une meilleure cohérence lors de la synchronisation cloud
+        const stmt = db.prepare(`
+          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid)
+          VALUES (?, ?, ?, ?)
+        `);
+        stmt.run(tome.serie_id, tomeId, userId, userUuid);
+        console.log(`✅ toggle-tome-possede: Ajout propriétaire pour tome ${tomeId}, user_id=${userId}, user_uuid=${userUuid} (${currentUser})`);
       } else {
-        // Retirer l'utilisateur des propriétaires
-        db.prepare(`
+        // Retirer l'utilisateur des propriétaires (uniquement l'utilisateur connecté)
+        // Utiliser user_uuid pour plus de précision
+        const stmt = db.prepare(`
           DELETE FROM manga_manga_tomes_proprietaires
-          WHERE tome_id = ? AND user_id = ?
-        `).run(tomeId, userId);
+          WHERE tome_id = ? AND user_uuid = ?
+        `);
+        stmt.run(tomeId, userUuid);
+        console.log(`✅ toggle-tome-possede: Suppression propriétaire pour tome ${tomeId}, user_uuid=${userUuid} (${currentUser})`);
       }
 
       return { success: true };
@@ -695,10 +722,16 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         throw new Error('Aucun utilisateur connecté');
       }
 
-      const { getUserIdByName } = require('../common-helpers');
+      const { getUserIdByName, getUserUuidByName } = require('../common-helpers');
       const userId = getUserIdByName(db, currentUser);
       if (!userId) {
         throw new Error('Utilisateur non trouvé');
+      }
+
+      // Récupérer l'UUID de l'utilisateur (pour la synchronisation cloud)
+      const userUuid = getUserUuidByName(db, currentUser);
+      if (!userUuid) {
+        throw new Error('Impossible de récupérer l\'UUID de l\'utilisateur');
       }
 
       // Récupérer tous les manga_tomes de la série
@@ -707,9 +740,9 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       let manga_tomesUpdated = 0;
       for (const tome of manga_tomes) {
         db.prepare(`
-          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
-          VALUES (?, ?, ?)
-        `).run(serieId, tome.id, userId);
+          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid)
+          VALUES (?, ?, ?, ?)
+        `).run(serieId, tome.id, userId, userUuid);
         manga_tomesUpdated++;
       }
 
@@ -733,10 +766,16 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
         return { success: false, error: 'Aucun utilisateur connecté' };
       }
 
-      const { getUserIdByName } = require('../common-helpers');
+      const { getUserIdByName, getUserUuidById, getUserUuidByName } = require('../common-helpers');
       const userId = getUserIdByName(db, currentUser);
       if (!userId) {
         return { success: false, error: 'Utilisateur non trouvé' };
+      }
+
+      // Récupérer l'UUID de l'utilisateur actuel (pour la synchronisation cloud)
+      const currentUserUuid = getUserUuidByName(db, currentUser);
+      if (!currentUserUuid) {
+        return { success: false, error: 'Impossible de récupérer l\'UUID de l\'utilisateur' };
       }
 
       // Liste des utilisateurs qui possèdent la série (utilisateur actuel + partage)
@@ -773,8 +812,8 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       // Marquer tous les tomes comme possédés pour chaque propriétaire
       let tomesUpdated = 0;
       const insertProprietaireStmt = db.prepare(`
-        INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
-        VALUES (?, ?, ?)
+        INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid)
+        VALUES (?, ?, ?, ?)
       `);
 
       // Mettre à jour la date d'achat pour chaque tome
@@ -787,7 +826,12 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
 
       for (const tome of tomes) {
         for (const propUserId of userIds) {
-          insertProprietaireStmt.run(serieId, tome.id, propUserId);
+          const propUserUuid = getUserUuidById(db, propUserId);
+          if (!propUserUuid) {
+            console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${propUserId}`);
+            continue;
+          }
+          insertProprietaireStmt.run(serieId, tome.id, propUserId, propUserUuid);
         }
         tomesUpdated++;
       }

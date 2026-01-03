@@ -1,14 +1,5 @@
 const { searchGames, getGameDetails } = require('../../apis/rawg');
 const { syncGameFromRawg, enrichGameFromRawg } = require('../../services/adulte-game/game-enrichment-service');
-const {
-  createGetJsonDisplayOverridesHandler,
-  createSaveJsonDisplayOverridesHandler,
-  createDeleteJsonDisplayOverridesHandler
-} = require('../common/display-overrides-helpers');
-const {
-  createGetGlobalDisplaySettingsHandler,
-  createSaveGlobalDisplaySettingsHandler
-} = require('../common/display-settings-helpers');
 const { registerRawgGameGalleryHandlers } = require('./rawg-game-gallery-handlers');
 const { registerRawgGameVideoHandlers } = require('./rawg-game-video-handlers');
 
@@ -425,64 +416,6 @@ function registerRawgHandlers(ipcMain, getDb, store, dialog, getMainWindow, getP
       throw error;
     }
   });
-
-  // ========== Handlers pour les préférences d'affichage RAWG ==========
-  
-  const rawgGameDisplayDefaults = {
-    banner: true,
-    description: true,
-    metadata: true,
-    ratings: true,
-    platforms: true,
-    genres: true,
-    tags: true,
-    developers: true,
-    publishers: true,
-    stores: true,
-    requirements: true,
-    screenshots: true,
-    movies: true,
-    community: true,
-    externalLinks: true
-  };
-
-  // Handlers globaux
-  ipcMain.handle('get-rawg-game-display-settings', createGetGlobalDisplaySettingsHandler({
-    contentType: 'rawg_game',
-    defaultDisplay: rawgGameDisplayDefaults,
-    getDb,
-    store,
-    storeKey: 'rawgGame.displaySettings'
-  }));
-
-  ipcMain.handle('save-rawg-game-display-settings', createSaveGlobalDisplaySettingsHandler({
-    contentType: 'rawg_game',
-    getDb,
-    store,
-    useVisibleFormat: false
-  }));
-
-  // Handlers pour les overrides locaux (stockés dans adulte_game_user_data.display_preferences)
-  ipcMain.handle('get-rawg-game-display-overrides', createGetJsonDisplayOverridesHandler({
-    tableName: 'adulte_game_user_data',
-    itemIdColumnName: 'game_id',
-    getDb,
-    store
-  }));
-
-  ipcMain.handle('save-rawg-game-display-overrides', createSaveJsonDisplayOverridesHandler({
-    tableName: 'adulte_game_user_data',
-    itemIdColumnName: 'game_id',
-    getDb,
-    store
-  }));
-
-  ipcMain.handle('delete-rawg-game-display-overrides', createDeleteJsonDisplayOverridesHandler({
-    tableName: 'adulte_game_user_data',
-    itemIdColumnName: 'game_id',
-    getDb,
-    store
-  }));
 
   // Enregistrer les handlers pour la galerie d'images et vidéos
   registerRawgGameGalleryHandlers(ipcMain, getDb, store, dialog, getMainWindow, getPathManager);

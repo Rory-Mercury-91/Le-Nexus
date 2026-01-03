@@ -87,41 +87,6 @@ export interface RawgGameDetail {
   };
 }
 
-type RawgGameDisplayPrefs = {
-  banner: boolean;
-  description: boolean;
-  metadata: boolean;
-  ratings: boolean;
-  platforms: boolean;
-  genres: boolean;
-  tags: boolean;
-  developers: boolean;
-  publishers: boolean;
-  stores: boolean;
-  screenshots: boolean;
-  movies: boolean;
-  requirements: boolean;
-  community: boolean;
-  externalLinks: boolean;
-};
-
-const rawgGameDisplayDefaults: RawgGameDisplayPrefs = {
-  banner: true,
-  description: true,
-  metadata: true,
-  ratings: true,
-  platforms: true,
-  genres: true,
-  tags: true,
-  developers: true,
-  publishers: true,
-  stores: true,
-  screenshots: true,
-  movies: true,
-  requirements: true,
-  community: true,
-  externalLinks: true
-};
 
 export function useRawgGameDetail() {
   const { id } = useParams<{ id: string }>();
@@ -134,15 +99,6 @@ export function useRawgGameDetail() {
     return data || null;
   }, []);
 
-  const loadDisplaySettingsApi = useCallback(async () => {
-    const result = await window.electronAPI.getRawgGameDisplaySettings();
-    return (result as RawgGameDisplayPrefs) || null;
-  }, []);
-
-  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
-    const result = await window.electronAPI.getRawgGameDisplayOverrides(itemId);
-    return result || null;
-  }, []);
 
   const normalizeData = useCallback((data: RawgGameDetail) => {
     // Parser les tags depuis JSON string si nécessaire
@@ -235,20 +191,13 @@ export function useRawgGameDetail() {
     setItem: setGame,
     loading,
     error,
-    displayPrefs,
-    showDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
-    handleOpenDisplaySettings,
-    handleCloseDisplaySettings,
     loadDetail
-  } = useDetailPage<RawgGameDetail, RawgGameDisplayPrefs>({
+  } = useDetailPage<RawgGameDetail, Record<string, never>>({
     itemId: id,
-    displayDefaults: rawgGameDisplayDefaults,
+    displayDefaults: {},
     loadDetailApi,
-    displayPreferencesMode: 'global-local',
-    loadDisplaySettingsApi,
-    loadDisplayOverridesApi,
     normalizeData,
     statusEventName: 'adulte-game-status-changed',
     isEventForCurrentItem,
@@ -433,9 +382,6 @@ export function useRawgGameDetail() {
     // États UI
     showEditModal,
     setShowEditModal,
-    showDisplaySettingsModal,
-    handleOpenDisplaySettings,
-    handleCloseDisplaySettings,
 
     // Actions
     handlePlay,
@@ -443,9 +389,6 @@ export function useRawgGameDetail() {
     handleToggleFavorite,
     handleDelete,
     loadDetail,
-
-    // Préférences d'affichage
-    displayPrefs,
 
     // États de chargement
     updatingStatus,

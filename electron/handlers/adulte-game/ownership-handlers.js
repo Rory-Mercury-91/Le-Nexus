@@ -1,4 +1,5 @@
 const { getUserIdByName } = require('./adulte-game-helpers');
+const { getUserUuidById, getUserUuidByName } = require('../common-helpers');
 
 /**
  * Enregistre les handlers IPC pour la gestion de la possession des jeux adultes
@@ -63,21 +64,27 @@ function registerOwnershipHandlers(ipcMain, getDb, store) {
 
       // Ajouter/mettre à jour chaque propriétaire
       for (const propUserId of userIds) {
+        const userUuid = getUserUuidById(db, propUserId);
+        if (!userUuid) {
+          console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${propUserId}`);
+          continue;
+        }
+
         const existing = db.prepare('SELECT id FROM adulte_game_proprietaires WHERE game_id = ? AND user_id = ?').get(gameId, propUserId);
         
         if (existing) {
           // Mettre à jour
           db.prepare(`
             UPDATE adulte_game_proprietaires
-            SET prix = ?, date_achat = ?, platforms = ?, updated_at = datetime('now')
+            SET prix = ?, date_achat = ?, platforms = ?, user_uuid = ?, updated_at = datetime('now')
             WHERE game_id = ? AND user_id = ?
-          `).run(prixParUtilisateur, dateAchat || null, platformsJson, gameId, propUserId);
+          `).run(prixParUtilisateur, dateAchat || null, platformsJson, userUuid, gameId, propUserId);
         } else {
           // Créer
           db.prepare(`
-            INSERT INTO adulte_game_proprietaires (game_id, user_id, prix, date_achat, platforms, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-          `).run(gameId, propUserId, prixParUtilisateur, dateAchat || null, platformsJson);
+            INSERT INTO adulte_game_proprietaires (game_id, user_id, user_uuid, prix, date_achat, platforms, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          `).run(gameId, propUserId, userUuid, prixParUtilisateur, dateAchat || null, platformsJson);
         }
       }
 

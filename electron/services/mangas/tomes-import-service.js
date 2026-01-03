@@ -8,6 +8,7 @@ const { parseRequestBody, sendErrorResponse, sendSuccessResponse, validateDbAndU
 const coverManager = require('../cover/cover-manager');
 const { findSerieByTitle } = require('./import-search');
 const { setExclusiveSerieOwnership, setExclusiveSerieUserStatus } = require('../../handlers/mangas/manga-helpers');
+const { getUserUuidById } = require('../../handlers/common-helpers');
 const { recordExtractedData } = require('../../utils/sync-error-reporter');
 
 /**
@@ -48,14 +49,14 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
     const existingNumeros = new Set(existingTomes.map(t => t.numero));
 
     // Filtrer les manga_tomes à ajouter
-    const manga_tomesToAdd = mangaData.volumes.filter(vol => 
+    const manga_tomesToAdd = mangaData.volumes.filter(vol =>
       !existingNumeros.has(vol.numero) && vol.date_sortie
     );
-    
-    const manga_tomesIgnored = mangaData.volumes.filter(vol => 
+
+    const manga_tomesIgnored = mangaData.volumes.filter(vol =>
       !existingNumeros.has(vol.numero) && !vol.date_sortie
     ).length;
-    
+
     if (manga_tomesIgnored > 0) {
       // Ignorés faute de date VF
     }
@@ -74,14 +75,19 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
       INSERT INTO manga_tomes (serie_id, numero, prix, date_sortie, couverture_url)
       VALUES (?, ?, ?, ?, ?)
     `);
-    
+
     const stmtProprietaire = db.prepare(`
-      INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
+      INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid) VALUES (?, ?, ?, ?)
     `);
 
     const user = db.prepare('SELECT id FROM users WHERE name = ?').get(currentUser);
     if (!user) {
       throw new Error(`Utilisateur "${currentUser}" introuvable dans la BDD`);
+    }
+
+    const userUuid = getUserUuidById(db, user.id);
+    if (!userUuid) {
+      throw new Error(`Impossible de récupérer l'UUID pour l'utilisateur "${currentUser}"`);
     }
 
     let manga_tomesCreated = 0;
@@ -102,7 +108,7 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
               typeVolume: serie.type_volume
             }
           );
-          
+
           if (coverResult.success && coverResult.localPath) {
             effectiveCover = coverResult.localPath;
           } else {
@@ -121,9 +127,9 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
           effectiveCover
         );
 
-        stmtProprietaire.run(serie.id, result.lastInsertRowid, user.id);
-        db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
-          .run(result.lastInsertRowid, user.id);
+        stmtProprietaire.run(serie.id, result.lastInsertRowid, user.id, userUuid);
+        db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_uuid != ?')
+          .run(result.lastInsertRowid, userUuid);
         manga_tomesCreated++;
       } catch (error) {
         console.error(`❌ Erreur tome ${volume.numero}:`, error.message);
@@ -151,7 +157,7 @@ async function handleImportTomesOnly(req, res, getDb, store, mainWindow, getPath
               typeVolume: serie.type_volume
             }
           );
-          
+
           if (coverResult.success && coverResult.localPath) {
             db.prepare(`
               UPDATE manga_series

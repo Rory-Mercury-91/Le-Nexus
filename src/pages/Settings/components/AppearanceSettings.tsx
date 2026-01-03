@@ -12,13 +12,6 @@ interface AppearanceSettingsProps {
   onAutoLaunchChange: (enabled: boolean) => void;
   onAutoDownloadCoversChange: (enabled: boolean) => void;
   onContentPrefChange: (key: keyof ContentPreferences, value: boolean) => void;
-  onOpenMangaSettings: () => void;
-  onOpenAnimeSettings: () => void;
-  onOpenMovieSettings: () => void;
-  onOpenSeriesSettings: () => void;
-  onOpenBooksSettings: () => void;
-  onOpenAdultGameSettings: () => void;
-  onOpenRawgGameSettings: () => void;
 }
 
 export default function AppearanceSettings({
@@ -30,13 +23,6 @@ export default function AppearanceSettings({
   onAutoLaunchChange,
   onAutoDownloadCoversChange,
   onContentPrefChange,
-  onOpenMangaSettings,
-  onOpenAnimeSettings,
-  onOpenMovieSettings,
-  onOpenSeriesSettings,
-  onOpenBooksSettings,
-  onOpenAdultGameSettings,
-  onOpenRawgGameSettings,
 }: AppearanceSettingsProps) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
@@ -98,185 +84,122 @@ export default function AppearanceSettings({
   const visibilityOptions: Array<{ label: string; key: keyof ContentPreferences; description?: string }> = [
     { label: '📚 Lectures', key: 'showMangas', description: 'Manga, Manhwa, Manhua, Comics, BD, Livres' },
     { label: '🎬 Vidéos', key: 'showVideos', description: 'Animes, Films et Séries' },
-    { label: '🎮 Jeux', key: 'showAdulteGame', description: 'Jeux adultes, Jeux vidéo (RAWG)' }
+    { label: '🎮 Jeux', key: 'showAdulteGame', description: 'Jeux adultes, Jeux vidéo (RAWG)' },
+    { label: '💳 Abonnements', key: 'showSubscriptions', description: 'Abonnements et achats ponctuels' }
   ];
 
-  const personalizationCards: Array<{
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
-    onOpen: () => void;
-  }> = [
-      {
-        id: 'manga',
-        title: 'Lectures',
-        description: 'Activez ou masquez les sections des fiches lectures (manga, manhwa, comics…).',
-        icon: '📚',
-        onOpen: onOpenMangaSettings,
-      },
-      {
-        id: 'anime',
-        title: 'Animes',
-        description: 'Choisissez les informations affichées sur les fiches animes et les listes d\'épisodes.',
-        icon: '🎬',
-        onOpen: onOpenAnimeSettings,
-      },
-      {
-        id: 'movies',
-        title: 'Films',
-        description: 'Personnalisez les sections visibles des fiches films importées depuis TMDb.',
-        icon: '🎞️',
-        onOpen: onOpenMovieSettings,
-      },
-      {
-        id: 'series',
-        title: 'Séries TV',
-        description: 'Définissez les blocs affichés pour les fiches séries et le suivi des saisons.',
-        icon: '📺',
-        onOpen: onOpenSeriesSettings,
-      },
-      {
-        id: 'books',
-        title: 'Livres',
-        description: 'Personnalisez les sections visibles des fiches livres (romans, biographies, essais…).',
-        icon: '📖',
-        onOpen: onOpenBooksSettings,
-      },
-      {
-        id: 'adult-game',
-        title: 'Jeux adultes',
-        description: 'Configurez les sections visibles par défaut : informations principales, traduction, tags…',
-        icon: '🎮',
-        onOpen: onOpenAdultGameSettings,
-      },
-      {
-        id: 'rawg-game',
-        title: 'Jeux vidéo',
-        description: 'Personnalisez les sections visibles des fiches jeux vidéo importées depuis RAWG.',
-        icon: '🎮',
-        onOpen: onOpenRawgGameSettings,
-      },
-    ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Thème */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px'
-        }}
-      >
+      {/* Paramètres généraux */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
-          Thème de l'application
-          <TooltipIcon id="theme" icon="💡" ariaLabel="Informations sur la mémorisation du thème" />
+          Paramètres généraux
         </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => onThemeChange('dark')}
-            className="btn"
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
+          {/* Thème */}
+          <div
             style={{
-              flex: '1 1 160px',
-              padding: '12px 16px',
-              background: theme === 'dark' ? 'var(--primary)' : 'var(--surface-light)',
-              border: theme === 'dark' ? '2px solid var(--primary)' : '1px solid var(--border)',
-              color: theme === 'dark' ? 'white' : 'var(--text)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontWeight: 600,
-              transition: 'all 0.2s ease'
+              justifyContent: 'space-between',
+              gap: '16px',
+              padding: '16px 20px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px'
             }}
           >
-            <Moon size={18} />
-            Mode sombre
-          </button>
-          <button
-            onClick={() => onThemeChange('light')}
-            className="btn"
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
+              Thème de l'application
+              <TooltipIcon id="theme" icon="💡" ariaLabel="Informations sur la mémorisation du thème" />
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => onThemeChange('dark')}
+                className="btn"
+                style={{
+                  padding: '10px 12px',
+                  background: theme === 'dark' ? 'var(--primary)' : 'var(--surface-light)',
+                  border: theme === 'dark' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  color: theme === 'dark' ? 'white' : 'var(--text)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                title="Mode sombre"
+              >
+                <Moon size={20} />
+              </button>
+              <button
+                onClick={() => onThemeChange('light')}
+                className="btn"
+                style={{
+                  padding: '10px 12px',
+                  background: theme === 'light' ? 'var(--primary)' : 'var(--surface-light)',
+                  border: theme === 'light' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  color: theme === 'light' ? 'white' : 'var(--text)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
+                }}
+                title="Mode clair"
+              >
+                <Sun size={20} />
+              </button>
+            </div>
+          </div>
+
+          {/* Démarrage */}
+          <div
             style={{
-              flex: '1 1 160px',
-              padding: '12px 16px',
-              background: theme === 'light' ? 'var(--primary)' : 'var(--surface-light)',
-              border: theme === 'light' ? '2px solid var(--primary)' : '1px solid var(--border)',
-              color: theme === 'light' ? 'white' : 'var(--text)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              fontWeight: 600,
-              transition: 'all 0.2s ease'
+              justifyContent: 'space-between',
+              gap: '16px',
+              padding: '16px 20px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px'
             }}
           >
-            <Sun size={18} />
-            Mode clair
-          </button>
-        </div>
-      </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
+              Lancer Nexus au démarrage
+              <TooltipIcon id="startup" icon="❓" ariaLabel="Informations sur le démarrage automatique" />
+            </div>
+            <Toggle checked={autoLaunch} onChange={onAutoLaunchChange} />
+          </div>
 
-      {/* Démarrage */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
-          Lancer Nexus au démarrage
-          <TooltipIcon id="startup" icon="❓" ariaLabel="Informations sur le démarrage automatique" />
+          {/* Téléchargement automatique des couvertures */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              padding: '16px 20px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
+              Téléchargement automatique des couvertures
+              <TooltipIcon id="autoDownloadCovers" icon="💡" ariaLabel="Informations sur le téléchargement automatique" />
+            </div>
+            <Toggle checked={autoDownloadCovers} onChange={onAutoDownloadCoversChange} />
+          </div>
         </div>
-        <Toggle checked={autoLaunch} onChange={onAutoLaunchChange} />
-      </div>
-
-      {/* Téléchargement automatique des couvertures */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
-          Téléchargement automatique des couvertures
-          <TooltipIcon id="autoDownloadCovers" icon="💡" ariaLabel="Informations sur le téléchargement automatique" />
-        </div>
-        <Toggle checked={autoDownloadCovers} onChange={onAutoDownloadCoversChange} />
       </div>
 
       {/* Visibilité */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          padding: '16px 20px',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '12px'
-        }}
-      >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
           Visibilité des contenus
           <TooltipIcon id="visibility" icon="💡" ariaLabel="Informations sur la visibilité des contenus" />
@@ -311,7 +234,7 @@ export default function AppearanceSettings({
                   padding: '12px 16px',
                   border: '1px solid var(--border)',
                   borderRadius: '10px',
-                  background: 'var(--surface-light)'
+                  background: 'var(--surface)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
@@ -327,79 +250,6 @@ export default function AppearanceSettings({
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* Personnalisation des fiches */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ fontWeight: 600, color: 'var(--text)' }}>Personnalisation des Fiches de Contenu</div>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px'
-          }}
-        >
-          {personalizationCards.map((card) => (
-            <div
-              key={card.id}
-              style={{
-                background: 'var(--surface)',
-                borderRadius: '14px',
-                border: '1px solid var(--border)',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.18)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: 'rgba(var(--primary-rgb), 0.12)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '20px'
-                  }}
-                >
-                  {card.icon}
-                </div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>{card.title}</h3>
-              </div>
-
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.6 }}>
-                {card.description}
-              </p>
-
-              <div style={{ marginTop: 'auto' }}>
-                <button
-                  onClick={card.onOpen}
-                  className="btn btn-outline"
-                  style={{
-                    width: '100%',
-                    justifyContent: 'center',
-                    padding: '10px 14px',
-                    borderRadius: '10px'
-                  }}
-                >
-                  ⚙️ Configurer
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

@@ -18,34 +18,77 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
   // Récupérer la configuration du backup
   ipcMain.handle('get-backup-config', () => {
     const config = store.get('backupConfig', {
-      enabled: false,
+      enabled: true, // Toujours activé
       frequency: 'weekly',
       day: 0,
       hour: '02:00',
-      keepCount: 7,
+      keepCount: 10, // Valeur fixe
       lastBackup: null,
       backupOnStartup: true,
       backupOnShutdown: true
     });
-    return config;
+    // S'assurer que enabled est toujours true, keepCount toujours 10, et backupOnStartup/backupOnShutdown toujours true
+    return {
+      ...config,
+      enabled: true,
+      keepCount: 10,
+      backupOnStartup: true,
+      backupOnShutdown: true
+    };
   });
-  
+
   // Sauvegarder la configuration du backup
   ipcMain.handle('save-backup-config', async (event, config) => {
     try {
-      store.set('backupConfig', config);
-      
-      // Le chemin de la base sera déterminé dynamiquement lors de la création du backup
-      // car il dépend de l'utilisateur connecté
-      backupScheduler.init(config, null, store);
-      
+      // S'assurer que enabled est toujours true, keepCount toujours 10, et backupOnStartup/backupOnShutdown toujours true
+      const configToSave = {
+        ...config,
+        enabled: true,
+        keepCount: 10,
+        backupOnStartup: true,
+        backupOnShutdown: true
+      };
+      store.set('backupConfig', configToSave);
+
+      // Récupérer le dbPath actuel ou le déterminer depuis l'utilisateur connecté
+      let dbPath = backupScheduler.dbPath;
+
+      // Si le dbPath n'est pas défini, essayer de le déterminer
+      if (!dbPath) {
+        const currentUser = store.get('currentUser', '');
+        if (currentUser) {
+          try {
+            const pathManagerInstance = getPathManager();
+            if (pathManagerInstance) {
+              const paths = getPathsLocal();
+              if (paths && paths.databases) {
+                dbPath = path.join(paths.databases, `${currentUser.toLowerCase()}.db`);
+              }
+            }
+
+            // Fallback : construire le chemin depuis baseDirectory stocké
+            if (!dbPath || !fs.existsSync(dbPath)) {
+              const baseDirectory = store.get('baseDirectory');
+              if (baseDirectory && fs.existsSync(baseDirectory)) {
+                dbPath = path.join(baseDirectory, 'databases', `${currentUser.toLowerCase()}.db`);
+              }
+            }
+          } catch (error) {
+            console.warn('⚠️ Impossible de déterminer le dbPath lors de la sauvegarde de la config:', error);
+          }
+        }
+      }
+
+      // Réinitialiser le scheduler avec le dbPath (ou null si on ne peut pas le déterminer)
+      backupScheduler.init(config, dbPath, store);
+
       return { success: true };
     } catch (error) {
       console.error('Erreur sauvegarde config backup:', error);
       return { success: false, error: error.message };
     }
   });
-  
+
   // Créer un backup manuel
   ipcMain.handle('create-backup', async () => {
     try {
@@ -69,22 +112,22 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
       }
 
       backupScheduler.dbPath = userDbPath;
-      
-      const result = await backupScheduler.createBackup();
-      
+
+      const result = await backupScheduler.createBackup('manual');
+
       if (result.success) {
         const config = store.get('backupConfig', {});
         config.lastBackup = result.timestamp;
         store.set('backupConfig', config);
       }
-      
+
       return result;
     } catch (error) {
       console.error('Erreur création backup:', error);
       return { success: false, error: error.message };
     }
   });
-  
+
   // Lister tous les backups
   ipcMain.handle('list-backups', async () => {
     try {
@@ -97,18 +140,18 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
       return { success: false, error: error.message, backups: [] };
     }
   });
-  
+
   // Restaurer un backup
   ipcMain.handle('restore-backup', async (event, backupPath) => {
     try {
       console.log('🔄 Début de la restauration du backup:', backupPath);
-      
+
       // Vérifier que le fichier de backup existe
       const fs = require('fs');
       if (!fs.existsSync(backupPath)) {
         throw new Error(`Le fichier de backup n'existe pas: ${backupPath}`);
       }
-      
+
       // S'assurer que le dbPath est défini dans le scheduler
       const currentUser = store.get('currentUser', '');
       if (!currentUser) {
@@ -118,7 +161,7 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
       const dbPath = path.join(getPathsLocal().databases, `${currentUser.toLowerCase()}.db`);
       backupScheduler.dbPath = dbPath;
       console.log('📂 Chemin de la base de données:', dbPath);
-      
+
       // Fermer la base de données avant la restauration
       if (getDb) {
         const db = getDb();
@@ -135,7 +178,7 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
           console.log('ℹ️  Aucune base de données ouverte actuellement');
         }
       }
-      
+
       // Vérifier que le fichier de base de données n'est plus verrouillé
       // En Windows, il peut y avoir un délai avant que le fichier soit libéré
       let retries = 5;
@@ -155,10 +198,10 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
           }
         }
       }
-      
+
       console.log('🔄 Lancement de la restauration...');
       const result = await backupScheduler.restoreBackup(backupPath);
-      
+
       if (result.success) {
         console.log('✅ Restauration réussie, réinitialisation de la base...');
         // Réinitialiser la base de données après restauration réussie
@@ -172,14 +215,14 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
           }
         }
       }
-      
+
       return result;
     } catch (error) {
       console.error('❌ Erreur restauration backup:', error);
       return { success: false, error: error.message };
     }
   });
-  
+
   // Supprimer un backup
   ipcMain.handle('delete-backup', (event, backupPath) => {
     try {
@@ -200,18 +243,61 @@ function registerBackupHandlers(ipcMain, getPathManager, store, getDb, initDatab
   // Initialiser le scheduler au démarrage
   const initBackupScheduler = () => {
     const config = store.get('backupConfig');
-    if (config && config.enabled) {
-      const currentUser = store.get('currentUser', '');
-      if (currentUser) {
-        const dbPath = path.join(getPathsLocal().databases, `${currentUser.toLowerCase()}.db`);
-        if (fs.existsSync(dbPath)) {
-          backupScheduler.init(config, dbPath, store);
+    if (!config) {
+      console.log('ℹ️ Backup scheduler : aucune configuration trouvée');
+      return;
+    }
+
+    const currentUser = store.get('currentUser', '');
+    if (!currentUser) {
+      console.warn('⚠️ Backup scheduler : aucun utilisateur connecté');
+      return;
+    }
+
+    try {
+      let dbPath = null;
+
+      // Essayer d'obtenir le chemin via le PathManager
+      const pathManagerInstance = getPathManager();
+      if (pathManagerInstance) {
+        const paths = getPathsLocal();
+        if (paths && paths.databases) {
+          dbPath = path.join(paths.databases, `${currentUser.toLowerCase()}.db`);
         }
       }
+
+      // Fallback : construire le chemin depuis baseDirectory stocké
+      if (!dbPath || !fs.existsSync(dbPath)) {
+        const baseDirectory = store.get('baseDirectory');
+        if (baseDirectory && fs.existsSync(baseDirectory)) {
+          dbPath = path.join(baseDirectory, 'databases', `${currentUser.toLowerCase()}.db`);
+          console.log(`🔍 Backup scheduler : utilisation du chemin depuis baseDirectory: ${dbPath}`);
+        }
+      }
+
+      if (!dbPath) {
+        console.warn('⚠️ Backup scheduler : impossible de déterminer le chemin de la base de données');
+        return;
+      }
+
+      console.log(`🔍 Backup scheduler : vérification de ${dbPath}`);
+
+      if (!fs.existsSync(dbPath)) {
+        console.warn(`⚠️ Backup scheduler : base de données introuvable: ${dbPath}`);
+        return;
+      }
+
+      console.log(`✅ Backup scheduler : initialisation avec dbPath=${dbPath}, backupOnStartup=${config.backupOnStartup}`);
+      // Initialiser le scheduler même si enabled est false, car backupOnStartup peut être activé indépendamment
+      backupScheduler.init(config, dbPath, store);
+    } catch (error) {
+      console.error('❌ Erreur initialisation backup scheduler:', error);
     }
   };
-  
+
+  // Essayer plusieurs fois avec des délais croissants pour s'assurer que le PathManager est initialisé
   setTimeout(initBackupScheduler, 2000);
+  setTimeout(initBackupScheduler, 5000);
 }
 
 module.exports = { registerBackupHandlers };

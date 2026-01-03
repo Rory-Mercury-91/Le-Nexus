@@ -1,15 +1,14 @@
-import { BookOpen, Edit, Plus, Settings, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import EnrichmentButton from '../../components/common/EnrichmentButton';
 import ProtectedContent from '../../components/common/ProtectedContent';
-import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
+import BookOwnershipModal from '../../components/modals/book/BookOwnershipModal';
+import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import AddTomeModal from '../../components/modals/manga/AddTomeModal';
 import EditSerieModal from '../../components/modals/manga/EditSerieModal';
 import EditTomeModal from '../../components/modals/manga/EditTomeModal';
-import BookOwnershipModal from '../../components/modals/book/BookOwnershipModal';
-import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import { useMangaDetail } from '../../hooks/details/useMangaDetail';
 import { Tome } from '../../types';
 import { isSensitiveManga } from '../../utils/manga-sensitivity';
@@ -37,13 +36,11 @@ export default function SerieDetail() {
     showAddTome,
     showEditSerie,
     editingTome,
-    showCustomizeDisplay,
     draggingTomeId,
     enriching,
     setShowAddTome,
     setShowEditSerie,
     setEditingTome,
-    setShowCustomizeDisplay,
     handleDeleteSerie,
     handleDeleteTome,
     handleStatusChange,
@@ -110,15 +107,6 @@ export default function SerieDetail() {
           backTo={location.state?.from || '/lectures'}
           actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setShowCustomizeDisplay(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                <Settings size={16} />
-                Personnaliser l'affichage
-              </button>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -217,8 +205,8 @@ export default function SerieDetail() {
                 />
 
                 {/* Informations */}
-                <MangaInfoSection 
-                  serie={serie} 
+                <MangaInfoSection
+                  serie={serie}
                   shouldShow={shouldShow}
                   onLabelsChange={() => {
                     loadSerie(true);
@@ -232,104 +220,69 @@ export default function SerieDetail() {
             </div>
 
             {/* Section Chapitres (pour gérer les chapitres) */}
-            {shouldShow('section_chapitres') && (
-              <div
-                className="card"
-                style={{
-                  padding: 'clamp(16px, 2vw, 20px)'
+            <div
+              className="card"
+              style={{
+                padding: 'clamp(16px, 2vw, 20px)'
+              }}
+            >
+              <MangaChaptersSection
+                serie={serie}
+                shouldShow={true}
+                onChapitresLusChange={async (value) => {
+                  await window.electronAPI.updateSerie(serie.id, { chapitres_lus: value });
+                  loadSerie(true);
                 }}
-              >
-                <MangaChaptersSection
-                  serie={serie}
-                  shouldShow={true}
-                  onChapitresLusChange={async (value) => {
-                    await window.electronAPI.updateSerie(serie.id, { chapitres_lus: value });
-                    loadSerie(true);
-                  }}
-                  onNbChapitresChange={async (value) => {
-                    await window.electronAPI.updateSerie(serie.id, { nb_chapitres: value });
-                    loadSerie(true);
-                  }}
-                  onChapitresMihonChange={async (value) => {
-                    await window.electronAPI.updateSerie(serie.id, { chapitres_mihon: value ? 1 : 0 });
-                    loadSerie(true);
-                  }}
-                />
-              </div>
-            )}
+                onNbChapitresChange={async (value) => {
+                  await window.electronAPI.updateSerie(serie.id, { nb_chapitres: value });
+                  loadSerie(true);
+                }}
+                onChapitresMihonChange={async (value) => {
+                  await window.electronAPI.updateSerie(serie.id, { chapitres_mihon: value ? 1 : 0 });
+                  loadSerie(true);
+                }}
+              />
+            </div>
 
             {/* Liste des tomes - Toujours affichée pour permettre l'ajout de tomes */}
-            {/* Si la section est masquée, on affiche quand même un bouton pour ajouter un tome */}
-            {shouldShow('section_tomes') ? (
-              <div
-                className="card"
-                style={{
-                  padding: 'clamp(16px, 2vw, 20px)'
+            <div
+              className="card"
+              style={{
+                padding: 'clamp(16px, 2vw, 20px)'
+              }}
+            >
+              <MangaTomesList
+                serie={serie}
+                tomes={tomesWithSerieId}
+                users={users}
+                profileImages={profileImages}
+                currentUserId={currentUser?.id || null}
+                draggingTomeId={draggingTomeId}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onToggleTomeLu={async (tomeId, checked) => {
+                  await window.electronAPI.toggleTomeLu(tomeId, checked);
+                  loadSerie(true);
                 }}
-              >
-                <MangaTomesList
-                  serie={serie}
-                  tomes={tomesWithSerieId}
-                  users={users}
-                  profileImages={profileImages}
-                  currentUserId={currentUser?.id || null}
-                  draggingTomeId={draggingTomeId}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onToggleTomeLu={async (tomeId, checked) => {
-                    await window.electronAPI.toggleTomeLu(tomeId, checked);
-                    loadSerie(true);
-                  }}
-                  onToggleTomePossede={async (tomeId, checked) => {
-                    await window.electronAPI.toggleTomePossede(tomeId, checked);
-                    loadSerie(true);
-                  }}
-                  onToggleTomeMihon={async (tomeId, checked) => {
-                    await window.electronAPI.toggleTomeMihon(tomeId, checked);
-                    loadSerie(true);
-                  }}
-                  onEditTome={setEditingTome}
-                  onDeleteTome={handleDeleteTome}
-                  onAddTome={() => setShowAddTome(true)}
-                  onPossederTousLesTomes={async () => {
-                    await window.electronAPI.possederTousLesTomes(serie.id);
-                    loadSerie(true);
-                  }}
-                  shouldShow={true}
-                />
-              </div>
-            ) : (
-              // Si la section est masquée, afficher quand même un bouton pour ajouter un tome
-              <div
-                className="card"
-                style={{
-                  padding: 'clamp(16px, 2vw, 20px)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px'
+                onToggleTomePossede={async (tomeId, checked) => {
+                  await window.electronAPI.toggleTomePossede(tomeId, checked);
+                  loadSerie(true);
                 }}
-              >
-                <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                    <BookOpen size={20} />
-                    Tomes ({tomes.length})
-                  </h2>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '8px 0 0 0' }}>
-                    Section masquée - Vous pouvez toujours ajouter des tomes
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddTome(true)}
-                  className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
-                >
-                  <Plus size={18} />
-                  Ajouter un tome
-                </button>
-              </div>
-            )}
+                onToggleTomeMihon={async (tomeId, checked) => {
+                  await window.electronAPI.toggleTomeMihon(tomeId, checked);
+                  loadSerie(true);
+                }}
+                onEditTome={setEditingTome}
+                onDeleteTome={handleDeleteTome}
+                onAddTome={() => setShowAddTome(true)}
+                onPossederTousLesTomes={async () => {
+                  await window.electronAPI.possederTousLesTomes(serie.id);
+                  loadSerie(true);
+                }}
+                shouldShow={true}
+              />
+            </div>
           </div>
         </div>
 
@@ -369,89 +322,6 @@ export default function SerieDetail() {
             onSuccess={() => {
               setEditingTome(null);
               loadSerie(true);
-            }}
-          />
-        )}
-
-        {showCustomizeDisplay && (
-          <DisplaySettingsModal
-            title="Affichage des mangas"
-            description="Activez ou désactivez les sections visibles sur les fiches mangas."
-            fields={[
-              {
-                title: 'Présentation',
-                icon: '📚',
-                fields: [
-                  { key: 'couverture', label: 'Couverture' },
-                  { key: 'titres_alternatifs', label: 'Titres alternatifs' },
-                  { key: 'description', label: 'Synopsis' }
-                ]
-              },
-              {
-                title: 'Métadonnées',
-                icon: '📊',
-                fields: [
-                  { key: 'annee_publication', label: 'Année VO' },
-                  { key: 'annee_vf', label: 'Année VF' },
-                  { key: 'date_debut', label: 'Date début (publication)' },
-                  { key: 'date_fin', label: 'Date fin (publication)' },
-                  { key: 'statut_publication', label: 'Statut VO' },
-                  { key: 'statut_publication_vf', label: 'Statut VF' },
-                  { key: 'nb_volumes', label: 'Nb volumes VO' },
-                  { key: 'nb_volumes_vf', label: 'Nb volumes VF' },
-                  { key: 'nb_chapitres', label: 'Nb chapitres VO' },
-                  { key: 'nb_chapitres_vf', label: 'Nb chapitres VF' },
-                  { key: 'genres', label: 'Genres' },
-                  { key: 'themes', label: 'Thèmes' },
-                  { key: 'media_type', label: 'Type de média' },
-                  { key: 'demographie', label: 'Démographie' },
-                  { key: 'type_volume', label: 'Type de volume' },
-                  { key: 'editeur_vo', label: 'Éditeur VO' },
-                  { key: 'editeur', label: 'Éditeur VF' },
-                  { key: 'serialization', label: 'Prépublication' },
-                  { key: 'auteurs', label: 'Auteurs' },
-                  { key: 'langue_originale', label: 'Pays/Origine' }
-                ]
-              },
-              {
-                title: 'Contenu',
-                icon: '📖',
-                fields: [
-                  { key: 'section_tomes', label: 'Liste des tomes' },
-                  { key: 'section_chapitres', label: 'Gestion des chapitres' },
-                  { key: 'section_progression', label: 'Progression lecture' },
-                  { key: 'section_costs', label: 'Coûts et propriétaires' }
-                ]
-              },
-              {
-                title: 'Informations externes',
-                icon: '🌐',
-                fields: [
-                  { key: 'mal_block', label: 'Bloc d\'informations MAL' }
-                ]
-              }
-            ] as DisplayFieldCategory[]}
-            mode="global-local"
-            itemId={serie.id}
-            loadGlobalPrefs={async () => {
-              const prefs = await window.electronAPI.getMangaDisplaySettings?.();
-              return prefs || {};
-            }}
-            loadLocalOverrides={async (itemId) => {
-              const overrides = await window.electronAPI.getMangaDisplayOverrides?.(itemId);
-              return overrides || {};
-            }}
-            saveLocalOverrides={async (itemId, overrides) => {
-              await window.electronAPI.saveMangaDisplayOverrides?.(itemId, overrides);
-            }}
-            deleteLocalOverrides={async (itemId, keys) => {
-              await window.electronAPI.deleteMangaDisplayOverrides?.(itemId, keys);
-            }}
-            onSave={() => {
-              loadSerie(true); // recharger les prefs locales et globales après sauvegarde
-            }}
-            onClose={() => {
-              setShowCustomizeDisplay(false);
             }}
           />
         )}

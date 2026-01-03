@@ -44,16 +44,8 @@ const headerActionPlaceholderStyle: React.CSSProperties = {
   padding: '0 4px',
 };
 
-const nestedSectionIds = {
-  mal: 'integrations-mal',
-  anilist: 'integrations-anilist',
-  tmdb: 'integrations-tmdb',
-  groq: 'integrations-groq',
-  rawg: 'integrations-rawg',
-  adulteGame: 'integrations-adulteGame',
-} as const;
-
 interface IntegrationsSettingsProps {
+  activeService?: 'mal' | 'anilist' | 'tmdb' | 'groq' | 'rawg' | 'adulte-game' | null;
   onOpenGuide: (provider: ApiKeyProvider) => void;
 
   malConnected: boolean;
@@ -64,9 +56,6 @@ interface IntegrationsSettingsProps {
   onMalDisconnect: () => void;
   onMalSyncNow: () => void | Promise<void>;
 
-  malAutoSyncEnabled: boolean;
-  onMalAutoSyncChange: (enabled: boolean) => void;
-
   anilistConnected: boolean;
   anilistUser: { name?: string; picture?: string } | null;
   anilistLastSync: { timestamp?: string; animes?: number; mangas?: number } | null;
@@ -74,16 +63,7 @@ interface IntegrationsSettingsProps {
   onAnilistConnect: () => void;
   onAnilistDisconnect: () => void;
   onAnilistSyncNow: () => void | Promise<void>;
-  anilistAutoSyncEnabled: boolean;
-  onAnilistAutoSyncChange: (enabled: boolean) => void;
 
-  nautiljonAutoSyncEnabled: boolean;
-  onNautiljonAutoSyncChange: (enabled: boolean) => void;
-  nautiljonAutoSyncIncludeTomes: boolean;
-  onNautiljonIncludeTomesChange: (include: boolean) => void;
-  globalSyncInterval: 1 | 3 | 6 | 12 | 24;
-  globalSyncUpdating: boolean;
-  onGlobalSyncIntervalChange: (interval: 1 | 3 | 6 | 12 | 24) => void | Promise<void>;
   imageSource: 'mal' | 'anilist' | 'tmdb';
   onImageSourceChange: (source: 'mal' | 'anilist' | 'tmdb') => void;
   groqApiKey: string;
@@ -92,81 +72,10 @@ interface IntegrationsSettingsProps {
   onAutoTranslateChange: (enabled: boolean) => void | Promise<void>;
   showToast?: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
   animeImportResult: AnimeImportResult | null;
-  sectionStates: Record<string, boolean>;
-  onSectionStateChange: (sectionId: string, isOpen: boolean) => void;
-}
-
-interface NestedSectionProps {
-  id: string;
-  title: React.ReactNode;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}
-
-const nestedHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '18px 22px',
-  cursor: 'pointer',
-  userSelect: 'none',
-  transition: 'background 0.2s ease',
-};
-
-const nestedContainerStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  borderRadius: '16px',
-  border: '1px solid var(--border)',
-  boxShadow: 'var(--card-shadow)',
-  overflow: 'hidden',
-};
-
-const nestedBodyStyle: React.CSSProperties = {
-  padding: '20px 24px 24px 24px',
-  background: 'var(--surface)',
-};
-
-function NestedSection({ id, title, isOpen, onToggle, children, action }: NestedSectionProps) {
-  return (
-    <div id={id} style={nestedContainerStyle}>
-      <div
-        onClick={onToggle}
-        style={nestedHeaderStyle}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-      >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: '16px',
-            fontWeight: 700,
-            color: 'var(--text)',
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}
-        >
-          {title}
-        </h3>
-        {action && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ display: 'flex', alignItems: 'center' }}
-          >
-            {action}
-          </div>
-        )}
-        <span style={{ fontSize: '13px', opacity: 0.65 }}>{isOpen ? '▲' : '▼'}</span>
-      </div>
-      {isOpen && <div style={nestedBodyStyle}>{children}</div>}
-    </div>
-  );
 }
 
 export default function IntegrationsSettings({
+  activeService = null,
   onOpenGuide,
   malConnected,
   malUser,
@@ -175,8 +84,6 @@ export default function IntegrationsSettings({
   onMalConnect,
   onMalDisconnect,
   onMalSyncNow,
-  malAutoSyncEnabled,
-  onMalAutoSyncChange,
   anilistConnected,
   anilistUser,
   anilistLastSync,
@@ -184,15 +91,6 @@ export default function IntegrationsSettings({
   onAnilistConnect,
   onAnilistDisconnect,
   onAnilistSyncNow,
-  anilistAutoSyncEnabled,
-  onAnilistAutoSyncChange,
-  nautiljonAutoSyncEnabled,
-  onNautiljonAutoSyncChange,
-  nautiljonAutoSyncIncludeTomes,
-  onNautiljonIncludeTomesChange,
-  globalSyncInterval,
-  globalSyncUpdating,
-  onGlobalSyncIntervalChange,
   imageSource,
   onImageSourceChange,
   groqApiKey,
@@ -201,8 +99,6 @@ export default function IntegrationsSettings({
   onAutoTranslateChange,
   showToast,
   animeImportResult,
-  sectionStates,
-  onSectionStateChange,
 }: IntegrationsSettingsProps) {
   const [malClientId, setMalClientId] = useState('');
   const [credentialsLoaded, setCredentialsLoaded] = useState(false);
@@ -293,14 +189,6 @@ export default function IntegrationsSettings({
       )}
     </span>
   );
-
-  const getNestedSectionState = (key: keyof typeof nestedSectionIds) =>
-    sectionStates[nestedSectionIds[key]] ?? true;
-
-  const toggleNestedSection = (key: keyof typeof nestedSectionIds) => {
-    const storageKey = nestedSectionIds[key];
-    onSectionStateChange(storageKey, !getNestedSectionState(key));
-  };
 
   const handleAnimeEnrichmentSaved = (config: AnimeEnrichmentConfig) => {
     if (config) {
@@ -965,89 +853,25 @@ export default function IntegrationsSettings({
   };
 
   const renderAnilistSyncToggles = () => {
-    const syncItems: Array<{
-      key: string;
-      label: string;
-      tooltipId: TooltipId;
-      checked: boolean;
-      onChange: (value: boolean) => void;
-    }> = [
-        {
-          key: 'anilist-auto-sync',
-          label: '🔄 Synchronisation automatique AniList',
-          tooltipId: 'anilistAutoSync',
-          checked: anilistAutoSyncEnabled,
-          onChange: onAnilistAutoSyncChange,
-        },
-      ];
-
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <div style={{ display: 'flex', gap: '14px', flexDirection: 'row' }}>
-          {syncItems.map((item) => (
-            <div
-              key={item.key}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 18px',
-                borderRadius: '10px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
-                flex: 1,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                <label
-                  htmlFor={item.key}
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                >
-                  {item.label}
-                </label>
-                <TooltipIcon id={item.tooltipId} />
-              </div>
-              <Toggle
-                checked={item.checked}
-                onChange={item.onChange}
-                disabled={!anilistConnected}
-              />
-            </div>
-          ))}
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 18px',
-              borderRadius: '10px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 8px 20px rgba(15, 23, 42, 0.15)',
-              flex: 1,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-              <label
-                htmlFor="anilist-manual-sync"
-                style={{
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: 'var(--text)',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                }}
-              >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+        <div
+          style={{
+            padding: '16px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
                 🔄 Synchronisation manuelle AniList
-              </label>
+              </h4>
               <TooltipIcon id="anilistManualSync" />
             </div>
             <button
@@ -1062,89 +886,28 @@ export default function IntegrationsSettings({
                 padding: '10px 18px',
                 borderRadius: '10px',
                 fontSize: '14px',
+                fontWeight: 600,
                 opacity: !anilistConnected ? 0.5 : 1,
-                cursor: !anilistConnected ? 'not-allowed' : 'pointer',
+                cursor: !anilistConnected ? 'not-allowed' : 'pointer'
               }}
             >
-              <RefreshCw size={14} style={{ animation: 'none' }} />
-              Synchroniser maintenant
+              <RefreshCw size={16} />
+              Synchroniser
             </button>
-            {!anilistConnected && (
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '8px' }}>
-                Connectez-vous d'abord
-              </span>
-            )}
           </div>
+          {!anilistConnected && (
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+              Connectez votre compte AniList pour activer cette fonctionnalité
+            </p>
+          )}
         </div>
       </div>
     );
   };
 
   const renderSyncToggles = () => {
-    const syncItems: Array<{
-      key: string;
-      label: string;
-      tooltipId: TooltipId;
-      checked: boolean;
-      onChange: (value: boolean) => void;
-    }> = [
-        {
-          key: 'mal-auto-sync',
-          label: '🔄 Synchronisation automatique MyAnimeList',
-          tooltipId: 'malAutoSync',
-          checked: malAutoSyncEnabled,
-          onChange: onMalAutoSyncChange,
-        },
-        {
-          key: 'nautiljon-auto-sync',
-          label: '📚 Synchronisation automatique de Nautiljon',
-          tooltipId: 'nautiljonAutoSync',
-          checked: nautiljonAutoSyncEnabled,
-          onChange: onNautiljonAutoSyncChange,
-        },
-        {
-          key: 'nautiljon-tomes-sync',
-          label: '📚 Gestion des tomes/volumes (Nautiljon)',
-          tooltipId: 'nautiljonTomes',
-          checked: nautiljonAutoSyncIncludeTomes,
-          onChange: onNautiljonIncludeTomesChange,
-        },
-      ];
-
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <div
-          style={{
-            display: 'grid',
-            gap: '12px',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          }}
-        >
-          {syncItems.map(({ key, label, tooltipId, checked, onChange }) => (
-            <div
-              key={key}
-              style={{
-                padding: '16px 18px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                textAlign: 'left',
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-                minHeight: 'auto'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>{label}</div>
-                {tooltipId && <TooltipIcon id={tooltipId} />}
-              </div>
-              <Toggle checked={checked} onChange={onChange} />
-            </div>
-          ))}
-        </div>
 
         <div
           style={{
@@ -1158,8 +921,8 @@ export default function IntegrationsSettings({
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -1189,8 +952,8 @@ export default function IntegrationsSettings({
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -1230,8 +993,8 @@ export default function IntegrationsSettings({
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -1293,8 +1056,8 @@ export default function IntegrationsSettings({
               padding: '16px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px'
@@ -1484,8 +1247,8 @@ export default function IntegrationsSettings({
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -1503,24 +1266,44 @@ export default function IntegrationsSettings({
                 </span>
               )}
             </div>
-            <button
-              onClick={handleTestRawgConnection}
-              className="btn btn-outline"
-              disabled={rawgTesting}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                minWidth: '190px',
-              }}
-            >
-              <RefreshCw size={14} style={{ animation: rawgTesting ? 'spin 1s linear infinite' : 'none' }} />
-              {rawgTesting ? 'Test en cours…' : 'Tester la connexion'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onOpenGuide('rawg');
+                }}
+                className="btn btn-outline"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                }}
+              >
+                <Info size={14} />
+                Guide RAWG
+              </button>
+              <button
+                onClick={handleTestRawgConnection}
+                className="btn btn-outline"
+                disabled={rawgTesting}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  minWidth: '190px',
+                }}
+              >
+                <RefreshCw size={14} style={{ animation: rawgTesting ? 'spin 1s linear infinite' : 'none' }} />
+                {rawgTesting ? 'Test en cours…' : 'Tester la connexion'}
+              </button>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
@@ -1607,8 +1390,8 @@ export default function IntegrationsSettings({
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -1621,24 +1404,44 @@ export default function IntegrationsSettings({
               </label>
               <TooltipIcon id="groqKey" />
             </div>
-            <button
-              onClick={handleTestGroqConnection}
-              className="btn btn-outline"
-              disabled={groqTesting}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                minWidth: '190px',
-              }}
-            >
-              <RefreshCw size={14} style={{ animation: groqTesting ? 'spin 1s linear infinite' : 'none' }} />
-              {groqTesting ? 'Test en cours…' : 'Tester la connexion'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onOpenGuide('groq');
+                }}
+                className="btn btn-outline"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                }}
+              >
+                <Info size={14} />
+                Guide Groq
+              </button>
+              <button
+                onClick={handleTestGroqConnection}
+                className="btn btn-outline"
+                disabled={groqTesting}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  minWidth: '190px',
+                }}
+              >
+                <RefreshCw size={14} style={{ animation: groqTesting ? 'spin 1s linear infinite' : 'none' }} />
+                {groqTesting ? 'Test en cours…' : 'Tester la connexion'}
+              </button>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
@@ -1712,11 +1515,11 @@ export default function IntegrationsSettings({
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
+            background: 'var(--surface)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)',
+            boxShadow: 'var(--card-shadow)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -1733,499 +1536,343 @@ export default function IntegrationsSettings({
     </div>
   );
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div
-        style={{
-          padding: '20px 24px',
-          borderRadius: '16px',
-          border: '1px solid var(--border)',
-          background: 'var(--surface)',
-          boxShadow: 'var(--card-shadow)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '18px',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            minWidth: '240px'
-          }}
-        >
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>
-            Fréquence de Synchronisation Globale
-          </h3>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Appliquée à toutes les routines automatiques activées (MyAnimeList, Nautiljon, Jeux adultes…).
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <select
-            value={globalSyncInterval}
-            onChange={(e) => onGlobalSyncIntervalChange(Number(e.target.value) as 1 | 3 | 6 | 12 | 24)}
-            disabled={globalSyncUpdating}
-            aria-busy={globalSyncUpdating}
-            style={{
-              fontWeight: 600,
-              width: '240px',
-              flex: '0 0 240px',
-              cursor: globalSyncUpdating ? 'wait' : 'pointer',
-              opacity: globalSyncUpdating ? 0.65 : 1,
-            }}
-            className="select"
-          >
-            <option value={1}>Toutes les heures</option>
-            <option value={3}>Toutes les 3 heures</option>
-            <option value={6}>Toutes les 6 heures</option>
-            <option value={12}>Toutes les 12 heures</option>
-            <option value={24}>Tous les jours</option>
-          </select>
-        </div>
-      </div>
+  const renderServiceContent = () => {
+    if (!activeService) {
+      return null;
+    }
 
-      <NestedSection
-        id="integrations-mal"
-        title="🤝 MyAnimeList (Progression Anime/Manga)"
-        isOpen={getNestedSectionState('mal')}
-        onToggle={() => toggleNestedSection('mal')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('mal');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide MAL
-          </button>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div
-            style={{
-              display: 'grid',
-              gap: '18px',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            }}
-          >
+    switch (activeService) {
+      case 'mal':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div
               style={{
-                padding: '18px 20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
+                display: 'grid',
+                gap: '18px',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID MyAnimeList</label>
-                  <TooltipIcon id="malClientId" />
+              <div
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID MyAnimeList</label>
+                    <TooltipIcon id="malClientId" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onOpenGuide('mal');
+                    }}
+                    className="btn btn-outline"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <Info size={14} />
+                    Guide MAL
+                  </button>
                 </div>
-                <div style={headerActionPlaceholderStyle} />
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input
-                  type={malClientVisible ? 'text' : 'password'}
-                  value={malClientId}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setMalClientId(value);
-                    scheduleCredentialSave(value);
-                  }}
-                  placeholder="Clé client générée dans le portail MAL"
-                  className="input"
-                  style={{
-                    flex: 1,
-                    letterSpacing: malClientVisible ? '0.4px' : '0.6px'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setMalClientVisible((prev) => !prev)}
-                  style={{
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                    borderRadius: '8px',
-                    width: '42px',
-                    height: '42px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)'
-                  }}
-                  aria-label={malClientVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
-                >
-                  {malClientVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {isSavingCredentials && (
-                <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
-                  Sauvegarde en cours…
-                </span>
-              )}
-            </div>
-
-            {renderMalStatus()}
-
-          </div>
-
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Synchronisation Automatique et Manuelle</h4>
-            {renderSyncToggles()}
-          </div>
-
-          {animeImportResult && (
-            <div
-              style={{
-                marginTop: '8px',
-                padding: '16px 20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 10px 26px rgba(15, 23, 42, 0.22)',
-              }}
-            >
-              <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
-                <CheckCircle size={16} style={{ color: 'var(--success)' }} />
-                Import XML terminé
-              </h4>
-              <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text)' }}>
-                <p>✅ {animeImportResult.imported} animes importés</p>
-                <p>🔄 {animeImportResult.updated} animes mis à jour</p>
-                <p>⏭️ {animeImportResult.skipped || 0} animes ignorés</p>
-                <p>
-                  📊{' '}
-                  {animeImportResult.total ||
-                    animeImportResult.imported + animeImportResult.updated + (animeImportResult.skipped || 0)}{' '}
-                  animes traités
-                </p>
-                {animeImportResult.errors && animeImportResult.errors.length > 0 && (
-                  <details style={{ marginTop: '10px' }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--error)', fontSize: '12px' }}>
-                      {animeImportResult.errors.length} erreur(s)
-                    </summary>
-                    <ul style={{ marginTop: '6px', paddingLeft: '18px', fontSize: '12px' }}>
-                      {animeImportResult.errors.slice(0, 5).map((err, idx) => (
-                        <li key={idx} style={{ color: 'var(--text-secondary)' }}>
-                          {err.error}
-                        </li>
-                      ))}
-                      {animeImportResult.errors.length > 5 && (
-                        <li style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                          … et {animeImportResult.errors.length - 5} autres erreurs
-                        </li>
-                      )}
-                    </ul>
-                  </details>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    type={malClientVisible ? 'text' : 'password'}
+                    value={malClientId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setMalClientId(value);
+                      scheduleCredentialSave(value);
+                    }}
+                    placeholder="Clé client générée dans le portail MAL"
+                    className="input"
+                    style={{
+                      flex: 1,
+                      letterSpacing: malClientVisible ? '0.4px' : '0.6px'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMalClientVisible((prev) => !prev)}
+                    style={{
+                      border: '1px solid var(--border)',
+                      background: 'var(--background)',
+                      borderRadius: '8px',
+                      width: '42px',
+                      height: '42px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)'
+                    }}
+                    aria-label={malClientVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
+                  >
+                    {malClientVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {isSavingCredentials && (
+                  <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+                    Sauvegarde en cours…
+                  </span>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </NestedSection>
 
-      <NestedSection
-        id="integrations-anilist"
-        title="📺 AniList (Progression Anime/Manga)"
-        isOpen={getNestedSectionState('anilist')}
-        onToggle={() => toggleNestedSection('anilist')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('anilist');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide AniList
-          </button>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div
-            style={{
-              display: 'grid',
-              gap: '18px',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            }}
-          >
+              {renderMalStatus()}
+            </div>
+
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Synchronisation Automatique et Manuelle</h4>
+              {renderSyncToggles()}
+            </div>
+
+            {animeImportResult && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '16px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  boxShadow: 'var(--card-shadow)',
+                }}
+              >
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>
+                  <CheckCircle size={16} style={{ color: 'var(--success)' }} />
+                  Import XML terminé
+                </h4>
+                <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text)' }}>
+                  <p>✅ {animeImportResult.imported} animes importés</p>
+                  <p>🔄 {animeImportResult.updated} animes mis à jour</p>
+                  <p>⏭️ {animeImportResult.skipped || 0} animes ignorés</p>
+                  <p>
+                    📊{' '}
+                    {animeImportResult.total ||
+                      animeImportResult.imported + animeImportResult.updated + (animeImportResult.skipped || 0)}{' '}
+                    animes traités
+                  </p>
+                  {animeImportResult.errors && animeImportResult.errors.length > 0 && (
+                    <details style={{ marginTop: '10px' }}>
+                      <summary style={{ cursor: 'pointer', color: 'var(--error)', fontSize: '12px' }}>
+                        {animeImportResult.errors.length} erreur(s)
+                      </summary>
+                      <ul style={{ marginTop: '6px', paddingLeft: '18px', fontSize: '12px' }}>
+                        {animeImportResult.errors.slice(0, 5).map((err, idx) => (
+                          <li key={idx} style={{ color: 'var(--text-secondary)' }}>
+                            {err.error}
+                          </li>
+                        ))}
+                        {animeImportResult.errors.length > 5 && (
+                          <li style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            … et {animeImportResult.errors.length - 5} autres erreurs
+                          </li>
+                        )}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'anilist':
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div
               style={{
-                padding: '18px 20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
+                display: 'grid',
+                gap: '18px',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID AniList</label>
-                  <TooltipIcon id="anilistClientId" />
+              <div
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID AniList</label>
+                    <TooltipIcon id="anilistClientId" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onOpenGuide('anilist');
+                    }}
+                    className="btn btn-outline"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 10px',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <Info size={14} />
+                    Guide AniList
+                  </button>
                 </div>
-                <div style={headerActionPlaceholderStyle} />
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    type={anilistClientIdVisible ? 'text' : 'password'}
+                    value={anilistClientId}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setAnilistClientId(value);
+                      scheduleAnilistCredentialSave(value, anilistClientSecret);
+                    }}
+                    placeholder="Clé client générée sur anilist.co/settings/developer"
+                    className="input"
+                    style={{
+                      flex: 1,
+                      letterSpacing: anilistClientIdVisible ? '0.4px' : '0.6px'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAnilistClientIdVisible((prev) => !prev)}
+                    style={{
+                      border: '1px solid var(--border)',
+                      background: 'var(--background)',
+                      borderRadius: '8px',
+                      width: '42px',
+                      height: '42px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)'
+                    }}
+                    aria-label={anilistClientIdVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
+                  >
+                    {anilistClientIdVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input
-                  type={anilistClientIdVisible ? 'text' : 'password'}
-                  value={anilistClientId}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setAnilistClientId(value);
-                    scheduleAnilistCredentialSave(value, anilistClientSecret);
-                  }}
-                  placeholder="Clé client générée sur anilist.co/settings/developer"
-                  className="input"
-                  style={{
-                    flex: 1,
-                    letterSpacing: anilistClientIdVisible ? '0.4px' : '0.6px'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setAnilistClientIdVisible((prev) => !prev)}
-                  style={{
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                    borderRadius: '8px',
-                    width: '42px',
-                    height: '42px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)'
-                  }}
-                  aria-label={anilistClientIdVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
-                >
-                  {anilistClientIdVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+
+              <div
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client Secret AniList</label>
+                    <TooltipIcon id="anilistClientSecret" />
+                  </div>
+                  <div style={headerActionPlaceholderStyle} />
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <input
+                    type={anilistClientSecretVisible ? 'text' : 'password'}
+                    value={anilistClientSecret}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setAnilistClientSecret(value);
+                      scheduleAnilistCredentialSave(anilistClientId, value);
+                    }}
+                    placeholder="Clé secrète générée sur anilist.co/settings/developer"
+                    className="input"
+                    style={{
+                      flex: 1,
+                      letterSpacing: anilistClientSecretVisible ? '0.4px' : '0.6px'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAnilistClientSecretVisible((prev) => !prev)}
+                    style={{
+                      border: '1px solid var(--border)',
+                      background: 'var(--background)',
+                      borderRadius: '8px',
+                      width: '42px',
+                      height: '42px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)'
+                    }}
+                    aria-label={anilistClientSecretVisible ? 'Masquer le Client Secret' : 'Afficher le Client Secret'}
+                  >
+                    {anilistClientSecretVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {isSavingAnilistCredentials && (
+                  <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
+                    Sauvegarde en cours…
+                  </span>
+                )}
               </div>
+
+              {renderAniListStatus()}
             </div>
 
-            <div
-              style={{
-                padding: '18px 20px',
-                borderRadius: '12px',
-                border: '1px solid var(--border)',
-                background: 'var(--surface-light)',
-                boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client Secret AniList</label>
-                  <TooltipIcon id="anilistClientSecret" />
-                </div>
-                <div style={headerActionPlaceholderStyle} />
-              </div>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <input
-                  type={anilistClientSecretVisible ? 'text' : 'password'}
-                  value={anilistClientSecret}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setAnilistClientSecret(value);
-                    scheduleAnilistCredentialSave(anilistClientId, value);
-                  }}
-                  placeholder="Clé secrète générée sur anilist.co/settings/developer"
-                  className="input"
-                  style={{
-                    flex: 1,
-                    letterSpacing: anilistClientSecretVisible ? '0.4px' : '0.6px'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setAnilistClientSecretVisible((prev) => !prev)}
-                  style={{
-                    border: '1px solid var(--border)',
-                    background: 'var(--background)',
-                    borderRadius: '8px',
-                    width: '42px',
-                    height: '42px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text-secondary)'
-                  }}
-                  aria-label={anilistClientSecretVisible ? 'Masquer le Client Secret' : 'Afficher le Client Secret'}
-                >
-                  {anilistClientSecretVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {isSavingAnilistCredentials && (
-                <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
-                  Sauvegarde en cours…
-                </span>
-              )}
+            <div>
+              <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Synchronisation Automatique et Manuelle</h4>
+              {renderAnilistSyncToggles()}
             </div>
-
-            {renderAniListStatus()}
           </div>
+        );
 
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: 600, marginBottom: '12px' }}>Synchronisation Automatique et Manuelle</h4>
-            {renderAnilistSyncToggles()}
-          </div>
-        </div>
-      </NestedSection>
+      case 'tmdb':
+        return (
+          <MediaSettings
+            showToast={showToast ?? (() => undefined)}
+            imageSource={imageSource}
+            onImageSourceChange={onImageSourceChange}
+            TooltipIcon={TooltipIcon}
+            onOpenGuide={onOpenGuide}
+          />
+        );
 
-      <NestedSection
-        id="integrations-tmdb"
-        title="🎬 Sources Médias et Images (TMDb)"
-        isOpen={getNestedSectionState('tmdb')}
-        onToggle={() => toggleNestedSection('tmdb')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('tmdb');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide TMDb
-          </button>
-        }
-      >
-        <MediaSettings
-          showToast={showToast ?? (() => undefined)}
-          imageSource={imageSource}
-          onImageSourceChange={onImageSourceChange}
-          TooltipIcon={TooltipIcon}
-        />
-      </NestedSection>
+      case 'groq':
+        return renderGroqSection();
 
-      <NestedSection
-        id="integrations-groq"
-        title="🧠 Traductions et Enrichissement IA (Groq)"
-        isOpen={getNestedSectionState('groq')}
-        onToggle={() => toggleNestedSection('groq')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('groq');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide Groq
-          </button>
-        }
-      >
-        {renderGroqSection()}
-      </NestedSection>
+      case 'rawg':
+        return renderRawgSection();
 
-      <NestedSection
-        id="integrations-rawg"
-        title="🎮 Enrichissement Jeux Vidéo (RAWG)"
-        isOpen={getNestedSectionState('rawg')}
-        onToggle={() => toggleNestedSection('rawg')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('rawg');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide RAWG
-          </button>
-        }
-      >
-        {renderRawgSection()}
-      </NestedSection>
+      case 'adulte-game':
+        return <AdulteGameSettings showToast={showToast ?? (() => undefined)} />;
 
-      <NestedSection
-        id="integrations-adulte-game"
-        title="🕹️ Synchronisation & Outils (Jeux Adultes)"
-        isOpen={getNestedSectionState('adulteGame')}
-        onToggle={() => toggleNestedSection('adulteGame')}
-        action={
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              onOpenGuide('adulteGame');
-            }}
-            className="btn btn-outline"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 10px',
-              fontSize: '12px',
-            }}
-          >
-            <Info size={14} />
-            Guide Jeux Adultes
-          </button>
-        }
-      >
-        <AdulteGameSettings showToast={showToast ?? (() => undefined)} />
-      </NestedSection>
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {renderServiceContent()}
 
       {showAnimeEnrichmentModal && (
         <AnimeEnrichmentConfigModal

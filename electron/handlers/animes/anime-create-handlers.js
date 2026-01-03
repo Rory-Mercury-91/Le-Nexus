@@ -121,10 +121,10 @@ async function handleAddAnimeByMalId(db, store, malIdOrUrl, options = {}) {
   }
 
   console.log(`🔍 Récupération des données pour MAL ID ${malId}...`);
-  
+
   const imageSource = store.get('animeImageSource', 'anilist');
   console.log(`📸 Source d'images : ${imageSource}`);
-  
+
   const anime = await fetchJikanData(malId);
   const candidateTitles = new Set([
     anime.title,
@@ -180,14 +180,14 @@ async function handleAddAnimeByMalId(db, store, malIdOrUrl, options = {}) {
     };
   }
   let anilistCover = null;
-  
+
   if (imageSource === 'anilist') {
     anilistCover = await fetchAniListCover(malId);
   }
 
   const coverUrl = imageSource === 'anilist' && anilistCover
-                  ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
-                  : (anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '');
+    ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
+    : (anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || '');
 
   // Traduire le synopsis (en parallèle)
   let description = anime.synopsis || '';
@@ -313,11 +313,11 @@ async function handleAddAnimeByMalId(db, store, malIdOrUrl, options = {}) {
   const relatedAnimes = [];
   for (const rel of relations) {
     if (!rel.entry || rel.entry.length === 0) continue;
-    
+
     const relMalId = rel.entry[0].mal_id;
     const relTitle = rel.entry[0].name;
     const relType = rel.relation;
-    
+
     const exists = db.prepare('SELECT id FROM anime_series WHERE mal_id = ?').get(relMalId);
     if (!exists) {
       relatedAnimes.push({
@@ -447,7 +447,7 @@ function handleCreateAnime(db, store, animeData) {
     const statutMap = {
       'watching': 'En cours',
       'completed': 'Terminé',
-      'on_hold': 'En attente',
+      'on_hold': 'En pause',
       'dropped': 'Abandonné',
       'plan_to_watch': 'À regarder'
     };
@@ -458,7 +458,7 @@ function handleCreateAnime(db, store, animeData) {
 
     const { ensureAnimeUserDataRow } = require('./anime-helpers');
     ensureAnimeUserDataRow(db, animeId, userId);
-    
+
     db.prepare(`
       UPDATE anime_user_data 
       SET statut_visionnage = ?, updated_at = datetime('now')
@@ -468,8 +468,8 @@ function handleCreateAnime(db, store, animeData) {
     console.log(`📊 Statut défini: ${statutFr}`);
   }
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     id: animeId,
     anime: {
       id: animeId,
@@ -485,7 +485,7 @@ function handleCreateAnime(db, store, animeData) {
  */
 function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
   const { handleAddAnimeByAnilistId } = require('./anime-anilist-handler');
-  
+
   // Ajouter un anime par MAL ID ou URL
   ipcMain.handle('add-anime-by-mal-id', async (event, malIdOrUrl, options = {}) => {
     try {
@@ -550,9 +550,9 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
       const startTime = Date.now();
 
       console.log(`\n🎬 Début de l'import : ${totalAnimes} animes à importer`);
-      sendProgress({ 
-        current: 0, 
-        total: totalAnimes, 
+      sendProgress({
+        current: 0,
+        total: totalAnimes,
         currentAnime: 'Initialisation...',
         startTime,
         imported: 0,
@@ -570,9 +570,9 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
         if (i % 5 === 0) {
           await new Promise(resolve => setImmediate(resolve));
         }
-        
+
         const animeXml = animeMatches[i][1];
-        
+
         const malId = parseInt(animeXml.match(/<series_animedb_id>(\d+)<\/series_animedb_id>/)?.[1]);
         const titre = animeXml.match(/<series_title><!\[CDATA\[(.*?)\]\]><\/series_title>/)?.[1];
         const watchedEpisodes = parseInt(animeXml.match(/<my_watched_episodes>(\d+)<\/my_watched_episodes>/)?.[1] || 0);
@@ -591,8 +591,8 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
         const etaMs = (remainingCount / speed) * 60000;
 
         sendProgress({
-          current: processedCount, 
-          total: totalAnimes, 
+          current: processedCount,
+          total: totalAnimes,
           currentAnime: titre,
           startTime,
           elapsedMs,
@@ -606,7 +606,7 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
 
         try {
           const existing = db.prepare('SELECT id FROM anime_series WHERE mal_id = ?').get(malId);
-          
+
           if (existing) {
             console.log(`⏭️ ${titre} (MAL ${malId}) déjà présent, ignoré`);
             skipped++;
@@ -614,19 +614,19 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
           }
 
           console.log(`📡 Fetch parallèle pour: ${titre} (MAL ${malId})`);
-          
+
           const imageSource = store.get('animeImageSource', 'anilist');
-          
+
           const anime = await fetchJikanData(malId);
           let anilistCover = null;
-          
+
           if (imageSource === 'anilist') {
             anilistCover = await fetchAniListCover(malId, titre);
           }
 
           const coverUrl = imageSource === 'anilist' && anilistCover
-                          ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
-                          : (anime.images?.jpg?.large_image_url || '');
+            ? (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large)
+            : (anime.images?.jpg?.large_image_url || '');
 
           let description = anime.synopsis || '';
           let translationPromise = null;
@@ -716,8 +716,8 @@ function registerAnimeSeriesCreateHandlers(ipcMain, getDb, store) {
       console.log(`   ⚡ Vitesse moyenne : ${finalSpeed.toFixed(1)} animes/min`);
 
       sendProgress({
-        current: totalAnimes, 
-        total: totalAnimes, 
+        current: totalAnimes,
+        total: totalAnimes,
         currentAnime: 'Terminé !',
         startTime,
         elapsedMs: totalTimeMs,

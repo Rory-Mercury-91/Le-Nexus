@@ -1171,6 +1171,16 @@ app.whenReady().then(async () => {
     setTimeout(() => {
       startDatabaseSyncScheduler(getDb, store);
     }, 2000); // Délai pour laisser le temps aux handlers de s'enregistrer
+
+    // Synchroniser cloud sync au démarrage si nécessaire (dev mode ou temps dépassé)
+    // Note: doit être appelé après l'enregistrement des handlers cloud sync
+    setTimeout(() => {
+      if (global.syncCloudSyncOnStartup) {
+        global.syncCloudSyncOnStartup().catch(err => {
+          console.error('Erreur sync cloud au démarrage:', err);
+        });
+      }
+    }, 3000); // Délai pour laisser le temps aux handlers cloud sync de s'enregistrer
   } catch (error) {
     console.warn('⚠️ Scheduler MAL non démarré:', error.message);
   }

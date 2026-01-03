@@ -14,6 +14,7 @@ export interface OnboardingData {
   showSeries: boolean;
   showAdulteGame: boolean;
   showBooks: boolean;
+  showSubscriptions: boolean;
   adulteGamePassword: string;
   adulteGamePasswordConfirm: string;
 }
@@ -40,6 +41,7 @@ interface UseOnboardingReturn {
   setShowMovies: (show: boolean) => void;
   setShowSeries: (show: boolean) => void;
   setShowAdulteGame: (show: boolean) => void;
+  setShowSubscriptions: (show: boolean) => void;
   setAdulteGamePassword: (password: string) => void;
   setAdulteGamePasswordConfirm: (password: string) => void;
   setShowAdulteGamePassword: (show: boolean) => void;
@@ -78,13 +80,15 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
     showSeries: true,
     showVideos: true,
     showAdulteGame: true,
-    showBooks: true
+    showBooks: true,
+    showSubscriptions: true
   };
   const [showMangas, setShowMangas] = useState(defaultContentPrefs.showMangas);
   const [showAnimes, setShowAnimes] = useState(defaultContentPrefs.showAnimes);
   const [showMovies, setShowMovies] = useState(defaultContentPrefs.showMovies);
   const [showSeries, setShowSeries] = useState(defaultContentPrefs.showSeries);
   const [showAdulteGame, setShowAdulteGame] = useState(defaultContentPrefs.showAdulteGame);
+  const [showSubscriptions, setShowSubscriptions] = useState(defaultContentPrefs.showSubscriptions);
   // showBooks est synchronisé avec showMangas, donc on utilise showMangas comme valeur
   const showBooks = showMangas;
 
@@ -345,7 +349,8 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
         showSeries,
         showVideos,
         showAdulteGame,
-        showBooks: showMangas // Synchroniser avec showMangas
+        showBooks: showMangas, // Synchroniser avec showMangas
+        showSubscriptions
       });
 
       // Définir le mot de passe jeux adultes maître si fourni
@@ -386,6 +391,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
       showSeries,
       showAdulteGame,
       showBooks,
+      showSubscriptions,
       adulteGamePassword,
       adulteGamePasswordConfirm
     },
@@ -408,6 +414,7 @@ export function useOnboarding(initialStep: number = 1, initialBaseDirectory: str
     setShowMovies,
     setShowSeries,
     setShowAdulteGame,
+    setShowSubscriptions,
     setAdulteGamePassword,
     setAdulteGamePasswordConfirm,
     setShowAdulteGamePassword,

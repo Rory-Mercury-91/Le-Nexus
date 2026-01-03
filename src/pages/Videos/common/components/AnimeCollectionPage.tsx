@@ -24,9 +24,11 @@ import { useCollectionFilters } from '../../../../hooks/common/useCollectionFilt
 import { usePersistentState } from '../../../../hooks/common/usePersistentState';
 import { rememberScrollTarget, useScrollRestoration } from '../../../../hooks/common/useScrollRestoration';
 import { useToast } from '../../../../hooks/common/useToast';
+import { useVideoCounts } from '../../../../hooks/videos/useVideoCounts';
 import { AnimeSerie } from '../../../../types';
 import { COMMON_STATUSES, formatStatusLabel } from '../../../../utils/status';
 import { translateStatus } from '../../../../utils/translations';
+import VideoNavigationTabs from './VideoNavigationTabs';
 import { AnimeCollectionPageConfig } from '../utils/anime-page-config';
 import { isVideoSortOption, isVideoStatusFilter, RECOGNIZED_ANIME_TYPES, VIDEO_SORT_OPTIONS, VIDEO_STATUS_OPTIONS, VideoSortOption } from '../utils/constants';
 import { detectMalUrlOrId, normalizeAnimeType, normalizeWorkStatus, resolveAnimeStatus } from '../utils/video-helpers';
@@ -39,6 +41,7 @@ export default function AnimeCollectionPage({ config }: AnimeCollectionPageProps
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast, ToastContainer } = useToast();
+  const { videoCounts, animeTypeCounts } = useVideoCounts();
   const [animes, setAnimes] = useState<AnimeSerie[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -801,6 +804,9 @@ export default function AnimeCollectionPage({ config }: AnimeCollectionPageProps
               </button>
             }
           />
+
+          {/* Barre de sous-onglets */}
+          <VideoNavigationTabs videoCounts={videoCounts} animeTypeCounts={animeTypeCounts} />
 
           <div style={{ marginTop: '-8px', marginBottom: '8px' }}>
             <ProgressionHeader type="anime" stats={stats} />

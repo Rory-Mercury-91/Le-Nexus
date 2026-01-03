@@ -35,6 +35,7 @@ export default function OnboardingWizard({ onComplete, initialStep = 1, initialB
     setShowMovies,
     setShowSeries,
     setShowAdulteGame,
+    setShowSubscriptions,
     setAdulteGamePassword,
     setAdulteGamePasswordConfirm,
     setShowAdulteGamePassword,
@@ -130,6 +131,7 @@ export default function OnboardingWizard({ onComplete, initialStep = 1, initialB
             showSeries={data.showSeries}
             showAdulteGame={data.showAdulteGame}
             showBooks={data.showBooks}
+            showSubscriptions={data.showSubscriptions}
             adulteGamePassword={data.adulteGamePassword}
             adulteGamePasswordConfirm={data.adulteGamePasswordConfirm}
             showAdulteGamePassword={showAdulteGamePassword}
@@ -144,6 +146,7 @@ export default function OnboardingWizard({ onComplete, initialStep = 1, initialB
             onShowMoviesChange={setShowMovies}
             onShowSeriesChange={setShowSeries}
             onShowAdulteGameChange={setShowAdulteGame}
+            onShowSubscriptionsChange={setShowSubscriptions}
             onAdulteGamePasswordChange={setAdulteGamePassword}
             onAdulteGamePasswordConfirmChange={setAdulteGamePasswordConfirm}
             onShowAdulteGamePasswordToggle={() => setShowAdulteGamePassword(!showAdulteGamePassword)}

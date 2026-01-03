@@ -1,10 +1,9 @@
-import { ArrowLeft, Edit, Plus, Settings, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import LazyImage from '../../components/common/LazyImage';
 import SimpleCarousel from '../../components/common/SimpleCarousel';
-import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import ImageModal from '../../components/modals/common/ImageModal';
 import VideoModal from '../../components/modals/common/VideoModal';
 import AddImageModal from '../../components/modals/movie/AddImageModal';
@@ -18,74 +17,6 @@ import { useAdulteGameLock } from '../../hooks/useAdulteGameLock';
 import { shouldBlurByEsrbRating } from '../../utils/esrb-rating';
 import { RawgGameBanner, RawgGameInfoSection } from './components';
 
-const RAWG_GAME_DISPLAY_CATEGORIES: DisplayFieldCategory[] = [
-  {
-    title: 'Présentation',
-    icon: '🎮',
-    fields: [
-      { key: 'banner', label: 'Bannière' },
-      { key: 'description', label: 'Description' },
-      { key: 'labels', label: 'Labels personnalisés' }
-    ]
-  },
-  {
-    title: 'Métadonnées',
-    icon: '📊',
-    fields: [
-      { key: 'metadata', label: 'Informations principales' },
-      { key: 'ratings', label: 'Notes et évaluations' },
-      { key: 'platforms', label: 'Plateformes' },
-      { key: 'genres', label: 'Genres' },
-      { key: 'tags', label: 'Tags' },
-      { key: 'developers', label: 'Développeurs' },
-      { key: 'publishers', label: 'Éditeurs' }
-    ]
-  },
-  {
-    title: 'Achat et disponibilité',
-    icon: '🛒',
-    fields: [
-      { key: 'stores', label: 'Boutiques' },
-      { key: 'requirements', label: 'Exigences système' }
-    ]
-  },
-  {
-    title: 'Médias',
-    icon: '🎞️',
-    fields: [
-      { key: 'screenshots', label: 'Captures d\'écran' },
-      { key: 'movies', label: 'Vidéos' }
-    ]
-  },
-  {
-    title: 'Communauté',
-    icon: '👥',
-    fields: [
-      { key: 'community', label: 'Statistiques communautaires' },
-      { key: 'externalLinks', label: 'Liens externes' }
-    ]
-  }
-];
-
-const rawgGameDisplayDefaults: Record<string, boolean> = {
-  banner: true,
-  description: true,
-  labels: true,
-  metadata: true,
-  ratings: true,
-  platforms: true,
-  genres: true,
-  tags: true,
-  developers: true,
-  publishers: true,
-  stores: true,
-  requirements: true,
-  screenshots: true,
-  movies: true,
-  community: true,
-  externalLinks: true
-};
-
 export default function RawgGameDetail() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,14 +29,10 @@ export default function RawgGameDetail() {
     error,
     showEditModal,
     setShowEditModal,
-    showDisplaySettingsModal,
-    handleOpenDisplaySettings,
-    handleCloseDisplaySettings,
     handleStatusChange,
     handleToggleFavorite,
     handleDelete,
     loadDetail,
-    displayPrefs,
     updatingStatus,
     togglingFavorite,
     owners,
@@ -348,15 +275,6 @@ export default function RawgGameDetail() {
             </button>
             <button
               type="button"
-              className="btn btn-outline"
-              onClick={handleOpenDisplaySettings}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              <Settings size={16} />
-              Personnaliser l'affichage
-            </button>
-            <button
-              type="button"
               className="btn btn-danger"
               onClick={handleDelete}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
@@ -369,14 +287,12 @@ export default function RawgGameDetail() {
       />
       <div className="fade-in" style={{ padding: '110px 0 80px', width: '100%', boxSizing: 'border-box' }}>
         {/* Bannière horizontale en haut */}
-        {displayPrefs.banner && (
-          <div style={{ width: '100%', marginBottom: '32px', padding: '0 20px' }}>
-            <RawgGameBanner
-              game={game}
-              onCoverUpdated={() => loadDetail({ silent: false })}
-            />
-          </div>
-        )}
+        <div style={{ width: '100%', marginBottom: '32px', padding: '0 20px' }}>
+          <RawgGameBanner
+            game={game}
+            onCoverUpdated={() => loadDetail({ silent: false })}
+          />
+        </div>
 
         <div
           style={{
@@ -400,7 +316,7 @@ export default function RawgGameDetail() {
           >
             <RawgGameInfoSection
               game={game}
-              shouldShow={(field) => displayPrefs[field as keyof typeof displayPrefs] ?? true}
+              shouldShow={() => true}
               onStatusChange={handleStatusChange}
               onToggleFavorite={handleToggleFavorite}
               onLabelsChange={() => loadDetail({ silent: false })}
@@ -415,226 +331,220 @@ export default function RawgGameDetail() {
           </div>
 
           {/* Section Media : Screenshots et Vidéos */}
-          {(displayPrefs.screenshots || displayPrefs.movies) && (
-            <section
-              style={{
-                background: 'var(--surface)',
-                borderRadius: '18px',
-                border: '1px solid var(--border)',
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px'
-              }}
-            >
-              <h3 className="detail-section-title">Media</h3>
+          <section
+            style={{
+              background: 'var(--surface)',
+              borderRadius: '18px',
+              border: '1px solid var(--border)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '32px'
+            }}
+          >
+            <h3 className="detail-section-title">Media</h3>
 
-              {/* Sous-section Vidéos */}
-              {displayPrefs.movies && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 className="detail-subsection-title">Vidéos de gameplay</h4>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => setShowAddVideoModal(true)}
-                      disabled={addingVideo || loadingUserVideos}
+            {/* Sous-section Vidéos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 className="detail-subsection-title">Vidéos de gameplay</h4>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddVideoModal(true)}
+                  disabled={addingVideo || loadingUserVideos}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '6px 12px',
+                    opacity: (addingVideo || loadingUserVideos) ? 0.6 : 1,
+                    cursor: (addingVideo || loadingUserVideos) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Plus size={16} />
+                  {addingVideo ? 'Ajout en cours...' : 'Ajouter une vidéo'}
+                </button>
+              </div>
+
+              {/* Afficher les vidéos combinées */}
+              {allVideos.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {allVideos.map((video: any) => (
+                    <div
+                      key={video.id}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        padding: '6px 12px',
-                        opacity: (addingVideo || loadingUserVideos) ? 0.6 : 1,
-                        cursor: (addingVideo || loadingUserVideos) ? 'not-allowed' : 'pointer'
+                        position: 'relative',
+                        display: 'inline-block'
                       }}
                     >
-                      <Plus size={16} />
-                      {addingVideo ? 'Ajout en cours...' : 'Ajouter une vidéo'}
-                    </button>
-                  </div>
-
-                  {/* Afficher les vidéos combinées */}
-                  {allVideos.length > 0 ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                      {allVideos.map((video: any) => (
-                        <div
-                          key={video.id}
-                          style={{
-                            position: 'relative',
-                            display: 'inline-block'
+                      <button
+                        className="btn btn-outline"
+                        onClick={() => {
+                          if (video.isUserVideo && video.file_path && video.url) {
+                            setSelectedVideo({
+                              site: 'local',
+                              videoUrl: video.url,
+                              mimeType: video.mime_type || undefined,
+                              title: video.name
+                            });
+                          } else if (video.url) {
+                            window.electronAPI.openExternal?.(video.url);
+                          }
+                        }}
+                        style={{
+                          justifyContent: 'flex-start',
+                          minWidth: '220px',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          position: 'relative'
+                        }}
+                      >
+                        {video.name}
+                      </button>
+                      {video.isUserVideo && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUserVideoClick(video.videoId);
                           }}
-                        >
-                          <button
-                            className="btn btn-outline"
-                            onClick={() => {
-                              if (video.isUserVideo && video.file_path && video.url) {
-                                setSelectedVideo({
-                                  site: 'local',
-                                  videoUrl: video.url,
-                                  mimeType: video.mime_type || undefined,
-                                  title: video.name
-                                });
-                              } else if (video.url) {
-                                window.electronAPI.openExternal?.(video.url);
-                              }
-                            }}
-                            style={{
-                              justifyContent: 'flex-start',
-                              minWidth: '220px',
-                              padding: '10px 14px',
-                              borderRadius: '10px',
-                              position: 'relative'
-                            }}
-                          >
-                            {video.name}
-                          </button>
-                          {video.isUserVideo && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteUserVideoClick(video.videoId);
-                              }}
-                              style={{
-                                position: 'absolute',
-                                top: '4px',
-                                right: '4px',
-                                background: 'rgba(239, 68, 68, 0.9)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '4px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                width: '20px',
-                                height: '20px'
-                              }}
-                              title="Supprimer cette vidéo"
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>Aucune vidéo disponible</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Sous-section Screenshots */}
-              {displayPrefs.screenshots && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 className="detail-subsection-title">Captures d'écran</h4>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => setShowAddImageModal(true)}
-                      disabled={addingImage || loadingUserImages}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        padding: '6px 12px',
-                        opacity: addingImage || loadingUserImages ? 0.6 : 1,
-                        cursor: addingImage || loadingUserImages ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Plus size={16} />
-                      {addingImage ? 'Ajout en cours...' : 'Ajouter une photo'}
-                    </button>
-                  </div>
-
-                  {/* Afficher les screenshots combinés */}
-                  {allScreenshots.length > 0 ? (
-                    <SimpleCarousel cardWidth={320} gap={16}>
-                      {allScreenshots.map((screenshot) => (
-                        <div
-                          key={screenshot.id}
                           style={{
-                            borderRadius: '12px',
-                            overflow: 'hidden',
-                            border: '1px solid var(--border)',
+                            position: 'absolute',
+                            top: '4px',
+                            right: '4px',
+                            background: 'rgba(239, 68, 68, 0.9)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '4px',
                             cursor: 'pointer',
-                            position: 'relative',
-                            height: '180px',
-                            width: '320px',
-                            flexShrink: 0
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            width: '20px',
+                            height: '20px'
                           }}
-                          onClick={() => {
-                            setSelectedImage(screenshot.imageUrl);
-                            if (screenshot.source === 'user' && screenshot.fileName) {
-                              setSelectedImageMeta({
-                                url: screenshot.imageUrl,
-                                fileName: screenshot.fileName
-                              });
-                            }
-                          }}
+                          title="Supprimer cette vidéo"
                         >
-                          <LazyImage
-                            src={screenshot.imageUrl}
-                            alt={screenshot.source === 'rawg' ? 'Screenshot RAWG' : (screenshot.fileName || 'Image utilisateur')}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
-                              display: 'block',
-                              filter: shouldBlurImages ? 'blur(20px) brightness(0.3)' : 'none'
-                            }}
-                          />
-                          {screenshot.source === 'user' && screenshot.userImageId && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteUserImageClick(screenshot.userImageId!, screenshot.fileName || 'Image utilisateur');
-                              }}
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                                background: 'rgba(0, 0, 0, 0.7)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                transition: 'background 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
-                              }}
-                              title="Supprimer cette image"
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </SimpleCarousel>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>Aucune capture d'écran disponible</p>
+                          <X size={12} />
+                        </button>
+                      )}
                     </div>
-                  )}
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0 }}>Aucune vidéo disponible</p>
                 </div>
               )}
-            </section>
-          )}
+            </div>
+
+            {/* Sous-section Screenshots */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 className="detail-subsection-title">Captures d'écran</h4>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddImageModal(true)}
+                  disabled={addingImage || loadingUserImages}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '6px 12px',
+                    opacity: addingImage || loadingUserImages ? 0.6 : 1,
+                    cursor: addingImage || loadingUserImages ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Plus size={16} />
+                  {addingImage ? 'Ajout en cours...' : 'Ajouter une photo'}
+                </button>
+              </div>
+
+              {/* Afficher les screenshots combinés */}
+              {allScreenshots.length > 0 ? (
+                <SimpleCarousel cardWidth={320} gap={16}>
+                  {allScreenshots.map((screenshot) => (
+                    <div
+                      key={screenshot.id}
+                      style={{
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        height: '180px',
+                        width: '320px',
+                        flexShrink: 0
+                      }}
+                      onClick={() => {
+                        setSelectedImage(screenshot.imageUrl);
+                        if (screenshot.source === 'user' && screenshot.fileName) {
+                          setSelectedImageMeta({
+                            url: screenshot.imageUrl,
+                            fileName: screenshot.fileName
+                          });
+                        }
+                      }}
+                    >
+                      <LazyImage
+                        src={screenshot.imageUrl}
+                        alt={screenshot.source === 'rawg' ? 'Screenshot RAWG' : (screenshot.fileName || 'Image utilisateur')}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                          filter: shouldBlurImages ? 'blur(20px) brightness(0.3)' : 'none'
+                        }}
+                      />
+                      {screenshot.source === 'user' && screenshot.userImageId && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUserImageClick(screenshot.userImageId!, screenshot.fileName || 'Image utilisateur');
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
+                          }}
+                          title="Supprimer cette image"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </SimpleCarousel>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0 }}>Aucune capture d'écran disponible</p>
+                </div>
+              )}
+            </div>
+          </section>
 
         </div>
       </div>
@@ -648,41 +558,6 @@ export default function RawgGameDetail() {
         />
       )}
 
-      {showDisplaySettingsModal && game && (
-        <DisplaySettingsModal
-          title="Personnaliser l'affichage"
-          description="Les modifications locales surchargent les paramètres globaux pour ce jeu."
-          fields={RAWG_GAME_DISPLAY_CATEGORIES}
-          mode="global-local"
-          itemId={game.id}
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getRawgGameDisplaySettings?.();
-            return prefs || rawgGameDisplayDefaults;
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveRawgGameDisplaySettings(prefs);
-            window.dispatchEvent(new CustomEvent('rawg-game-display-settings-updated'));
-          }}
-          loadLocalOverrides={async (itemId) => {
-            const overrides = await window.electronAPI.getRawgGameDisplayOverrides(itemId);
-            return overrides || {};
-          }}
-          saveLocalOverrides={async (itemId, overrides) => {
-            await window.electronAPI.saveRawgGameDisplayOverrides(itemId, overrides);
-            window.dispatchEvent(new CustomEvent('rawg-game-display-settings-updated'));
-          }}
-          deleteLocalOverrides={async (itemId, keys) => {
-            await window.electronAPI.deleteRawgGameDisplayOverrides(itemId, keys);
-            window.dispatchEvent(new CustomEvent('rawg-game-display-settings-updated'));
-          }}
-          onSave={() => {
-            loadDetail({ silent: false });
-            handleCloseDisplaySettings();
-          }}
-          onClose={handleCloseDisplaySettings}
-          showToast={undefined}
-        />
-      )}
 
       {showEditModal && game && (
         <EditRawgGameModal

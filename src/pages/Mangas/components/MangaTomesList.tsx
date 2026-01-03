@@ -25,6 +25,8 @@ interface MangaTomesListProps {
 export function MangaTomesList({
   serie,
   tomes,
+  users,
+  profileImages,
   currentUserId,
   draggingTomeId,
   onDragOver,
@@ -107,6 +109,14 @@ export function MangaTomesList({
             const isPossede = currentUserId !== null && tome.proprietaireIds?.includes(currentUserId) === true;
             const isLu = tome.lu === 1;
             const isMihon = tome.mihon === 1;
+            // Vérifier si le tome est possédé par quelqu'un d'autre (mais pas par l'utilisateur actuel)
+            const hasOtherOwners = tome.proprietaires && tome.proprietaires.length > 0;
+            const otherOwners = hasOtherOwners && currentUserId !== null
+              ? tome.proprietaires.filter(p => p.id !== currentUserId)
+              : (tome.proprietaires || []);
+            // Vérifier qui a coché la case Mihon (pour l'affichage avec couleur)
+            const mihonUser = tome.mihon_user_id ? users.find(u => u.id === tome.mihon_user_id) : null;
+            const isMihonByOther = isMihon && mihonUser && currentUserId !== null && mihonUser.id !== currentUserId;
 
             return (
               <div
@@ -158,25 +168,61 @@ export function MangaTomesList({
                   {/* Droite: Trois checkboxes (Possédé | Lu | Mihon) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     {/* Checkbox Possédé */}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={isPossede}
-                        onChange={async (e) => {
-                          e.stopPropagation();
-                          await onToggleTomePossede(tome.id, e.target.checked);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          cursor: 'pointer',
-                          accentColor: 'var(--primary)',
-                          flexShrink: 0
-                        }}
-                        title={isPossede ? 'Marquer comme non possédé' : 'Marquer comme possédé'}
-                      />
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        ...(hasOtherOwners && !isPossede && otherOwners.length > 0 ? {
+                          padding: '2px',
+                          borderRadius: '4px',
+                          border: `2px solid ${otherOwners[0].color || 'var(--primary)'}`,
+                          background: `${otherOwners[0].color || 'var(--primary)'}22`
+                        } : {})
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={isPossede}
+                          onChange={async (e) => {
+                            e.stopPropagation();
+                            await onToggleTomePossede(tome.id, e.target.checked);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                            accentColor: 'var(--primary)',
+                            flexShrink: 0,
+                            margin: 0
+                          }}
+                          title={(() => {
+                            if (hasOtherOwners && tome.proprietaires && tome.proprietaires.length > 0) {
+                              const ownerNames = tome.proprietaires.map(p => `${p.emoji || ''} ${p.name}`).join(', ');
+                              if (isPossede) {
+                                return `Possédé par : ${ownerNames}\nCliquer pour ne plus posséder`;
+                              } else {
+                                return `Possédé par : ${ownerNames}\nCliquer pour posséder aussi`;
+                              }
+                            }
+                            return isPossede ? 'Marquer comme non possédé' : 'Marquer comme possédé';
+                          })()}
+                        />
+                      </div>
+                      <span style={{
+                        fontSize: '13px',
+                        color: hasOtherOwners && !isPossede && otherOwners.length > 0
+                          ? (otherOwners[0].color || 'var(--text-secondary)')
+                          : 'var(--text-secondary)',
+                        fontWeight: hasOtherOwners && !isPossede && otherOwners.length > 0 ? '600' : '500'
+                      }}>
                         Possédé
                       </span>
                     </label>
@@ -206,25 +252,63 @@ export function MangaTomesList({
                     </label>
 
                     {/* Checkbox Mihon */}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={isMihon}
-                        onChange={async (e) => {
-                          e.stopPropagation();
-                          await onToggleTomeMihon(tome.id, e.target.checked);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          cursor: 'pointer',
-                          accentColor: 'var(--warning)',
-                          flexShrink: 0
-                        }}
-                        title={isMihon ? 'Marquer comme non Mihon' : 'Marquer comme Mihon'}
-                      />
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        position: 'relative',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        ...(isMihonByOther && mihonUser ? {
+                          padding: '2px',
+                          borderRadius: '4px',
+                          border: `2px solid ${mihonUser.color || 'var(--warning)'}`,
+                          background: `${mihonUser.color || 'var(--warning)'}22`
+                        } : {})
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={isMihon}
+                          onChange={async (e) => {
+                            e.stopPropagation();
+                            await onToggleTomeMihon(tome.id, e.target.checked);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            cursor: 'pointer',
+                            accentColor: 'var(--warning)',
+                            flexShrink: 0,
+                            margin: 0
+                          }}
+                          title={(() => {
+                            if (!isMihon) return 'Marquer comme Mihon';
+                            // Vérifier si la série vient d'un import Mihon
+                            const isImported = serie.source_donnees === 'mihon_import';
+                            if (isImported) {
+                              return 'Importé depuis Mihon';
+                            }
+                            // Vérifier si on a l'information de l'utilisateur qui a coché la case
+                            if (tome.mihon_user_id && mihonUser) {
+                              return `Marqué comme Mihon par ${mihonUser.emoji} ${mihonUser.name}`;
+                            }
+                            return 'Mihon';
+                          })()}
+                        />
+                      </div>
+                      <span style={{
+                        fontSize: '13px',
+                        color: isMihonByOther && mihonUser
+                          ? (mihonUser.color || 'var(--text-secondary)')
+                          : 'var(--text-secondary)',
+                        fontWeight: isMihonByOther && mihonUser ? '600' : '500'
+                      }}>
                         Mihon
                       </span>
                     </label>

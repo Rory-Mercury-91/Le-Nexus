@@ -411,11 +411,11 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
+            background: 'var(--surface)',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)'
+            boxShadow: 'var(--card-shadow)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
@@ -505,11 +505,11 @@ export default function AdulteGameSettings({ showToast }: AdulteGameSettingsProp
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
+            background: 'var(--surface)',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.18)'
+            boxShadow: 'var(--card-shadow)'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>

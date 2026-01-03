@@ -1,62 +1,17 @@
-import { Edit, Settings, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { BackToBottomButton, BackToTopButton } from '../../components/collections';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import DetailStatusSection from '../../components/details/DetailStatusSection';
 import BookOwnershipModal from '../../components/modals/book/BookOwnershipModal';
-import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import EditBookModal from '../../components/modals/book/EditBookModal';
-import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
+import OwnershipModalLoader from '../../components/modals/book/OwnershipModalLoader';
 import { useConfirm } from '../../hooks/common/useConfirm';
 import { useToast } from '../../hooks/common/useToast';
 import { useBookDetail } from '../../hooks/details/useBookDetail';
 import { COMMON_STATUSES } from '../../utils/status';
 import { BookCostsSection, BookCover, BookInfoSection } from './components';
-
-const BOOK_DISPLAY_CATEGORIES: DisplayFieldCategory[] = [
-  {
-    title: 'Informations principales',
-    icon: '📚',
-    fields: [
-      { key: 'titre', label: 'Titre' },
-      { key: 'auteur', label: 'Auteur' },
-      { key: 'description', label: 'Description' },
-      { key: 'type_livre', label: 'Type de livre' },
-      { key: 'editeur', label: 'Éditeur' },
-      { key: 'date_publication', label: 'Date de publication' },
-      { key: 'nombre_pages', label: 'Nombre de pages' },
-      { key: 'isbn', label: 'ISBN' },
-      { key: 'langue', label: 'Langue' },
-      { key: 'genres', label: 'Genres' },
-      { key: 'score', label: 'Note moyenne' },
-      { key: 'prix', label: 'Prix suggéré' }
-    ]
-  },
-  {
-    title: 'Coûts',
-    icon: '💰',
-    fields: [
-      { key: 'costs', label: 'Coûts par propriétaire' }
-    ]
-  }
-];
-
-const BOOK_DISPLAY_DEFAULTS: Record<string, boolean> = {
-  titre: true,
-  auteur: true,
-  description: true,
-  type_livre: true,
-  editeur: true,
-  date_publication: true,
-  nombre_pages: true,
-  isbn: true,
-  langue: true,
-  genres: true,
-  score: true,
-  prix: true,
-  costs: true
-};
 
 export default function BookDetail() {
   const location = useLocation();
@@ -75,9 +30,7 @@ export default function BookDetail() {
     currentUser,
     profileImages,
     showEditModal,
-    showCustomizeDisplay,
     setShowEditModal,
-    setShowCustomizeDisplay,
     handleDelete,
     handleStatusChange,
     handleToggleFavorite,
@@ -186,15 +139,6 @@ export default function BookDetail() {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button
               type="button"
-              className="btn btn-outline"
-              onClick={() => setShowCustomizeDisplay(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              <Settings size={16} />
-              Personnaliser l'affichage
-            </button>
-            <button
-              type="button"
               className="btn btn-primary"
               onClick={() => setShowEditModal(true)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
@@ -259,7 +203,7 @@ export default function BookDetail() {
           <div style={{ flex: 1, minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <BookInfoSection book={book} shouldShow={shouldShow} />
 
-            {shouldShow('costs') && costsByUser.length > 0 && (
+            {costsByUser.length > 0 && (
               <BookCostsSection
                 costsByUser={costsByUser}
                 totalPrix={totalPrix}
@@ -300,41 +244,6 @@ export default function BookDetail() {
         />
       )}
 
-      {showCustomizeDisplay && book && (
-        <DisplaySettingsModal
-          title="Personnaliser l'affichage"
-          description="Les modifications locales surchargent les paramètres globaux pour ce livre."
-          fields={BOOK_DISPLAY_CATEGORIES}
-          mode="global-local"
-          itemId={book.id}
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getBooksDisplaySettings?.();
-            return prefs || BOOK_DISPLAY_DEFAULTS;
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveBooksDisplaySettings?.(prefs);
-            window.dispatchEvent(new CustomEvent('book-display-settings-updated'));
-          }}
-          loadLocalOverrides={async (itemId) => {
-            const overrides = await window.electronAPI.getBooksDisplayOverrides?.(itemId);
-            return overrides || {};
-          }}
-          saveLocalOverrides={async (itemId, overrides) => {
-            await window.electronAPI.saveBooksDisplayOverrides?.(itemId, overrides);
-            window.dispatchEvent(new CustomEvent('book-display-settings-updated'));
-          }}
-          deleteLocalOverrides={async (itemId, keys) => {
-            await window.electronAPI.deleteBooksDisplayOverrides?.(itemId, keys);
-            window.dispatchEvent(new CustomEvent('book-display-settings-updated'));
-          }}
-          onSave={() => {
-            loadBook();
-            setShowCustomizeDisplay(false);
-          }}
-          onClose={() => setShowCustomizeDisplay(false)}
-          showToast={showToast}
-        />
-      )}
 
       {showOwnershipModal && book && (
         <>

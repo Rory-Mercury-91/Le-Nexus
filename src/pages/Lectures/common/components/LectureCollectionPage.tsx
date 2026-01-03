@@ -115,6 +115,18 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
   const [showGenresFilter, setShowGenresFilter] = useState(false);
   const [showThemesFilter, setShowThemesFilter] = useState(false);
   const [availableSites, setAvailableSites] = useState<Array<{ id: string; name: string; baseUrl: string }>>([]);
+  const [availableContentTypes, setAvailableContentTypes] = useState<{
+    manga: number;
+    manhwa: number;
+    manhua: number;
+    lightNovel: number;
+    webtoon: number;
+    comics: number;
+    bd: number;
+    books: number;
+    oneShot?: number;
+    unclassified?: number;
+  } | null>(null);
 
   useScrollRestoration(`${config.storageKey}.scroll`, !loading);
 
@@ -245,6 +257,19 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
     }
   }, []);
 
+  // Fonction pour charger les types de contenu disponibles
+  const loadAvailableContentTypes = useCallback(async () => {
+    try {
+      const types = await window.electronAPI.getAvailableContentTypes?.();
+      if (types) {
+        setAvailableContentTypes(types);
+      }
+    } catch (error) {
+      console.error('Erreur chargement types de contenu:', error);
+      setAvailableContentTypes(null);
+    }
+  }, []);
+
   // Fonction principale de chargement
   const loadContent = useCallback(async () => {
     setLoading(true);
@@ -275,7 +300,8 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
   useEffect(() => {
     loadContent();
     loadAvailableSites();
-  }, [loadContent, loadAvailableSites]);
+    loadAvailableContentTypes();
+  }, [loadContent, loadAvailableSites, loadAvailableContentTypes]);
 
   // Combiner les items pour le filtrage
   const allItems: LectureItem[] = [
@@ -725,6 +751,398 @@ export default function LectureCollectionPage({ config }: LectureCollectionPageP
               </button>
             )}
           />
+
+          {/* Barre de sous-onglets */}
+          <div style={{
+            display: 'flex',
+            marginBottom: '20px',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => navigate('/lectures')}
+              style={{
+                padding: '10px 20px',
+                border: 'none',
+                background: location.pathname === '/lectures' ? 'var(--surface-light)' : 'transparent',
+                borderBottom: location.pathname === '/lectures' ? '2px solid var(--primary)' : '2px solid transparent',
+                color: location.pathname === '/lectures' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: location.pathname === '/lectures' ? '600' : '400',
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'all 0.2s ease',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => {
+                if (location.pathname !== '/lectures') {
+                  e.currentTarget.style.color = 'var(--text)';
+                  e.currentTarget.style.background = 'var(--surface-light)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (location.pathname !== '/lectures') {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              <span>📚</span>
+              Tout {availableContentTypes && `(${(availableContentTypes.manga || 0) + (availableContentTypes.manhwa || 0) + (availableContentTypes.manhua || 0) + (availableContentTypes.lightNovel || 0) + (availableContentTypes.webtoon || 0) + (availableContentTypes.comics || 0) + (availableContentTypes.bd || 0) + (availableContentTypes.books || 0) + (availableContentTypes.oneShot || 0) + (availableContentTypes.unclassified || 0)})`}
+            </button>
+            {availableContentTypes && availableContentTypes.manga > 0 && (
+              <button
+                onClick={() => navigate('/lectures/manga')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/manga' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/manga' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/manga' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/manga' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/manga') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/manga') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📘</span>
+                Manga ({availableContentTypes.manga})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.manhwa > 0 && (
+              <button
+                onClick={() => navigate('/lectures/manhwa')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/manhwa' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/manhwa' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/manhwa' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/manhwa' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/manhwa') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/manhwa') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📙</span>
+                Manhwa ({availableContentTypes.manhwa})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.manhua > 0 && (
+              <button
+                onClick={() => navigate('/lectures/manhua')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/manhua' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/manhua' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/manhua' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/manhua' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/manhua') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/manhua') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📕</span>
+                Manhua ({availableContentTypes.manhua})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.lightNovel > 0 && (
+              <button
+                onClick={() => navigate('/lectures/light-novel')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/light-novel' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/light-novel' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/light-novel' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/light-novel' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/light-novel') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/light-novel') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📓</span>
+                Light Novel ({availableContentTypes.lightNovel})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.books > 0 && (
+              <button
+                onClick={() => navigate('/lectures/books')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/books' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/books' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/books' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/books' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/books') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/books') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📖</span>
+                Livres ({availableContentTypes.books})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.comics > 0 && (
+              <button
+                onClick={() => navigate('/lectures/comics')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/comics' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/comics' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/comics' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/comics' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/comics') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/comics') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>🦸</span>
+                Comics ({availableContentTypes.comics})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.bd > 0 && (
+              <button
+                onClick={() => navigate('/lectures/bd')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/bd' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/bd' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/bd' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/bd' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/bd') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/bd') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📗</span>
+                BD ({availableContentTypes.bd})
+              </button>
+            )}
+            {availableContentTypes && availableContentTypes.webtoon > 0 && (
+              <button
+                onClick={() => navigate('/lectures/webtoon')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/webtoon' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/webtoon' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/webtoon' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/webtoon' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/webtoon') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/webtoon') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📱</span>
+                Webtoon ({availableContentTypes.webtoon})
+              </button>
+            )}
+            {availableContentTypes && (availableContentTypes.oneShot || 0) > 0 && (
+              <button
+                onClick={() => navigate('/lectures/one-shot')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/one-shot' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/one-shot' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/one-shot' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/one-shot' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/one-shot') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/one-shot') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>📄</span>
+                One-shot ({(availableContentTypes.oneShot || 0)})
+              </button>
+            )}
+            {availableContentTypes && (availableContentTypes.unclassified || 0) > 0 && (
+              <button
+                onClick={() => navigate('/lectures/unclassified')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/lectures/unclassified' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/lectures/unclassified' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/lectures/unclassified' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/lectures/unclassified' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/lectures/unclassified') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/lectures/unclassified') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>❓</span>
+                Non classé ({(availableContentTypes.unclassified || 0)})
+              </button>
+            )}
+          </div>
 
           {/* Stats de progression */}
           <div style={{ marginTop: '-8px', marginBottom: '8px' }}>

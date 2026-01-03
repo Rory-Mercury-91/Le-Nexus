@@ -14,7 +14,9 @@ const { registerBackupHandlers } = require('./backup-handlers');
 const { registerNotificationHandlers } = require('./notification-handlers');
 const { registerTraductionHandlers } = require('./traduction-handlers');
 const { registerDevMergeHandlers } = require('./dev-merge-handlers');
+const { registerDevApiKeysHandlers } = require('./dev-api-keys-handlers');
 const { registerMediaSettingsHandlers } = require('./media-handlers');
+const { registerCloudSyncHandlers } = require('./cloud-sync-handlers');
 
 /**
  * Enregistre tous les handlers IPC pour les paramètres et la configuration
@@ -41,6 +43,8 @@ function registerSettingsHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
   registerNotificationHandlers(ipcMain, getDb, store, getMainWindow, getPathManager);
   registerTraductionHandlers(ipcMain, getDb, store, getPathManager);
   registerDevMergeHandlers(ipcMain, getDb, getPathManager);
+  registerDevApiKeysHandlers(ipcMain, store, dialog, getMainWindow);
+  registerCloudSyncHandlers(ipcMain, getDb, store, getPathManager, dialog, getMainWindow);
 }
 
 module.exports = { registerSettingsHandlers };

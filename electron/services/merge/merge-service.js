@@ -194,8 +194,10 @@ function transferMangaAssociations(db, sourceId, targetId) {
   );
 
   const proprietaires = db
-    .prepare('SELECT id, user_id, tome_id FROM manga_manga_tomes_proprietaires WHERE serie_id = ?')
+    .prepare('SELECT id, user_id, user_uuid, tome_id FROM manga_manga_tomes_proprietaires WHERE serie_id = ?')
     .all(sourceId);
+
+  const { getUserUuidById } = require('../../handlers/common-helpers');
 
   proprietaires.forEach((prop) => {
     const sourceTome = db.prepare('SELECT numero FROM manga_tomes WHERE id = ?').get(prop.tome_id);
@@ -211,6 +213,12 @@ function transferMangaAssociations(db, sourceId, targetId) {
       return;
     }
 
+    // Récupérer ou générer l'UUID pour cet utilisateur
+    let userUuid = prop.user_uuid;
+    if (!userUuid) {
+      userUuid = getUserUuidById(db, prop.user_id);
+    }
+
     const existing = db
       .prepare(
         'SELECT id FROM manga_manga_tomes_proprietaires WHERE serie_id = ? AND user_id = ? AND tome_id = ?'
@@ -218,8 +226,8 @@ function transferMangaAssociations(db, sourceId, targetId) {
       .get(targetId, prop.user_id, targetTome.id);
     if (!existing) {
       db.prepare(
-        'INSERT INTO manga_manga_tomes_proprietaires (serie_id, user_id, tome_id, created_at, updated_at) VALUES (?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
-      ).run(targetId, prop.user_id, targetTome.id);
+        'INSERT INTO manga_manga_tomes_proprietaires (serie_id, user_id, user_uuid, tome_id, created_at, updated_at) VALUES (?, ?, ?, ?, datetime(\'now\'), datetime(\'now\'))'
+      ).run(targetId, prop.user_id, userUuid, targetTome.id);
       stats.proprietairesTransferred++;
     }
   });
@@ -233,23 +241,8 @@ function transferAnimeAssociations(db, sourceId, targetId) {
     userDataTransferred: 0
   };
 
-  const episodes = db
-    .prepare('SELECT id, numero FROM anime_episodes WHERE anime_id = ?')
-    .all(sourceId);
-
-  episodes.forEach((episode) => {
-    const existing = db
-      .prepare('SELECT id FROM anime_episodes WHERE anime_id = ? AND numero = ?')
-      .get(targetId, episode.numero);
-    if (!existing) {
-      db.prepare(
-        'UPDATE anime_episodes SET anime_id = ?, updated_at = datetime(\'now\') WHERE id = ?'
-      ).run(targetId, episode.id);
-      stats.episodesTransferred++;
-    } else {
-      db.prepare('DELETE FROM anime_episodes WHERE id = ?').run(episode.id);
-    }
-  });
+  // Note: anime_episodes table a été supprimée car redondante
+  // Les données de progression sont dans anime_user_data.episode_progress (JSON)
 
   stats.userDataTransferred = transferUserDataRecords(
     db,

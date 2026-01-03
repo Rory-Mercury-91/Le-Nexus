@@ -46,7 +46,8 @@ export function useSettings() {
     showSeries: true,
     showVideos: true,
     showAdulteGame: true,
-    showBooks: true
+    showBooks: true,
+    showSubscriptions: true
   };
   const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
   const [loading, setLoading] = useState(true);
@@ -60,13 +61,6 @@ export function useSettings() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [userAvatars, setUserAvatars] = useState<Record<string, string | null>>({});
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(getDefaultSectionStates);
-  const [showMangaDisplayModal, setShowMangaDisplayModal] = useState(false);
-  const [showAnimeDisplayModal, setShowAnimeDisplayModal] = useState(false);
-  const [showMovieDisplayModal, setShowMovieDisplayModal] = useState(false);
-  const [showSeriesDisplayModal, setShowSeriesDisplayModal] = useState(false);
-  const [showBooksDisplayModal, setShowBooksDisplayModal] = useState(false);
-  const [showAdulteGameDisplayModal, setShowAdulteGameDisplayModal] = useState(false);
-  const [showRawgGameDisplayModal, setShowRawgGameDisplayModal] = useState(false);
   const [tmdbLanguage, setTmdbLanguage] = useState('fr-FR');
   const [tmdbRegion, setTmdbRegion] = useState('FR');
   const [tmdbAutoTranslate, setTmdbAutoTranslate] = useState<boolean>(true);
@@ -377,20 +371,6 @@ export function useSettings() {
     users,
     userAvatars,
     sectionStates,
-    showMangaDisplayModal,
-    setShowMangaDisplayModal,
-    showAnimeDisplayModal,
-    setShowAnimeDisplayModal,
-    showMovieDisplayModal,
-    setShowMovieDisplayModal,
-    showSeriesDisplayModal,
-    setShowSeriesDisplayModal,
-    showBooksDisplayModal,
-    setShowBooksDisplayModal,
-    showAdulteGameDisplayModal,
-    setShowAdulteGameDisplayModal,
-    showRawgGameDisplayModal,
-    setShowRawgGameDisplayModal,
     tmdbLanguage,
     tmdbRegion,
     globalSyncInterval,

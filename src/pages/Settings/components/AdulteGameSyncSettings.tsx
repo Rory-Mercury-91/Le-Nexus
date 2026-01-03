@@ -85,8 +85,10 @@ export function AdulteGameWebhookCard({
     <div
       style={{
         padding: '16px',
-        background: 'var(--surface-light)',
+        background: 'var(--surface)',
         borderRadius: '8px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--card-shadow)',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px'
@@ -128,8 +130,10 @@ export function AdulteGameMentionsCard({ traducteurs, discordMentions, onChangeM
     <div
       style={{
         padding: '16px',
-        background: 'var(--surface-light)',
+        background: 'var(--surface)',
         borderRadius: '8px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--card-shadow)',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px'
@@ -185,8 +189,10 @@ export function AdulteGameBlacklistCard({ onOpen, count = 0 }: BlacklistCardProp
     <div
       style={{
         padding: '16px',
-        background: 'var(--surface-light)',
+        background: 'var(--surface)',
         borderRadius: '8px',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--card-shadow)',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px'

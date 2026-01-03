@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit, Plus, Settings, Star, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Star, Trash2 } from 'lucide-react';
 import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CardCover, CardTitle } from '../../components/cards/common';
@@ -7,7 +7,6 @@ import DetailPageHeader from '../../components/common/DetailPageHeader';
 import LazyImage from '../../components/common/LazyImage';
 import SimpleCarousel from '../../components/common/SimpleCarousel';
 import ConfirmModal from '../../components/modals/common/ConfirmModal';
-import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import ImageModal from '../../components/modals/common/ImageModal';
 import VideoModal from '../../components/modals/common/VideoModal';
 import AddImageModal from '../../components/modals/movie/AddImageModal';
@@ -21,26 +20,6 @@ import { useMediaGallery } from '../../hooks/details/useMediaGallery';
 import { MovieDetail as MovieDetailType, MovieImage } from '../../types';
 import { getTmdbImageUrl, getUniqueTmdbImages } from '../../utils/tmdb';
 import { MovieCover, MovieInfoSection } from './components';
-
-type MovieDisplayPrefs = {
-  banner: boolean;
-  synopsis: boolean;
-  metadata: boolean;
-  videos: boolean;
-  images: boolean;
-  recommendations: boolean;
-  externalLinks: boolean;
-};
-
-const movieDisplayDefaults: MovieDisplayPrefs = {
-  banner: true,
-  synopsis: true,
-  metadata: true,
-  videos: true,
-  images: true,
-  recommendations: true,
-  externalLinks: true
-};
 
 
 export default function MovieDetail() {
@@ -56,10 +35,6 @@ export default function MovieDetail() {
     return detail;
   }, []);
 
-  const loadDisplaySettingsApi = useCallback(async () => {
-    const result = await window.electronAPI.getMovieDisplaySettings?.();
-    return (result as MovieDisplayPrefs) || null;
-  }, []);
 
   const normalizeData = useCallback((data: MovieDetailType) => ({
     ...data,
@@ -92,18 +67,13 @@ export default function MovieDetail() {
     setItem: setMovie,
     loading,
     error,
-    displayPrefs,
-    showDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
-    handleOpenDisplaySettings,
-    handleCloseDisplaySettings,
     loadDetail
-  } = useDetailPage<MovieDetailType, MovieDisplayPrefs>({
+  } = useDetailPage<MovieDetailType, Record<string, never>>({
     itemId: tmdbId,
-    displayDefaults: movieDisplayDefaults,
+    displayDefaults: {},
     loadDetailApi,
-    loadDisplaySettingsApi,
     normalizeData,
     statusEventName: 'movie-status-changed',
     isEventForCurrentItem,
@@ -423,15 +393,6 @@ export default function MovieDetail() {
             </button>
             <button
               type="button"
-              className="btn btn-outline"
-              onClick={handleOpenDisplaySettings}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              <Settings size={16} />
-              Personnaliser l'affichage
-            </button>
-            <button
-              type="button"
               className="btn btn-danger"
               onClick={handleDelete}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
@@ -470,288 +431,280 @@ export default function MovieDetail() {
                 width: '100%'
               }}
             >
-              {displayPrefs.banner && (
-                <MovieCover
-                  movie={movie}
-                  onStatusChange={handleStatusChange}
-                  onToggleFavorite={handleToggleFavorite}
-                  updatingStatus={updatingStatus}
-                  togglingFavorite={togglingFavorite}
-                  onCoverUpdated={() => loadDetail({ silent: false })}
-                />
-              )}
+              <MovieCover
+                movie={movie}
+                onStatusChange={handleStatusChange}
+                onToggleFavorite={handleToggleFavorite}
+                updatingStatus={updatingStatus}
+                togglingFavorite={togglingFavorite}
+                onCoverUpdated={() => loadDetail({ silent: false })}
+              />
 
               <MovieInfoSection
                 movie={movie}
-                shouldShow={(field) => displayPrefs[field as keyof MovieDisplayPrefs] ?? true}
+                shouldShow={() => true}
               />
             </div>
           </div>
 
           {/* Section Media : Vidéos et Galerie */}
-          {(displayPrefs.videos || displayPrefs.images) && (
-            <section
-              style={{
-                background: 'var(--surface)',
-                borderRadius: '18px',
-                border: '1px solid var(--border)',
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px'
-              }}
-            >
-              <h3 className="detail-section-title">Media</h3>
+          <section
+            style={{
+              background: 'var(--surface)',
+              borderRadius: '18px',
+              border: '1px solid var(--border)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '32px'
+            }}
+          >
+            <h3 className="detail-section-title">Media</h3>
 
-              {/* Sous-section Vidéos */}
-              {displayPrefs.videos && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 className="detail-subsection-title">Bandes-annonces & vidéos</h4>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => setShowAddVideoModal(true)}
-                      disabled={addingVideo || loadingUserVideos}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        padding: '6px 12px',
-                        opacity: (addingVideo || loadingUserVideos) ? 0.6 : 1,
-                        cursor: (addingVideo || loadingUserVideos) ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Plus size={16} />
-                      {addingVideo ? 'Ajout en cours...' : 'Ajouter une vidéo'}
-                    </button>
-                  </div>
-                  {videos.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                      {videos.map((video) => {
-                        const isUserVideo = (video as any).isUserVideo;
-                        const videoId = (video as any).videoId;
-                        const isLocalFile = (video as any).file_path;
-                        return (
-                          <div
-                            key={video.id}
-                            style={{
-                              position: 'relative',
-                              display: 'inline-block'
-                            }}
-                            onClick={(e) => {
-                              // Empêcher le clic sur le div de déclencher d'autres actions si c'est sur le bouton de suppression
-                              const target = e.target as HTMLElement;
-                              if (target.closest('button[title="Supprimer cette vidéo"]')) {
-                                e.stopPropagation();
-                              }
-                            }}
-                          >
-                            <button
-                              className="btn btn-outline"
-                              onClick={(e) => {
-                                // Ne pas déclencher si le clic vient du bouton de suppression
-                                const target = e.target as HTMLElement;
-                                const deleteButton = target.closest('button[title="Supprimer cette vidéo"]');
-                                if (deleteButton) {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  return;
-                                }
+            {/* Sous-section Vidéos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 className="detail-subsection-title">Bandes-annonces & vidéos</h4>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddVideoModal(true)}
+                  disabled={addingVideo || loadingUserVideos}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '6px 12px',
+                    opacity: (addingVideo || loadingUserVideos) ? 0.6 : 1,
+                    cursor: (addingVideo || loadingUserVideos) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Plus size={16} />
+                  {addingVideo ? 'Ajout en cours...' : 'Ajouter une vidéo'}
+                </button>
+              </div>
+              {videos.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {videos.map((video) => {
+                    const isUserVideo = (video as any).isUserVideo;
+                    const videoId = (video as any).videoId;
+                    const isLocalFile = (video as any).file_path;
+                    return (
+                      <div
+                        key={video.id}
+                        style={{
+                          position: 'relative',
+                          display: 'inline-block'
+                        }}
+                        onClick={(e) => {
+                          // Empêcher le clic sur le div de déclencher d'autres actions si c'est sur le bouton de suppression
+                          const target = e.target as HTMLElement;
+                          if (target.closest('button[title="Supprimer cette vidéo"]')) {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        <button
+                          className="btn btn-outline"
+                          onClick={(e) => {
+                            // Ne pas déclencher si le clic vient du bouton de suppression
+                            const target = e.target as HTMLElement;
+                            const deleteButton = target.closest('button[title="Supprimer cette vidéo"]');
+                            if (deleteButton) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              return;
+                            }
 
-                                // Seules les vidéos locales s'ouvrent dans le player intégré
-                                if (isLocalFile && (video as any).url) {
-                                  setSelectedVideo({
-                                    site: 'local',
-                                    videoUrl: (video as any).url,
-                                    mimeType: (video as any).mime_type || undefined,
-                                    title: (video as any).title || video.name || video.type || undefined
-                                  });
-                                } else if ((video as any).url) {
-                                  // Toutes les URLs (YouTube, Vimeo, autres) s'ouvrent dans le navigateur
-                                  window.electronAPI.openExternal?.((video as any).url);
-                                } else if (video.site === 'YouTube' && video.key) {
-                                  // YouTube : construire l'URL et ouvrir dans le navigateur
-                                  window.electronAPI.openExternal?.(`https://www.youtube.com/watch?v=${video.key}`);
-                                } else if (video.site === 'Vimeo' && video.key) {
-                                  // Vimeo : construire l'URL et ouvrir dans le navigateur
-                                  window.electronAPI.openExternal?.(`https://vimeo.com/${video.key}`);
-                                }
-                              }}
-                              style={{
-                                justifyContent: 'flex-start',
-                                minWidth: '220px',
-                                padding: '10px 14px',
-                                borderRadius: '10px',
-                                position: 'relative'
-                              }}
-                            >
-                              {video.name || video.type || 'Vidéo'}
-                            </button>
-                            {isUserVideo && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  e.nativeEvent.stopImmediatePropagation();
-                                  handleDeleteUserVideoClick(videoId);
-                                }}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  e.nativeEvent.stopImmediatePropagation();
-                                }}
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  e.nativeEvent.stopImmediatePropagation();
-                                }}
-                                style={{
-                                  position: 'absolute',
-                                  top: '4px',
-                                  right: '4px',
-                                  background: 'rgba(239, 68, 68, 0.9)',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  padding: '4px',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  color: 'white',
-                                  width: '20px',
-                                  height: '20px',
-                                  zIndex: 1000,
-                                  pointerEvents: 'auto'
-                                }}
-                                title="Supprimer cette vidéo"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {videos.length === 0 && !loadingUserVideos && (
-                    <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>Aucune vidéo disponible</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Sous-section Galerie */}
-              {displayPrefs.images && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 className="detail-subsection-title">Galerie</h4>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      onClick={() => setShowAddImageModal(true)}
-                      disabled={addingImage || loadingUserImages}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        padding: '6px 12px',
-                        opacity: addingImage || loadingUserImages ? 0.6 : 1,
-                        cursor: addingImage || loadingUserImages ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      <Plus size={16} />
-                      {addingImage ? 'Ajout en cours...' : 'Ajouter une photo'}
-                    </button>
-                  </div>
-                  {galleryItems.length > 0 && (
-                    <SimpleCarousel cardWidth={240} gap={16}>
-                      {galleryItems.map((item) => (
-                        <div
-                          key={item.key}
-                          style={{
-                            borderRadius: '12px',
-                            overflow: 'hidden',
-                            border: '1px solid var(--border)',
-                            cursor: 'zoom-in',
-                            position: 'relative',
-                            height: '140px'
-                          }}
-                          onClick={() => {
-                            if (item.fullUrl) {
-                              setSelectedImage(item.fullUrl);
-                              setSelectedImageMeta({
-                                url: item.fullUrl,
-                                fileName: getGalleryFileName(item)
+                            // Seules les vidéos locales s'ouvrent dans le player intégré
+                            if (isLocalFile && (video as any).url) {
+                              setSelectedVideo({
+                                site: 'local',
+                                videoUrl: (video as any).url,
+                                mimeType: (video as any).mime_type || undefined,
+                                title: (video as any).title || video.name || video.type || undefined
                               });
+                            } else if ((video as any).url) {
+                              // Toutes les URLs (YouTube, Vimeo, autres) s'ouvrent dans le navigateur
+                              window.electronAPI.openExternal?.((video as any).url);
+                            } else if (video.site === 'YouTube' && video.key) {
+                              // YouTube : construire l'URL et ouvrir dans le navigateur
+                              window.electronAPI.openExternal?.(`https://www.youtube.com/watch?v=${video.key}`);
+                            } else if (video.site === 'Vimeo' && video.key) {
+                              // Vimeo : construire l'URL et ouvrir dans le navigateur
+                              window.electronAPI.openExternal?.(`https://vimeo.com/${video.key}`);
                             }
                           }}
-                          onContextMenu={(event) => handleGalleryImageContextMenu(event, item)}
+                          style={{
+                            justifyContent: 'flex-start',
+                            minWidth: '220px',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            position: 'relative'
+                          }}
                         >
-                          <LazyImage
-                            src={item.thumbnailUrl}
-                            alt={item.source === 'tmdb' ? 'Backdrop TMDb' : (item.fileName || 'Image utilisateur')}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                            fileName={item.fileName}
-                            showError={item.source === 'user'}
-                          />
-                          {item.source === 'user' && item.userImageId && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteUserImageClick(item.userImageId!, item.fileName || 'Image utilisateur');
-                              }}
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                                background: 'rgba(0, 0, 0, 0.7)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                padding: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white',
-                                transition: 'background 0.2s'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
-                              }}
-                              title="Supprimer cette image"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </SimpleCarousel>
-                  )}
-                  {galleryItems.length === 0 && !loadingUserImages && (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>Aucune image disponible</p>
-                    </div>
-                  )}
-                  {loadingUserImages && (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-                      <p style={{ margin: 0 }}>Chargement des images...</p>
-                    </div>
-                  )}
+                          {video.name || video.type || 'Vidéo'}
+                        </button>
+                        {isUserVideo && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.nativeEvent.stopImmediatePropagation();
+                              handleDeleteUserVideoClick(videoId);
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.nativeEvent.stopImmediatePropagation();
+                            }}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              e.nativeEvent.stopImmediatePropagation();
+                            }}
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              background: 'rgba(239, 68, 68, 0.9)',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '4px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              width: '20px',
+                              height: '20px',
+                              zIndex: 1000,
+                              pointerEvents: 'auto'
+                            }}
+                            title="Supprimer cette vidéo"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </section>
-          )}
+              {videos.length === 0 && !loadingUserVideos && (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0 }}>Aucune vidéo disponible</p>
+                </div>
+              )}
+            </div>
 
-          {displayPrefs.recommendations && recommendations.length > 0 && (
+            {/* Sous-section Galerie */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 className="detail-subsection-title">Galerie</h4>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowAddImageModal(true)}
+                  disabled={addingImage || loadingUserImages}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    padding: '6px 12px',
+                    opacity: addingImage || loadingUserImages ? 0.6 : 1,
+                    cursor: addingImage || loadingUserImages ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <Plus size={16} />
+                  {addingImage ? 'Ajout en cours...' : 'Ajouter une photo'}
+                </button>
+              </div>
+              {galleryItems.length > 0 && (
+                <SimpleCarousel cardWidth={240} gap={16}>
+                  {galleryItems.map((item) => (
+                    <div
+                      key={item.key}
+                      style={{
+                        borderRadius: '12px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border)',
+                        cursor: 'zoom-in',
+                        position: 'relative',
+                        height: '140px'
+                      }}
+                      onClick={() => {
+                        if (item.fullUrl) {
+                          setSelectedImage(item.fullUrl);
+                          setSelectedImageMeta({
+                            url: item.fullUrl,
+                            fileName: getGalleryFileName(item)
+                          });
+                        }
+                      }}
+                      onContextMenu={(event) => handleGalleryImageContextMenu(event, item)}
+                    >
+                      <LazyImage
+                        src={item.thumbnailUrl}
+                        alt={item.source === 'tmdb' ? 'Backdrop TMDb' : (item.fileName || 'Image utilisateur')}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        fileName={item.fileName}
+                        showError={item.source === 'user'}
+                      />
+                      {item.source === 'user' && item.userImageId && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUserImageClick(item.userImageId!, item.fileName || 'Image utilisateur');
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(0, 0, 0, 0.7)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            transition: 'background 0.2s'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
+                          }}
+                          title="Supprimer cette image"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </SimpleCarousel>
+              )}
+              {galleryItems.length === 0 && !loadingUserImages && (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0 }}>Aucune image disponible</p>
+                </div>
+              )}
+              {loadingUserImages && (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0 }}>Chargement des images...</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {recommendations.length > 0 && (
             <section
               style={{
                 background: 'var(--surface)',
@@ -828,58 +781,6 @@ export default function MovieDetail() {
           )}
         </div>
       </div>
-      {showDisplaySettingsModal && (
-        <DisplaySettingsModal
-          title="Affichage des films"
-          description="Activez ou désactivez les sections visibles sur les fiches films."
-          fields={[
-            {
-              title: 'Présentation',
-              icon: '🎬',
-              fields: [
-                { key: 'banner', label: 'Bannière & affiches' },
-                { key: 'synopsis', label: 'Synopsis' }
-              ]
-            },
-            {
-              title: 'Métadonnées',
-              icon: '📊',
-              fields: [
-                { key: 'metadata', label: 'Informations principales' }
-              ]
-            },
-            {
-              title: 'Médias',
-              icon: '🎞️',
-              fields: [
-                { key: 'videos', label: 'Bandes-annonces' },
-                { key: 'images', label: 'Galerie d\'images' }
-              ]
-            },
-            {
-              title: 'Découverte',
-              icon: '✨',
-              fields: [
-                { key: 'recommendations', label: 'Recommandations & similaires' },
-                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getMovieDisplaySettings?.();
-            return prefs || movieDisplayDefaults;
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveMovieDisplaySettings?.(prefs);
-          }}
-          onSave={() => {
-            handleCloseDisplaySettings();
-          }}
-          onClose={handleCloseDisplaySettings}
-          showToast={showToast}
-        />
-      )}
       {showEditModal && movie && (
         <EditMovieModal
           movie={movie}

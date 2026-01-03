@@ -1,4 +1,5 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { Info } from 'lucide-react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
 
 interface NotificationSettingsProps {
@@ -95,6 +96,7 @@ export default function NotificationSettings({ showToast, onHeaderActionsChange,
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [globalSyncTooltipVisible, setGlobalSyncTooltipVisible] = useState(false);
   const [traductionConfig, setTraductionConfig] = useState<TraductionConfig>(DEFAULT_TRADUCTION_CONFIG);
   const [adulteGameNotifications, setAdulteGameNotifications] = useState({
     game: true,
@@ -214,13 +216,13 @@ export default function NotificationSettings({ showToast, onHeaderActionsChange,
     }
   };
 
-  const updateConfig = <K extends keyof NotificationConfig>(key: K, value: NotificationConfig[K]) => {
+  const updateConfig = useCallback(<K extends keyof NotificationConfig>(key: K, value: NotificationConfig[K]) => {
     setHasUserInteracted(true);
     setConfig((prev) => ({
       ...prev,
       [key]: value,
     }));
-  };
+  }, []);
 
   const TooltipIcon = ({ id, icon, ariaLabel }: { id: string; icon: string; ariaLabel: string }) => (
     <span
@@ -272,12 +274,15 @@ export default function NotificationSettings({ showToast, onHeaderActionsChange,
 
   const webhookConfigured = Boolean(traductionConfig.discordWebhookUrl && traductionConfig.discordWebhookUrl.trim().length > 0);
 
+  const intervalLabel = globalSyncInterval === 24 ? '24h (quotidien)' : `${globalSyncInterval}h`;
+  const globalSyncTooltipText = `🔄 Les vérifications suivent la fréquence de synchronisation globale : toutes les ${intervalLabel}.`;
+
   useEffect(() => {
     if (!onHeaderActionsChange) {
       return;
     }
 
-    onHeaderActionsChange?.(
+    onHeaderActionsChange(
       <div
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -291,9 +296,55 @@ export default function NotificationSettings({ showToast, onHeaderActionsChange,
           checked={config.enabled}
           onChange={(checked) => updateConfig('enabled', checked)}
         />
+        <span
+          onMouseEnter={() => setGlobalSyncTooltipVisible(true)}
+          onMouseLeave={() => setGlobalSyncTooltipVisible(false)}
+          onFocus={() => setGlobalSyncTooltipVisible(true)}
+          onBlur={() => setGlobalSyncTooltipVisible(false)}
+          tabIndex={0}
+          aria-label={globalSyncTooltipText}
+          style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px',
+            cursor: 'pointer',
+            color: 'var(--text-secondary)',
+            outline: 'none',
+            borderRadius: '50%',
+          }}
+        >
+          <Info size={16} aria-hidden="true" />
+          {globalSyncTooltipVisible && (
+            <div
+              role="tooltip"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: 'var(--surface-light)',
+                color: 'var(--text)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                boxShadow: '0 16px 32px rgba(0, 0, 0, 0.22)',
+                border: '1px solid var(--border)',
+                fontSize: '12px',
+                lineHeight: 1.45,
+                zIndex: 30,
+                minWidth: '220px',
+                maxWidth: '280px',
+                textAlign: 'center',
+                whiteSpace: 'normal',
+              }}
+            >
+              {globalSyncTooltipText}
+            </div>
+          )}
+        </span>
       </div>
     );
-  }, [config.enabled, onHeaderActionsChange]);
+  }, [config.enabled, onHeaderActionsChange, updateConfig, globalSyncInterval, intervalLabel, globalSyncTooltipText, globalSyncTooltipVisible]);
 
   const handleToggleAdulteGameNotification = (type: 'game' | 'translation', value: boolean) => {
     setAdulteGameNotifications((prev) => {
@@ -367,192 +418,125 @@ export default function NotificationSettings({ showToast, onHeaderActionsChange,
     },
   ];
 
-  const intervalLabel = globalSyncInterval === 24 ? '24h (quotidien)' : `${globalSyncInterval}h`;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {config.enabled && (
-        <div
-          style={{
-            padding: '14px 18px',
-            borderRadius: '10px',
-            border: '1px solid rgba(99, 102, 241, 0.4)',
-            background: 'rgba(99, 102, 241, 0.12)',
-            color: 'var(--text)',
-            fontSize: '13px',
-            lineHeight: 1.5
-          }}
-        >
-          🔄 Les vérifications suivent la fréquence de synchronisation globale&nbsp;: toutes les {intervalLabel}.
-        </div>
-      )}
-
       {config.enabled ? (
         <>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0',
-              padding: '16px 20px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
-              Contenu à surveiller
-              <TooltipIcon id="content" icon="💡" ariaLabel={TOOLTIP_TEXTS.content} />
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gap: '12px',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: '12px',
-              }}
-            >
-              {contentToggleItems.slice(0, 3).map(({ id, label, tooltipId, tooltipIcon, checked, onChange, disabled }) => (
-                <label
-                  key={id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '12px 16px',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px',
-                    background: 'var(--surface-light)',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    opacity: disabled ? 0.5 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    {label}
-                    {tooltipId && <TooltipIcon id={tooltipId} icon={tooltipIcon || 'ℹ️'} ariaLabel={TOOLTIP_TEXTS[tooltipId]} />}
-                  </span>
-                  <Toggle
-                    checked={checked}
-                    onChange={(value) => onChange(value)}
-                    disabled={disabled}
-                  />
-                </label>
-              ))}
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gap: '12px',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                paddingTop: '12px',
-              }}
-            >
-              {contentToggleItems.slice(3).map(({ id, label, tooltipId, tooltipIcon, checked, onChange, disabled }) => (
-                <label
-                  key={id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '12px 16px',
-                    border: '1px solid var(--border)',
-                    borderRadius: '10px',
-                    background: 'var(--surface-light)',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    opacity: disabled ? 0.5 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    {label}
-                    {tooltipId && <TooltipIcon id={tooltipId} icon={tooltipIcon || 'ℹ️'} ariaLabel={TOOLTIP_TEXTS[tooltipId]} />}
-                  </span>
-                  <Toggle
-                    checked={checked}
-                    onChange={(value) => onChange(value)}
-                    disabled={disabled}
-                  />
-                </label>
-              ))}
-            </div>
-            {!webhookConfigured && (
-              <p
-                style={{
-                  margin: '16px 0 0',
-                  fontSize: '12px',
-                  color: 'var(--text-secondary)',
-                  textAlign: 'center',
-                }}
-              >
-                Configurez un webhook Discord dans la section Jeux adultes pour activer ces notifications.
-              </p>
-            )}
-            {savingTraduction && (
-              <p
-                style={{
-                  margin: '12px 0 0',
-                  fontSize: '11px',
-                  color: 'var(--text-tertiary)',
-                  textAlign: 'center',
-                }}
-              >
-                Sauvegarde des préférences Discord…
-              </p>
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)', marginBottom: '16px' }}>
+            Contenu à surveiller
+            <TooltipIcon id="content" icon="💡" ariaLabel={TOOLTIP_TEXTS.content} />
           </div>
-
           <div
             style={{
-              display: 'flex',
-              flexDirection: 'column',
+              display: 'grid',
               gap: '12px',
-              padding: '16px 20px',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: '12px',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              marginBottom: '16px',
             }}
           >
-            <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+            {contentToggleItems.map(({ id, label, tooltipId, tooltipIcon, checked, onChange, disabled }) => (
+              <label
+                key={id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  background: 'var(--surface-light)',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.5 : 1,
+                }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  {label}
+                  {tooltipId && <TooltipIcon id={tooltipId} icon={tooltipIcon || 'ℹ️'} ariaLabel={TOOLTIP_TEXTS[tooltipId]} />}
+                </span>
+                <Toggle
+                  checked={checked}
+                  onChange={(value) => onChange(value)}
+                  disabled={disabled}
+                />
+              </label>
+            ))}
+          </div>
+          {!webhookConfigured && (
+            <p
+              style={{
+                margin: '0 0 16px 0',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                textAlign: 'center',
+              }}
+            >
+              Configurez un webhook Discord dans la section Jeux adultes pour activer ces notifications.
+            </p>
+          )}
+          {savingTraduction && (
+            <p
+              style={{
+                margin: '0 0 16px 0',
+                fontSize: '11px',
+                color: 'var(--text-tertiary)',
+                textAlign: 'center',
+              }}
+            >
+              Sauvegarde des préférences Discord…
+            </p>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--text)' }}>
               Options supplémentaires
             </div>
-            <label
+            <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: 'grid',
                 gap: '12px',
-                padding: '12px 16px',
-                cursor: 'pointer',
-                borderBottom: '1px solid var(--border)',
-                paddingBottom: '16px',
-                marginBottom: '4px',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
               }}
             >
-              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                Son de notification activé
-                <TooltipIcon id="sound" icon="🔔" ariaLabel={TOOLTIP_TEXTS.sound} />
-              </span>
-              <Toggle checked={config.soundEnabled} onChange={(checked) => updateConfig('soundEnabled', checked)} />
-            </label>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                padding: '12px 16px',
-                cursor: 'pointer',
-              }}
-            >
-              <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                Vérifier au démarrage de l’application
-                <TooltipIcon id="startup" icon="🚀" ariaLabel={TOOLTIP_TEXTS.startup} />
-              </span>
-              <Toggle checked={config.checkOnStartup} onChange={(checked) => updateConfig('checkOnStartup', checked)} />
-            </label>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  background: 'var(--surface-light)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  Son de notification activé
+                  <TooltipIcon id="sound" icon="🔔" ariaLabel={TOOLTIP_TEXTS.sound} />
+                </span>
+                <Toggle checked={config.soundEnabled} onChange={(checked) => updateConfig('soundEnabled', checked)} />
+              </label>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  background: 'var(--surface-light)',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  Vérifier au démarrage de l'application
+                  <TooltipIcon id="startup" icon="🚀" ariaLabel={TOOLTIP_TEXTS.startup} />
+                </span>
+                <Toggle checked={config.checkOnStartup} onChange={(checked) => updateConfig('checkOnStartup', checked)} />
+              </label>
+            </div>
           </div>
         </>
       ) : (

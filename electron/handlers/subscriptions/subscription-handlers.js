@@ -1,4 +1,4 @@
-const { getUserIdByName } = require('../common-helpers');
+const { getUserIdByName, getUserUuidById, getUserUuidByName } = require('../common-helpers');
 
 /**
  * Calcule la prochaine date de paiement basée sur la fréquence
@@ -121,10 +121,15 @@ function registerSubscriptionHandlers(ipcMain, getDb, store) {
       
       // Enregistrer les propriétaires
       for (const userId of allProprietaires) {
+        const userUuid = getUserUuidById(db, userId);
+        if (!userUuid) {
+          console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${userId}`);
+          continue;
+        }
         db.prepare(`
-          INSERT INTO subscription_proprietaires (subscription_id, user_id)
-          VALUES (?, ?)
-        `).run(subscriptionId, userId);
+          INSERT INTO subscription_proprietaires (subscription_id, user_id, user_uuid)
+          VALUES (?, ?, ?)
+        `).run(subscriptionId, userId, userUuid);
       }
       
       return { success: true, id: subscriptionId };
@@ -214,10 +219,15 @@ function registerSubscriptionHandlers(ipcMain, getDb, store) {
         
         // Ajouter les nouveaux propriétaires
         for (const userId of allProprietaires) {
+          const userUuid = getUserUuidById(db, userId);
+          if (!userUuid) {
+            console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${userId}`);
+            continue;
+          }
           db.prepare(`
-            INSERT INTO subscription_proprietaires (subscription_id, user_id)
-            VALUES (?, ?)
-          `).run(id, userId);
+            INSERT INTO subscription_proprietaires (subscription_id, user_id, user_uuid)
+            VALUES (?, ?, ?)
+          `).run(id, userId, userUuid);
         }
       }
       

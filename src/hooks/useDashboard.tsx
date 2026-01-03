@@ -37,7 +37,8 @@ export function useDashboard() {
     showSeries: true,
     showVideos: true,
     showBooks: true,
-    showAdulteGame: true
+    showAdulteGame: true,
+    showSubscriptions: true
   };
   const [contentPrefs, setContentPrefs] = useState<ContentPreferences>({ ...defaultContentPrefs });
 

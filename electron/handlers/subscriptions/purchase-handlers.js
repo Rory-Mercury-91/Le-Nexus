@@ -1,4 +1,4 @@
-const { getUserIdByName } = require('../common-helpers');
+const { getUserIdByName, getUserUuidById, getUserUuidByName } = require('../common-helpers');
 
 /**
  * Enregistre les handlers IPC pour les achats ponctuels
@@ -165,10 +165,15 @@ function registerPurchaseHandlers(ipcMain, getDb, store) {
       
       // Enregistrer les propriétaires
       for (const userId of allProprietaires) {
+        const userUuid = getUserUuidById(db, userId);
+        if (!userUuid) {
+          console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${userId}`);
+          continue;
+        }
         db.prepare(`
-          INSERT INTO one_time_purchase_proprietaires (purchase_id, user_id)
-          VALUES (?, ?)
-        `).run(purchaseId, userId);
+          INSERT INTO one_time_purchase_proprietaires (purchase_id, user_id, user_uuid)
+          VALUES (?, ?, ?)
+        `).run(purchaseId, userId, userUuid);
       }
       
       return { success: true, id: purchaseId };
@@ -255,10 +260,15 @@ function registerPurchaseHandlers(ipcMain, getDb, store) {
         
         // Ajouter les nouveaux propriétaires
         for (const userId of allProprietaires) {
+          const userUuid = getUserUuidById(db, userId);
+          if (!userUuid) {
+            console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${userId}`);
+            continue;
+          }
           db.prepare(`
-            INSERT INTO one_time_purchase_proprietaires (purchase_id, user_id)
-            VALUES (?, ?)
-          `).run(id, userId);
+            INSERT INTO one_time_purchase_proprietaires (purchase_id, user_id, user_uuid)
+            VALUES (?, ?, ?)
+          `).run(id, userId, userUuid);
         }
       }
       

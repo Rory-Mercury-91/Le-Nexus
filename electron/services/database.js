@@ -17,7 +17,30 @@ function ensureColumn(db, tableName, columnName, definition) {
   }
 
   try {
-    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+    // SQLite ne permet pas d'ajouter une colonne avec DEFAULT CURRENT_TIMESTAMP
+    // On doit d'abord ajouter la colonne sans valeur par défaut, puis mettre à jour les valeurs
+    let definitionToUse = definition;
+    const needsDefaultUpdate = definition.includes('DEFAULT CURRENT_TIMESTAMP');
+    
+    if (needsDefaultUpdate) {
+      // Remplacer DEFAULT CURRENT_TIMESTAMP par une valeur par défaut constante ou rien
+      // Pour les colonnes DATETIME, on peut utiliser NULL comme valeur par défaut
+      definitionToUse = definition.replace(/DEFAULT CURRENT_TIMESTAMP/i, '');
+    }
+    
+    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definitionToUse}`).run();
+    
+    // Si on a besoin de mettre à jour les valeurs par défaut, le faire maintenant
+    if (needsDefaultUpdate) {
+      try {
+        // Mettre à jour toutes les lignes existantes avec la valeur actuelle
+        db.prepare(`UPDATE ${tableName} SET ${columnName} = datetime('now') WHERE ${columnName} IS NULL`).run();
+      } catch (updateError) {
+        // Ignorer les erreurs de mise à jour (peut être que la colonne n'a pas de valeurs NULL)
+        console.warn(`⚠️ Impossible de mettre à jour les valeurs par défaut pour ${columnName} dans ${tableName}: ${updateError.message}`);
+      }
+    }
+    
     console.log(`✅ Colonne ${columnName} ajoutée à ${tableName}`);
   } catch (error) {
     console.warn(`⚠️ Impossible d'ajouter la colonne ${columnName} à ${tableName}: ${error.message}`);
@@ -46,6 +69,7 @@ function initDatabase(dbPath) {
       emoji TEXT,
       avatar_path TEXT,
       color TEXT NOT NULL DEFAULT '#8b5cf6',
+      sync_uuid TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -136,6 +160,7 @@ function initDatabase(dbPath) {
       mihon INTEGER DEFAULT 0,
       mihon_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (serie_id) REFERENCES manga_series(id) ON DELETE CASCADE
     );
 
@@ -251,22 +276,6 @@ function initDatabase(dbPath) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id_ajout) REFERENCES users(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS anime_episodes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      anime_id INTEGER NOT NULL,
-      numero INTEGER NOT NULL,
-      titre TEXT,
-      synopsis TEXT,
-      date_diffusion TEXT,
-      duree INTEGER,
-      filler BOOLEAN DEFAULT 0,
-      recap BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (anime_id) REFERENCES anime_series(id) ON DELETE CASCADE,
-      UNIQUE(anime_id, numero)
     );
 
     CREATE TABLE IF NOT EXISTS anime_user_data (
@@ -775,7 +784,6 @@ function initDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_anime_series_annee ON anime_series(annee);
     CREATE INDEX IF NOT EXISTS idx_anime_user_data_anime ON anime_user_data(anime_id);
     CREATE INDEX IF NOT EXISTS idx_anime_user_data_user ON anime_user_data(user_id);
-    CREATE INDEX IF NOT EXISTS idx_anime_episodes_anime ON anime_episodes(anime_id);
     
     -- Index films
     CREATE INDEX IF NOT EXISTS idx_movies_tmdb_id ON movies(tmdb_id);
@@ -836,32 +844,10 @@ function initDatabase(dbPath) {
     throw schemaError;
   }
 
-  // Compatibilité pour les bases existantes: s'assurer que les nouvelles colonnes critiques existent
+  // Appliquer les migrations de schéma (colonnes manquantes, etc.)
   try {
-    ensureColumn(db, 'anime_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
-    ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
-    ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
-    ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
-    ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
-    ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
-    ensureColumn(db, 'manga_series', 'anilist_id', 'INTEGER');
-    ensureColumn(db, 'anime_series', 'anilist_id', 'INTEGER');
-    ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
-    ensureColumn(db, 'subscriptions', 'devise', 'TEXT DEFAULT \'EUR\'');
-    ensureColumn(db, 'one_time_purchases', 'devise', 'TEXT DEFAULT \'EUR\'');
-    // Colonnes RAWG pour adulte_game_games
-    ensureColumn(db, 'adulte_game_games', 'rawg_id', 'INTEGER');
-    ensureColumn(db, 'adulte_game_games', 'rawg_rating', 'REAL');
-    ensureColumn(db, 'adulte_game_games', 'rawg_released', 'TEXT');
-    ensureColumn(db, 'adulte_game_games', 'rawg_platforms', 'TEXT');
-    ensureColumn(db, 'adulte_game_games', 'rawg_description', 'TEXT');
-    ensureColumn(db, 'adulte_game_games', 'rawg_website', 'TEXT');
-    ensureColumn(db, 'adulte_game_games', 'esrb_rating', 'TEXT');
-    // Colonnes pour les médias utilisateur dans adulte_game_user_data
-    ensureColumn(db, 'adulte_game_user_data', 'user_images', 'TEXT');
-    ensureColumn(db, 'adulte_game_user_data', 'user_videos', 'TEXT');
-    // Colonne platforms dans adulte_game_proprietaires
-    ensureColumn(db, 'adulte_game_proprietaires', 'platforms', 'TEXT');
+    const { migrateDatabaseSchema } = require('./database-migrations');
+    migrateDatabaseSchema(db);
   } catch (compatibilityError) {
     console.warn('⚠️ Erreur lors de la vérification des colonnes obligatoires:', compatibilityError.message);
   }
@@ -924,73 +910,9 @@ function initDatabase(dbPath) {
  * @returns {Object} Résultat avec le nombre de bases migrées
  */
 function migrateAllDatabases(databasesPath) {
-  const fs = require('fs');
-  const path = require('path');
-  
-  let migrated = 0;
-  const errors = [];
-  
-  if (!fs.existsSync(databasesPath)) {
-    return { success: true, migrated: 0, errors: [] };
-  }
-  
-  try {
-    const dbFiles = fs.readdirSync(databasesPath).filter(f =>
-      f.endsWith('.db') && !f.startsWith('temp_')
-    );
-    
-    for (const dbFile of dbFiles) {
-      try {
-        const dbPath = path.join(databasesPath, dbFile);
-        const db = new Database(dbPath);
-        
-        // Appliquer les migrations pour toutes les colonnes critiques
-        ensureColumn(db, 'anime_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
-        ensureColumn(db, 'anime_series', 'derniere_verif', 'DATETIME');
-        ensureColumn(db, 'manga_series', 'maj_disponible', 'BOOLEAN DEFAULT 0');
-        ensureColumn(db, 'manga_series', 'derniere_verif', 'DATETIME');
-        ensureColumn(db, 'manga_series', 'source_id', 'TEXT');
-        ensureColumn(db, 'manga_series', 'source_donnees', 'TEXT DEFAULT \'nautiljon\'');
-        ensureColumn(db, 'manga_series', 'anilist_id', 'INTEGER');
-        ensureColumn(db, 'anime_series', 'anilist_id', 'INTEGER');
-        ensureColumn(db, 'manga_user_data', 'labels', 'TEXT');
-        ensureColumn(db, 'books', 'prix_suggere', 'REAL');
-        ensureColumn(db, 'books', 'devise', 'TEXT');
-        ensureColumn(db, 'subscriptions', 'devise', 'TEXT DEFAULT \'EUR\'');
-        ensureColumn(db, 'one_time_purchases', 'devise', 'TEXT DEFAULT \'EUR\'');
-        // Colonnes RAWG pour adulte_game_games
-        ensureColumn(db, 'adulte_game_games', 'rawg_id', 'INTEGER');
-        ensureColumn(db, 'adulte_game_games', 'rawg_rating', 'REAL');
-        ensureColumn(db, 'adulte_game_games', 'rawg_released', 'TEXT');
-        ensureColumn(db, 'adulte_game_games', 'rawg_platforms', 'TEXT');
-        ensureColumn(db, 'adulte_game_games', 'rawg_description', 'TEXT');
-        ensureColumn(db, 'adulte_game_games', 'rawg_website', 'TEXT');
-        ensureColumn(db, 'adulte_game_games', 'esrb_rating', 'TEXT');
-        
-        // Colonnes pour les médias utilisateur dans adulte_game_user_data
-        ensureColumn(db, 'adulte_game_user_data', 'user_images', 'TEXT');
-        ensureColumn(db, 'adulte_game_user_data', 'user_videos', 'TEXT');
-        
-        // Colonne platforms dans adulte_game_proprietaires
-        ensureColumn(db, 'adulte_game_proprietaires', 'platforms', 'TEXT');
-
-        // Synchroniser les relations existantes pour assurer une navigation cohérente
-        propagateAllRelations(db);
-        
-        db.close();
-        migrated++;
-        console.log(`✅ Migration appliquée à ${dbFile}`);
-      } catch (error) {
-        errors.push({ file: dbFile, error: error.message });
-        console.warn(`⚠️ Erreur lors de la migration de ${dbFile}:`, error.message);
-      }
-    }
-  } catch (error) {
-    errors.push({ file: 'unknown', error: error.message });
-    console.warn('⚠️ Erreur lors de la migration des bases:', error.message);
-  }
-  
-  return { success: errors.length === 0, migrated, errors };
+  // Utiliser le nouveau système de migrations centralisé
+  const { migrateAllDatabases: migrateAllDatabasesNew } = require('./database-migrations');
+  return migrateAllDatabasesNew(databasesPath);
 }
 
 module.exports = { initDatabase, migrateAllDatabases };

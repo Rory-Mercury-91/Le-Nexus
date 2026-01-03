@@ -503,6 +503,55 @@ interface ElectronAPI {
   restoreBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
   deleteBackup: (backupPath: string) => Promise<{ success: boolean; error?: string }>;
   
+  // SYNCHRONISATION CLOUD (R2)
+  getCloudSyncConfig: () => Promise<{
+    enabled: boolean;
+    endpoint: string;
+    bucketName: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    syncFrequency: '6h' | '12h' | '24h' | '7d' | '30d' | 'manual';
+    syncedUsers: string[];
+    mergePriority?: 'current-user' | 'source' | 'newest' | 'oldest';
+  }>;
+  getCloudSyncHistory: () => Promise<{
+    lastSync?: string;
+    lastUpload?: string;
+    downloads?: Record<string, string>;
+  }>;
+  saveCloudSyncConfig: (config: {
+    enabled: boolean;
+    endpoint: string;
+    bucketName: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    syncFrequency: '6h' | '12h' | '24h' | '7d' | '30d' | 'manual';
+    syncedUsers: string[];
+    mergePriority?: 'current-user' | 'source' | 'newest' | 'oldest';
+  }) => Promise<{ success: boolean; error?: string }>;
+  testCloudSyncConnection: (config: {
+    endpoint: string;
+    bucketName: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  getCurrentUserUuid: () => Promise<{ success: boolean; uuid?: string; error?: string }>;
+  getUserNameFromUuid: (uuid: string) => Promise<{ success: boolean; name?: string; error?: string }>;
+  listCloudSyncDatabases: () => Promise<{ success: boolean; uuids?: string[]; error?: string }>;
+  performCloudSync: () => Promise<{
+    success: boolean;
+    results?: {
+      upload?: { success: boolean; error?: string };
+      downloads?: Array<{ uuid: string; success: boolean; error?: string }>;
+      merge?: any;
+    };
+    error?: string;
+  }>;
+  exportCloudSyncConfig: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string; error?: string }>;
+  importCloudSyncConfig: () => Promise<{ success: boolean; canceled?: boolean; config?: CloudSyncConfig; error?: string }>;
+  checkCoverExistsR2: (relativePath: string) => Promise<{ success: boolean; exists?: boolean; r2Path?: string; error?: string }>;
+  getCoverR2Hash: (relativePath: string) => Promise<{ success: boolean; hash?: string; r2Path?: string; error?: string }>;
+  
   // JEUX ADULTES Labels
   getAdulteGameLabels: (gameId: number) => Promise<Array<{
     id: number;
@@ -545,11 +594,6 @@ interface ElectronAPI {
     error?: string;
   }>;
   getRawgGameDetail: (gameId: number) => Promise<any>;
-  getRawgGameDisplaySettings: () => Promise<Record<string, boolean>>;
-  getRawgGameDisplayOverrides: (gameId: number) => Promise<Record<string, boolean>>;
-  saveRawgGameDisplaySettings: (prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  saveRawgGameDisplayOverrides: (gameId: number, overrides: Record<string, boolean>) => Promise<{ success: boolean }>;
-  deleteRawgGameDisplayOverrides: (gameId: number, keys: string[]) => Promise<{ success: boolean }>;
   getRawgGameUserImages: (gameId: number) => Promise<Array<{
     id: number;
     type: 'url' | 'file';
@@ -652,6 +696,8 @@ interface ElectronAPI {
   setDevMode?: (enabled: boolean) => Promise<{ success: boolean }>;
   getVerboseLogging?: () => Promise<boolean>;
   setVerboseLogging?: (enabled: boolean) => Promise<{ success: boolean }>;
+  exportApiKeys?: () => Promise<{ success: boolean; canceled?: boolean; error?: string; filePath?: string }>;
+  importApiKeys?: () => Promise<{ success: boolean; canceled?: boolean; error?: string; keys?: Record<string, string> }>;
   onBackendLog?: (callback: (logData: {
     type: 'log' | 'buffer';
     level?: 'log' | 'warn' | 'error' | 'info' | 'debug';
@@ -703,13 +749,6 @@ interface ElectronAPI {
   selectMihonBackupFile?: () => Promise<{ success: boolean; canceled?: boolean; filePath?: string }>;
   importMihonBackup?: (filePath: string) => Promise<{ success: boolean; stats?: { created: number; updated: number; withMalId: number }; error?: string }>;
   
-  // Manga Display Preferences
-  getMangaDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveMangaDisplaySettings?: (prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  getMangaDisplayOverrides?: (mangaId: number) => Promise<Record<string, boolean>>;
-  saveMangaDisplayOverrides?: (mangaId: number, prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  deleteMangaDisplayOverrides?: (mangaId: number, champKeys: string[]) => Promise<{ success: boolean }>;
-  
   // Manga Events
   onMangaImported?: (callback: (_event: unknown, data: { serieId: number }) => void) => (() => void) | undefined;
   offMangaImported?: (callback: (_event: unknown, data: { serieId: number }) => void) => void;
@@ -718,13 +757,6 @@ interface ElectronAPI {
   enrichMangaNow?: (mangaId: number, force?: boolean) => Promise<{ success: boolean; error?: string; skipped?: boolean; message?: string }>;
   enrichAnimeNow?: (animeId: number, force?: boolean) => Promise<{ success: boolean; error?: string; skipped?: boolean; message?: string }>;
 
-  // Anime Display Preferences
-  getAnimeDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveAnimeDisplaySettings?: (prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  getAnimeDisplayOverrides?: (animeId: number) => Promise<Record<string, boolean>>;
-  saveAnimeDisplayOverrides?: (animeId: number, prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  deleteAnimeDisplayOverrides?: (animeId: number, champKeys: string[]) => Promise<{ success: boolean }>;
-  
   // Anime Streaming Links
   getStreamingLinks: (animeId: number, malId?: number) => Promise<{
     success: boolean;
@@ -750,13 +782,6 @@ interface ElectronAPI {
     url: string;
   }) => Promise<{ success: boolean; error?: string }>;
   
-  // Adult Game Display Preferences
-  getAdulteGameDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveAdulteGameDisplaySettings?: (prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  getAdulteGameDisplayOverrides?: (gameId: number) => Promise<Record<string, boolean>>;
-  saveAdulteGameDisplayOverrides?: (gameId: number, prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  deleteAdulteGameDisplayOverrides?: (gameId: number, champKeys: string[]) => Promise<{ success: boolean }>;
-
   // TMDb / TV Maze / Médias
   getTmdbCredentials: () => Promise<{ apiKey: string; apiToken: string }>;
   setTmdbCredentials: (credentials: { apiKey?: string; apiToken?: string }) => Promise<{ success: boolean }>;
@@ -769,8 +794,6 @@ interface ElectronAPI {
   getMovies: (filters?: MovieQueryFilters) => Promise<MovieListItem[]>;
   getMovieDetail: (identifiers: { movieId?: number; tmdbId?: number }) => Promise<MovieDetail | null>;
   setMovieStatus: (payload: { movieId: number; statut?: string; score?: number; dateVisionnage?: string | null }) => Promise<{ success: boolean; statut: string }>;
-  getMovieDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveMovieDisplaySettings?: (_prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
   toggleMovieFavorite: (_movieId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
   toggleMovieHidden: (_movieId: number) => Promise<{ success: boolean; isHidden: boolean }>;
   createMovie: (_movieData: Record<string, unknown>) => Promise<{ success: boolean; movieId?: number; error?: string }>;
@@ -854,11 +877,6 @@ interface ElectronAPI {
   addBookLabel?: (bookId: number, label: string, color?: string) => Promise<{ success: boolean }>;
   removeBookLabel?: (bookId: number, label: string) => Promise<{ success: boolean }>;
   updateBookLabels?: (bookId: number, labels: Array<{ label: string; color: string }>) => Promise<{ success: boolean }>;
-  getBooksDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveBooksDisplaySettings?: (prefs: Record<string, boolean>) => Promise<void>;
-  getBooksDisplayOverrides?: (bookId: number) => Promise<Record<string, boolean>>;
-  saveBooksDisplayOverrides?: (bookId: number, overrides: Record<string, boolean>) => Promise<void>;
-  deleteBooksDisplayOverrides?: (bookId: number, keys: string[]) => Promise<{ success: boolean; error?: string }>;
   // Galerie d'images utilisateur
   addMovieUserImageUrl: (movieId: number, imageUrl: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
   addMovieUserImageFile: (movieId: number, title?: string) => Promise<{ success: boolean; canceled?: boolean; imageId?: number; filePath?: string; fileName?: string; error?: string }>;
@@ -927,11 +945,6 @@ interface ElectronAPI {
   deleteTvShow: (_showId: number) => Promise<{ success: boolean; error?: string }>;
   markTvEpisode: (_payload: { episodeId: number; userId: number; vu: boolean; dateVisionnage?: string | null }) => Promise<{ success: boolean; dateVisionnage?: string | null; episodesVus?: number; saisonsVues?: number }>;
   markAllTvEpisodes: (_payload: { showId: number; vu?: boolean }) => Promise<{ success: boolean; episodesVus?: number; saisonsVues?: number; dateVisionnage?: string | null; totalEpisodes?: number }>;
-  getSeriesDisplaySettings?: () => Promise<Record<string, boolean>>;
-  saveSeriesDisplaySettings?: (_prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  getSeriesDisplayOverrides?: (showId: number) => Promise<Record<string, boolean>>;
-  saveSeriesDisplayOverrides?: (showId: number, prefs: Record<string, boolean>) => Promise<{ success: boolean }>;
-  deleteSeriesDisplayOverrides?: (showId: number, keys: string[]) => Promise<{ success: boolean }>;
   getSeries: (filters?: import('./types').SerieFilters) => Promise<import('./types').Serie[]>;
   getSerie: (id: number) => Promise<import('./types').Serie | null>;
   createSerie: (serieData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
@@ -1059,6 +1072,19 @@ interface ElectronAPI {
   anilistConnect: () => Promise<{ success: boolean; user?: { name?: string } | null; error?: string }>;
   anilistDisconnect: () => Promise<{ success: boolean; error?: string }>;
   onAnilistSyncProgress?: (callback: (event: unknown, progress: MalSyncProgress) => void) => () => void;
+  onCloudSyncProgress?: (callback: (event: unknown, progress: {
+    phase: 'start' | 'upload' | 'upload-covers' | 'download-db' | 'download-covers' | 'complete';
+    current: number;
+    total: number;
+    percentage: number;
+    message?: string;
+    item?: string;
+    results?: {
+      upload?: boolean;
+      downloadsCount?: number;
+      coversDownloaded?: number;
+    };
+  }) => void) => () => void;
   onAnilistSyncCompleted?: (callback: (event: unknown, result: MalSyncResult) => void) => () => void;
   onAnilistSyncError?: (callback: (event: unknown, payload: { error: string; timestamp?: string }) => void) => () => void;
   

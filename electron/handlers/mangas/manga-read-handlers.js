@@ -207,7 +207,7 @@ function handleGetSerie(db, store, id) {
   const serie = db.prepare('SELECT * FROM manga_series WHERE id = ?').get(id);
   if (!serie) return null;
 
-  const tomes = db.prepare('SELECT id, serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome, mihon, created_at FROM manga_tomes WHERE serie_id = ? ORDER BY numero ASC').all(id);
+  const tomes = db.prepare('SELECT id, serie_id, numero, prix, date_sortie, date_achat, couverture_url, type_tome, mihon, mihon_user_id, created_at FROM manga_tomes WHERE serie_id = ? ORDER BY numero ASC').all(id);
 
   // Récupérer l'utilisateur actuel
   const currentUser = store.get('currentUser', '');
@@ -271,15 +271,20 @@ function handleGetSerie(db, store, id) {
 
     // Si date_achat est renseignée et que l'utilisateur actuel n'est pas encore propriétaire, l'ajouter automatiquement
     if (userId && tome.date_achat && !proprietaireIds.includes(userId)) {
-      db.prepare(`
-        INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
-        VALUES (?, ?, ?)
-      `).run(tome.serie_id, tome.id, userId);
-      proprietaireIds.push(userId);
-      // Ajouter aussi l'utilisateur à la liste des propriétaires pour l'affichage
-      const user = db.prepare('SELECT id, name, color FROM users WHERE id = ?').get(userId);
-      if (user) {
-        proprietaires.push(user);
+      const { getUserUuidByName } = require('../common-helpers');
+      const currentUser = store.get('currentUser', '');
+      const userUuid = getUserUuidByName(db, currentUser);
+      if (userUuid) {
+        db.prepare(`
+          INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid)
+          VALUES (?, ?, ?, ?)
+        `).run(tome.serie_id, tome.id, userId, userUuid);
+        proprietaireIds.push(userId);
+        // Ajouter aussi l'utilisateur à la liste des propriétaires pour l'affichage
+        const user = db.prepare('SELECT id, name, color FROM users WHERE id = ?').get(userId);
+        if (user) {
+          proprietaires.push(user);
+        }
       }
     }
 

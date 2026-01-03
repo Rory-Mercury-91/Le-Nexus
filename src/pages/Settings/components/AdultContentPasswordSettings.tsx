@@ -4,12 +4,14 @@ import { useAdulteGameLock } from '../../../hooks/useAdulteGameLock';
 
 interface AdultContentPasswordSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
+  noContainer?: boolean;
+  hideTitle?: boolean;
 }
 
 /**
  * Section de protection par mot de passe pour les contenus adultes (animes et mangas)
  */
-export default function AdultContentPasswordSettings({ showToast }: AdultContentPasswordSettingsProps) {
+export default function AdultContentPasswordSettings({ showToast, noContainer = false, hideTitle = false }: AdultContentPasswordSettingsProps) {
   const { hasPassword, checkPassword } = useAdulteGameLock();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -121,101 +123,101 @@ export default function AdultContentPasswordSettings({ showToast }: AdultContent
     }
   };
 
-  return (
-    <div style={{
-      marginTop: '24px',
-      padding: '24px',
-      background: 'var(--surface)',
-      borderRadius: '12px',
-      border: '1px solid var(--border)'
-    }}>
-      <h3
-        style={{
-          fontSize: '18px',
-          fontWeight: '700',
-          marginBottom: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}
-      >
-        <span aria-hidden="true" style={{ fontSize: '20px', transform: 'translateY(1px)' }}>🔒</span>
-        Protection des contenus adultes
-        <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <button
-            type="button"
-            onMouseEnter={() => setIsTooltipVisible(true)}
-            onMouseLeave={() => setIsTooltipVisible(false)}
-            onFocus={() => setIsTooltipVisible(true)}
-            onBlur={() => setIsTooltipVisible(false)}
-            aria-label="Informations sur la protection des contenus adultes"
+  const content = (
+    <>
+      {!hideTitle && (
+        <>
+          <h3
             style={{
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              padding: '2px',
-              display: 'inline-flex',
+              fontSize: '18px',
+              fontWeight: '700',
+              marginBottom: '12px',
+              display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: 1,
-              color: 'var(--text-secondary)'
+              gap: '8px'
             }}
           >
-            <HelpCircle size={16} />
-          </button>
-          {isTooltipVisible && (
-            <div
-              role="tooltip"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'var(--surface-light)',
-                color: 'var(--text)',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
-                border: '1px solid var(--border)',
-                minWidth: '260px',
-                zIndex: 20,
-                textAlign: 'left'
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>
-                Mot de passe maître unique.
-              </div>
-              <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
-                Requis pour accéder aux détails 18+ (couvertures floutées par défaut).
-                Déconnexion automatique après 30 min d'inactivité.
-                <span style={{ display: 'block', marginTop: '6px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
-                  Base partagée : mot de passe propre à chaque machine.
-                </span>
-              </div>
-            </div>
-          )}
-        </span>
-      </h3>
-      <p
-        style={{
-          fontSize: '13px',
-          color: 'var(--text-secondary)',
-          marginBottom: '16px',
-          lineHeight: '1.5'
-        }}
-      >
-        {hasPassword
-          ? 'Protection active pour les contenus adultes sur cette machine.'
-          : 'Configurez un mot de passe maître pour activer la protection des contenus adultes sur cette machine.'}
-      </p>
+            <span aria-hidden="true" style={{ fontSize: '20px', transform: 'translateY(1px)' }}>🔒</span>
+            Protection des contenus adultes
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onMouseEnter={() => setIsTooltipVisible(true)}
+                onMouseLeave={() => setIsTooltipVisible(false)}
+                onFocus={() => setIsTooltipVisible(true)}
+                onBlur={() => setIsTooltipVisible(false)}
+                aria-label="Informations sur la protection des contenus adultes"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <HelpCircle size={16} />
+              </button>
+              {isTooltipVisible && (
+                <div
+                  role="tooltip"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'var(--surface-light)',
+                    color: 'var(--text)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+                    border: '1px solid var(--border)',
+                    minWidth: '260px',
+                    zIndex: 20,
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>
+                    Mot de passe maître unique.
+                  </div>
+                  <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
+                    Requis pour accéder aux détails 18+ (couvertures floutées par défaut).
+                    Déconnexion automatique après 30 min d'inactivité.
+                    <span style={{ display: 'block', marginTop: '6px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                      Base partagée : mot de passe propre à chaque machine.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </span>
+          </h3>
+          <p
+            style={{
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+              marginBottom: '16px',
+              lineHeight: '1.5'
+            }}
+          >
+            {hasPassword
+              ? 'Protection active pour les contenus adultes sur cette machine.'
+              : 'Configurez un mot de passe maître pour activer la protection des contenus adultes sur cette machine.'}
+          </p>
+        </>
+      )}
 
       {!hasPassword ? (
         /* Définir un nouveau mot de passe */
         <div
           style={{
             padding: '16px',
-            background: 'var(--surface-light)',
+            background: 'var(--surface)',
             borderRadius: '8px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px'
@@ -329,8 +331,10 @@ export default function AdultContentPasswordSettings({ showToast }: AdultContent
         <div
           style={{
             padding: '16px',
-            background: 'var(--surface-light)',
+            background: 'var(--surface)',
             borderRadius: '8px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px'
@@ -423,6 +427,22 @@ export default function AdultContentPasswordSettings({ showToast }: AdultContent
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (noContainer) {
+    return content;
+  }
+
+  return (
+    <div style={{
+      marginTop: '24px',
+      padding: '24px',
+      background: 'var(--surface)',
+      borderRadius: '12px',
+      border: '1px solid var(--border)'
+    }}>
+      {content}
     </div>
   );
 }

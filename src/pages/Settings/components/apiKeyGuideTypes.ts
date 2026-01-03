@@ -1,1 +1,1 @@
-export type ApiKeyProvider = 'mal' | 'anilist' | 'tmdb' | 'groq' | 'rawg' | 'adulteGame';
+export type ApiKeyProvider = 'mal' | 'anilist' | 'tmdb' | 'groq' | 'rawg' | 'adulteGame' | 'cloudSync';

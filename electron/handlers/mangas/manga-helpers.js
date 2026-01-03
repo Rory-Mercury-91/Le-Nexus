@@ -10,7 +10,7 @@ const { getUserIdByName, safeJsonParse } = require('../common-helpers');
  */
 function ensureMangaUserDataRow(db, serieId, userId) {
   if (!userId) return;
-  
+
   const existing = db.prepare('SELECT id FROM manga_user_data WHERE serie_id = ? AND user_id = ?').get(serieId, userId);
   if (!existing) {
     db.prepare(`
@@ -38,16 +38,24 @@ function setExclusiveSerieOwnership(db, serieId, userId) {
     return;
   }
 
+  // Récupérer l'UUID de l'utilisateur
+  const { getUserUuidById } = require('../common-helpers');
+  const userUuid = getUserUuidById(db, userId);
+  if (!userUuid) {
+    console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${userId}`);
+    return;
+  }
+
   db.prepare(`
     DELETE FROM ${tableName}
     WHERE tome_id IN (SELECT id FROM manga_tomes WHERE serie_id = ?)
-      AND user_id != ?
-  `).run(serieId, userId);
+      AND user_uuid != ?
+  `).run(serieId, userUuid);
 
   db.prepare(`
-    INSERT OR IGNORE INTO ${tableName} (tome_id, user_id)
-    SELECT id, ? FROM manga_tomes WHERE serie_id = ?
-  `).run(userId, serieId);
+    INSERT OR IGNORE INTO ${tableName} (tome_id, user_id, user_uuid, serie_id)
+    SELECT id, ?, ?, ? FROM manga_tomes WHERE serie_id = ?
+  `).run(userId, userUuid, serieId, serieId);
 }
 
 /**
@@ -60,7 +68,7 @@ function setExclusiveSerieUserStatus(db, serieId, userId, statutLecture = 'À li
   // Note: Avec manga_user_data, chaque utilisateur a sa propre entrée, donc pas besoin de DELETE
 
   ensureMangaUserDataRow(db, serieId, userId);
-  
+
   db.prepare(`
     UPDATE manga_user_data SET
       statut_lecture = ?,
@@ -119,7 +127,7 @@ function calculateAutoCompletionTag(db, serieId, userId) {
 
   // Récupérer aussi depuis la table manga_series (pour compatibilité)
   const serie = db.prepare('SELECT volumes_lus, chapitres_lus, nb_volumes, nb_volumes_vf, nb_chapitres, nb_chapitres_vf, type_contenu FROM manga_series WHERE id = ?').get(serieId);
-  
+
   // Compter les manga_tomes lus depuis tome_progress (JSON)
   let nbTomesLus = 0;
   if (userData && userData.tome_progress) {
@@ -128,7 +136,7 @@ function calculateAutoCompletionTag(db, serieId, userId) {
       nbTomesLus = tomeProgress.filter(tp => tp.lu === true || tp.lu === 1).length;
     }
   }
-  
+
   // Compter le total de manga_tomes
   const manga_tomesTotalCount = db.prepare('SELECT COUNT(*) as count FROM manga_tomes WHERE serie_id = ?').get(serieId);
   const nbTomesTotal = manga_tomesTotalCount ? manga_tomesTotalCount.count : 0;
@@ -137,7 +145,7 @@ function calculateAutoCompletionTag(db, serieId, userId) {
   const volumesLus = userData && userData.volumes_lus !== null && userData.volumes_lus !== undefined
     ? userData.volumes_lus
     : (serie ? (serie.volumes_lus || 0) : 0);
-  
+
   const chapitresLus = userData && userData.chapitres_lus !== null && userData.chapitres_lus !== undefined
     ? userData.chapitres_lus
     : (serie ? (serie.chapitres_lus || 0) : 0);
@@ -153,17 +161,17 @@ function calculateAutoCompletionTag(db, serieId, userId) {
 
   // Si volumes_lus >= 1 OU chapitres_lus >= 1 OU nbTomesLus >= 1 → "En cours" ou "Terminé"
   const hasProgress = volumesLus >= 1 || chapitresLus >= 1 || nbTomesLus >= 1;
-  
+
   if (hasProgress) {
     // Vérifier si tout est terminé
     const allTomesRead = nbTomesTotal > 0 && nbTomesLus === nbTomesTotal;
     const allVolumesRead = nbVolumesTotal > 0 && volumesLus >= nbVolumesTotal;
     const allChapitresRead = nbChapitresTotal > 0 && chapitresLus >= nbChapitresTotal;
-    
+
     if (allTomesRead || (nbVolumesTotal > 0 && allVolumesRead) || (nbChapitresTotal > 0 && allChapitresRead)) {
       return 'lu';
     }
-    
+
     return 'en_cours';
   }
 

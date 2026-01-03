@@ -1,6 +1,6 @@
 import { ChevronDown, RefreshCw, Search } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AdulteGameCard } from '../../../../components/cards';
 import { COMMON_STATUSES } from '../../../../components/cards/common';
 import {
@@ -40,6 +40,7 @@ interface GameCollectionPageProps {
 
 export default function GameCollectionPage({ config }: GameCollectionPageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { ToastContainer } = useToast();
   const { ConfirmDialog: ConfirmModal } = useConfirm();
   const [showScanModal, setShowScanModal] = useState(false);
@@ -121,6 +122,15 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
 
   // Afficher le filtre de moteur uniquement pour les jeux adultes
   const shouldShowMoteurFilter = config.filterType === 'adulte';
+
+  // Calculer les compteurs de jeux pour les sous-onglets
+  const gameCounts = useMemo(() => {
+    const visibleGames = allGames.filter(game => !game.is_hidden || game.is_hidden === 0);
+    const total = visibleGames.length;
+    const video = visibleGames.filter(game => (game.game_site || game.plateforme) === 'RAWG').length;
+    const adulte = visibleGames.filter(game => (game.game_site || game.plateforme) !== 'RAWG').length;
+    return { total, video, adulte };
+  }, [allGames]);
 
   // Filtrer les jeux selon la configuration (par site ou par moteur pour compatibilité)
   const games = useMemo(() => {
@@ -682,6 +692,118 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
               </>
             }
           />
+
+          {/* Barre de sous-onglets */}
+          <div style={{
+            display: 'flex',
+            marginBottom: '20px',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => navigate('/games/all')}
+              style={{
+                padding: '10px 20px',
+                border: 'none',
+                background: location.pathname === '/games/all' || location.pathname === '/games' ? 'var(--surface-light)' : 'transparent',
+                borderBottom: location.pathname === '/games/all' || location.pathname === '/games' ? '2px solid var(--primary)' : '2px solid transparent',
+                color: location.pathname === '/games/all' || location.pathname === '/games' ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: location.pathname === '/games/all' || location.pathname === '/games' ? '600' : '400',
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'all 0.2s ease',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              onMouseEnter={(e) => {
+                if (location.pathname !== '/games/all' && location.pathname !== '/games') {
+                  e.currentTarget.style.color = 'var(--text)';
+                  e.currentTarget.style.background = 'var(--surface-light)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (location.pathname !== '/games/all' && location.pathname !== '/games') {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              <span>🎮</span>
+              Tout {gameCounts.total > 0 && `(${gameCounts.total})`}
+            </button>
+            {gameCounts.video > 0 && (
+              <button
+                onClick={() => navigate('/games/video')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/games/video' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/games/video' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/games/video' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/games/video' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/games/video') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/games/video') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>🎮</span>
+                Jeux vidéo ({gameCounts.video})
+              </button>
+            )}
+            {gameCounts.adulte > 0 && (
+              <button
+                onClick={() => navigate('/games/adulte')}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: location.pathname === '/games/adulte' ? 'var(--surface-light)' : 'transparent',
+                  borderBottom: location.pathname === '/games/adulte' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: location.pathname === '/games/adulte' ? 'var(--primary)' : 'var(--text-secondary)',
+                  fontWeight: location.pathname === '/games/adulte' ? '600' : '400',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  transition: 'all 0.2s ease',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  if (location.pathname !== '/games/adulte') {
+                    e.currentTarget.style.color = 'var(--text)';
+                    e.currentTarget.style.background = 'var(--surface-light)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (location.pathname !== '/games/adulte') {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+              >
+                <span>🎮</span>
+                Jeux adulte ({gameCounts.adulte})
+              </button>
+            )}
+          </div>
 
           {message && (
             <div style={{

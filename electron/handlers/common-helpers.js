@@ -28,6 +28,50 @@ function getUserByName(db, userName) {
 }
 
 /**
+ * Récupère l'UUID d'un utilisateur par son nom (pour la synchronisation cloud)
+ * @param {Database} db - Instance de la base de données
+ * @param {string} userName - Nom de l'utilisateur
+ * @returns {string|null} - UUID de l'utilisateur ou null
+ */
+function getUserUuidByName(db, userName) {
+  if (!db || !userName) return null;
+  const user = db.prepare('SELECT id, sync_uuid FROM users WHERE name = ?').get(userName);
+  if (!user) return null;
+  
+  // Si l'utilisateur n'a pas d'UUID, en générer un
+  if (!user.sync_uuid) {
+    const crypto = require('crypto');
+    const uuid = crypto.randomUUID();
+    db.prepare('UPDATE users SET sync_uuid = ? WHERE id = ?').run(uuid, user.id);
+    return uuid;
+  }
+  
+  return user.sync_uuid;
+}
+
+/**
+ * Récupère l'UUID d'un utilisateur par son ID (pour la synchronisation cloud)
+ * @param {Database} db - Instance de la base de données
+ * @param {number} userId - ID de l'utilisateur
+ * @returns {string|null} - UUID de l'utilisateur ou null
+ */
+function getUserUuidById(db, userId) {
+  if (!db || !userId) return null;
+  const user = db.prepare('SELECT sync_uuid FROM users WHERE id = ?').get(userId);
+  if (!user) return null;
+  
+  // Si l'utilisateur n'a pas d'UUID, en générer un
+  if (!user.sync_uuid) {
+    const crypto = require('crypto');
+    const uuid = crypto.randomUUID();
+    db.prepare('UPDATE users SET sync_uuid = ? WHERE id = ?').run(uuid, userId);
+    return uuid;
+  }
+  
+  return user.sync_uuid;
+}
+
+/**
  * Parse JSON de manière sécurisée avec fallback
  * @param {string|null|undefined} jsonString - La chaîne JSON à parser
  * @param {any} defaultValue - Valeur par défaut si le parsing échoue
@@ -53,12 +97,12 @@ function safeJsonParse(jsonString, defaultValue = null) {
  */
 function getPaths(getPathManager, store = null) {
   const pm = typeof getPathManager === 'function' ? getPathManager() : getPathManager;
-  
+
   // Si PathManager est disponible, l'utiliser
   if (pm) {
     return pm.getPaths();
   }
-  
+
   // Sinon, essayer de récupérer depuis le store
   if (store) {
     const baseDirectory = store.get('baseDirectory');
@@ -74,7 +118,7 @@ function getPaths(getPathManager, store = null) {
       };
     }
   }
-  
+
   // Fallback : chemins vides
   return { base: '', configs: '', databases: '', profiles: '', covers: '', series: '' };
 }
@@ -82,6 +126,8 @@ function getPaths(getPathManager, store = null) {
 module.exports = {
   getUserIdByName,
   getUserByName,
+  getUserUuidByName,
+  getUserUuidById,
   getPaths,
   safeJsonParse
 };

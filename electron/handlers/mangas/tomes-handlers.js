@@ -4,6 +4,7 @@ const path = require('path');
 const { getPaths } = require('../common-helpers');
 const { renameTomeCover } = require('../../services/cover/cover-manager');
 const { getSerieTitle, getSerieCover, updateSerieCover, getUserIdByName, setExclusiveSerieOwnership } = require('./manga-helpers');
+const { getUserUuidById, getUserUuidByName } = require('../common-helpers');
 
 /**
  * Enregistre les handlers IPC pour les opérations CRUD sur les manga_tomes
@@ -58,22 +59,28 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
       // Ajouter les propriétaires dans la table de liaison
       if (tome.proprietaireIds && tome.proprietaireIds.length > 0) {
         const insertProprietaire = db.prepare(`
-          INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
+          INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid) VALUES (?, ?, ?, ?)
         `);
         tome.proprietaireIds.forEach(userId => {
-          insertProprietaire.run(tome.serie_id, tomeId, userId);
+          const userUuid = getUserUuidById(db, userId);
+          if (userUuid) {
+            insertProprietaire.run(tome.serie_id, tomeId, userId, userUuid);
+          }
         });
       } else {
         // Si aucun propriétaire n'est spécifié, ajouter l'utilisateur connecté par défaut
         const currentUser = store.get('currentUser', '');
         const userId = getUserIdByName(db, currentUser);
         if (userId) {
-          db.prepare(`
-            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
-          `).run(tome.serie_id, tomeId, userId);
-          db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_id != ?')
-            .run(tomeId, userId);
-          setExclusiveSerieOwnership(db, tome.serie_id, userId);
+          const userUuid = getUserUuidByName(db, currentUser);
+          if (userUuid) {
+            db.prepare(`
+              INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid) VALUES (?, ?, ?, ?)
+            `).run(tome.serie_id, tomeId, userId, userUuid);
+            db.prepare('DELETE FROM manga_manga_tomes_proprietaires WHERE tome_id = ? AND user_uuid != ?')
+              .run(tomeId, userUuid);
+            setExclusiveSerieOwnership(db, tome.serie_id, userId);
+          }
         }
       }
 
@@ -163,10 +170,13 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         // Ajouter les nouveaux propriétaires
         if (tome.proprietaireIds.length > 0) {
           const insertProprietaire = db.prepare(`
-            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
+            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid) VALUES (?, ?, ?, ?)
           `);
           tome.proprietaireIds.forEach(userId => {
-            insertProprietaire.run(currentTome.serie_id, id, userId);
+            const userUuid = getUserUuidById(db, userId);
+            if (userUuid) {
+              insertProprietaire.run(currentTome.serie_id, id, userId, userUuid);
+            }
           });
         }
       } else if (tome.date_achat !== undefined && tome.date_achat) {
@@ -175,10 +185,13 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         if (currentUser) {
           const userId = getUserIdByName(db, currentUser);
           if (userId) {
-            db.prepare(`
-              INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id)
-              VALUES (?, ?, ?)
-            `).run(currentTome.serie_id, id, userId);
+            const userUuid = getUserUuidByName(db, currentUser);
+            if (userUuid) {
+              db.prepare(`
+                INSERT OR IGNORE INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid)
+                VALUES (?, ?, ?, ?)
+              `).run(currentTome.serie_id, id, userId, userUuid);
+            }
           }
         }
       }
@@ -225,12 +238,15 @@ function registerMangaTomesHandlers(ipcMain, getDb, getPathManager, store) {
         
         if (manga_tomesWithoutOwners.length > 0) {
           const insertProprietaire = db.prepare(`
-            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id) VALUES (?, ?, ?)
+            INSERT INTO manga_manga_tomes_proprietaires (serie_id, tome_id, user_id, user_uuid) VALUES (?, ?, ?, ?)
           `);
-          
+
           manga_tomesWithoutOwners.forEach(tomeRow => {
             tome.proprietaireIds.forEach(userId => {
-              insertProprietaire.run(tomeRow.serie_id, tomeRow.id, userId);
+              const userUuid = getUserUuidById(db, userId);
+              if (userUuid) {
+                insertProprietaire.run(tomeRow.serie_id, tomeRow.id, userId, userUuid);
+              }
             });
           });
         }

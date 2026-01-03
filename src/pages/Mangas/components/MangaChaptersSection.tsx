@@ -10,11 +10,9 @@ interface MangaChaptersSectionProps {
 }
 
 export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitresChange, onChapitresMihonChange, shouldShow }: MangaChaptersSectionProps) {
-  const shouldShowChapters = (serie.type_contenu && (serie.type_contenu === 'chapitre' || serie.type_contenu === 'volume+chapitre')) || 
-    (serie.chapitres_lus !== null && serie.chapitres_lus !== undefined) || 
-    (serie.nb_chapitres !== null && serie.nb_chapitres !== undefined);
-
-  if (!shouldShow || !shouldShowChapters) return null;
+  // Toujours afficher la section si shouldShow est true, même si les données sont à 0/null
+  // Cela permet d'afficher la section pour tous les utilisateurs lors d'un partage
+  if (!shouldShow) return null;
 
   return (
     <div
@@ -35,7 +33,7 @@ export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitre
         <FileText size={20} />
         Chapitres ({serie.nb_chapitres || 0})
       </div>
-      
+
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
           Chapitres lus :
@@ -60,11 +58,11 @@ export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitre
             textAlign: 'center'
           }}
         />
-        
+
         <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
           |
         </span>
-        
+
         <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
           Chapitres total :
         </span>
@@ -87,11 +85,11 @@ export function MangaChaptersSection({ serie, onChapitresLusChange, onNbChapitre
             textAlign: 'center'
           }}
         />
-        
+
         <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '600' }}>
           |
         </span>
-        
+
         {/* Checkbox Mihon */}
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
           <input

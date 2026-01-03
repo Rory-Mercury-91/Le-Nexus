@@ -1,4 +1,4 @@
-const { getUserIdByName, safeJsonParse } = require('../common-helpers');
+const { getUserIdByName, getUserUuidById, getUserUuidByName, safeJsonParse } = require('../common-helpers');
 const { createToggleFavoriteHandler, createToggleHiddenHandler, createSetStatusHandler } = require('../common/item-action-helpers');
 const { registerBookLabelsHandlers } = require('./labels-handlers');
 const { ensureBookUserDataRow } = require('./book-helpers');
@@ -323,12 +323,13 @@ function registerBookHandlers(ipcMain, getDb, store) {
       // Ajouter les propriétaires si fournis
       if (bookData.proprietaires && Array.isArray(bookData.proprietaires) && bookData.proprietaires.length > 0) {
         const insertPropStmt = db.prepare(`
-          INSERT INTO book_proprietaires (book_id, user_id, prix, date_achat, created_at, updated_at)
-          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+          INSERT INTO book_proprietaires (book_id, user_id, user_uuid, prix, date_achat, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `);
         
         bookData.proprietaires.forEach(prop => {
-          insertPropStmt.run(bookId, prop.user_id, prop.prix || 0, prop.date_achat || null);
+          const userUuid = getUserUuidById(db, prop.user_id);
+          insertPropStmt.run(bookId, prop.user_id, userUuid, prop.prix || 0, prop.date_achat || null);
         });
       }
 
@@ -435,21 +436,26 @@ function registerBookHandlers(ipcMain, getDb, store) {
   ipcMain.handle('books-add-proprietaire', (event, { bookId, userId, prix, dateAchat }) => {
     try {
       const db = getDb();
+      const userUuid = getUserUuidById(db, userId);
+      if (!userUuid) {
+        return { success: false, error: 'Impossible de récupérer l\'UUID de l\'utilisateur' };
+      }
+
       const existing = db.prepare('SELECT id FROM book_proprietaires WHERE book_id = ? AND user_id = ?').get(bookId, userId);
       
       if (existing) {
         // Mettre à jour
         db.prepare(`
           UPDATE book_proprietaires
-          SET prix = ?, date_achat = ?, updated_at = datetime('now')
+          SET prix = ?, date_achat = ?, user_uuid = ?, updated_at = datetime('now')
           WHERE book_id = ? AND user_id = ?
-        `).run(prix || 0, dateAchat || null, bookId, userId);
+        `).run(prix || 0, dateAchat || null, userUuid, bookId, userId);
       } else {
         // Créer
         db.prepare(`
-          INSERT INTO book_proprietaires (book_id, user_id, prix, date_achat, created_at, updated_at)
-          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-        `).run(bookId, userId, prix || 0, dateAchat || null);
+          INSERT INTO book_proprietaires (book_id, user_id, user_uuid, prix, date_achat, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `).run(bookId, userId, userUuid, prix || 0, dateAchat || null);
       }
 
       return { success: true };
@@ -462,7 +468,14 @@ function registerBookHandlers(ipcMain, getDb, store) {
   ipcMain.handle('books-remove-proprietaire', (event, { bookId, userId }) => {
     try {
       const db = getDb();
-      db.prepare('DELETE FROM book_proprietaires WHERE book_id = ? AND user_id = ?').run(bookId, userId);
+      const userUuid = getUserUuidById(db, userId);
+      // Utiliser user_uuid pour plus de précision lors de la suppression
+      if (userUuid) {
+        db.prepare('DELETE FROM book_proprietaires WHERE book_id = ? AND user_uuid = ?').run(bookId, userUuid);
+      } else {
+        // Fallback sur user_id si UUID non disponible
+        db.prepare('DELETE FROM book_proprietaires WHERE book_id = ? AND user_id = ?').run(bookId, userId);
+      }
       return { success: true };
     } catch (error) {
       console.error('[Books] Erreur lors de la suppression du propriétaire:', error);
@@ -527,21 +540,27 @@ function registerBookHandlers(ipcMain, getDb, store) {
 
       // Ajouter/mettre à jour chaque propriétaire
       for (const propUserId of userIds) {
+        const userUuid = getUserUuidById(db, propUserId);
+        if (!userUuid) {
+          console.warn(`⚠️ Impossible de récupérer l'UUID pour l'utilisateur ${propUserId}`);
+          continue;
+        }
+
         const existing = db.prepare('SELECT id FROM book_proprietaires WHERE book_id = ? AND user_id = ?').get(bookId, propUserId);
         
         if (existing) {
           // Mettre à jour
           db.prepare(`
             UPDATE book_proprietaires
-            SET prix = ?, date_achat = ?, updated_at = datetime('now')
+            SET prix = ?, date_achat = ?, user_uuid = ?, updated_at = datetime('now')
             WHERE book_id = ? AND user_id = ?
-          `).run(prixParUtilisateur, dateAchat || null, bookId, propUserId);
+          `).run(prixParUtilisateur, dateAchat || null, userUuid, bookId, propUserId);
         } else {
           // Créer
           db.prepare(`
-            INSERT INTO book_proprietaires (book_id, user_id, prix, date_achat, created_at, updated_at)
-            VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-          `).run(bookId, propUserId, prixParUtilisateur, dateAchat || null);
+            INSERT INTO book_proprietaires (book_id, user_id, user_uuid, prix, date_achat, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          `).run(bookId, propUserId, userUuid, prixParUtilisateur, dateAchat || null);
         }
       }
 

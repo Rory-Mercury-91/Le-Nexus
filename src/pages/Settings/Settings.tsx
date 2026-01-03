@@ -1,21 +1,19 @@
 import { ReactNode, useMemo, useState } from 'react';
 import BackToBottomButton from '../../components/collections/BackToBottomButton';
 import BackToTopButton from '../../components/collections/BackToTopButton';
-import CollapsibleSection from '../../components/common/CollapsibleSection';
-import { ADULTE_GAME_DISPLAY_CATEGORIES, ADULTE_GAME_DISPLAY_DEFAULTS } from '../../components/modals/adulte-game/displayConfig';
-import DisplaySettingsModal, { DisplayFieldCategory } from '../../components/modals/common/DisplaySettingsModal';
 import ApiKeyGuideModal from '../../components/modals/settings/ApiKeyGuideModal';
 import MergeEntitiesModal, { MergePreviewData } from '../../components/modals/settings/MergeEntitiesModal';
 import { useSettings } from '../../hooks/settings/useSettings';
-import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
 import {
   AppearanceSettings,
+  CloudSyncSettings,
   DangerZone,
   DatabaseSettings,
   DevSettings,
   IntegrationsSettings,
   NotificationSettings,
   SourceCredits,
+  SyncSchedulerSettings,
   TampermonkeySettings,
   UserManagement
 } from './components';
@@ -26,6 +24,13 @@ export default function Settings() {
   const [devMergePreview, setDevMergePreview] = useState<MergePreviewData | null>(null);
   const [devMergeLoading, setDevMergeLoading] = useState(false);
   const [devMergeApplying, setDevMergeApplying] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('user');
+  const [activeSubTab, setActiveSubTab] = useState<Record<string, string>>({
+    user: 'user-management',
+    data: 'database',
+    integrations: 'integrations-mal',
+    advanced: 'dev'
+  });
 
   const {
     theme,
@@ -61,26 +66,11 @@ export default function Settings() {
     users,
     userAvatars,
     sectionStates,
-    showMangaDisplayModal,
-    setShowMangaDisplayModal,
-    showAnimeDisplayModal,
-    setShowAnimeDisplayModal,
-    showMovieDisplayModal,
-    setShowMovieDisplayModal,
-    showSeriesDisplayModal,
-    setShowSeriesDisplayModal,
-    showBooksDisplayModal,
-    setShowBooksDisplayModal,
-    showAdulteGameDisplayModal,
-    setShowAdulteGameDisplayModal,
-    showRawgGameDisplayModal,
-    setShowRawgGameDisplayModal,
     confirm,
     ConfirmDialog,
     malConfirmDialog: MalConfirmDialog,
     showToast,
     ToastContainer,
-    toggleSection,
     loadSettings,
     handleThemeChange,
     handleAutoLaunchChange,
@@ -184,6 +174,50 @@ export default function Settings() {
     }
   };
 
+  // Structure des onglets avec regroupement logique des sections
+  const tabGroups = useMemo(() => [
+    {
+      id: 'user',
+      label: '👤 Utilisateur',
+      sections: [
+        { id: 'user-management', label: 'Gestion utilisateurs', icon: '👥' },
+        { id: 'appearance', label: 'Apparence et préférences', icon: '🎨' }
+      ]
+    },
+    {
+      id: 'data',
+      label: '🔄 Données',
+      sections: [
+        { id: 'database', label: 'Base de données', icon: '💾' },
+        { id: 'sync-scheduler', label: 'Synchronisation', icon: '🔄' },
+        { id: 'cloud-sync', label: 'Synchronisation Cloud', icon: '☁️' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' }
+      ]
+    },
+    {
+      id: 'integrations',
+      label: '🔌 Intégrations',
+      sections: [
+        { id: 'integrations-mal', label: 'MyAnimeList', icon: '🤝' },
+        { id: 'integrations-anilist', label: 'AniList', icon: '📺' },
+        { id: 'integrations-tmdb', label: 'TMDb', icon: '🎬' },
+        { id: 'integrations-groq', label: 'Groq', icon: '🧠' },
+        { id: 'integrations-rawg', label: 'RAWG', icon: '🎮' },
+        { id: 'integrations-adulte-game', label: 'Jeux adultes', icon: '🕹️' },
+        { id: 'tampermonkey', label: 'Scripts Tampermonkey', icon: '🔧' }
+      ]
+    },
+    {
+      id: 'advanced',
+      label: '⚙️ Avancé',
+      sections: [
+        { id: 'dev', label: 'Mode développeur', icon: '💻' },
+        { id: 'source-credits', label: 'Sources & crédits', icon: '📚' },
+        { id: 'danger-zone', label: 'Zone dangereuse', icon: '⚠️' }
+      ]
+    }
+  ], []);
+
   const sectionDescriptors = useMemo(() => [
     {
       id: 'user-management',
@@ -221,13 +255,29 @@ export default function Settings() {
           onAutoLaunchChange={handleAutoLaunchChange}
           onAutoDownloadCoversChange={handleAutoDownloadCoversChange}
           onContentPrefChange={handleContentPrefChange}
-          onOpenMangaSettings={() => setShowMangaDisplayModal(true)}
-          onOpenAnimeSettings={() => setShowAnimeDisplayModal(true)}
-          onOpenMovieSettings={() => setShowMovieDisplayModal(true)}
-          onOpenSeriesSettings={() => setShowSeriesDisplayModal(true)}
-          onOpenBooksSettings={() => setShowBooksDisplayModal(true)}
-          onOpenAdultGameSettings={() => setShowAdulteGameDisplayModal(true)}
-          onOpenRawgGameSettings={() => setShowRawgGameDisplayModal(true)}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'sync-scheduler',
+      title: 'Synchronisation',
+      icon: '🔄',
+      content: (
+        <SyncSchedulerSettings
+          globalSyncInterval={globalSyncInterval}
+          globalSyncUpdating={globalSyncUpdating}
+          onGlobalSyncIntervalChange={handleGlobalSyncIntervalChange}
+          malAutoSyncEnabled={malAutoSyncEnabled}
+          onMalAutoSyncChange={handleMalAutoSyncChange}
+          malConnected={malConnected}
+          anilistAutoSyncEnabled={anilistAutoSyncEnabled}
+          onAnilistAutoSyncChange={handleAnilistAutoSyncChange}
+          anilistConnected={anilistConnected}
+          nautiljonAutoSyncEnabled={nautiljonAutoSyncEnabled}
+          onNautiljonAutoSyncChange={handleNautiljonAutoSyncChange}
+          nautiljonAutoSyncIncludeTomes={nautiljonAutoSyncIncludeTomes}
+          onNautiljonIncludeTomesChange={handleNautiljonIncludeTomesChange}
         />
       ),
       span: 2
@@ -246,11 +296,12 @@ export default function Settings() {
       )
     },
     {
-      id: 'integrations',
-      title: 'Intégrations et services externes',
-      icon: '🔌',
+      id: 'integrations-mal',
+      title: 'MyAnimeList',
+      icon: '🤝',
       content: (
         <IntegrationsSettings
+          activeService="mal"
           onOpenGuide={(provider) => setApiGuideProvider(provider)}
           malConnected={malConnected}
           malUser={malUser}
@@ -259,8 +310,6 @@ export default function Settings() {
           onMalConnect={handleMalConnect}
           onMalDisconnect={handleMalDisconnect}
           onMalSyncNow={handleMalSyncNow}
-          malAutoSyncEnabled={malAutoSyncEnabled}
-          onMalAutoSyncChange={handleMalAutoSyncChange}
           anilistConnected={anilistConnected}
           anilistUser={anilistUser}
           anilistLastSync={anilistLastSync}
@@ -268,15 +317,6 @@ export default function Settings() {
           onAnilistConnect={handleAnilistConnect}
           onAnilistDisconnect={handleAnilistDisconnect}
           onAnilistSyncNow={handleAnilistSyncNow}
-          anilistAutoSyncEnabled={anilistAutoSyncEnabled}
-          onAnilistAutoSyncChange={handleAnilistAutoSyncChange}
-          nautiljonAutoSyncEnabled={nautiljonAutoSyncEnabled}
-          onNautiljonAutoSyncChange={handleNautiljonAutoSyncChange}
-          nautiljonAutoSyncIncludeTomes={nautiljonAutoSyncIncludeTomes}
-          onNautiljonIncludeTomesChange={handleNautiljonIncludeTomesChange}
-          globalSyncInterval={globalSyncInterval}
-          globalSyncUpdating={globalSyncUpdating}
-          onGlobalSyncIntervalChange={handleGlobalSyncIntervalChange}
           imageSource={imageSource}
           onImageSourceChange={handleImageSourceChange}
           groqApiKey={groqApiKey}
@@ -285,8 +325,176 @@ export default function Settings() {
           onAutoTranslateChange={handleAutoTranslateChange}
           showToast={showToast}
           animeImportResult={animeImportResult}
-          sectionStates={sectionStates}
-          onSectionStateChange={setSectionState}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'integrations-anilist',
+      title: 'AniList',
+      icon: '📺',
+      content: (
+        <IntegrationsSettings
+          activeService="anilist"
+          onOpenGuide={(provider) => setApiGuideProvider(provider)}
+          malConnected={malConnected}
+          malUser={malUser}
+          malLastSync={malLastSync}
+          malLastStatusSync={malLastStatusSync}
+          onMalConnect={handleMalConnect}
+          onMalDisconnect={handleMalDisconnect}
+          onMalSyncNow={handleMalSyncNow}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          imageSource={imageSource}
+          onImageSourceChange={handleImageSourceChange}
+          groqApiKey={groqApiKey}
+          onGroqApiKeyChange={handleGroqApiKeyChange}
+          autoTranslate={autoTranslate}
+          onAutoTranslateChange={handleAutoTranslateChange}
+          showToast={showToast}
+          animeImportResult={animeImportResult}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'integrations-tmdb',
+      title: 'TMDb',
+      icon: '🎬',
+      content: (
+        <IntegrationsSettings
+          activeService="tmdb"
+          onOpenGuide={(provider) => setApiGuideProvider(provider)}
+          malConnected={malConnected}
+          malUser={malUser}
+          malLastSync={malLastSync}
+          malLastStatusSync={malLastStatusSync}
+          onMalConnect={handleMalConnect}
+          onMalDisconnect={handleMalDisconnect}
+          onMalSyncNow={handleMalSyncNow}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          imageSource={imageSource}
+          onImageSourceChange={handleImageSourceChange}
+          groqApiKey={groqApiKey}
+          onGroqApiKeyChange={handleGroqApiKeyChange}
+          autoTranslate={autoTranslate}
+          onAutoTranslateChange={handleAutoTranslateChange}
+          showToast={showToast}
+          animeImportResult={animeImportResult}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'integrations-groq',
+      title: 'Groq',
+      icon: '🧠',
+      content: (
+        <IntegrationsSettings
+          activeService="groq"
+          onOpenGuide={(provider) => setApiGuideProvider(provider)}
+          malConnected={malConnected}
+          malUser={malUser}
+          malLastSync={malLastSync}
+          malLastStatusSync={malLastStatusSync}
+          onMalConnect={handleMalConnect}
+          onMalDisconnect={handleMalDisconnect}
+          onMalSyncNow={handleMalSyncNow}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          imageSource={imageSource}
+          onImageSourceChange={handleImageSourceChange}
+          groqApiKey={groqApiKey}
+          onGroqApiKeyChange={handleGroqApiKeyChange}
+          autoTranslate={autoTranslate}
+          onAutoTranslateChange={handleAutoTranslateChange}
+          showToast={showToast}
+          animeImportResult={animeImportResult}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'integrations-rawg',
+      title: 'RAWG',
+      icon: '🎮',
+      content: (
+        <IntegrationsSettings
+          activeService="rawg"
+          onOpenGuide={(provider) => setApiGuideProvider(provider)}
+          malConnected={malConnected}
+          malUser={malUser}
+          malLastSync={malLastSync}
+          malLastStatusSync={malLastStatusSync}
+          onMalConnect={handleMalConnect}
+          onMalDisconnect={handleMalDisconnect}
+          onMalSyncNow={handleMalSyncNow}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          imageSource={imageSource}
+          onImageSourceChange={handleImageSourceChange}
+          groqApiKey={groqApiKey}
+          onGroqApiKeyChange={handleGroqApiKeyChange}
+          autoTranslate={autoTranslate}
+          onAutoTranslateChange={handleAutoTranslateChange}
+          showToast={showToast}
+          animeImportResult={animeImportResult}
+        />
+      ),
+      span: 2
+    },
+    {
+      id: 'integrations-adulte-game',
+      title: 'Jeux adultes',
+      icon: '🕹️',
+      content: (
+        <IntegrationsSettings
+          activeService="adulte-game"
+          onOpenGuide={(provider) => setApiGuideProvider(provider)}
+          malConnected={malConnected}
+          malUser={malUser}
+          malLastSync={malLastSync}
+          malLastStatusSync={malLastStatusSync}
+          onMalConnect={handleMalConnect}
+          onMalDisconnect={handleMalDisconnect}
+          onMalSyncNow={handleMalSyncNow}
+          anilistConnected={anilistConnected}
+          anilistUser={anilistUser}
+          anilistLastSync={anilistLastSync}
+          anilistLastStatusSync={anilistLastStatusSync}
+          onAnilistConnect={handleAnilistConnect}
+          onAnilistDisconnect={handleAnilistDisconnect}
+          onAnilistSyncNow={handleAnilistSyncNow}
+          imageSource={imageSource}
+          onImageSourceChange={handleImageSourceChange}
+          groqApiKey={groqApiKey}
+          onGroqApiKeyChange={handleGroqApiKeyChange}
+          autoTranslate={autoTranslate}
+          onAutoTranslateChange={handleAutoTranslateChange}
+          showToast={showToast}
+          animeImportResult={animeImportResult}
         />
       ),
       span: 2
@@ -314,6 +522,20 @@ export default function Settings() {
       span: 2
     },
     {
+      id: 'cloud-sync',
+      title: 'Synchronisation Cloud',
+      icon: '☁️',
+      content: (
+        <CloudSyncSettings
+          showToast={showToast}
+          onOpenGuide={() => setApiGuideProvider('cloudSync')}
+          sectionStates={sectionStates}
+          onSectionStateChange={setSectionState}
+        />
+      ),
+      span: 2
+    },
+    {
       id: 'source-credits',
       title: 'Sources & crédits',
       icon: '📚',
@@ -332,8 +554,20 @@ export default function Settings() {
         />
       ),
       span: 2
+    },
+    {
+      id: 'danger-zone',
+      title: 'Zone dangereuse',
+      icon: '⚠️',
+      content: (
+        <DangerZone
+          onDeleteUserData={handleDeleteUserData}
+          onDeleteAllData={handleDeleteAllData}
+        />
+      ),
+      span: 2
     }
-  ], [notificationHeaderActions, showToast, users, userAvatars, loadSettings, confirm, theme, autoLaunch, contentPrefs, handleThemeChange, handleAutoLaunchChange, handleContentPrefChange, tmdbLanguage, tmdbRegion, handleTmdbLanguageChange, handleTmdbRegionChange, setShowMangaDisplayModal, setShowAnimeDisplayModal, setShowMovieDisplayModal, setShowSeriesDisplayModal, setShowAdulteGameDisplayModal, setShowRawgGameDisplayModal, globalSyncInterval, malConnected, malUser, malLastSync, malLastStatusSync, handleMalConnect, handleMalDisconnect, handleMalSyncNow, malAutoSyncEnabled, handleMalAutoSyncChange, nautiljonAutoSyncEnabled, handleNautiljonAutoSyncChange, nautiljonAutoSyncIncludeTomes, handleNautiljonIncludeTomesChange, globalSyncUpdating, handleGlobalSyncIntervalChange, imageSource, handleImageSourceChange, groqApiKey, handleGroqApiKeyChange, autoTranslate, handleAutoTranslateChange, animeImportResult, sectionStates, setSectionState, baseDirectory, exporting, importing, showSuccess, showExportSuccess, showImportSuccess, handleChangeBaseDirectory, handleExport, handleImport, handleOpenDevMergeModal, devMergeLoading]);
+  ], [notificationHeaderActions, showToast, users, userAvatars, loadSettings, confirm, theme, autoLaunch, contentPrefs, handleThemeChange, handleAutoLaunchChange, handleContentPrefChange, tmdbLanguage, tmdbRegion, handleTmdbLanguageChange, handleTmdbRegionChange, globalSyncInterval, malConnected, malUser, malLastSync, malLastStatusSync, handleMalConnect, handleMalDisconnect, handleMalSyncNow, malAutoSyncEnabled, handleMalAutoSyncChange, anilistConnected, anilistUser, anilistLastSync, anilistLastStatusSync, handleAnilistConnect, handleAnilistDisconnect, handleAnilistSyncNow, anilistAutoSyncEnabled, handleAnilistAutoSyncChange, nautiljonAutoSyncEnabled, handleNautiljonAutoSyncChange, nautiljonAutoSyncIncludeTomes, handleNautiljonIncludeTomesChange, globalSyncUpdating, handleGlobalSyncIntervalChange, imageSource, handleImageSourceChange, groqApiKey, handleGroqApiKeyChange, autoTranslate, handleAutoTranslateChange, animeImportResult, sectionStates, setSectionState, baseDirectory, exporting, importing, showSuccess, showExportSuccess, showImportSuccess, handleChangeBaseDirectory, handleExport, handleImport, handleOpenDevMergeModal, devMergeLoading, handleDeleteUserData, handleDeleteAllData]);
 
   if (loading) {
     return (
@@ -360,484 +594,149 @@ export default function Settings() {
           paddingRight: '40px'
         }}
       >
-        <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '0' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '700', marginBottom: '24px' }}>
           ⚙️ Paramètres
         </h1>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
-          {sectionDescriptors.map(({ id, title, icon, content, headerActions }) => (
-            <div
-              key={id}
+        {/* Barre d'onglets principaux */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border)',
+          gap: '0'
+        }}>
+          {tabGroups.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                // Si pas de sous-onglet actif pour cet onglet, définir le premier par défaut
+                if (!activeSubTab[tab.id]) {
+                  setActiveSubTab(prev => ({ ...prev, [tab.id]: tab.sections[0].id }));
+                }
+              }}
               style={{
-                width: '100%'
+                padding: '12px 24px',
+                border: 'none',
+                background: 'transparent',
+                borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
+                color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: activeTab === tab.id ? '600' : '400',
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                top: '1px'
+              }}
+              onMouseEnter={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.color = 'var(--text)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== tab.id) {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }
               }}
             >
-              <CollapsibleSection
-                id={id}
-                title={title}
-                defaultIcon={icon}
-                isOpen={sectionStates[id] ?? true}
-                onToggle={() => toggleSection(id)}
-                headerActions={headerActions}
-              >
-                {content}
-              </CollapsibleSection>
-            </div>
+              {tab.label}
+            </button>
           ))}
         </div>
 
-        {/* Section Danger Zone (pleine largeur, pliée par défaut) */}
-        <DangerZone
-          onDeleteUserData={handleDeleteUserData}
-          onDeleteAllData={handleDeleteAllData}
-          isOpen={sectionStates['danger-zone'] ?? false}
-          onToggle={() => setSectionState('danger-zone', !(sectionStates['danger-zone'] ?? false))}
-        />
+        {/* Barre de sous-onglets */}
+        {(() => {
+          const currentTab = tabGroups.find(tab => tab.id === activeTab);
+          if (!currentTab) return null;
+
+          const currentSubTab = activeSubTab[activeTab] || currentTab.sections[0].id;
+
+          return (
+            <div style={{
+              display: 'flex',
+              marginBottom: '24px',
+              gap: '8px',
+              flexWrap: 'wrap'
+            }}>
+              {currentTab.sections.map((subTab) => (
+                <button
+                  key={subTab.id}
+                  onClick={() => setActiveSubTab(prev => ({ ...prev, [activeTab]: subTab.id }))}
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    background: currentSubTab === subTab.id ? 'var(--surface-light)' : 'transparent',
+                    borderBottom: currentSubTab === subTab.id ? '2px solid var(--primary)' : '2px solid transparent',
+                    color: currentSubTab === subTab.id ? 'var(--primary)' : 'var(--text-secondary)',
+                    fontWeight: currentSubTab === subTab.id ? '600' : '400',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    transition: 'all 0.2s ease',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentSubTab !== subTab.id) {
+                      e.currentTarget.style.color = 'var(--text)';
+                      e.currentTarget.style.background = 'var(--surface-light)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentSubTab !== subTab.id) {
+                      e.currentTarget.style.color = 'var(--text-secondary)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <span>{subTab.icon}</span>
+                  {subTab.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Contenu du sous-onglet actif */}
+        <div style={{ width: '100%' }}>
+          {(() => {
+            const currentTab = tabGroups.find(tab => tab.id === activeTab);
+            if (!currentTab) return null;
+
+            const currentSubTab = activeSubTab[activeTab] || currentTab.sections[0].id;
+            const section = sectionDescriptors.find(s => s.id === currentSubTab);
+
+            if (!section) return null;
+
+            return (
+              <div style={{ width: '100%' }}>
+                {section.headerActions && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '20px',
+                    ...(section.id === 'notifications' ? {} : {
+                      padding: '16px 20px',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px'
+                    })
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)' }}>
+                        {section.icon} {section.title}
+                      </span>
+                    </div>
+                    {section.headerActions}
+                  </div>
+                )}
+                {section.content}
+              </div>
+            );
+          })()}
+        </div>
       </div>
-
-      {showMangaDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des mangas"
-          description="Activez ou désactivez les sections visibles sur les fiches mangas."
-          fields={[
-            {
-              title: 'Informations principales',
-              icon: '📚',
-              fields: [
-                { key: 'couverture', label: 'Couverture' },
-                { key: 'titre', label: 'Titre' },
-                { key: 'description', label: 'Description / Synopsis' },
-                { key: 'titres_alternatifs', label: 'Titres alternatifs' }
-              ]
-            },
-            {
-              title: 'Publication',
-              icon: '📅',
-              fields: [
-                { key: 'annee_publication', label: 'Année de publication (VO)' },
-                { key: 'annee_vf', label: 'Année de publication (VF)' },
-                { key: 'date_debut', label: 'Date de début' },
-                { key: 'date_fin', label: 'Date de fin' },
-                { key: 'statut_publication', label: 'Statut de publication (VO)' },
-                { key: 'statut_publication_vf', label: 'Statut de publication (VF)' }
-              ]
-            },
-            {
-              title: 'Volumes et chapitres',
-              icon: '📖',
-              fields: [
-                { key: 'nb_volumes', label: 'Nombre de volumes (VO)' },
-                { key: 'nb_volumes_vf', label: 'Nombre de volumes (VF)' },
-                { key: 'nb_chapitres', label: 'Nombre de chapitres (VO)' },
-                { key: 'nb_chapitres_vf', label: 'Nombre de chapitres (VF)' },
-                { key: 'type_volume', label: 'Type de volume' }
-              ]
-            },
-            {
-              title: 'Classification',
-              icon: '🏷️',
-              fields: [
-                { key: 'genres', label: 'Genres' },
-                { key: 'themes', label: 'Thèmes' },
-                { key: 'demographie', label: 'Démographie' },
-                { key: 'rating', label: 'Classification / Rating' },
-                { key: 'media_type', label: 'Type de média' }
-              ]
-            },
-            {
-              title: 'Édition',
-              icon: '🏢',
-              fields: [
-                { key: 'editeur', label: 'Éditeur (VF)' },
-                { key: 'editeur_vo', label: 'Éditeur (VO)' },
-                { key: 'serialization', label: 'Sérialisation' },
-                { key: 'langue_originale', label: 'Langue originale' }
-              ]
-            },
-            {
-              title: 'Créateurs',
-              icon: '👤',
-              fields: [
-                { key: 'auteurs', label: 'Auteurs' }
-              ]
-            },
-            {
-              title: 'MyAnimeList',
-              icon: '🔗',
-              fields: [
-                { key: 'mal_id', label: 'ID MyAnimeList' },
-                { key: 'mal_block', label: 'Bloc MyAnimeList' }
-              ]
-            },
-            {
-              title: 'Sections de la fiche',
-              icon: '🗂️',
-              fields: [
-                { key: 'section_costs', label: 'Coûts & propriétaires' },
-                { key: 'section_progression', label: 'Progression de lecture' },
-                { key: 'section_chapitres', label: 'Gestion des chapitres' },
-                { key: 'section_tomes', label: 'Liste des tomes' }
-              ]
-            },
-            {
-              title: 'Personnalisation',
-              icon: '🏷️',
-              fields: [
-                { key: 'labels', label: 'Labels personnalisés' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getMangaDisplaySettings?.();
-            return prefs || {};
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveMangaDisplaySettings?.(prefs);
-          }}
-          onSave={() => {
-            setShowMangaDisplayModal(false);
-          }}
-          onClose={() => setShowMangaDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showAnimeDisplayModal && (
-        <DisplaySettingsModal
-          title="Paramètres d'affichage des animés"
-          description="Choisissez les informations visibles par défaut sur les fiches animés"
-          fields={ANIME_DISPLAY_FIELD_CATEGORIES}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getAnimeDisplaySettings?.();
-            return prefs || {};
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveAnimeDisplaySettings?.(prefs);
-          }}
-          onClose={() => setShowAnimeDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showMovieDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des films"
-          description="Activez ou désactivez les sections visibles sur les fiches films."
-          fields={[
-            {
-              title: 'Présentation',
-              icon: '🎬',
-              fields: [
-                { key: 'banner', label: 'Bannière & affiches' },
-                { key: 'synopsis', label: 'Synopsis' }
-              ]
-            },
-            {
-              title: 'Métadonnées',
-              icon: '📊',
-              fields: [
-                { key: 'metadata', label: 'Informations principales' }
-              ]
-            },
-            {
-              title: 'Médias',
-              icon: '🎞️',
-              fields: [
-                { key: 'videos', label: 'Bandes-annonces' },
-                { key: 'images', label: 'Galerie d\'images' }
-              ]
-            },
-            {
-              title: 'Découverte',
-              icon: '✨',
-              fields: [
-                { key: 'recommendations', label: 'Recommandations & similaires' },
-                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getMovieDisplaySettings?.();
-            return prefs || {
-              banner: true,
-              synopsis: true,
-              metadata: true,
-              videos: true,
-              images: true,
-              recommendations: true,
-              externalLinks: true
-            };
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveMovieDisplaySettings?.(prefs);
-          }}
-          onSave={() => {
-            setShowMovieDisplayModal(false);
-          }}
-          onClose={() => setShowMovieDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showSeriesDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des séries"
-          description="Activez ou désactivez les sections visibles sur les fiches séries."
-          fields={[
-            {
-              title: 'Présentation',
-              icon: '📺',
-              fields: [
-                { key: 'banner', label: 'Bannière & affiches' },
-                { key: 'synopsis', label: 'Synopsis' },
-                { key: 'nextEpisode', label: 'Prochain épisode' }
-              ]
-            },
-            {
-              title: 'Métadonnées',
-              icon: '📊',
-              fields: [
-                { key: 'metadata', label: 'Informations principales' }
-              ]
-            },
-            {
-              title: 'Contenu',
-              icon: '🎬',
-              fields: [
-                { key: 'seasons', label: 'Saisons' },
-                { key: 'episodes', label: 'Épisodes' }
-              ]
-            },
-            {
-              title: 'Médias',
-              icon: '🎞️',
-              fields: [
-                { key: 'videos', label: 'Bandes-annonces' },
-                { key: 'images', label: 'Galerie d\'images' }
-              ]
-            },
-            {
-              title: 'Découverte',
-              icon: '✨',
-              fields: [
-                { key: 'externalLinks', label: 'Liens externes (IMDb, site officiel...)' },
-                { key: 'recommendations', label: 'Recommandations TMDb' }
-              ]
-            },
-            {
-              title: 'Progression',
-              icon: '📊',
-              fields: [
-                { key: 'progression', label: 'Section progression utilisateur' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getSeriesDisplaySettings?.();
-            return prefs || {
-              banner: true,
-              synopsis: true,
-              nextEpisode: true,
-              metadata: true,
-              seasons: true,
-              episodes: true,
-              externalLinks: true,
-              videos: true,
-              images: true,
-              progression: true,
-              recommendations: true
-            };
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveSeriesDisplaySettings?.(prefs);
-            // Déclencher un événement pour recharger les préférences dans les pages de détails
-            window.dispatchEvent(new CustomEvent('series-display-settings-changed'));
-          }}
-          onSave={() => {
-            setShowSeriesDisplayModal(false);
-          }}
-          onClose={() => setShowSeriesDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showBooksDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des livres"
-          description="Activez ou désactivez les sections visibles sur les fiches livres."
-          fields={[
-            {
-              title: 'Informations principales',
-              icon: '📚',
-              fields: [
-                { key: 'titre', label: 'Titre' },
-                { key: 'auteur', label: 'Auteur' },
-                { key: 'description', label: 'Description' },
-                { key: 'type_livre', label: 'Type de livre' },
-                { key: 'editeur', label: 'Éditeur' },
-                { key: 'date_publication', label: 'Date de publication' },
-                { key: 'nombre_pages', label: 'Nombre de pages' },
-                { key: 'isbn', label: 'ISBN' },
-                { key: 'langue', label: 'Langue' },
-                { key: 'genres', label: 'Genres' },
-                { key: 'score', label: 'Note moyenne' },
-                { key: 'prix', label: 'Prix suggéré' }
-              ]
-            },
-            {
-              title: 'Coûts',
-              icon: '💰',
-              fields: [
-                { key: 'costs', label: 'Coûts par propriétaire' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getBooksDisplaySettings?.();
-            return prefs || {
-              titre: true,
-              auteur: true,
-              description: true,
-              type_livre: true,
-              editeur: true,
-              date_publication: true,
-              nombre_pages: true,
-              isbn: true,
-              langue: true,
-              genres: true,
-              score: true,
-              prix: true,
-              costs: true
-            };
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveBooksDisplaySettings?.(prefs);
-            window.dispatchEvent(new CustomEvent('book-display-settings-updated'));
-          }}
-          onSave={() => {
-            setShowBooksDisplayModal(false);
-          }}
-          onClose={() => setShowBooksDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showAdulteGameDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des jeux adultes"
-          description="Activez ou désactivez les sections visibles sur les fiches jeux adultes."
-          fields={ADULTE_GAME_DISPLAY_CATEGORIES as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getAdulteGameDisplaySettings?.();
-            return prefs || ADULTE_GAME_DISPLAY_DEFAULTS;
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveAdulteGameDisplaySettings?.(prefs);
-          }}
-          onSave={() => {
-            window.dispatchEvent(new CustomEvent('adulte-game-display-settings-updated'));
-            setShowAdulteGameDisplayModal(false);
-          }}
-          onClose={() => setShowAdulteGameDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
-
-      {showRawgGameDisplayModal && (
-        <DisplaySettingsModal
-          title="Affichage des jeux vidéo"
-          description="Activez ou désactivez les sections visibles sur les fiches jeux vidéo (RAWG)."
-          fields={[
-            {
-              title: 'Présentation',
-              icon: '🎮',
-              fields: [
-                { key: 'banner', label: 'Bannière' },
-                { key: 'description', label: 'Description' },
-                { key: 'labels', label: 'Labels personnalisés' }
-              ]
-            },
-            {
-              title: 'Métadonnées',
-              icon: '📊',
-              fields: [
-                { key: 'metadata', label: 'Informations principales' },
-                { key: 'ratings', label: 'Notes et évaluations' },
-                { key: 'platforms', label: 'Plateformes' },
-                { key: 'genres', label: 'Genres' },
-                { key: 'tags', label: 'Tags' },
-                { key: 'developers', label: 'Développeurs' },
-                { key: 'publishers', label: 'Éditeurs' }
-              ]
-            },
-            {
-              title: 'Achat et disponibilité',
-              icon: '🛒',
-              fields: [
-                { key: 'stores', label: 'Boutiques' },
-                { key: 'requirements', label: 'Exigences système' }
-              ]
-            },
-            {
-              title: 'Médias',
-              icon: '🎞️',
-              fields: [
-                { key: 'screenshots', label: 'Captures d\'écran' },
-                { key: 'movies', label: 'Vidéos' },
-                { key: 'videos', label: 'Vidéos utilisateur' },
-                { key: 'images', label: 'Images utilisateur' }
-              ]
-            },
-            {
-              title: 'Communauté',
-              icon: '👥',
-              fields: [
-                { key: 'community', label: 'Statistiques communautaires' },
-                { key: 'externalLinks', label: 'Liens externes' }
-              ]
-            }
-          ] as DisplayFieldCategory[]}
-          mode="global"
-          loadGlobalPrefs={async () => {
-            const prefs = await window.electronAPI.getRawgGameDisplaySettings?.();
-            return prefs || {
-              banner: true,
-              description: true,
-              labels: true,
-              metadata: true,
-              ratings: true,
-              platforms: true,
-              genres: true,
-              tags: true,
-              developers: true,
-              publishers: true,
-              stores: true,
-              requirements: true,
-              screenshots: true,
-              movies: true,
-              videos: true,
-              images: true,
-              community: true,
-              externalLinks: true
-            };
-          }}
-          saveGlobalPrefs={async (prefs) => {
-            await window.electronAPI.saveRawgGameDisplaySettings?.(prefs);
-          }}
-          onSave={() => {
-            window.dispatchEvent(new CustomEvent('rawg-game-display-settings-updated'));
-            setShowRawgGameDisplayModal(false);
-          }}
-          onClose={() => setShowRawgGameDisplayModal(false)}
-          showToast={showToast}
-        />
-      )}
 
       {apiGuideProvider && (
         <ApiKeyGuideModal

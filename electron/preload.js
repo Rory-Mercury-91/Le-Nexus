@@ -53,12 +53,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLectureStatistics: () => ipcRenderer.invoke('get-lecture-statistics'),
   getRecentProgress: () => ipcRenderer.invoke('get-recent-progress'),
 
-  // Préférences d'affichage mangas
-  getMangaDisplaySettings: () => ipcRenderer.invoke('get-manga-display-settings'),
-  saveMangaDisplaySettings: (prefs) => ipcRenderer.invoke('save-manga-display-settings', prefs),
-  getMangaDisplayOverrides: (mangaId) => ipcRenderer.invoke('get-manga-display-overrides', mangaId),
-  saveMangaDisplayOverrides: (mangaId, prefs) => ipcRenderer.invoke('save-manga-display-overrides', mangaId, prefs),
-  deleteMangaDisplayOverrides: (mangaId, champKeys) => ipcRenderer.invoke('delete-manga-display-overrides', mangaId, champKeys),
 
   // Enrichissement mangas
   getMangaEnrichmentConfig: () => ipcRenderer.invoke('get-manga-enrichment-config'),
@@ -151,12 +145,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteStreamingLink: (linkId) => ipcRenderer.invoke('delete-streaming-link', linkId),
   addExternalLink: (animeId, linkData) => ipcRenderer.invoke('add-external-link', animeId, linkData),
 
-  // Préférences d'affichage animés
-  getAnimeDisplaySettings: () => ipcRenderer.invoke('get-anime-display-settings'),
-  saveAnimeDisplaySettings: (prefs) => ipcRenderer.invoke('save-anime-display-settings', prefs),
-  getAnimeDisplayOverrides: (animeId) => ipcRenderer.invoke('get-anime-display-overrides', animeId),
-  saveAnimeDisplayOverrides: (animeId, prefs) => ipcRenderer.invoke('save-anime-display-overrides', animeId, prefs),
-  deleteAnimeDisplayOverrides: (animeId, champKeys) => ipcRenderer.invoke('delete-anime-display-overrides', animeId, champKeys),
 
   // Enrichissement animes
   getAnimeImageSource: () => ipcRenderer.invoke('get-anime-image-source'),
@@ -198,8 +186,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveMediaSyncSettings: (config) => ipcRenderer.invoke('save-media-sync-settings', config),
 
   // Movies
-  getMovieDisplaySettings: () => ipcRenderer.invoke('get-movie-display-settings'),
-  saveMovieDisplaySettings: (prefs) => ipcRenderer.invoke('save-movie-display-settings', prefs),
   syncMovieFromTmdb: (tmdbId, options = {}) => ipcRenderer.invoke('movies-sync-from-tmdb', { tmdbId, ...options }),
   getMovies: (filters) => ipcRenderer.invoke('movies-get', filters),
   getMovieDetail: (identifiers) => ipcRenderer.invoke('movies-get-detail', identifiers),
@@ -225,11 +211,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVideoTracks: (filePath) => ipcRenderer.invoke('get-video-tracks', filePath),
 
   // TV Shows
-  getSeriesDisplaySettings: () => ipcRenderer.invoke('get-series-display-settings'),
-  saveSeriesDisplaySettings: (prefs) => ipcRenderer.invoke('save-series-display-settings', prefs),
-  getSeriesDisplayOverrides: (showId) => ipcRenderer.invoke('get-series-display-overrides', showId),
-  saveSeriesDisplayOverrides: (showId, prefs) => ipcRenderer.invoke('save-series-display-overrides', showId, prefs),
-  deleteSeriesDisplayOverrides: (showId, keys) => ipcRenderer.invoke('delete-series-display-overrides', showId, keys),
   syncTvShowFromTmdb: (tmdbId, options = {}) => ipcRenderer.invoke('tv-sync-from-tmdb', { tmdbId, ...options }),
   getTvShows: (filters) => ipcRenderer.invoke('tv-get', filters),
   getTvShowDetail: (identifiers) => ipcRenderer.invoke('tv-get-detail', identifiers),
@@ -272,14 +253,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ========== BOOKS ==========
   booksGet: (filters) => ipcRenderer.invoke('books-get', filters),
   booksGetDetail: (bookId) => ipcRenderer.invoke('books-get-detail', bookId),
-  
+
   // ========== LECTURES ==========
   getAvailableContentTypes: () => ipcRenderer.invoke('get-available-content-types'),
-  
+
   // ========== COMICS ==========
   comicsSearch: (payload) => ipcRenderer.invoke('comics-search', payload),
   comicsImportFromGoogleBooks: (googleBooksId) => ipcRenderer.invoke('comics-import-from-google-books', googleBooksId),
-  
+
   // ========== BD ==========
   bdSearch: (payload) => ipcRenderer.invoke('bd-search', payload),
   bdImportFromBnf: (bnfId) => ipcRenderer.invoke('bd-import-from-bnf', bnfId),
@@ -299,11 +280,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addBookLabel: (bookId, label, color) => ipcRenderer.invoke('add-book-label', bookId, label, color),
   removeBookLabel: (bookId, label) => ipcRenderer.invoke('remove-book-label', bookId, label),
   updateBookLabels: (bookId, labels) => ipcRenderer.invoke('update-book-labels', bookId, labels),
-  getBooksDisplaySettings: () => ipcRenderer.invoke('get-books-display-settings'),
-  saveBooksDisplaySettings: (prefs) => ipcRenderer.invoke('save-books-display-settings', prefs),
-  getBooksDisplayOverrides: (bookId) => ipcRenderer.invoke('get-books-display-overrides', bookId),
-  saveBooksDisplayOverrides: (bookId, overrides) => ipcRenderer.invoke('save-books-display-overrides', bookId, overrides),
-  deleteBooksDisplayOverrides: (bookId, keys) => ipcRenderer.invoke('delete-books-display-overrides', bookId, keys),
   booksAddProprietaire: (payload) => ipcRenderer.invoke('books-add-proprietaire', payload),
   booksRemoveProprietaire: (payload) => ipcRenderer.invoke('books-remove-proprietaire', payload),
   booksMarkAsRead: (bookId) => ipcRenderer.invoke('books-mark-as-read', bookId),
@@ -332,7 +308,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllAdulteGameLabels: () => ipcRenderer.invoke('get-all-adulte-game-labels'),
   addAdulteGameLabel: (gameId, label, color) => ipcRenderer.invoke('add-adulte-game-label', gameId, label, color),
   removeAdulteGameLabel: (gameId, label) => ipcRenderer.invoke('remove-adulte-game-label', gameId, label),
-  
+
   // Possession des jeux
   adulteGameMarkAsOwned: (payload) => ipcRenderer.invoke('adulte-game-mark-as-owned', payload),
   adulteGameGetOwners: (gameId) => ipcRenderer.invoke('adulte-game-get-owners', gameId),
@@ -379,12 +355,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAdulteGameNotes: (gameId, notes) => ipcRenderer.invoke('update-adulte-game-notes', gameId, notes),
   searchAdulteGameByLewdCornerId: (lewdcornerId) => ipcRenderer.invoke('search-adulte-game-by-lewdcorner-id', lewdcornerId),
 
-  // Préférences d'affichage jeux adultes
-  getAdulteGameDisplaySettings: () => ipcRenderer.invoke('get-adulte-game-display-settings'),
-  saveAdulteGameDisplaySettings: (prefs) => ipcRenderer.invoke('save-adulte-game-display-settings', prefs),
-  getAdulteGameDisplayOverrides: (gameId) => ipcRenderer.invoke('get-adulte-game-display-overrides', gameId),
-  saveAdulteGameDisplayOverrides: (gameId, prefs) => ipcRenderer.invoke('save-adulte-game-display-overrides', gameId, prefs),
-  deleteAdulteGameDisplayOverrides: (gameId, champKeys) => ipcRenderer.invoke('delete-adulte-game-display-overrides', gameId, champKeys),
 
   // Sélection de fichiers jeux adultes
   selectAdulteGameExecutable: () => ipcRenderer.invoke('select-adulte-game-executable'),
@@ -403,12 +373,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   enrichGameFromRawg: (gameId, rawgId, autoTranslate) => ipcRenderer.invoke('games-enrich-from-rawg', { gameId, rawgId, autoTranslate }),
   createGameFromRawg: (rawgId, autoTranslate) => ipcRenderer.invoke('create-game-from-rawg', { rawgId, autoTranslate }),
   getRawgGameDetail: (gameId) => ipcRenderer.invoke('get-rawg-game-detail', gameId),
-  getRawgGameDisplaySettings: () => ipcRenderer.invoke('get-rawg-game-display-settings'),
-  saveRawgGameDisplaySettings: (prefs) => ipcRenderer.invoke('save-rawg-game-display-settings', prefs),
-  getRawgGameDisplayOverrides: (gameId) => ipcRenderer.invoke('get-rawg-game-display-overrides', gameId),
-  saveRawgGameDisplayOverrides: (gameId, overrides) => ipcRenderer.invoke('save-rawg-game-display-overrides', gameId, overrides),
-  deleteRawgGameDisplayOverrides: (gameId, keys) => ipcRenderer.invoke('delete-rawg-game-display-overrides', gameId, keys),
-  
+
   // Galerie d'images et vidéos utilisateur pour jeux RAWG
   addRawgGameUserImageUrl: (gameId, imageUrl, title) => ipcRenderer.invoke('add-rawg-game-user-image-url', gameId, imageUrl, title),
   addRawgGameUserImageFile: (gameId, title) => ipcRenderer.invoke('add-rawg-game-user-image-file', gameId, title),
@@ -447,6 +412,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDevMode: (enabled) => ipcRenderer.invoke('set-dev-mode', enabled),
   getVerboseLogging: () => ipcRenderer.invoke('get-verbose-logging'),
   setVerboseLogging: (enabled) => ipcRenderer.invoke('set-verbose-logging', enabled),
+  exportApiKeys: () => ipcRenderer.invoke('export-api-keys'),
+  importApiKeys: () => ipcRenderer.invoke('import-api-keys'),
   getDevMergePreview: (payload) => ipcRenderer.invoke('dev-merge-preview', payload),
   performDevMerge: (payload) => ipcRenderer.invoke('dev-merge-apply', payload),
   onBackendLog: (callback) => {
@@ -549,7 +516,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('anilist-sync-error', subscription);
     return () => ipcRenderer.removeListener('anilist-sync-error', subscription);
   },
+  onCloudSyncProgress: (callback) => {
+    const subscription = (_event, data) => callback(_event, data);
+    ipcRenderer.on('cloud-sync-progress', subscription);
+    return () => ipcRenderer.removeListener('cloud-sync-progress', subscription);
+  },
   openTampermonkeyInstallation: () => ipcRenderer.invoke('open-tampermonkey-installation'),
+
+  // Cloud Sync (Cloudflare R2)
+  getCloudSyncConfig: () => ipcRenderer.invoke('get-cloud-sync-config'),
+  getUserNameFromUuid: (uuid) => ipcRenderer.invoke('get-user-name-from-uuid', uuid),
+  getCloudSyncHistory: () => ipcRenderer.invoke('get-cloud-sync-history'),
+  saveCloudSyncConfig: (config) => ipcRenderer.invoke('save-cloud-sync-config', config),
+  testCloudSyncConnection: (config) => ipcRenderer.invoke('test-cloud-sync-connection', config),
+  getCurrentUserUuid: () => ipcRenderer.invoke('get-current-user-uuid'),
+  listCloudSyncDatabases: () => ipcRenderer.invoke('list-cloud-sync-databases'),
+  uploadCloudSyncDatabase: () => ipcRenderer.invoke('upload-cloud-sync-database'),
+  downloadCloudSyncDatabase: (uuid) => ipcRenderer.invoke('download-cloud-sync-database', uuid),
+  performCloudSync: () => ipcRenderer.invoke('perform-cloud-sync'),
+  generateAllUserUUIDs: () => ipcRenderer.invoke('generate-all-user-uuids'),
+  exportCloudSyncConfig: () => ipcRenderer.invoke('export-cloud-sync-config'),
+  importCloudSyncConfig: () => ipcRenderer.invoke('import-cloud-sync-config'),
 
   // Backup automatique
   getBackupConfig: () => ipcRenderer.invoke('get-backup-config'),

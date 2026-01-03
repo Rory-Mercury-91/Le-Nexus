@@ -6,9 +6,6 @@ import { useToast } from '../common/useToast';
 import { useDetailPage } from './useDetailPage';
 import { useMangaTomes } from './useMangaTomes';
 
-type MangaDisplayPrefs = Record<string, boolean>;
-
-const mangaDisplayDefaults: MangaDisplayPrefs = {};
 
 export function useMangaDetail() {
   const { id } = useParams();
@@ -22,15 +19,6 @@ export function useMangaDetail() {
     return data || null;
   }, []);
 
-  const loadDisplaySettingsApi = useCallback(async () => {
-    const result = await window.electronAPI.getMangaDisplaySettings?.();
-    return result || null;
-  }, []);
-
-  const loadDisplayOverridesApi = useCallback(async (itemId: number) => {
-    const result = await window.electronAPI.getMangaDisplayOverrides?.(itemId);
-    return result || null;
-  }, []);
 
   const isEventForCurrentItem = useCallback((event: CustomEvent, _item: Serie | null, itemId: string | undefined) => {
     const { serieId } = event.detail;
@@ -52,19 +40,13 @@ export function useMangaDetail() {
     item: serie,
     setItem: setSerie,
     loading,
-    displayPrefs,
-    showDisplaySettingsModal,
-    setShowDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
     loadDetail
-  } = useDetailPage<Serie, MangaDisplayPrefs>({
+  } = useDetailPage<Serie, Record<string, never>>({
     itemId: id,
-    displayDefaults: mangaDisplayDefaults,
+    displayDefaults: {},
     loadDetailApi,
-    displayPreferencesMode: 'global-local',
-    loadDisplaySettingsApi,
-    loadDisplayOverridesApi,
     statusEventName: 'manga-status-changed',
     isEventForCurrentItem,
     reloadAfterEvent,
@@ -409,9 +391,9 @@ export function useMangaDetail() {
     return { user, cost: userCost, tomesCount };
   }).filter(item => item.cost > 0 || item.tomesCount > 0);
 
-  const shouldShow = useCallback((field: string): boolean => {
-    return displayPrefs[field] !== false;
-  }, [displayPrefs]);
+  const shouldShow = useCallback((_field?: string): boolean => {
+    return true;
+  }, []);
 
   return {
     // Données
@@ -425,13 +407,11 @@ export function useMangaDetail() {
     users,
     currentUser,
     profileImages,
-    displayPrefs: displayPrefs as Record<string, boolean>,
 
     // États UI
     showAddTome,
     showEditSerie: showEditModal,
     editingTome,
-    showCustomizeDisplay: showDisplaySettingsModal,
     draggingTomeId,
     enriching,
 
@@ -439,7 +419,6 @@ export function useMangaDetail() {
     setShowAddTome,
     setShowEditSerie: setShowEditModal,
     setEditingTome,
-    setShowCustomizeDisplay: setShowDisplaySettingsModal,
     handleDeleteSerie,
     handleDeleteTome,
     handleStatusChange,

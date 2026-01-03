@@ -1,7 +1,6 @@
 import { ArrowLeft, Edit, Play, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import CheckUpdateButton from '../../../components/common/CheckUpdateButton';
-import { useGlobalProgress } from '../../../contexts/GlobalProgressContext';
 
 interface GameVersion {
   version: string;
@@ -53,33 +52,12 @@ export default function AdulteGameHeader({
     return STATUSES.find((s) => s.value === status)?.color || 'var(--text-secondary)';
   };
 
-  // Calculer la hauteur de la barre de progression pour ajuster le top du header
-  const {
-    malSyncing,
-    animeProgress,
-    mangaProgress,
-    translating,
-    adulteGameUpdating,
-    adulteGameProgress,
-    isProgressCollapsed
-  } = useGlobalProgress();
-  
-  const hasActiveProgress = malSyncing ||
-    animeProgress !== null ||
-    mangaProgress !== null ||
-    translating ||
-    adulteGameUpdating ||
-    adulteGameProgress !== null;
-  
-  // Calculer le top en fonction de l'état collapsed (60px si réduit, 200px si étendu)
-  const progressHeaderHeight = hasActiveProgress ? (isProgressCollapsed ? 60 : 200) : 0;
-
   return (
     <div
       className="adulte-game-detail-header"
       style={{
         position: 'fixed',
-        top: `${progressHeaderHeight}px`,
+        top: '0',
         left: '260px',
         right: 0,
         zIndex: 1000,

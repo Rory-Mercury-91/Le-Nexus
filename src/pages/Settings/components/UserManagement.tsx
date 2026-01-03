@@ -1,4 +1,4 @@
-import { Edit2, LogIn, Plus, Trash2, Upload, X } from 'lucide-react';
+import { Edit2, HelpCircle, LogIn, Plus, Trash2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import AdultContentPasswordSettings from './AdultContentPasswordSettings';
 
@@ -27,6 +27,7 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
   const [userError, setUserError] = useState('');
   const [avatarFile, setAvatarFile] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
 
   const handleEditUser = (user: UserData) => {
     setEditingUser(user);
@@ -185,32 +186,36 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
     setAvatarPreview(null);
   };
 
+  // Trier les utilisateurs pour mettre l'utilisateur connecté en premier
+  const sortedUsers = [...users].sort((a, b) => {
+    const currentUser = localStorage.getItem('currentUser');
+    if (a.name === currentUser) return -1;
+    if (b.name === currentUser) return 1;
+    return 0;
+  });
+
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', alignItems: 'start' }}>
-        {/* Colonne principale : Gestion des utilisateurs + protection */}
-        <div>
-          {!showAddUserForm && !editingUser && (
-            <button
-              onClick={() => setShowAddUserForm(true)}
-              className="btn btn-primary"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 16px',
-                fontSize: '14px',
-                marginBottom: '20px'
-              }}
-            >
-              <Plus size={18} />
-              Ajouter un utilisateur
-            </button>
-          )}
-
+      {/* Deux colonnes : Liste des utilisateurs et Protection des mots de passe */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start', marginBottom: '24px' }}>
+        {/* Colonne 1 : Liste des utilisateurs */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h3
+            style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '20px', transform: 'translateY(1px)' }}>👥</span>
+            Utilisateurs
+          </h3>
           {/* Liste des utilisateurs */}
-          <div>
-            {users.map(user => (
+          <div style={{ marginTop: '12px' }}>
+            {sortedUsers.map(user => (
               <div key={`${user.name}-${user.id}`} style={{
                 background: 'var(--surface)',
                 padding: '16px',
@@ -309,220 +314,311 @@ export default function UserManagement({ users, userAvatars, onUsersChange, show
             ))}
           </div>
 
-          {/* Formulaire d'ajout/édition */}
-          {(showAddUserForm || editingUser) && (
-            <div style={{
-              marginTop: '24px',
-              padding: '24px',
-              background: 'var(--surface)',
-              borderRadius: '12px',
-              border: '1px solid var(--border)'
-            }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
-                {editingUser ? '✏️ Modifier un utilisateur' : '➕ Ajouter un utilisateur'}
-              </h3>
+          {!showAddUserForm && !editingUser && (
+            <button
+              onClick={() => setShowAddUserForm(true)}
+              className="btn btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                fontSize: '14px',
+                marginTop: '20px',
+                alignSelf: 'flex-start'
+              }}
+            >
+              <Plus size={18} />
+              Ajouter un utilisateur
+            </button>
+          )}
+        </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    Nom
-                  </label>
-                  <input
-                    type="text"
-                    value={newUserName}
-                    onChange={(e) => setNewUserName(e.target.value)}
-                    placeholder="Prénom de l&apos;utilisateur"
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--background)',
-                      color: 'var(--text)',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    Emoji (si pas d&apos;avatar)
-                  </label>
-                  <input
-                    type="text"
-                    value={newUserEmoji}
-                    onChange={(e) => setNewUserEmoji(e.target.value)}
-                    placeholder="👤"
-                    maxLength={2}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--background)',
-                      color: 'var(--text)',
-                      fontSize: '24px',
-                      textAlign: 'center'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    Avatar personnalisé
-                  </label>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {avatarPreview && (
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        border: `2px solid ${newUserColor}`,
-                        flexShrink: 0
-                      }}>
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      </div>
-                    )}
-                    <button
-                      onClick={handleAvatarSelect}
-                      className="btn btn-outline"
-                      style={{ flex: 1 }}
-                    >
-                      <Upload size={16} />
-                      Choisir une image
-                    </button>
-                    {avatarPreview && (
-                      <button
-                        onClick={handleRemoveAvatar}
-                        className="btn"
-                        style={{
-                          padding: '8px',
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          color: 'var(--error)',
-                          border: '1px solid var(--error)'
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    )}
+        {/* Colonne 2 : Protection des mots de passe */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h3
+            style={{
+              fontSize: '18px',
+              fontWeight: '700',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '20px', transform: 'translateY(1px)' }}>🔒</span>
+            Protection des contenus adultes
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onMouseEnter={() => setIsTooltipVisible(true)}
+                onMouseLeave={() => setIsTooltipVisible(false)}
+                onFocus={() => setIsTooltipVisible(true)}
+                onBlur={() => setIsTooltipVisible(false)}
+                aria-label="Informations sur la protection des contenus adultes"
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <HelpCircle size={16} />
+              </button>
+              {isTooltipVisible && (
+                <div
+                  role="tooltip"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'var(--surface-light)',
+                    color: 'var(--text)',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
+                    border: '1px solid var(--border)',
+                    minWidth: '260px',
+                    zIndex: 20,
+                    textAlign: 'left'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>
+                    Mot de passe maître unique.
                   </div>
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    marginBottom: '8px',
-                    color: 'var(--text-secondary)'
-                  }}>
-                    Couleur
-                  </label>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={newUserColor}
-                      onChange={(e) => setNewUserColor(e.target.value)}
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        cursor: 'pointer'
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={newUserColor}
-                      onChange={(e) => setNewUserColor(e.target.value)}
-                      placeholder="#8b5cf6"
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        background: 'var(--background)',
-                        color: 'var(--text)',
-                        fontSize: '14px',
-                        fontFamily: 'monospace'
-                      }}
-                    />
+                  <div style={{ fontSize: '12px', lineHeight: 1.5 }}>
+                    Requis pour accéder aux détails 18+ (couvertures floutées par défaut).
+                    Déconnexion automatique après 30 min d'inactivité.
+                    <span style={{ display: 'block', marginTop: '6px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                      Base partagée : mot de passe propre à chaque machine.
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {userError && (
-                <div style={{
-                  marginTop: '16px',
-                  padding: '12px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  borderRadius: '8px',
-                  color: 'var(--error)',
-                  fontSize: '14px'
-                }}>
-                  {userError}
                 </div>
               )}
+            </span>
+          </h3>
+          <div style={{ marginTop: '12px' }}>
+            <AdultContentPasswordSettings showToast={showToast} noContainer={true} hideTitle={true} />
+          </div>
+        </div>
+      </div>
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+      {/* Formulaire d'ajout/édition en pleine largeur */}
+      {(showAddUserForm || editingUser) && (
+        <div style={{
+          marginTop: '24px',
+          padding: '24px',
+          background: 'var(--surface)',
+          borderRadius: '12px',
+          border: '1px solid var(--border)'
+        }}>
+          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '16px' }}>
+            {editingUser ? '✏️ Modifier un utilisateur' : '➕ Ajouter un utilisateur'}
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: 'var(--text-secondary)'
+              }}>
+                Nom
+              </label>
+              <input
+                type="text"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="Prénom de l&apos;utilisateur"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--background)',
+                  color: 'var(--text)',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: 'var(--text-secondary)'
+              }}>
+                Emoji (si pas d&apos;avatar)
+              </label>
+              <input
+                type="text"
+                value={newUserEmoji}
+                onChange={(e) => setNewUserEmoji(e.target.value)}
+                placeholder="👤"
+                maxLength={2}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--background)',
+                  color: 'var(--text)',
+                  fontSize: '24px',
+                  textAlign: 'center'
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: 'var(--text-secondary)'
+              }}>
+                Avatar personnalisé
+              </label>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                {avatarPreview && (
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    border: `2px solid ${newUserColor}`,
+                    flexShrink: 0
+                  }}>
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                )}
                 <button
-                  onClick={handleCancelEdit}
+                  onClick={handleAvatarSelect}
                   className="btn btn-outline"
                   style={{ flex: 1 }}
                 >
-                  Annuler
+                  <Upload size={16} />
+                  Choisir une image
                 </button>
-                {editingUser ? (
+                {avatarPreview && (
                   <button
-                    onClick={handleUpdateUser}
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
+                    onClick={handleRemoveAvatar}
+                    className="btn"
+                    style={{
+                      padding: '8px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: 'var(--error)',
+                      border: '1px solid var(--error)'
+                    }}
                   >
-                    <Edit2 size={16} />
-                    Modifier l&apos;utilisateur
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleCreateUser}
-                    className="btn btn-primary"
-                    style={{ flex: 1 }}
-                  >
-                    <Plus size={16} />
-                    Créer l&apos;utilisateur
+                    <X size={16} />
                   </button>
                 )}
               </div>
             </div>
+
+            <div>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: 'var(--text-secondary)'
+              }}>
+                Couleur
+              </label>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={newUserColor}
+                  onChange={(e) => setNewUserColor(e.target.value)}
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    cursor: 'pointer'
+                  }}
+                />
+                <input
+                  type="text"
+                  value={newUserColor}
+                  onChange={(e) => setNewUserColor(e.target.value)}
+                  placeholder="#8b5cf6"
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--background)',
+                    color: 'var(--text)',
+                    fontSize: '14px',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {userError && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              borderRadius: '8px',
+              color: 'var(--error)',
+              fontSize: '14px'
+            }}>
+              {userError}
+            </div>
           )}
 
-          <AdultContentPasswordSettings showToast={showToast} />
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <button
+              onClick={handleCancelEdit}
+              className="btn btn-outline"
+              style={{ flex: 1 }}
+            >
+              Annuler
+            </button>
+            {editingUser ? (
+              <button
+                onClick={handleUpdateUser}
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+              >
+                <Edit2 size={16} />
+                Modifier l&apos;utilisateur
+              </button>
+            ) : (
+              <button
+                onClick={handleCreateUser}
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+              >
+                <Plus size={16} />
+                Créer l&apos;utilisateur
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

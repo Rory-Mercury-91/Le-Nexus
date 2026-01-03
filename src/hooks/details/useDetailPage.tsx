@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type DisplayPreferencesMode = 'global' | 'global-local';
-
 export interface DetailPageConfig<T, TDisplayPrefs> {
   /** ID de l'item (depuis useParams) */
   itemId: string | undefined;
@@ -9,12 +7,6 @@ export interface DetailPageConfig<T, TDisplayPrefs> {
   displayDefaults: TDisplayPrefs;
   /** API pour charger les détails de l'item */
   loadDetailApi: (itemId: number) => Promise<T | null>;
-  /** Mode de préférences d'affichage : 'global' (simple) ou 'global-local' (avec overrides) */
-  displayPreferencesMode?: DisplayPreferencesMode;
-  /** API pour charger les préférences d'affichage globales */
-  loadDisplaySettingsApi?: () => Promise<TDisplayPrefs | null>;
-  /** API pour charger les overrides locaux (mode 'global-local') */
-  loadDisplayOverridesApi?: (itemId: number) => Promise<Partial<TDisplayPrefs> | null>;
   /** Fonction pour normaliser les données après chargement */
   normalizeData?: (data: T) => T;
   /** Nom de l'événement CustomEvent pour écouter les changements de statut */
@@ -32,11 +24,7 @@ export interface DetailPageConfig<T, TDisplayPrefs> {
 export function useDetailPage<T, TDisplayPrefs>(config: DetailPageConfig<T, TDisplayPrefs>) {
   const {
     itemId,
-    displayDefaults,
     loadDetailApi,
-    displayPreferencesMode = 'global',
-    loadDisplaySettingsApi,
-    loadDisplayOverridesApi,
     normalizeData,
     statusEventName,
     isEventForCurrentItem,
@@ -48,40 +36,7 @@ export function useDetailPage<T, TDisplayPrefs>(config: DetailPageConfig<T, TDis
   const [item, setItem] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [displayPrefs, setDisplayPrefs] = useState<TDisplayPrefs>(displayDefaults);
-  const [showDisplaySettingsModal, setShowDisplaySettingsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // Charger les préférences d'affichage
-  const refreshDisplayPrefs = useCallback(async () => {
-    if (!loadDisplaySettingsApi) return;
-    try {
-      const defaults = { ...displayDefaults };
-      const globalPrefs = await loadDisplaySettingsApi();
-
-      if (displayPreferencesMode === 'global-local' && loadDisplayOverridesApi) {
-        // Mode global-local : utiliser l'ID réel de l'item (pas le tmdbId)
-        // Pour les séries, item.id est l'ID réel, itemId est le tmdbId
-        const realItemId = item && typeof item === 'object' && 'id' in item ? (item as any).id : null;
-        if (realItemId) {
-          const localOverrides = await loadDisplayOverridesApi(realItemId);
-          // IMPORTANT : Les overrides locaux ont toujours la priorité
-          // Fusion : defaults → globales → locales (les locales écrasent les globales)
-          const merged = { ...defaults, ...globalPrefs, ...localOverrides };
-          setDisplayPrefs(merged as TDisplayPrefs);
-        } else {
-          // Pas encore chargé, utiliser les globales uniquement
-          setDisplayPrefs({ ...defaults, ...globalPrefs } as TDisplayPrefs);
-        }
-      } else {
-        // Mode global : fusionner defaults -> global
-        setDisplayPrefs({ ...defaults, ...globalPrefs } as TDisplayPrefs);
-      }
-    } catch (err) {
-      console.error('Erreur chargement préférences:', err);
-      setDisplayPrefs(displayDefaults);
-    }
-  }, [loadDisplaySettingsApi, loadDisplayOverridesApi, displayDefaults, displayPreferencesMode, item]);
 
   // Charger les détails de l'item
   const loadDetail = useCallback(
@@ -108,36 +63,6 @@ export function useDetailPage<T, TDisplayPrefs>(config: DetailPageConfig<T, TDis
         } else {
           const normalized = normalizeData ? normalizeData(detail) : detail;
           setItem(normalized);
-
-          // Charger les préférences d'affichage
-          if (loadDisplaySettingsApi) {
-            try {
-              const defaults = { ...displayDefaults };
-              const globalPrefs = await loadDisplaySettingsApi();
-
-              if (displayPreferencesMode === 'global-local' && loadDisplayOverridesApi) {
-                // Mode global-local : utiliser l'ID réel de l'item (pas le tmdbId)
-                const realItemId = normalized && typeof normalized === 'object' && 'id' in normalized ? (normalized as any).id : null;
-                if (realItemId) {
-                  const localOverrides = await loadDisplayOverridesApi(realItemId);
-                  // IMPORTANT : Les overrides locaux ont toujours la priorité
-                  // Fusion : defaults → globales → locales (les locales écrasent les globales)
-                  const merged = { ...defaults, ...globalPrefs, ...localOverrides };
-                  setDisplayPrefs(merged as TDisplayPrefs);
-                } else {
-                  // Pas d'ID réel disponible, utiliser les globales uniquement
-                  setDisplayPrefs({ ...defaults, ...globalPrefs } as TDisplayPrefs);
-                }
-              } else {
-                // Mode global : fusionner defaults -> global
-                setDisplayPrefs({ ...defaults, ...globalPrefs } as TDisplayPrefs);
-              }
-            } catch (err) {
-              console.error('Erreur chargement préférences:', err);
-              setDisplayPrefs(displayDefaults);
-            }
-          }
-
           setError(null);
         }
       } catch (err: any) {
@@ -150,7 +75,7 @@ export function useDetailPage<T, TDisplayPrefs>(config: DetailPageConfig<T, TDis
         }
       }
     },
-    [itemId, loadDetailApi, loadDisplaySettingsApi, displayDefaults, normalizeData, missingIdError, notFoundError]
+    [itemId, loadDetailApi, normalizeData, missingIdError, notFoundError]
   );
 
   // Charger au montage et quand itemId change
@@ -205,29 +130,13 @@ export function useDetailPage<T, TDisplayPrefs>(config: DetailPageConfig<T, TDis
     };
   }, [item, itemId, statusEventName, isEventForCurrentItem, reloadAfterEvent, normalizeData]);
 
-  const handleOpenDisplaySettings = useCallback(() => {
-    setShowDisplaySettingsModal(true);
-  }, []);
-
-  const handleCloseDisplaySettings = useCallback(async () => {
-    setShowDisplaySettingsModal(false);
-    await refreshDisplayPrefs();
-  }, [refreshDisplayPrefs]);
-
   return {
     item,
     setItem,
     loading,
     error,
-    displayPrefs,
-    setDisplayPrefs,
-    showDisplaySettingsModal,
-    setShowDisplaySettingsModal,
     showEditModal,
     setShowEditModal,
-    refreshDisplayPrefs,
-    loadDetail,
-    handleOpenDisplaySettings,
-    handleCloseDisplaySettings
+    loadDetail
   };
 }

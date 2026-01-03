@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Globe2, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Globe2, Info, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface MediaSettingsProps {
@@ -6,9 +6,10 @@ interface MediaSettingsProps {
   imageSource?: 'mal' | 'anilist' | 'tmdb';
   onImageSourceChange?: (source: 'mal' | 'anilist' | 'tmdb') => void;
   TooltipIcon?: ({ id, placement }: { id: 'imageSource' | 'tmdbKey' | 'tmdbToken' | 'groqKey' | 'groqAutoTranslate' | 'malClientId' | 'malAutoSync' | 'nautiljonAutoSync' | 'nautiljonTomes' | 'animeEnrichment' | 'mangaEnrichment' | 'malManualSync' | 'mihonImport'; placement?: 'center' | 'end' }) => JSX.Element;
+  onOpenGuide?: (provider: 'tmdb' | 'groq' | 'rawg' | 'mal' | 'anilist' | 'cloudSync' | 'adulteGame') => void;
 }
 
-export default function MediaSettings({ showToast, imageSource, onImageSourceChange, TooltipIcon }: MediaSettingsProps) {
+export default function MediaSettings({ showToast, imageSource, onImageSourceChange, TooltipIcon, onOpenGuide }: MediaSettingsProps) {
   const [apiKey, setApiKey] = useState('');
   const [apiToken, setApiToken] = useState('');
   const [language, setLanguage] = useState('fr-FR');
@@ -180,8 +181,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -192,24 +193,46 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
               <KeyRound size={16} />
               TMDb API Key (v3)
             </label>
-            <button
-              onClick={handleTestConnection}
-              className="btn btn-outline"
-              disabled={testing}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                minWidth: '190px',
-              }}
-            >
-              <RefreshCw size={14} style={{ animation: testing ? 'spin 1s linear infinite' : 'none' }} />
-              {testing ? 'Test en cours…' : 'Tester la connexion'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {onOpenGuide && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenGuide('tmdb');
+                  }}
+                  className="btn btn-outline"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                  }}
+                >
+                  <Info size={14} />
+                  Guide TMDb
+                </button>
+              )}
+              <button
+                onClick={handleTestConnection}
+                className="btn btn-outline"
+                disabled={testing}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  minWidth: '190px',
+                }}
+              >
+                <RefreshCw size={14} style={{ animation: testing ? 'spin 1s linear infinite' : 'none' }} />
+                {testing ? 'Test en cours…' : 'Tester la connexion'}
+              </button>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input
@@ -279,8 +302,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
@@ -352,8 +375,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',
@@ -392,8 +415,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
               padding: '20px',
               borderRadius: '12px',
               border: '1px solid var(--border)',
-              background: 'var(--surface-light)',
-              boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
@@ -420,8 +443,8 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
             padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border)',
-            background: 'var(--surface-light)',
-            boxShadow: '0 12px 28px rgba(15, 23, 42, 0.22)',
+            background: 'var(--surface)',
+            boxShadow: 'var(--card-shadow)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px',

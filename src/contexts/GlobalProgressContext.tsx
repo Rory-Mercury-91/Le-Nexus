@@ -22,6 +22,20 @@ export interface AdulteGameUpdateProgress {
   speed?: number;
 }
 
+export interface CloudSyncProgress {
+  phase: 'start' | 'upload' | 'upload-covers' | 'download-db' | 'download-covers' | 'complete';
+  current: number;
+  total: number;
+  percentage: number;
+  message?: string;
+  item?: string;
+  results?: {
+    upload?: boolean;
+    downloadsCount?: number;
+    coversDownloaded?: number;
+  };
+}
+
 interface GlobalProgressState {
   // Synchronisation MAL
   malSyncing: boolean;
@@ -38,6 +52,10 @@ interface GlobalProgressState {
   // Jeux adultes
   adulteGameUpdating: boolean;
   adulteGameProgress: AdulteGameUpdateProgress | null;
+
+  // Synchronisation Cloud
+  cloudSyncing: boolean;
+  cloudSyncProgress: CloudSyncProgress | null;
 
   // Callbacks pour arrêter/pause/reprise les opérations
   onStopAnimeEnrichment?: () => void | Promise<void>;
@@ -66,6 +84,8 @@ interface GlobalProgressContextType extends GlobalProgressState {
   setTranslationProgress: (progress: TranslationProgress | null) => void;
   setAdulteGameUpdating: (updating: boolean) => void;
   setAdulteGameProgress: (progress: AdulteGameUpdateProgress | null) => void;
+  setCloudSyncing: (syncing: boolean) => void;
+  setCloudSyncProgress: (progress: CloudSyncProgress | null) => void;
   isProgressCollapsed: boolean;
   setIsProgressCollapsed: (collapsed: boolean) => void;
   setStopCallbacks: (callbacks: {
@@ -100,7 +120,9 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     translating: false,
     translationProgress: null,
     adulteGameUpdating: false,
-    adulteGameProgress: null
+    adulteGameProgress: null,
+    cloudSyncing: false,
+    cloudSyncProgress: null
   });
 
   // État pour le collapse du header de progression
@@ -148,6 +170,14 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, adulteGameUpdating: updating }));
   }, []);
 
+  const setCloudSyncing = useCallback((syncing: boolean) => {
+    setState(prev => ({ ...prev, cloudSyncing: syncing }));
+  }, []);
+
+  const setCloudSyncProgress = useCallback((progress: CloudSyncProgress | null) => {
+    setState(prev => ({ ...prev, cloudSyncProgress: progress }));
+  }, []);
+
   const setAdulteGameProgress = useCallback((progress: AdulteGameUpdateProgress | null) => {
     setState(prev => ({ ...prev, adulteGameProgress: progress }));
   }, []);
@@ -173,13 +203,15 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasActiveOperation = useCallback(() => {
-    return state.malSyncing || 
-           state.anilistSyncing ||
-           state.animeProgress !== null || 
-           state.mangaProgress !== null || 
-           state.translating || 
-           state.adulteGameUpdating;
-  }, [state.malSyncing, state.anilistSyncing, state.animeProgress, state.mangaProgress, state.translating, state.adulteGameUpdating]);
+    return state.malSyncing ||
+      state.anilistSyncing ||
+      state.animeProgress !== null ||
+      state.mangaProgress !== null ||
+      state.translating ||
+      state.adulteGameUpdating ||
+      state.cloudSyncing ||
+      state.cloudSyncProgress !== null;
+  }, [state.malSyncing, state.anilistSyncing, state.animeProgress, state.mangaProgress, state.translating, state.adulteGameUpdating, state.cloudSyncing, state.cloudSyncProgress]);
 
   // Fonction pour définir le temps de début de synchronisation MAL
   const setImportStartTime = useCallback((time: number) => {
@@ -700,6 +732,59 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     };
   }, [setAnimeProgress, setMangaProgress, setMalSyncing, setAnilistSyncing, setTranslating, setTranslationProgress, setAdulteGameProgress, setAdulteGameUpdating, state, resetMihonImportTimeout]);
 
+  // Écouter les événements de progression Cloud Sync
+  useEffect(() => {
+    if (!window.electronAPI.onCloudSyncProgress) {
+      return;
+    }
+
+    const unsubscribeCloudSync = window.electronAPI.onCloudSyncProgress((_event: unknown, progress: {
+      phase: 'start' | 'upload' | 'upload-covers' | 'download-db' | 'download-covers' | 'complete';
+      current: number;
+      total: number;
+      percentage: number;
+      message?: string;
+      item?: string;
+      results?: {
+        upload?: boolean;
+        downloadsCount?: number;
+        coversDownloaded?: number;
+      };
+    }) => {
+      if (!progress) {
+        return;
+      }
+
+      const progressData: CloudSyncProgress = {
+        phase: progress.phase,
+        current: progress.current,
+        total: progress.total,
+        percentage: progress.percentage,
+        message: progress.message,
+        item: progress.item,
+        results: progress.results
+      };
+
+      setCloudSyncProgress(progressData);
+
+      if (progress.phase === 'start') {
+        setCloudSyncing(true);
+      } else if (progress.phase === 'complete') {
+        setCloudSyncing(false);
+        // Fermer automatiquement après 3 secondes
+        setTimeout(() => {
+          setCloudSyncProgress(null);
+        }, 3000);
+      }
+    });
+
+    return () => {
+      if (unsubscribeCloudSync) {
+        unsubscribeCloudSync();
+      }
+    };
+  }, [setCloudSyncProgress, setCloudSyncing]);
+
   // Enregistrer les callbacks pour les vérifications de mises à jour jeux adultes (en dehors du useEffect principal pour éviter les boucles)
   useEffect(() => {
     setStopCallbacks({
@@ -728,6 +813,8 @@ export function GlobalProgressProvider({ children }: { children: ReactNode }) {
     setTranslationProgress,
     setAdulteGameUpdating,
     setAdulteGameProgress,
+    setCloudSyncing,
+    setCloudSyncProgress,
     setStopCallbacks,
     setImportStartTime,
     hasActiveOperation

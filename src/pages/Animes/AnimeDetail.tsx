@@ -1,12 +1,10 @@
-import { Edit, Settings, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import DetailPageHeader from '../../components/common/DetailPageHeader';
 import EnrichmentButton from '../../components/common/EnrichmentButton';
 import ProtectedContent from '../../components/common/ProtectedContent';
 import AnimeEditModal from '../../components/modals/anime/AnimeEditModal';
-import DisplaySettingsModal from '../../components/modals/common/DisplaySettingsModal';
 import { useAnimeDetail } from '../../hooks/details/useAnimeDetail';
-import { ANIME_DISPLAY_FIELD_CATEGORIES } from '../../utils/anime-display-fields';
 import { isSensitiveAnime } from '../../utils/anime-sensitivity';
 import {
   AnimeCover,
@@ -25,11 +23,9 @@ export default function AnimeDetail() {
     liensExternes,
     episodesVus,
     showEditModal,
-    showCustomizeDisplay,
     showAddLinkForm,
     newLink,
     setShowEditModal,
-    setShowCustomizeDisplay,
     setShowAddLinkForm,
     setNewLink,
     handleDelete,
@@ -43,7 +39,6 @@ export default function AnimeDetail() {
     handleForceEnrich,
     enriching,
     loadAnime,
-    reloadDisplayPreferences,
     shouldShow,
     ToastContainer,
     ConfirmDialog
@@ -83,15 +78,6 @@ export default function AnimeDetail() {
           backTo={(location.state as { from?: string } | null)?.from || '/animes'}
           actions={
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setShowCustomizeDisplay(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-              >
-                <Settings size={16} />
-                Personnaliser l'affichage
-              </button>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -155,35 +141,33 @@ export default function AnimeDetail() {
                   width: '100%'
                 }}
               >
-                {shouldShow('couverture') && (
-                  <AnimeCover
-                    anime={anime}
-                    episodesVus={episodesVus}
-                    nbEpisodes={anime.nb_episodes}
-                    onStatusChange={handleChangeStatutVisionnage}
-                    onToggleFavorite={handleToggleFavorite}
-                    shouldShow={shouldShow}
-                    onCoverUpdated={() => loadAnime()}
-                    onLabelsChange={() => {
-                      loadAnime();
-                      // Déclencher un événement pour mettre à jour la liste
-                      window.dispatchEvent(new CustomEvent('anime-labels-updated', {
-                        detail: { animeId: anime.id }
-                      }));
-                    }}
-                    streamingLinks={streamingLinks}
-                    showAddLinkForm={showAddLinkForm}
-                    newLink={newLink}
-                    onShowAddForm={() => setShowAddLinkForm(true)}
-                    onHideAddForm={() => {
-                      setShowAddLinkForm(false);
-                      setNewLink({ platform: '', url: '', language: 'fr' });
-                    }}
-                    onLinkChange={setNewLink}
-                    onAddLink={handleAddLink}
-                    onDeleteLink={handleDeleteLink}
-                  />
-                )}
+                <AnimeCover
+                  anime={anime}
+                  episodesVus={episodesVus}
+                  nbEpisodes={anime.nb_episodes}
+                  onStatusChange={handleChangeStatutVisionnage}
+                  onToggleFavorite={handleToggleFavorite}
+                  shouldShow={shouldShow}
+                  onCoverUpdated={() => loadAnime()}
+                  onLabelsChange={() => {
+                    loadAnime();
+                    // Déclencher un événement pour mettre à jour la liste
+                    window.dispatchEvent(new CustomEvent('anime-labels-updated', {
+                      detail: { animeId: anime.id }
+                    }));
+                  }}
+                  streamingLinks={streamingLinks}
+                  showAddLinkForm={showAddLinkForm}
+                  newLink={newLink}
+                  onShowAddForm={() => setShowAddLinkForm(true)}
+                  onHideAddForm={() => {
+                    setShowAddLinkForm(false);
+                    setNewLink({ platform: '', url: '', language: 'fr' });
+                  }}
+                  onLinkChange={setNewLink}
+                  onAddLink={handleAddLink}
+                  onDeleteLink={handleDeleteLink}
+                />
 
                 {/* Informations */}
                 <AnimeInfoSection anime={anime} shouldShow={shouldShow} />
@@ -216,33 +200,6 @@ export default function AnimeDetail() {
           />
         )}
 
-        {showCustomizeDisplay && anime && (
-          <DisplaySettingsModal
-            title="Personnaliser l'affichage de l'anime"
-            description="Les modifications locales surchargent les paramètres globaux pour cet anime"
-            fields={ANIME_DISPLAY_FIELD_CATEGORIES}
-            mode="global-local"
-            itemId={anime.id}
-            loadGlobalPrefs={async () => {
-              const prefs = await window.electronAPI.getAnimeDisplaySettings?.();
-              return prefs || {};
-            }}
-            loadLocalOverrides={async (itemId) => {
-              const overrides = await window.electronAPI.getAnimeDisplayOverrides?.(itemId);
-              return overrides || {};
-            }}
-            saveLocalOverrides={async (itemId, overrides) => {
-              await window.electronAPI.saveAnimeDisplayOverrides?.(itemId, overrides);
-            }}
-            deleteLocalOverrides={async (itemId, keys) => {
-              await window.electronAPI.deleteAnimeDisplayOverrides?.(itemId, keys);
-            }}
-            onSave={() => {
-              reloadDisplayPreferences();
-            }}
-            onClose={() => setShowCustomizeDisplay(false)}
-          />
-        )}
 
         <ConfirmDialog />
       </>
