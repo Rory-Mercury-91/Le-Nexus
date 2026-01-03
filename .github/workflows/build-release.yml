@@ -30,10 +30,21 @@ jobs:
         id: extract_version
         shell: pwsh
         run: |
+          # Vérifier que le workflow est déclenché par un tag (pas une branche)
+          $ref = "${{ github.ref }}"
+          if (-not ($ref -match '^refs/tags/v\d+\.\d+\.\d+')) {
+            Write-Host "❌ Erreur: Le workflow doit être déclenché par un push de tag (ex: v1.0.7)"
+            Write-Host "   Référence actuelle: $ref"
+            Write-Host "   Pour créer une release, poussez un tag: git push origin v1.0.7"
+            exit 1
+          }
+          
           $tag = "${{ github.ref_name }}"
           $version = $tag -replace '^v', ''
-          Write-Host "Version extraite du tag: $version"
+          Write-Host "✅ Tag valide: $tag"
+          Write-Host "✅ Version extraite: $version"
           echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
       
       - name: Update package.json version
         shell: pwsh
