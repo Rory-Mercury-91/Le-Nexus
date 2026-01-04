@@ -847,6 +847,7 @@ app.whenReady().then(async () => {
     const defaultMangaConfig = {
       enabled: true,
       autoTranslate: false,
+      imageSource: 'anilist',
       fields: {
         titre_romaji: true,
         titre_natif: true,
@@ -863,7 +864,8 @@ app.whenReady().then(async () => {
         popularity: true,
         auteurs: true,
         synopsis: true,
-        background: true
+        background: true,
+        relations: true
       }
     };
     store.set('mangaEnrichmentConfig', defaultMangaConfig);

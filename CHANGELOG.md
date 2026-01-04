@@ -5,6 +5,36 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.7-Fix4] - 2026-01-04
+
+### 🔧 Amélioré
+- **Simplification du système d'enrichissement**
+  - Suppression des modales de configuration d'enrichissement (AnimeEnrichmentConfigModal, MangaEnrichmentConfigModal)
+  - Tous les champs sont maintenant enrichis par défaut automatiquement
+  - Les options configurables sont désormais directement accessibles dans la section MyAnimeList :
+    - Activation/désactivation de l'enrichissement (anime et manga)
+    - Source des images (AniList HD ou MyAnimeList) - AniList par défaut
+    - Traduction automatique (uniquement dans la section Groq API)
+  - Nettoyage du code : suppression de tous les fichiers et références aux modales d'enrichissement
+  - Suppression de la sélection individuelle des champs à enrichir pour simplifier l'interface
+
+- **Réorganisation des paramètres d'enrichissement**
+  - Déplacement de l'option "Source des images" depuis la page TMDB vers la section MyAnimeList
+  - Toggle "Traduction automatique" uniquement dans la section Groq API (suppression de la duplication)
+  - Options d'enrichissement regroupées sur une seule ligne dans MyAnimeList pour une meilleure cohérence visuelle
+
+- **Support imageSource pour les mangas**
+  - Ajout de l'option `imageSource` dans la configuration d'enrichissement des mangas
+  - Les mangas peuvent maintenant utiliser AniList ou MyAnimeList pour les images de couverture
+  - Mise à jour de `fetchAniListCover` pour supporter les mangas (type MANGA)
+
+### 🗑️ Supprimé
+- Modales de configuration d'enrichissement (AnimeEnrichmentConfigModal, MangaEnrichmentConfigModal, EnrichmentConfigModal)
+- Helpers de configuration d'enrichissement (enrichment-config-helpers.ts)
+- Sélection individuelle des champs à enrichir
+- Option "Source des images" depuis la page TMDB (déplacée vers MyAnimeList)
+- Toggle "Traduction automatique" depuis la section MyAnimeList (uniquement dans Groq API)
+
 ## [1.0.7-Fix3] - 2026-01-04
 
 ### 🐛 Corrigé

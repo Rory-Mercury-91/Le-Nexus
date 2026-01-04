@@ -187,15 +187,16 @@ async function getStreamingLinksFromAniList(malId) {
 
 /**
  * Récupère les informations de couverture depuis AniList via leur API GraphQL
- * @param {number} malId - L'ID MyAnimeList de l'anime
- * @param {string} [titre] - Le titre de l'anime (optionnel, pour les logs)
+ * @param {number} malId - L'ID MyAnimeList de l'anime/manga
+ * @param {string} [titre] - Le titre de l'anime/manga (optionnel, pour les logs)
+ * @param {string} [type] - Le type de média: 'ANIME' ou 'MANGA' (défaut: 'ANIME')
  * @returns {Promise<{ coverImage: { extraLarge: string, large: string } | null }>}
  */
-async function fetchAniListCover(malId, titre = null) {
+async function fetchAniListCover(malId, titre = null, type = 'ANIME') {
   try {
     const query = `
       query ($malId: Int) {
-        Media(idMal: $malId, type: ANIME) {
+        Media(idMal: $malId, type: ${type}) {
           coverImage {
             extraLarge
             large

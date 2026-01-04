@@ -22,6 +22,7 @@ const {
 
 // Constantes de rate limiting
 const JIKAN_DELAY = 1000; // 1 seconde entre les appels Jikan
+const ANILIST_DELAY = 500; // 500ms entre les appels AniList (plus rapide que Jikan)
 const GROQ_DELAY = 1500; // 1.5 secondes entre les traductions (augmenté pour éviter les rate limits)
 const BATCH_DELAY = 2000; // 2 secondes entre chaque manga complet
 
@@ -597,9 +598,35 @@ async function enrichManga(getDb, mangaId, malId, currentUser, enrichmentConfig,
         }
       }
 
+      // 2. Récupérer la couverture AniList si configuré (comme pour les animes)
+      let coverUrl = '';
+      if (enrichmentConfig.imageSource === 'anilist' && malId) {
+        try {
+          console.log(`📡 AniList API pour couverture manga MAL ${malId}...`);
+          const { fetchAniListCover } = require('../../apis/anilist');
+          const anilistCover = await fetchAniListCover(malId, manga.titre, 'MANGA');
+          if (shouldAbort('réponse couverture AniList')) {
+            return { success: false, cancelled: true };
+          }
+          await new Promise(resolve => setTimeout(resolve, ANILIST_DELAY));
+
+          if (anilistCover?.coverImage?.extraLarge || anilistCover?.coverImage?.large) {
+            coverUrl = anilistCover.coverImage.extraLarge || anilistCover.coverImage.large;
+            console.log(`✅ AniList: couverture manga récupérée`);
+          }
+        } catch (anilistError) {
+          console.error(`⚠️ AniList erreur couverture manga pour MAL ${malId}:`, anilistError.message);
+          logMangaEnrichmentError('anilist-cover', anilistError, { mangaId, malId, title: manga.titre });
+        }
+      }
+
+      // Si pas de couverture AniList ou si configuré pour utiliser MAL, utiliser la couverture Jikan
+      if (!coverUrl) {
+        coverUrl = jikanData.images?.jpg?.large_image_url || jikanData.images?.jpg?.image_url || '';
+      }
+
       // Télécharger la couverture si elle est une URL distante
       const currentCoverUrl = manga.couverture_url || '';
-      const coverUrl = jikanData.images?.jpg?.large_image_url || jikanData.images?.jpg?.image_url || '';
 
       if (shouldAbort('avant téléchargement couverture')) {
         return { success: false, cancelled: true };
@@ -920,6 +947,8 @@ function getMangaEnrichmentConfig(store) {
   const defaultConfig = {
     enabled: true,
     autoTranslate: false,
+    imageSource: 'anilist',
+    // Tous les champs sont toujours à true - plus de choix individuel
     fields: {
       titre_romaji: true,
       titre_natif: true,
@@ -943,14 +972,14 @@ function getMangaEnrichmentConfig(store) {
 
   const savedConfig = store.get('mangaEnrichmentConfig', {});
 
-  // Fusionner avec les valeurs par défaut
+  // Toujours retourner tous les fields à true, indépendamment de la config sauvegardée
+  // Seules les options enabled, autoTranslate et imageSource sont configurables
   return {
     enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
     autoTranslate: savedConfig.autoTranslate !== undefined ? savedConfig.autoTranslate : defaultConfig.autoTranslate,
-    fields: {
-      ...defaultConfig.fields,
-      ...(savedConfig.fields || {})
-    }
+    imageSource: savedConfig.imageSource || defaultConfig.imageSource,
+    // Toujours tous les fields à true
+    fields: defaultConfig.fields
   };
 }
 

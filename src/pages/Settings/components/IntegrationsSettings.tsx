@@ -1,8 +1,6 @@
 import { CheckCircle, Eye, EyeOff, Info, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Toggle from '../../../components/common/Toggle';
-import AnimeEnrichmentConfigModal, { EnrichmentConfig as AnimeEnrichmentConfig } from '../../../components/modals/anime/AnimeEnrichmentConfigModal';
-import MangaEnrichmentConfigModal, { EnrichmentConfig as MangaEnrichmentConfig } from '../../../components/modals/manga/MangaEnrichmentConfigModal';
 import type { AnimeImportResult } from '../../../types';
 import AdulteGameSettings from './AdulteGameSettings';
 import MediaSettings from './MediaSettings';
@@ -123,8 +121,6 @@ export default function IntegrationsSettings({
   const [groqTestResult, setGroqTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [groqKeyVisible, setGroqKeyVisible] = useState(false);
   const [malClientVisible, setMalClientVisible] = useState(false);
-  const [showAnimeEnrichmentModal, setShowAnimeEnrichmentModal] = useState(false);
-  const [showMangaEnrichmentModal, setShowMangaEnrichmentModal] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipId | null>(null);
   const [importingMihon, setImportingMihon] = useState(false);
   const [mihonImportProgress, setMihonImportProgress] = useState<{ step?: string; message?: string; progress?: number; total?: number; current?: number } | null>(null);
@@ -190,27 +186,6 @@ export default function IntegrationsSettings({
     </span>
   );
 
-  const handleAnimeEnrichmentSaved = (config: AnimeEnrichmentConfig) => {
-    if (config) {
-      setAnimeEnrichmentEnabled(config.enabled || false);
-      showToast?.({
-        title: 'Configuration enrichissement anime enregistrée',
-        type: 'success',
-        duration: 2500
-      });
-    }
-  };
-
-  const handleMangaEnrichmentSaved = (config: MangaEnrichmentConfig) => {
-    if (config) {
-      setMangaEnrichmentEnabled(config.enabled || false);
-      showToast?.({
-        title: 'Configuration enrichissement manga enregistrée',
-        type: 'success',
-        duration: 2500
-      });
-    }
-  };
 
   // Charger les configs d'enrichissement au montage
   useEffect(() => {
@@ -924,27 +899,16 @@ export default function IntegrationsSettings({
               background: 'var(--surface)',
               boxShadow: 'var(--card-shadow)',
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '12px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>⚙️ Enrichissement automatique des animes</h4>
-                <TooltipIcon id="animeEnrichment" />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Toggle checked={animeEnrichmentEnabled} onChange={handleAnimeEnrichmentToggle} />
-                <button
-                  type="button"
-                  onClick={() => setShowAnimeEnrichmentModal(true)}
-                  className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 16px', fontSize: '13px' }}
-                >
-                  🔧 Paramètres
-                </button>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>⚙️ Enrichissement automatique des animes</h4>
+              <TooltipIcon id="animeEnrichment" />
             </div>
+            <Toggle checked={animeEnrichmentEnabled} onChange={handleAnimeEnrichmentToggle} />
           </div>
 
           <div
@@ -955,27 +919,46 @@ export default function IntegrationsSettings({
               background: 'var(--surface)',
               boxShadow: 'var(--card-shadow)',
               display: 'flex',
-              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '12px'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>📚 Enrichissement automatique des mangas</h4>
-                <TooltipIcon id="mangaEnrichment" />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Toggle checked={mangaEnrichmentEnabled} onChange={handleMangaEnrichmentToggle} />
-                <button
-                  type="button"
-                  onClick={() => setShowMangaEnrichmentModal(true)}
-                  className="btn btn-primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 16px', fontSize: '13px' }}
-                >
-                  🔧 Paramètres
-                </button>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>📚 Enrichissement automatique des mangas</h4>
+              <TooltipIcon id="mangaEnrichment" />
             </div>
+            <Toggle checked={mangaEnrichmentEnabled} onChange={handleMangaEnrichmentToggle} />
+          </div>
+
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              boxShadow: 'var(--card-shadow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
+              <label style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                Source des images
+              </label>
+              <TooltipIcon id="imageSource" />
+            </div>
+            <select
+              value={imageSource === 'tmdb' ? 'anilist' : imageSource}
+              onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist')}
+              className="select"
+              style={{ flex: '1 1 auto', minWidth: '150px', maxWidth: '250px' }}
+            >
+              <option value="anilist">AniList (haute définition)</option>
+              <option value="mal">MyAnimeList (par défaut)</option>
+            </select>
           </div>
 
         </div>
@@ -1849,8 +1832,6 @@ export default function IntegrationsSettings({
         return (
           <MediaSettings
             showToast={showToast ?? (() => undefined)}
-            imageSource={imageSource}
-            onImageSourceChange={onImageSourceChange}
             TooltipIcon={TooltipIcon}
             onOpenGuide={onOpenGuide}
           />
@@ -1874,23 +1855,6 @@ export default function IntegrationsSettings({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {renderServiceContent()}
 
-      {showAnimeEnrichmentModal && (
-        <AnimeEnrichmentConfigModal
-          onClose={() => setShowAnimeEnrichmentModal(false)}
-          onSave={(config) => {
-            handleAnimeEnrichmentSaved(config);
-          }}
-        />
-      )}
-
-      {showMangaEnrichmentModal && (
-        <MangaEnrichmentConfigModal
-          onClose={() => setShowMangaEnrichmentModal(false)}
-          onSave={(config) => {
-            handleMangaEnrichmentSaved(config);
-          }}
-        />
-      )}
     </div>
   );
 }

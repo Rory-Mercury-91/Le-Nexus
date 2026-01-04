@@ -588,6 +588,7 @@ function getAnimeEnrichmentConfig(store) {
     enabled: true,
     imageSource: 'anilist',
     autoTranslate: false,
+    // Tous les champs sont toujours à true - plus de choix individuel
     fields: {
       // Titres
       titre_romaji: true,
@@ -631,15 +632,14 @@ function getAnimeEnrichmentConfig(store) {
 
   const savedConfig = store.get('animeEnrichmentConfig', {});
 
-  // Fusionner avec les valeurs par défaut
+  // Toujours retourner tous les fields à true, indépendamment de la config sauvegardée
+  // Seules les options enabled, autoTranslate et imageSource sont configurables
   return {
     enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
     imageSource: savedConfig.imageSource || defaultConfig.imageSource,
     autoTranslate: savedConfig.autoTranslate !== undefined ? savedConfig.autoTranslate : defaultConfig.autoTranslate,
-    fields: {
-      ...defaultConfig.fields,
-      ...(savedConfig.fields || {})
-    }
+    // Toujours tous les fields à true
+    fields: defaultConfig.fields
   };
 }
 

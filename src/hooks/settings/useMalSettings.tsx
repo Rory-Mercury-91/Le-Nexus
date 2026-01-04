@@ -73,9 +73,20 @@ export function useMalSettings() {
     try {
       // Charger depuis la config anime (qui contient aussi imageSource)
       const animeConfig = (await window.electronAPI.getAnimeEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
+      const mangaConfig = (await window.electronAPI.getMangaEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
+      
       if (animeConfig) {
         setAutoTranslate(Boolean(animeConfig.autoTranslate));
-        const source = animeConfig.imageSource;
+        const source = animeConfig.imageSource || mangaConfig?.imageSource;
+        if (source === 'mal' || source === 'anilist' || source === 'tmdb') {
+          setImageSource(source);
+        } else {
+          setImageSource('anilist');
+        }
+      } else if (mangaConfig) {
+        // Fallback sur mangaConfig si animeConfig n'existe pas
+        setAutoTranslate(Boolean(mangaConfig.autoTranslate));
+        const source = mangaConfig.imageSource;
         if (source === 'mal' || source === 'anilist' || source === 'tmdb') {
           setImageSource(source);
         } else {
@@ -374,10 +385,20 @@ export function useMalSettings() {
   const handleImageSourceChange = async (source: 'mal' | 'anilist' | 'tmdb') => {
     setImageSource(source);
     try {
+      // Mettre à jour les deux configs (anime et manga)
       const animeConfig = (await window.electronAPI.getAnimeEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
+      const mangaConfig = (await window.electronAPI.getMangaEnrichmentConfig?.()) as EnrichmentConfigData | undefined;
+
       if (animeConfig) {
         await window.electronAPI.saveAnimeEnrichmentConfig?.({
           ...(animeConfig || {}),
+          imageSource: source
+        });
+      }
+
+      if (mangaConfig) {
+        await window.electronAPI.saveMangaEnrichmentConfig?.({
+          ...(mangaConfig || {}),
           imageSource: source
         });
       }

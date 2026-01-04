@@ -3,13 +3,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface MediaSettingsProps {
   showToast: (options: { title: string; message?: string; type?: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
-  imageSource?: 'mal' | 'anilist' | 'tmdb';
-  onImageSourceChange?: (source: 'mal' | 'anilist' | 'tmdb') => void;
   TooltipIcon?: ({ id, placement }: { id: 'imageSource' | 'tmdbKey' | 'tmdbToken' | 'groqKey' | 'groqAutoTranslate' | 'malClientId' | 'malAutoSync' | 'nautiljonAutoSync' | 'nautiljonTomes' | 'animeEnrichment' | 'mangaEnrichment' | 'malManualSync' | 'mihonImport'; placement?: 'center' | 'end' }) => JSX.Element;
   onOpenGuide?: (provider: 'tmdb' | 'groq' | 'rawg' | 'mal' | 'anilist' | 'cloudSync' | 'adulteGame') => void;
 }
 
-export default function MediaSettings({ showToast, imageSource, onImageSourceChange, TooltipIcon, onOpenGuide }: MediaSettingsProps) {
+export default function MediaSettings({ showToast, TooltipIcon, onOpenGuide }: MediaSettingsProps) {
   const [apiKey, setApiKey] = useState('');
   const [apiToken, setApiToken] = useState('');
   const [language, setLanguage] = useState('fr-FR');
@@ -409,34 +407,6 @@ export default function MediaSettings({ showToast, imageSource, onImageSourceCha
           </p>
         </div>
 
-        {imageSource !== undefined && onImageSourceChange && (
-          <div
-            style={{
-              padding: '20px',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface)',
-              boxShadow: 'var(--card-shadow)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Source des images MyAnimeList</label>
-              {TooltipIcon && <TooltipIcon id="imageSource" />}
-            </div>
-            <select
-              value={imageSource === 'tmdb' ? 'mal' : imageSource}
-              onChange={(e) => onImageSourceChange(e.target.value as 'mal' | 'anilist')}
-              className="select"
-              style={{ width: '100%' }}
-            >
-              <option value="mal">MyAnimeList (par défaut)</option>
-              <option value="anilist">AniList (haute définition)</option>
-            </select>
-          </div>
-        )}
 
         <div
           style={{

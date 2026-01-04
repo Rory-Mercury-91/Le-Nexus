@@ -61,6 +61,7 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
       enabled: true,
       imageSource: 'anilist',
       autoTranslate: false,
+      // Tous les champs sont toujours à true - plus de choix individuel
       fields: {
         // Titres
         titre_romaji: true,
@@ -104,15 +105,14 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
 
     const savedConfig = store.get('animeEnrichmentConfig', {});
 
-    // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
+    // Toujours retourner tous les fields à true, indépendamment de la config sauvegardée
+    // Seules les options enabled, autoTranslate et imageSource sont configurables
     return {
       enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
       imageSource: savedConfig.imageSource || defaultConfig.imageSource,
       autoTranslate: savedConfig.autoTranslate !== undefined ? savedConfig.autoTranslate : defaultConfig.autoTranslate,
-      fields: {
-        ...defaultConfig.fields,
-        ...(savedConfig.fields || {})
-      }
+      // Toujours tous les fields à true
+      fields: defaultConfig.fields
     };
   });
 
@@ -211,6 +211,8 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
     const defaultConfig = {
       enabled: true,
       autoTranslate: false,
+      imageSource: 'anilist',
+      // Tous les champs sont toujours à true - plus de choix individuel
       fields: {
         titre_romaji: true,
         titre_natif: true,
@@ -228,19 +230,20 @@ function registerAiHandlers(ipcMain, getDb, getMainWindow, store, getPathManager
         auteurs: true,
         synopsis: true,
         background: true,
+        relations: true,
       }
     };
 
     const savedConfig = store.get('mangaEnrichmentConfig', {});
 
-    // Fusionner avec les valeurs par défaut pour s'assurer que tous les champs sont présents
+    // Toujours retourner tous les fields à true, indépendamment de la config sauvegardée
+    // Seules les options enabled, autoTranslate et imageSource sont configurables
     return {
       enabled: savedConfig.enabled !== undefined ? savedConfig.enabled : defaultConfig.enabled,
       autoTranslate: savedConfig.autoTranslate !== undefined ? savedConfig.autoTranslate : defaultConfig.autoTranslate,
-      fields: {
-        ...defaultConfig.fields,
-        ...(savedConfig.fields || {})
-      }
+      imageSource: savedConfig.imageSource || defaultConfig.imageSource,
+      // Toujours tous les fields à true
+      fields: defaultConfig.fields
     };
   });
 
