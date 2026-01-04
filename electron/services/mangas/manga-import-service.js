@@ -141,8 +141,24 @@ async function handleImportManga(req, res, getDb, store, mainWindow, getPathMana
       isUpdate = true;
       const existingSerie = matchResult.serie;
       
+      // VÉRIFICATION CRITIQUE : Si les deux entrées ont des MAL_ID différents, 
+      // ce sont forcément deux œuvres différentes - NE PAS FUSIONNER
+      const existingMalId = existingSerie.mal_id ? Number(existingSerie.mal_id) : null;
+      const incomingMalId = mangaData.mal_id ? Number(mangaData.mal_id) : null;
+      const hasDifferentMalIds = existingMalId !== null && incomingMalId !== null && existingMalId !== incomingMalId;
+      
+      if (hasDifferentMalIds) {
+        // Les MAL_ID sont différents → ce sont deux œuvres différentes, ne pas fusionner
+        console.log(`⚠️ MAL ID différent détecté (existant: ${existingMalId}, importé: ${incomingMalId}) pour "${mangaData.titre}" → création d'une nouvelle entrée`);
+        // Réinitialiser matchResult pour forcer la création d'une nouvelle entrée
+        matchResult = null;
+        isUpdate = false;
+        existingSerieId = null;
+        matchMethod = null;
+      }
+      
       // Si c'est un match strict (>=75%) mais pas exact, et pas de confirmation, proposer à l'utilisateur
-      if (!matchResult.isExactMatch && matchResult.similarity >= 75 && !confirmMerge && !targetSerieId) {
+      if (matchResult && !matchResult.isExactMatch && matchResult.similarity >= 75 && !confirmMerge && !targetSerieId) {
         // Retourner une réponse pour proposer un overlay de sélection
         // Format compatible avec MAL (array candidates) et Tampermonkey (candidate singulier)
         return sendSuccessResponse(res, {

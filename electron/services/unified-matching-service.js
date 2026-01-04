@@ -322,12 +322,32 @@ function findExistingSerieUnified(db, sourceData, sourceType = 'mihon', expected
       const matchResult = compareTitleWithExistingTitles(sourceTitle.normalized, serieTitles);
       
       if (matchResult) {
-        if (matchResult.exact) {
-          // Match exact trouvé
+        // Un match exact n'est valide pour fusion automatique que s'il est sur un titre principal
+        // (priority 1-4: romaji, natif, anglais, titre principal)
+        // Les matches sur titres alternatifs (priority 5) ne doivent pas être considérés comme exacts
+        // car plusieurs séries différentes peuvent partager le même titre alternatif
+        const isExactMatchForMerge = matchResult.exact && matchResult.matchedPriority <= 4;
+        
+        if (isExactMatchForMerge) {
+          // Match exact trouvé sur un titre principal
           if (!exactMatch || matchResult.matchedPriority < extractAllSerieTitles(exactMatch)[0].priority) {
             exactMatch = serie;
           }
           break; // On s'arrête dès qu'on trouve un match exact
+        } else if (matchResult.exact && matchResult.matchedPriority === 5) {
+          // Match exact sur un titre alternatif - traiter comme match avec similarité
+          // Ne pas fusionner automatiquement, laisser l'utilisateur décider
+          if (!bestSimilarityMatch || 
+              matchResult.similarity > bestSimilarity) {
+            bestSimilarityMatch = {
+              serie: serie,
+              similarity: matchResult.similarity,
+              matchedTitle: matchResult.matchedTitle,
+              matchedPriority: matchResult.matchedPriority
+            };
+            bestSimilarity = matchResult.similarity;
+            bestMatchedTitle = matchResult.matchedTitle;
+          }
         } else if (matchResult.similarity >= 75) {
           // Match avec similarité (>= 75%)
           if (!bestSimilarityMatch || 
@@ -438,12 +458,32 @@ function findExistingAnimeUnified(db, sourceData, sourceType = 'nautiljon', expe
       const matchResult = compareTitleWithExistingTitles(sourceTitle.normalized, animeTitles);
       
       if (matchResult) {
-        if (matchResult.exact) {
-          // Match exact trouvé
+        // Un match exact n'est valide pour fusion automatique que s'il est sur un titre principal
+        // (priority 1-4: romaji, natif, anglais, titre principal)
+        // Les matches sur titres alternatifs (priority 5) ne doivent pas être considérés comme exacts
+        // car plusieurs animes différents peuvent partager le même titre alternatif
+        const isExactMatchForMerge = matchResult.exact && matchResult.matchedPriority <= 4;
+        
+        if (isExactMatchForMerge) {
+          // Match exact trouvé sur un titre principal
           if (!exactMatch || matchResult.matchedPriority < extractAllAnimeTitles(exactMatch)[0].priority) {
             exactMatch = anime;
           }
           break; // On s'arrête dès qu'on trouve un match exact
+        } else if (matchResult.exact && matchResult.matchedPriority === 5) {
+          // Match exact sur un titre alternatif - traiter comme match avec similarité
+          // Ne pas fusionner automatiquement, laisser l'utilisateur décider
+          if (!bestSimilarityMatch || 
+              matchResult.similarity > bestSimilarity) {
+            bestSimilarityMatch = {
+              anime: anime,
+              similarity: matchResult.similarity,
+              matchedTitle: matchResult.matchedTitle,
+              matchedPriority: matchResult.matchedPriority
+            };
+            bestSimilarity = matchResult.similarity;
+            bestMatchedTitle = matchResult.matchedTitle;
+          }
         } else if (matchResult.similarity >= 75) {
           // Match avec similarité (>= 75%)
           if (!bestSimilarityMatch || 

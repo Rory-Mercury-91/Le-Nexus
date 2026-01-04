@@ -352,7 +352,37 @@ async function importMihonBackup(db, getPathManager, store, filePath, progressCa
           // Pour les matches avec similarité (75-99%) sans mal_id, on crée une nouvelle entrée pour éviter les fusions incorrectes
           const hasMalIdMatch = malId && matchResult.serie.mal_id && malId === matchResult.serie.mal_id;
           
-          if (matchResult.isExactMatch || matchResult.matchMethod === 'mal_id' || hasMalIdMatch) {
+          // VÉRIFICATION CRITIQUE : Si les deux entrées ont des MAL_ID différents, 
+          // ce sont forcément deux œuvres différentes - NE PAS FUSIONNER
+          const existingMalId = matchResult.serie.mal_id ? Number(matchResult.serie.mal_id) : null;
+          const incomingMalId = malId ? Number(malId) : null;
+          const hasDifferentMalIds = existingMalId !== null && incomingMalId !== null && existingMalId !== incomingMalId;
+          
+          if (hasDifferentMalIds) {
+            // Les MAL_ID sont différents → ce sont deux œuvres différentes, ne pas fusionner
+            console.log(`⚠️ MAL ID différent détecté (existant: ${existingMalId}, importé: ${incomingMalId}) pour "${manga.title}" → création d'une nouvelle entrée`);
+            
+            // Stocker le match potentiel pour le rapport
+            const potentialMatch = {
+              newTitre: manga.title || 'Sans titre',
+              existingSerieId: matchResult.serie.id,
+              existingSerieTitre: matchResult.serie.titre,
+              similarity: matchResult.similarity,
+              matchMethod: matchResult.matchMethod,
+              matchedTitle: matchResult.matchedTitle,
+              mal_id: malId || null,
+              source_url: null
+            };
+            
+            if (!reportData._potentialMatchesByTitle) {
+              reportData._potentialMatchesByTitle = {};
+            }
+            reportData._potentialMatchesByTitle[manga.title || 'Sans titre'] = potentialMatch;
+            
+            matchResult = null; // Ne pas utiliser ce match pour fusionner
+            serieId = null;
+            matchMethod = null;
+          } else if (matchResult.isExactMatch || matchResult.matchMethod === 'mal_id' || hasMalIdMatch) {
             serieId = matchResult.serie.id;
             existingSerieId = matchResult.serie.id;
             matchMethod = hasMalIdMatch ? 'mal_id' : matchResult.matchMethod;

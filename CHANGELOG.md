@@ -5,6 +5,24 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.7-Fix3] - 2026-01-04
+
+### 🐛 Corrigé
+- **Fusion incorrecte lors de l'import MIHON avec titres alternatifs**
+  - Correction du matching pour empêcher les fusions automatiques basées uniquement sur des titres alternatifs
+  - Les matches sur titres alternatifs (priorité 5) ne sont plus considérés comme des matches exacts
+  - Seuls les matches sur titres principaux (romaji, natif, anglais, titre principal) déclenchent une fusion automatique
+  - Correction appliquée dans `findExistingSerieUnified` et `findExistingAnimeUnified`
+
+- **Protection contre les fusions avec MAL_ID différents**
+  - Ajout d'une vérification critique : deux entrées avec des MAL_ID différents ne seront jamais fusionnées
+  - La vérification s'applique même si les titres correspondent exactement
+  - Empêche les fusions incorrectes de séries différentes ayant le même titre mais des œuvres différentes
+  - Correction appliquée dans :
+    - `mihon-import-handlers.js` (import batch Mihon)
+    - `manga-import-service.js` (imports depuis Nautiljon/autres sources)
+  - Les matches avec MAL_ID différents sont loggés et une nouvelle entrée est créée à la place
+
 ## [1.0.7-Fix2] - 2026-01-04
 
 ### ✨ Ajouté
