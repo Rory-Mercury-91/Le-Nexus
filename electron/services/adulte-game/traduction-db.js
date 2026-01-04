@@ -18,7 +18,7 @@ async function searchTranslationForGame(db, gameId) {
     
     // Récupérer les infos du jeu
     const game = db.prepare(`
-      SELECT id, f95_thread_id, lien_f95, titre
+      SELECT id, f95_thread_id, Lewdcorner_thread_id, lien_f95, lien_lewdcorner, titre
       FROM adulte_game_games
       WHERE id = ?
     `).get(gameId);
@@ -27,8 +27,8 @@ async function searchTranslationForGame(db, gameId) {
       return { success: false, error: 'Jeu non trouvé' };
     }
     
-    // Extraire l'ID F95/LewdCorner
-    const gameThreadId = game.f95_thread_id || extractF95Id(game.lien_f95);
+    // Extraire l'ID F95/LewdCorner (priorité aux IDs stockés, puis extraction depuis les liens)
+    const gameThreadId = game.f95_thread_id || game.Lewdcorner_thread_id || extractF95Id(game.lien_f95) || extractF95Id(game.lien_lewdcorner);
     if (!gameThreadId) {
       return { success: false, error: 'Aucun ID F95/LewdCorner trouvé pour ce jeu' };
     }

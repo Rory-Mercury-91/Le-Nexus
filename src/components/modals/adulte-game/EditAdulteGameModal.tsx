@@ -32,6 +32,7 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
   const [versionTraduite, setVersionTraduite] = useState(game.version_traduite || '');
   const [typeTradFr, setTypeTradFr] = useState(game.type_trad_fr || '');
   const [traducteur, setTraducteur] = useState(game.traducteur || '');
+  const [lienTraduction, setLienTraduction] = useState(game.lien_traduction || '');
   const [saving, setSaving] = useState(false);
 
   // Fonction helper pour déterminer le nom du site dynamiquement
@@ -108,7 +109,8 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
         version_traduite: versionTraduite || null,
         type_trad_fr: typeTradFr || null,
         traducteur: traducteur || null,
-        traductions_multiples: traductionsMultiples
+        traductions_multiples: traductionsMultiples,
+        lien_traduction: lienTraduction || null
       });
 
       showToast({
@@ -344,7 +346,7 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
                   </div>
 
                   {/* Traducteur */}
-                  <div>
+                  <div style={{ marginBottom: '16px' }}>
                     <label htmlFor="traducteur" className="label">
                       Traducteur <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(récupéré depuis Google Sheet)</span>
                     </label>
@@ -355,6 +357,21 @@ export default function EditAdulteGameModal({ game, onClose, onSave }: EditAdult
                       onChange={(e) => setTraducteur(e.target.value)}
                       className="input"
                       placeholder="ex: Rory-Mercury91"
+                    />
+                  </div>
+
+                  {/* Lien de traduction */}
+                  <div>
+                    <label htmlFor="lien_traduction" className="label">
+                      Lien de traduction <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '400' }}>(récupéré depuis Google Sheet)</span>
+                    </label>
+                    <input
+                      type="url"
+                      id="lien_traduction"
+                      value={lienTraduction}
+                      onChange={(e) => setLienTraduction(e.target.value)}
+                      className="input"
+                      placeholder="https://..."
                     />
                   </div>
                 </div>

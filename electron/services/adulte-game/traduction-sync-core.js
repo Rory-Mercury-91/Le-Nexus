@@ -400,11 +400,13 @@ async function syncTraductions(db, traducteurs, options = {}) {
     let additionalUpdated = 0;
     
     for (const game of adulteGames) {
-      // Extraire l'ID F95/LewdCorner depuis le lien
-      const gameThreadId = extractF95Id(game.lien_f95);
+      // Extraire l'ID F95/LewdCorner (priorité aux IDs stockés, puis extraction depuis les liens)
+      const gameThreadId = game.f95_thread_id || game.Lewdcorner_thread_id || extractF95Id(game.lien_f95) || extractF95Id(game.lien_lewdcorner);
       if (!gameThreadId) continue;
-      const gamePlatformKey = normalizePlatform(game.plateforme, game.lien_f95);
-      const gameHostKey = getPlatformKeyFromLink(game.lien_f95) || gamePlatformKey;
+      // Utiliser lien_f95 ou lien_lewdcorner pour déterminer la plateforme
+      const gameLink = game.lien_f95 || game.lien_lewdcorner;
+      const gamePlatformKey = normalizePlatform(game.plateforme, gameLink);
+      const gameHostKey = getPlatformKeyFromLink(gameLink) || gamePlatformKey;
       
       // Chercher ce jeu dans le Sheet complet (pas seulement traducteurs suivis)
       const gameTranslations = sheetData.filter(item => {
@@ -614,12 +616,14 @@ async function syncTraductionsForExistingGames(db, options = {}) {
     
     // Pour chaque jeu existant, chercher ses traductions dans le sheet
     for (const game of adulteGames) {
-      // Extraire l'ID F95/LewdCorner
-      const gameThreadId = game.f95_thread_id || extractF95Id(game.lien_f95);
+      // Extraire l'ID F95/LewdCorner (priorité aux IDs stockés, puis extraction depuis les liens)
+      const gameThreadId = game.f95_thread_id || game.Lewdcorner_thread_id || extractF95Id(game.lien_f95) || extractF95Id(game.lien_lewdcorner);
       if (!gameThreadId) continue;
       
-      const gamePlatformKey = normalizePlatform(game.plateforme, game.lien_f95);
-      const gameHostKey = getPlatformKeyFromLink(game.lien_f95) || gamePlatformKey;
+      // Utiliser lien_f95 ou lien_lewdcorner pour déterminer la plateforme
+      const gameLink = game.lien_f95 || game.lien_lewdcorner;
+      const gamePlatformKey = normalizePlatform(game.plateforme, gameLink);
+      const gameHostKey = getPlatformKeyFromLink(gameLink) || gamePlatformKey;
       
       // Chercher toutes les traductions pour cet ID (tous traducteurs) correspondant à la même plateforme
       const gameTranslations = sheetData.filter(item => {
