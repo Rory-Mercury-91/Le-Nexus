@@ -124,6 +124,24 @@ async function fetchWithPuppeteer(url) {
       const resourceType = details.resourceType;
       const url = details.url;
       
+      // Bloquer les domaines publicitaires et analytics connus
+      const adDomains = [
+        'adglare.net', 'adglare.com',
+        'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+        'adsafeprotected.com', 'advertising.com', 'adnxs.com',
+        'amazon-adsystem.com', 'advertising.amazon.com',
+        'facebook.net', 'facebook.com/tr',
+        'analytics.google.com', 'google-analytics.com',
+        'scorecardresearch.com', 'quantserve.com',
+        'outbrain.com', 'taboola.com',
+        'advertising.yahoo.com', 'ads.yahoo.com'
+      ];
+      
+      if (adDomains.some(domain => url.includes(domain))) {
+        callback({ cancel: true });
+        return;
+      }
+      
       // Toujours bloquer fonts et media
       if (['font', 'media'].includes(resourceType)) {
         callback({ cancel: true });
@@ -189,8 +207,20 @@ async function fetchWithPuppeteer(url) {
         resolve();
       });
 
-      hiddenWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
+      hiddenWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        // Ignorer les erreurs des sous-frames (publicités, analytics, etc.)
+        // Ne rejeter que si c'est le frame principal qui échoue
+        if (!isMainFrame) {
+          return; // Ignorer les erreurs des sous-frames
+        }
+        
+        // Pour le frame principal, rejeter seulement si ce n'est pas une erreur de résolution DNS (publicités)
         clearTimeout(timeout);
+        // ERR_NAME_NOT_RESOLVED = -105, erreur normale pour les publicités qui ne peuvent pas être résolues
+        if (errorCode === -105 && validatedURL && validatedURL !== url) {
+          // C'est probablement une publicité qui ne peut pas être résolue, on l'ignore
+          return;
+        }
         reject(new Error(`Échec du chargement: ${errorDescription} (${errorCode})`));
       });
 

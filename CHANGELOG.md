@@ -5,6 +5,44 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.7-Fix2] - (A venir)
+
+### ✨ Ajouté
+- **Champ "lien de traduction" dans la modale d'édition des jeux adultes**
+  - Ajout du champ "Lien de traduction" dans la section "Traduction" de la modale d'édition
+  - Le champ est maintenant visible et modifiable pour tous les jeux adultes
+  - Le lien est récupéré depuis la base de données et peut être mis à jour manuellement
+  - Support du champ `lien_traduction` dans le handler backend `update-adulte-game-game`
+
+- **Support de la modification de la description pour les jeux RAWG**
+  - Ajout du support du champ `rawg_description` dans le handler backend `update-adulte-game-game`
+  - La description des jeux RAWG peut maintenant être modifiée et traduite dans la modale d'édition
+  - La description modifiée par l'utilisateur est affichée en priorité sur la description de l'API RAWG
+
+### 🐛 Corrigé
+- **Recherche de traductions pour les jeux LewdCorner**
+  - Correction de la fonction `searchTranslationForGame` pour prendre en compte `Lewdcorner_thread_id` et `lien_lewdcorner`
+  - Correction de `syncTraductionsForExistingGames` pour rechercher les jeux LewdCorner dans le Google Sheet
+  - Les jeux avec uniquement un ID LewdCorner (sans `f95_thread_id`) sont maintenant correctement trouvés dans le Google Sheet
+  - La recherche utilise maintenant `Lewdcorner_thread_id` ou extrait l'ID depuis `lien_lewdcorner` en priorité pour les jeux LewdCorner
+
+- **Affichage de la description modifiée pour les jeux RAWG**
+  - Correction de l'affichage de la description dans la page détails des jeux RAWG
+  - La description modifiée par l'utilisateur (`rawg_description`) est maintenant affichée en priorité sur la description de l'API RAWG
+  - La description traduite ou modifiée manuellement apparaît correctement après enregistrement
+
+- **Calcul de progression des jeux adultes dans le tableau de bord**
+  - Correction de la logique de calcul de progression pour utiliser la même logique que la collection
+  - Les jeux sont maintenant comptés comme "joués" uniquement si le statut est "En cours", "Terminé" ou "Abandonné"
+  - La progression affichée dans le tableau de bord correspond maintenant à celle de la collection
+  - Correction appliquée aux jeux adultes et aux jeux RAWG
+
+- **Erreurs ERR_NAME_NOT_RESOLVED lors du scraping F95Zone**
+  - Ajout du blocage des domaines publicitaires connus (adglare.net, doubleclick.net, etc.) dans le handler de scraping
+  - Les requêtes publicitaires sont maintenant bloquées avant leur chargement, évitant les erreurs DNS
+  - Amélioration de la gestion des erreurs pour ignorer les erreurs des sous-frames (publicités, analytics)
+  - Les messages d'erreur pour les publicités bloquées (ERR_BLOCKED_BY_CLIENT) sont normaux et indiquent que le blocage fonctionne correctement
+
 ## [1.0.7-Fix] - (A venir)
 
 ### 🐛 Corrigé

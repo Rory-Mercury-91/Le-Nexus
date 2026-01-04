@@ -47,6 +47,8 @@ function registerAdulteGameUpdateHandlers(ipcMain, getDb, store) {
       if (gameData.version_traduite !== undefined) globalData.version_traduite = gameData.version_traduite;
       if (gameData.traducteur !== undefined) globalData.traducteur = gameData.traducteur;
       if (gameData.traductions_multiples !== undefined) globalData.traductions_multiples = gameData.traductions_multiples;
+      if (gameData.lien_traduction !== undefined) globalData.lien_traduction = gameData.lien_traduction;
+      if (gameData.rawg_description !== undefined) globalData.rawg_description = gameData.rawg_description;
       
       // Champs utilisateur
       if (gameData.statut_perso !== undefined || gameData.completion_perso !== undefined) {

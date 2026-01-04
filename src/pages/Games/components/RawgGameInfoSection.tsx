@@ -452,7 +452,7 @@ export default function RawgGameInfoSection({
       )}
 
       {/* Description */}
-      {rawgData?.description_raw && shouldShow('description') && (
+      {((game.rawg_description || rawgData?.description_raw) && shouldShow('description')) && (
         <div style={{ marginBottom: '16px' }}>
           <div
             style={{
@@ -471,7 +471,9 @@ export default function RawgGameInfoSection({
               whiteSpace: 'pre-wrap',
               fontSize: '15px'
             }}
-            dangerouslySetInnerHTML={{ __html: rawgData.description || rawgData.description_raw }}
+            dangerouslySetInnerHTML={{ 
+              __html: game.rawg_description || rawgData?.description || rawgData?.description_raw || '' 
+            }}
           />
         </div>
       )}

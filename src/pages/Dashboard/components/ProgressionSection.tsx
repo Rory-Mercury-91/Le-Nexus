@@ -338,8 +338,8 @@ export default function ProgressionSection({
         const rawgGames = adulteGames.filter(g => g.game_site === 'RAWG');
         const jeuxVideosJoues = rawgGames.filter(g => {
           const statut = g.statut_perso || g.completion_perso || '';
-          // Pour les jeux RAWG, considérer comme joué si le statut n'est pas vide et différent de "À lire"
-          return statut && statut !== 'À lire';
+          // Pour les jeux RAWG, considérer comme joué si le statut est "En cours", "Terminé" ou "Abandonné"
+          return ['En cours', 'Terminé', 'Abandonné'].includes(statut);
         }).length;
         const jeuxVideosTotal = rawgGames.length;
         const progressionVideos = jeuxVideosTotal > 0 ? (jeuxVideosJoues / jeuxVideosTotal) * 100 : 0;
@@ -387,8 +387,8 @@ export default function ProgressionSection({
         const adulteGamesOnly = adulteGames.filter(g => g.game_site !== 'RAWG');
         const jeuxJoues = adulteGamesOnly.filter(g => {
           const statut = g.statut_perso || g.completion_perso || '';
-          // Pour les jeux adultes, considérer comme joué si le statut n'est pas vide et différent de "À lire"
-          return statut && statut !== 'À lire';
+          // Pour les jeux adultes, considérer comme joué si le statut est "En cours", "Terminé" ou "Abandonné"
+          return ['En cours', 'Terminé', 'Abandonné'].includes(statut);
         }).length;
         const jeuxTotal = adulteGamesOnly.length;
         const progression = jeuxTotal > 0 ? (jeuxJoues / jeuxTotal) * 100 : 0;
