@@ -5,6 +5,13 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.8-Fix1] - 2026-01-05
+
+### 🐛 Corrigé
+- **Import JSON jeux adultes** : Correction de l'erreur `no such column: type_trad_fr` lors de l'import JSON
+  - La fonction `updateGameTranslationsOnly` utilisait le mauvais nom de colonne `type_trad_fr` au lieu de `type_traduction`
+  - L'erreur se produisait uniquement lors de l'import de jeux via JSON (LC Extractor / F95 Extractor)
+
 ## [1.0.8] - 2025-01-04
 
 ### Ajouté

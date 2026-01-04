@@ -280,7 +280,7 @@ function updateGameTranslationsOnly(db, gameId, activeEntry, traductions) {
     SET traduction_fr_disponible = 1,
         version_traduite = ?,
         lien_traduction = ?,
-        type_trad_fr = ?,
+        type_traduction = ?,
         traducteur = ?,
         traductions_multiples = ?,
         derniere_sync_trad = datetime('now'),
