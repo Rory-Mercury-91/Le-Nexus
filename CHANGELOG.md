@@ -5,6 +5,26 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.8] - 2025-01-04
+
+### Ajouté
+- **Système de synchronisation global** : Tous les schedulers (MAL, AniList, Nautiljon, Traductions) sont maintenant connectés au système global de synchronisation
+- **Scheduler de traductions** : Connexion du scheduler des traductions de jeux adultes au système global tout en conservant l'option manuelle
+- **Vérification au démarrage** : Tous les schedulers vérifient maintenant si le délai est dépassé avant de lancer une synchronisation au démarrage
+- **Avertissements de connexion** : Les toggles de synchronisation automatique affichent maintenant un message d'avertissement si l'utilisateur tente de les activer sans être connecté au service
+
+### Corrigé
+- **Import manquant** : Correction de l'erreur `startAniListScheduler is not defined` dans `electron/main.js`
+- **Synchronisation au démarrage** : Correction des appels dupliqués et incohérents aux fonctions `syncOnStartup`
+- **Protection des Promises** : Ajout de `Promise.resolve()` pour éviter les erreurs `Cannot read properties of undefined (reading 'catch')`
+- **Handlers IPC** : Ajout des handlers manquants pour la gestion des intervalles de synchronisation des traductions
+- **Vérifications de sécurité** : Ajout de vérifications pour les fonctions IPC non disponibles dans les hooks frontend
+
+### Amélioré
+- **UX des toggles** : Les toggles de synchronisation automatique ne sont plus désactivés, ils affichent un message explicatif à la place
+- **Compatibilité** : Le scheduler des traductions accepte maintenant les intervalles numériques (1, 3, 6, 12, 24) en plus du format string
+- **Gestion des erreurs** : Meilleure gestion des erreurs de synchronisation au démarrage avec messages plus clairs
+
 ## [1.0.7-Fix4] - 2026-01-04
 
 ### 🔧 Amélioré

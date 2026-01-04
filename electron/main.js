@@ -23,7 +23,8 @@ if (!isDev && process.env.DEBUG_LOGS !== 'true') {
 const { initDatabase } = require('./services/database');
 const { createImportServer } = require('./services/import-server');
 const { startScheduler, syncOnStartup } = require('./services/schedulers/mal-sync-scheduler');
-const { startScheduler: startNautiljonScheduler } = require('./services/schedulers/nautiljon-sync-scheduler');
+const { startScheduler: startAniListScheduler, syncOnStartup: syncAniListOnStartup } = require('./services/schedulers/anilist-sync-scheduler');
+const { startScheduler: startNautiljonScheduler, syncOnStartup: syncNautiljonOnStartup } = require('./services/schedulers/nautiljon-sync-scheduler');
 const { startDatabaseSyncScheduler } = require('./services/schedulers/database-sync-scheduler');
 const sessionTracker = require('./services/adulte-game/session-tracker');
 const { startStreamingServer, getStreamingUrl, needsTranscoding } = require('./services/video-streaming-server');
@@ -1153,15 +1154,15 @@ app.whenReady().then(async () => {
     // Démarrer le scheduler Nautiljon
     startNautiljonScheduler(getDb(), store, mainWindow, getPathManager);
 
-    // Effectuer une sync au démarrage si nécessaire
-    syncOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
-      console.error('Erreur sync MAL au démarrage:', err);
+    // Effectuer une sync au démarrage si nécessaire (vérifie si le délai est dépassé)
+    Promise.resolve(syncOnStartup(getDb(), store, getDb, getPathManager, getMainWindow)).catch(err => {
+      console.warn('⚠️ Sync MAL au démarrage échouée:', err?.message || err);
     });
-    syncAniListOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
-      console.error('Erreur sync AniList au démarrage:', err);
+    Promise.resolve(syncAniListOnStartup(getDb(), store, getDb, getPathManager, getMainWindow)).catch(err => {
+      console.warn('⚠️ Sync AniList au démarrage échouée:', err?.message || err);
     });
-    syncAniListOnStartup(getDb(), store, getDb, getPathManager, getMainWindow).catch(err => {
-      console.warn('⚠️ Sync MAL au démarrage échouée:', err.message);
+    Promise.resolve(syncNautiljonOnStartup(getDb(), store, mainWindow, getPathManager)).catch(err => {
+      console.warn('⚠️ Sync Nautiljon au démarrage échouée:', err?.message || err);
     });
 
     // Démarrer le tracking automatique des sessions de jeux
@@ -1178,7 +1179,7 @@ app.whenReady().then(async () => {
     // Note: doit être appelé après l'enregistrement des handlers cloud sync
     setTimeout(() => {
       if (global.syncCloudSyncOnStartup) {
-        global.syncCloudSyncOnStartup().catch(err => {
+        Promise.resolve(global.syncCloudSyncOnStartup()).catch(err => {
           console.error('Erreur sync cloud au démarrage:', err);
         });
       }

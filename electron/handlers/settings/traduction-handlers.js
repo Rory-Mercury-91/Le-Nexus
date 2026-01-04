@@ -77,6 +77,59 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
       return { success: false, error: error.message };
     }
   });
+
+  // Modifier l'intervalle de synchronisation (pour connexion au système global)
+  ipcMain.handle('traduction-set-auto-sync-interval', async (event, intervalHours) => {
+    try {
+      const config = store.get('traductionConfig', {
+        enabled: false,
+        traducteurs: [],
+        sheetUrl: '',
+        syncFrequency: 6,
+        lastSync: null,
+        gamesCount: 0,
+        discordWebhookUrl: '',
+        discordMentions: {},
+        discordNotifyGameUpdates: true,
+        discordNotifyTranslationUpdates: true
+      });
+
+      // Mettre à jour la fréquence (accepte maintenant des nombres)
+      config.syncFrequency = intervalHours;
+      store.set('traductionConfig', config);
+
+      // Redémarrer le scheduler si activé
+      const db = getDb();
+      if (db && config.enabled && intervalHours !== 'manual') {
+        const { restartScheduler } = require('../../services/adulte-game/traduction-sync');
+        restartScheduler(config, getDb, store, getPathManager);
+      }
+
+      console.log(`✅ Intervalle traductions mis à jour: ${intervalHours}h`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur modification intervalle traductions:', error);
+      throw error;
+    }
+  });
+
+  // Récupérer les paramètres de synchronisation automatique
+  ipcMain.handle('traduction-get-auto-sync-settings', () => {
+    try {
+      const config = store.get('traductionConfig', {
+        enabled: false,
+        syncFrequency: 6
+      });
+
+      return {
+        enabled: config.enabled,
+        intervalHours: typeof config.syncFrequency === 'number' ? config.syncFrequency : 6
+      };
+    } catch (error) {
+      console.error('❌ Erreur récupération paramètres sync auto traductions:', error);
+      throw error;
+    }
+  });
   
   // Synchroniser les traductions maintenant (uniquement traducteurs suivis)
   ipcMain.handle('sync-traductions-now', async () => {

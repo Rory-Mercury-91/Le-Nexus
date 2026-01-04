@@ -278,6 +278,7 @@ export default function Settings() {
           onNautiljonAutoSyncChange={handleNautiljonAutoSyncChange}
           nautiljonAutoSyncIncludeTomes={nautiljonAutoSyncIncludeTomes}
           onNautiljonIncludeTomesChange={handleNautiljonIncludeTomesChange}
+          showToast={showToast}
         />
       ),
       span: 2

@@ -8,6 +8,7 @@ import { useAppSettings } from './useAppSettings';
 import { useDatabaseSettings } from './useDatabaseSettings';
 import { useMalSettings } from './useMalSettings';
 import { useNautiljonSettings } from './useNautiljonSettings';
+import { useTraductionSettings } from './useTraductionSettings';
 
 interface UserData {
   id: number;
@@ -72,6 +73,7 @@ export function useSettings() {
   const malSettings = useMalSettings();
   const anilistSettings = useAniListSettings();
   const nautiljonSettings = useNautiljonSettings();
+  const traductionSettings = useTraductionSettings();
   const appSettings = useAppSettings();
   const databaseSettings = useDatabaseSettings();
 
@@ -313,8 +315,13 @@ export function useSettings() {
     ...restNautiljonSettings
   } = nautiljonSettings;
 
+  const {
+    traductionAutoSyncInterval,
+    handleTraductionIntervalChange
+  } = traductionSettings || { traductionAutoSyncInterval: 6, handleTraductionIntervalChange: async () => {} };
+
   useEffect(() => {
-    const candidate = (malAutoSyncInterval ?? anilistAutoSyncInterval ?? nautiljonAutoSyncInterval) as 1 | 3 | 6 | 12 | 24 | undefined;
+    const candidate = (malAutoSyncInterval ?? anilistAutoSyncInterval ?? nautiljonAutoSyncInterval ?? traductionAutoSyncInterval) as 1 | 3 | 6 | 12 | 24 | undefined;
     if (!globalSyncInitialized && candidate) {
       setGlobalSyncInterval(candidate);
       setGlobalSyncInitialized(true);
@@ -328,23 +335,20 @@ export function useSettings() {
     const malInterval = malAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
     const anilistInterval = anilistAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
     const nautiljonInterval = nautiljonAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
+    const traductionInterval = traductionAutoSyncInterval as 1 | 3 | 6 | 12 | 24 | undefined;
 
     // Utiliser une fonction de mise à jour pour éviter la dépendance sur globalSyncInterval
     setGlobalSyncInterval((currentInterval) => {
-      if (malInterval && anilistInterval && nautiljonInterval && malInterval === anilistInterval && anilistInterval === nautiljonInterval) {
+      // Vérifier si tous les intervalles sont identiques
+      if (malInterval && anilistInterval && nautiljonInterval && traductionInterval &&
+          malInterval === anilistInterval && anilistInterval === nautiljonInterval && nautiljonInterval === traductionInterval) {
         if (currentInterval !== malInterval) {
           return malInterval;
         }
         return currentInterval;
       }
 
-      if (malInterval && anilistInterval && malInterval === anilistInterval) {
-        if (currentInterval !== malInterval) {
-          return malInterval;
-        }
-        return currentInterval;
-      }
-
+      // Sinon, prendre le premier disponible
       if (malInterval && currentInterval !== malInterval) {
         return malInterval;
       }
@@ -357,9 +361,13 @@ export function useSettings() {
         return nautiljonInterval;
       }
 
+      if (traductionInterval && currentInterval !== traductionInterval) {
+        return traductionInterval;
+      }
+
       return currentInterval;
     });
-  }, [globalSyncInitialized, globalSyncUpdating, malAutoSyncInterval, anilistAutoSyncInterval, nautiljonAutoSyncInterval]);
+  }, [globalSyncInitialized, globalSyncUpdating, malAutoSyncInterval, anilistAutoSyncInterval, nautiljonAutoSyncInterval, traductionAutoSyncInterval]);
 
   return {
     // State local
@@ -406,7 +414,8 @@ export function useSettings() {
         await Promise.all([
           handleMalIntervalChange(interval),
           handleAniListIntervalChange(interval),
-          handleNautiljonIntervalChange(interval)
+          handleNautiljonIntervalChange(interval),
+          handleTraductionIntervalChange(interval)
         ]);
       } catch (error: any) {
         setGlobalSyncInterval(previousInterval);

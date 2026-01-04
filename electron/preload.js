@@ -388,6 +388,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTraductionConfig: () => ipcRenderer.invoke('get-traduction-config'),
   saveTraductionConfig: (config) => ipcRenderer.invoke('save-traduction-config', config),
   syncTraductionsNow: () => ipcRenderer.invoke('sync-traductions-now'),
+  traductionGetAutoSyncSettings: () => ipcRenderer.invoke('traduction-get-auto-sync-settings'),
+  traductionSetAutoSyncInterval: (intervalHours) => ipcRenderer.invoke('traduction-set-auto-sync-interval', intervalHours),
   updateTraductionManually: (gameId, tradData) => ipcRenderer.invoke('update-traduction-manually', gameId, tradData),
   clearTraduction: (gameId) => ipcRenderer.invoke('clear-traduction', gameId),
   fetchTraducteurs: () => ipcRenderer.invoke('fetch-traducteurs'),

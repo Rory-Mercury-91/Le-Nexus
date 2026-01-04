@@ -468,6 +468,8 @@ interface ElectronAPI {
     matched?: number;
     error?: string;
   }>;
+  traductionGetAutoSyncSettings: () => Promise<{ enabled: boolean; intervalHours: number }>;
+  traductionSetAutoSyncInterval: (intervalHours: number) => Promise<{ success: boolean; error?: string }>;
   getBackupConfig: () => Promise<{
     enabled: boolean;
     frequency: 'daily' | 'weekly' | 'manual';

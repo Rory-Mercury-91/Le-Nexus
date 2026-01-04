@@ -19,6 +19,8 @@ interface SyncSchedulerSettingsProps {
   onNautiljonAutoSyncChange: (enabled: boolean) => void;
   nautiljonAutoSyncIncludeTomes: boolean;
   onNautiljonIncludeTomesChange: (include: boolean) => void;
+  
+  showToast?: (options: { title: string; message: string; type: 'success' | 'error' | 'warning' | 'info'; duration?: number }) => void;
 }
 
 const tooltipTexts = {
@@ -98,7 +100,36 @@ export default function SyncSchedulerSettings({
   onNautiljonAutoSyncChange,
   nautiljonAutoSyncIncludeTomes,
   onNautiljonIncludeTomesChange,
+  showToast,
 }: SyncSchedulerSettingsProps) {
+  
+  // Gestion de l'activation MAL avec vérification de connexion
+  const handleMalAutoSyncChange = (enabled: boolean) => {
+    if (enabled && !malConnected) {
+      showToast?.({
+        title: 'Connexion requise',
+        message: 'Veuillez d\'abord vous connecter à MyAnimeList dans l\'onglet "Intégrations" pour activer la synchronisation automatique.',
+        type: 'warning',
+        duration: 5000
+      });
+      return;
+    }
+    onMalAutoSyncChange(enabled);
+  };
+
+  // Gestion de l'activation AniList avec vérification de connexion
+  const handleAnilistAutoSyncChange = (enabled: boolean) => {
+    if (enabled && !anilistConnected) {
+      showToast?.({
+        title: 'Connexion requise',
+        message: 'Veuillez d\'abord vous connecter à AniList dans l\'onglet "Intégrations" pour activer la synchronisation automatique.',
+        type: 'warning',
+        duration: 5000
+      });
+      return;
+    }
+    onAnilistAutoSyncChange(enabled);
+  };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Fréquence de Synchronisation Globale */}
@@ -181,8 +212,7 @@ export default function SyncSchedulerSettings({
             </div>
             <Toggle
               checked={malAutoSyncEnabled}
-              onChange={onMalAutoSyncChange}
-              disabled={!malConnected}
+              onChange={handleMalAutoSyncChange}
             />
           </div>
 
@@ -208,8 +238,7 @@ export default function SyncSchedulerSettings({
             </div>
             <Toggle
               checked={anilistAutoSyncEnabled}
-              onChange={onAnilistAutoSyncChange}
-              disabled={!anilistConnected}
+              onChange={handleAnilistAutoSyncChange}
             />
           </div>
 

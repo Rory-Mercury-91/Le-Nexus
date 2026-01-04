@@ -30,6 +30,9 @@ module.exports = {
   get stopScheduler() {
     return require('../schedulers/adulte-game-traduction-scheduler').stopScheduler;
   },
+  get restartScheduler() {
+    return require('../schedulers/adulte-game-traduction-scheduler').restartScheduler;
+  },
   get fetchTraducteurs() {
     return require('./traduction-google-sheets').fetchTraducteurs;
   }

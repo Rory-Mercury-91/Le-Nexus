@@ -11,11 +11,14 @@ let schedulerTask = null;
 
 /**
  * Convertit la fréquence en expression cron
- * @param {string} frequency - '1h', '3h', '6h', '12h', '24h', 'manual'
+ * @param {string|number} frequency - '1h', '3h', '6h', '12h', '24h', 'manual' ou 1, 3, 6, 12, 24
  * @returns {string} Expression cron
  */
 function getCronExpression(frequency) {
-  switch (frequency) {
+  // Normaliser la fréquence (accepter string ou number)
+  const normalized = typeof frequency === 'number' ? `${frequency}h` : frequency;
+  
+  switch (normalized) {
     case '1h':
       return '0 * * * *'; // Toutes les heures
     case '3h':
@@ -102,8 +105,22 @@ function stopScheduler() {
   }
 }
 
+/**
+ * Redémarre le scheduler avec une nouvelle configuration
+ * @param {object} config - Configuration { enabled, traducteurs, sheetUrl, syncFrequency }
+ * @param {object} dbOrGetter - Instance de la base de données ou fonction getter
+ * @param {object} store - Instance electron-store
+ * @param {function} getPathManager - Fonction getter pour PathManager (optionnel)
+ */
+function restartScheduler(config, dbOrGetter, store, getPathManager = null) {
+  console.log('🔄 Redémarrage du scheduler traductions...');
+  stopScheduler();
+  initScheduler(config, dbOrGetter, store, getPathManager);
+}
+
 module.exports = {
   initScheduler,
   stopScheduler,
+  restartScheduler,
   getCronExpression
 };
