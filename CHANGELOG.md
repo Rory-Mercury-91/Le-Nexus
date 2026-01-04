@@ -5,7 +5,7 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
-## [1.0.7-Fix2] - (A venir)
+## [1.0.7-Fix2] - 2026-01-04
 
 ### ✨ Ajouté
 - **Champ "lien de traduction" dans la modale d'édition des jeux adultes**
@@ -43,7 +43,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Amélioration de la gestion des erreurs pour ignorer les erreurs des sous-frames (publicités, analytics)
   - Les messages d'erreur pour les publicités bloquées (ERR_BLOCKED_BY_CLIENT) sont normaux et indiquent que le blocage fonctionne correctement
 
-## [1.0.7-Fix] - (A venir)
+## [1.0.7-Fix] - 2026-01-04
 
 ### 🐛 Corrigé
 - **Script Tampermonkey pour LewdCorner**
