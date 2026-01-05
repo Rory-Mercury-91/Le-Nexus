@@ -16,6 +16,7 @@ import {
 } from '../../../../components/collections';
 import CollectionView from '../../../../components/common/CollectionView';
 import ListItem from '../../../../components/common/ListItem';
+import SubNavigationTabs from '../../../../components/common/SubNavigationTabs';
 import AddAdulteGameModal from '../../../../components/modals/adulte-game/AddAdulteGameModal';
 import AdulteGameUnlockModal from '../../../../components/modals/adulte-game/AdulteGameUnlockModal';
 import ScanExecutablesModal from '../../../../components/modals/adulte-game/ScanExecutablesModal';
@@ -120,8 +121,8 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
     clearFilters
   } = useAdulteGameCollection();
 
-  // Afficher le filtre de moteur uniquement pour les jeux adultes
-  const shouldShowMoteurFilter = config.filterType === 'adulte';
+  // Afficher tous les filtres sur l'onglet "Tout"
+  const shouldShowMoteurFilter = true; // Toujours afficher le filtre de moteur
 
   // Calculer les compteurs de jeux pour les sous-onglets
   const gameCounts = useMemo(() => {
@@ -703,116 +704,31 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
           />
 
           {/* Barre de sous-onglets */}
-          <div style={{
-            display: 'flex',
-            marginBottom: '20px',
-            gap: '8px',
-            flexWrap: 'wrap'
-          }}>
-            <button
-              onClick={() => navigate('/games/all')}
-              style={{
-                padding: '10px 20px',
-                border: 'none',
-                background: location.pathname === '/games/all' || location.pathname === '/games' ? 'var(--surface-light)' : 'transparent',
-                borderBottom: location.pathname === '/games/all' || location.pathname === '/games' ? '2px solid var(--primary)' : '2px solid transparent',
-                color: location.pathname === '/games/all' || location.pathname === '/games' ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: location.pathname === '/games/all' || location.pathname === '/games' ? '600' : '400',
-                cursor: 'pointer',
-                fontSize: '13px',
-                transition: 'all 0.2s ease',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-              onMouseEnter={(e) => {
-                if (location.pathname !== '/games/all' && location.pathname !== '/games') {
-                  e.currentTarget.style.color = 'var(--text)';
-                  e.currentTarget.style.background = 'var(--surface-light)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (location.pathname !== '/games/all' && location.pathname !== '/games') {
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              <span>🎮</span>
-              Tout {gameCounts.total > 0 && `(${gameCounts.total})`}
-            </button>
-            {gameCounts.video > 0 && (
-              <button
-                onClick={() => navigate('/games/video')}
-                style={{
-                  padding: '10px 20px',
-                  border: 'none',
-                  background: location.pathname === '/games/video' ? 'var(--surface-light)' : 'transparent',
-                  borderBottom: location.pathname === '/games/video' ? '2px solid var(--primary)' : '2px solid transparent',
-                  color: location.pathname === '/games/video' ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontWeight: location.pathname === '/games/video' ? '600' : '400',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: 'all 0.2s ease',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-                onMouseEnter={(e) => {
-                  if (location.pathname !== '/games/video') {
-                    e.currentTarget.style.color = 'var(--text)';
-                    e.currentTarget.style.background = 'var(--surface-light)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (location.pathname !== '/games/video') {
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                <span>🎮</span>
-                Jeux vidéo ({gameCounts.video})
-              </button>
-            )}
-            {gameCounts.adulte > 0 && (
-              <button
-                onClick={() => navigate('/games/adulte')}
-                style={{
-                  padding: '10px 20px',
-                  border: 'none',
-                  background: location.pathname === '/games/adulte' ? 'var(--surface-light)' : 'transparent',
-                  borderBottom: location.pathname === '/games/adulte' ? '2px solid var(--primary)' : '2px solid transparent',
-                  color: location.pathname === '/games/adulte' ? 'var(--primary)' : 'var(--text-secondary)',
-                  fontWeight: location.pathname === '/games/adulte' ? '600' : '400',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  transition: 'all 0.2s ease',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-                onMouseEnter={(e) => {
-                  if (location.pathname !== '/games/adulte') {
-                    e.currentTarget.style.color = 'var(--text)';
-                    e.currentTarget.style.background = 'var(--surface-light)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (location.pathname !== '/games/adulte') {
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                <span>🎮</span>
-                Jeux adulte ({gameCounts.adulte})
-              </button>
-            )}
-          </div>
+          <SubNavigationTabs
+            currentPath={location.pathname}
+            tabs={[
+              {
+                path: '/games/all',
+                icon: '🎮',
+                label: 'Tout',
+                count: gameCounts.total > 0 ? gameCounts.total : undefined
+              },
+              {
+                path: '/games/video',
+                icon: '🎮',
+                label: 'Jeux vidéo',
+                count: gameCounts.video,
+                condition: gameCounts.video > 0
+              },
+              {
+                path: '/games/adulte',
+                icon: '🎮',
+                label: 'Jeux adulte',
+                count: gameCounts.adulte,
+                condition: gameCounts.adulte > 0
+              }
+            ]}
+          />
 
           {message && (
             <div style={{

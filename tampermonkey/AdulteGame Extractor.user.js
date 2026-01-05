@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AdulteGame Extractor → Le Nexus
 // @namespace    http://tampermonkey.net/
-// @version      2.0.7
+// @version      2.1.0
 // @description  Extrait les données des jeux pour adultes depuis F95Zone et LewdCorner pour Le Nexus
 // @author       Rory Mercury 91
 // @match        https://f95zone.to/threads/*
@@ -57,7 +57,9 @@
       image = image.replace("preview.f95zone.to/", "attachments.f95zone.to/");
     }
 
-    const regName = /.*-\s(.*?)\s\[/i;
+    // Regex améliorée pour capturer les titres avec plusieurs tirets
+    // Exemple: "Ren'Py - Actual Roommates 2 - Sorority Crash [v1.0]" → capture "Actual Roommates 2 - Sorority Crash"
+    const regName = /.*?-\s+(.+?)\s+\[/i;
     const regTitle = /([\w\\']+)(?=\s-)/gi;
 
     const titleMatch = title.match(regTitle) ?? [];
@@ -212,10 +214,24 @@
     const urlMatch = window.location.pathname.match(/\.(\d+)(?:\/|$)/);
     const id = urlMatch ? Number(urlMatch[1]) : null;
 
-    // Récupérer le titre de la page
-    const pageTitle = document.querySelector(".p-title-value")?.innerText?.trim() ??
-      document.querySelector("h1.p-title-value")?.innerText?.trim() ??
-      document.querySelector("title")?.textContent?.trim() ?? "";
+    // Récupérer le titre de la page en extrayant uniquement les nœuds texte (ignorer les labels)
+    const titleElement = document.querySelector(".p-title-value") ?? document.querySelector("h1.p-title-value");
+    let pageTitle = "";
+    
+    if (titleElement) {
+      // Extraire uniquement les TEXT_NODE pour ignorer les labels (Complete, VN, Ren'Py, DAZ, etc.)
+      pageTitle = Array.from(titleElement.childNodes)
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent.trim())
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    }
+    
+    // Fallback sur le titre HTML si pas de titre trouvé
+    if (!pageTitle) {
+      pageTitle = document.querySelector("title")?.textContent?.trim() ?? "";
+    }
 
     // Fonction pour nettoyer le nom (supprimer préfixes/tags)
     function cleanGameName(rawName) {
@@ -252,24 +268,87 @@
       return cleaned;
     }
 
-    // Extraire le nom du jeu depuis plusieurs sources
+    // Extraire le nom, la version et le développeur depuis le titre (maintenant propre sans labels)
     let name = "";
+    let version = "";
+    let developer = "";
     const jsonLD = getLewdCornerJsonLD();
 
-    // Méthode 1: Depuis le JSON-LD (le plus fiable)
-    if (jsonLD?.headline) {
+    // PRIORITÉ 1: Parser le format structuré depuis pageTitle (sans labels)
+    // Format: "MWNeus [v1.0] [CLLGames]" ou "Game Title [Version] [Developer]"
+    if (pageTitle) {
+      const structuredMatch = pageTitle.match(/(.*?)\s*\[([^\]]+)\]\s*\[([^\]]+)\]\s*$/);
+      
+      if (structuredMatch) {
+        // Format avec 2 crochets: extraire titre, version et développeur
+        let extractedTitle = structuredMatch[1].trim();
+        
+        // Nettoyer le titre des préfixes de moteur si présents
+        const knownEngines = ['Ren\'Py', 'RenPy', 'RPGM', 'Unity', 'Unreal Engine', 'HTML', 'Flash', 'QSP', 'Others', 'Other', 'WebGL', 'Java', 'ADRIFT'];
+        for (const engine of knownEngines) {
+          const enginePattern = new RegExp(`^${engine}\\s+-\\s+`, 'i');
+          if (enginePattern.test(extractedTitle)) {
+            extractedTitle = extractedTitle.replace(enginePattern, '').trim();
+            break;
+          }
+        }
+        
+        // Nettoyer le titre avec cleanGameName (enlever préfixes DAZ, KN, etc.)
+        name = cleanGameName(extractedTitle);
+        version = structuredMatch[2].trim();
+        developer = structuredMatch[3].trim();
+      } else {
+        // Format sans 2 crochets: essayer d'extraire ce qu'on peut
+        const bracketMatches = Array.from(pageTitle.matchAll(/\[([^\]]+)\]/g));
+        
+        // Extraire le titre en enlevant tous les crochets
+        let extractedTitle = pageTitle.replace(/\s*\[[^\]]+\]\s*/g, ' ').trim();
+        
+        // Nettoyer le titre des préfixes de moteur
+        const knownEngines = ['Ren\'Py', 'RenPy', 'RPGM', 'Unity', 'Unreal Engine', 'HTML', 'Flash', 'QSP', 'Others', 'Other', 'WebGL', 'Java', 'ADRIFT'];
+        for (const engine of knownEngines) {
+          const enginePattern = new RegExp(`^${engine}\\s+-\\s+`, 'i');
+          if (enginePattern.test(extractedTitle)) {
+            extractedTitle = extractedTitle.replace(enginePattern, '').trim();
+            break;
+          }
+        }
+        
+        name = cleanGameName(extractedTitle);
+        
+        // Extraire version et développeur des crochets
+        if (bracketMatches.length >= 2) {
+          // Le dernier crochet est généralement le développeur
+          developer = bracketMatches[bracketMatches.length - 1][1].trim();
+          
+          // L'avant-dernier est généralement la version
+          version = bracketMatches[bracketMatches.length - 2][1].trim();
+        } else if (bracketMatches.length === 1) {
+          // Un seul crochet : peut être la version ou le développeur
+          const bracketContent = bracketMatches[0][1].trim();
+          // Si ça ressemble à une version (chiffres et points), c'est la version
+          if (/^v?[\d.]+/i.test(bracketContent)) {
+            version = bracketContent;
+          } else {
+            // Sinon, c'est probablement le développeur
+            developer = bracketContent;
+          }
+        }
+      }
+    }
+    
+    // Fallback: essayer d'autres méthodes si on n'a pas trouvé via pageTitle
+    const jsonLD = getLewdCornerJsonLD();
+    
+    // Fallback pour le nom depuis JSON-LD
+    if (!name && jsonLD?.headline) {
       const headlineMatch = jsonLD.headline.match(/([^\[]*?)(?:\s*\[|$)/);
       if (headlineMatch && headlineMatch[1]) {
         name = cleanGameName(headlineMatch[1]);
       }
     }
-
-    // Méthode 2: Depuis le titre de la page
-    if (!name && pageTitle) {
-      name = cleanGameName(pageTitle);
-    }
-
-    // Méthode 3: Essayer d'extraire depuis l'URL (format: /threads/the-trio.18918/)
+    
+    // Fallback pour le nom depuis l'URL
     if (!name) {
       const urlMatch = window.location.pathname.match(/\/threads\/([^.]+)\.\d+/);
       if (urlMatch && urlMatch[1]) {
@@ -280,66 +359,23 @@
           .join(' ');
       }
     }
-
-    // Méthode 4: Depuis le titre HTML
+    
+    // Fallback pour le nom depuis le titre HTML
     if (!name) {
       const titleEl = document.querySelector("title");
       if (titleEl) {
         name = cleanGameName(titleEl.textContent.split('|')[0]);
       }
     }
-
-    // Extraire la version depuis plusieurs sources
-    let version = "";
-    // Méthode 1: Sélecteur data-field
-    version = document.querySelector("dl[data-field='version'] > dd")?.textContent?.trim() ?? "";
-    // Méthode 2: Chercher dans le titre [Version X.X]
-    if (!version && pageTitle) {
-      const versionMatch = pageTitle.match(/\[([\d.]+)\]/);
-      if (versionMatch) {
-        version = versionMatch[1];
-      }
+    
+    // Fallback pour la version depuis le sélecteur data-field
+    if (!version) {
+      version = document.querySelector("dl[data-field='version'] > dd")?.textContent?.trim() ?? "";
     }
-    // Méthode 3: JSON-LD
+    
+    // Fallback pour la version depuis JSON-LD
     if (!version && jsonLD?.version) {
       version = String(jsonLD.version).trim();
-    }
-
-    // Extraire le développeur depuis le titre (format: Titre [Version] [Developer] ou Titre [Developer])
-    let developer = "";
-    if (pageTitle) {
-      // Extraire tous les crochets du titre
-      const bracketMatches = Array.from(pageTitle.matchAll(/\[([^\]]+)\]/g));
-
-      if (bracketMatches.length >= 2) {
-        // Format structuré avec au moins 2 crochets: Titre [Version] [Developer] ou Titre [X] [Version] [Developer]
-        // Le dernier crochet est généralement le développeur
-        developer = bracketMatches[bracketMatches.length - 1][1].trim();
-
-        // Si on n'a pas encore la version, essayer de la trouver dans les crochets précédents
-        if (!version && bracketMatches.length >= 2) {
-          // Chercher un pattern de version (chiffres et points) dans les crochets avant le dernier
-          for (let i = bracketMatches.length - 2; i >= 0; i--) {
-            const bracketContent = bracketMatches[i][1].trim();
-            if (/^[\d.]+$/.test(bracketContent)) {
-              version = bracketContent;
-              break;
-            }
-          }
-        }
-      } else if (bracketMatches.length === 1) {
-        // Un seul crochet : peut être la version ou le développeur
-        const bracketContent = bracketMatches[0][1].trim();
-        // Si ça ressemble à une version (chiffres et points), c'est la version
-        if (/^[\d.]+$/.test(bracketContent)) {
-          if (!version) {
-            version = bracketContent;
-          }
-        } else {
-          // Sinon, c'est probablement le développeur
-          developer = bracketContent;
-        }
-      }
     }
 
     // Extraire les tags

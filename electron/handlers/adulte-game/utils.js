@@ -362,63 +362,79 @@ function parseF95ZoneGameData(html) {
   const titleElement = document.querySelector('.p-title-value');
   let rawTitleText = '';
   if (titleElement) {
-    // Utiliser textContent comme le script Tampermonkey
-    rawTitleText = titleElement.textContent.trim().replace(/\s+/g, ' ');
+    // Extraire uniquement les nœuds texte (TEXT_NODE) pour ignorer les labels comme "VN" et "Ren'Py"
+    // qui sont dans des balises <a> et <span>
+    // Exemple: <h1><span>VN</span><span>Ren'Py</span>Forbidden Pleasures [Ch.4] [Deus actum]</h1>
+    // → extrait seulement "Forbidden Pleasures [Ch.4] [Deus actum]"
+    const textNodes = Array.from(titleElement.childNodes)
+      .filter(node => node.nodeType === 3) // Node.TEXT_NODE === 3
+      .map(node => node.textContent.trim())
+      .filter(Boolean)
+      .join(' ');
+    
+    rawTitleText = textNodes.replace(/\s+/g, ' ').trim();
   }
   if (!rawTitleText) {
     rawTitleText = decodeHTMLLocal(fullTitle).replace(/\s+/g, ' ').trim();
   }
 
-  // Parser le titre structuré - utiliser la même logique que le script Tampermonkey
-  // Le script utilise: regName = /.*-\s(.*?)\s\[/i pour extraire le nom entre " - " et le premier crochet
-  const regNameForTitle = /.*-\s(.*?)\s\[/i;
-  const regTitleForWords = /([\w\\']+)(?=\s-)/gi;
-
-  const titleWordsMatch = fullTitle.match(regTitleForWords) || [];
-  const nameMatch = fullTitle.match(regNameForTitle) || [];
+  // Parser le titre structuré depuis rawTitleText (extrait du <h1> sans les labels)
+  // PRIORITÉ 1: Format avec deux crochets [Version] [Developer]
+  // Exemple: "Forbidden Pleasures [Ch.4] [Deus actum]" ou "Ren'Py - Game Title [v1.0] [Dev]"
+  const structuredMatch = rawTitleText.match(/(.*?)\s*\[([^\]]+)\]\s*\[([^\]]+)\]\s*$/);
 
   let parsedTitle = '';
   let parsedVersion = '';
   let parsedDeveloper = '';
 
-  // PRIORITÉ 1: Utiliser regNameForTitle pour extraire le titre (comme le script Tampermonkey)
-  // Cette regex fonctionne si le titre contient " - " (ex: "Ren'Py - A Family Venture [v0.09]")
-  if (nameMatch && nameMatch[1]) {
-    parsedTitle = nameMatch[1].trim();
-  }
-
-  // PRIORITÉ 2: Essayer le match structuré complet pour version et développeur
-  const structuredMatch = rawTitleText.match(/(.*?)\s*\[([^\]]+)\]\s*\[([^\]]+)\]\s*$/);
-
   if (structuredMatch) {
-    // Si on n'a pas encore de titre, utiliser celui du structuredMatch
-    if (!parsedTitle) {
-      let extractedTitle = structuredMatch[1].trim();
-      // Retirer "Ren'Py" ou "RenPy" du début si présent (comme le script Tampermonkey)
-      // Le script extrait "A Family Venture" au lieu de "Ren'Py A Family Venture"
-      extractedTitle = extractedTitle.replace(/^Ren['']?Py\s+/i, '').trim();
-      parsedTitle = extractedTitle;
+    // Extraire titre, version et développeur depuis le match structuré
+    let extractedTitle = structuredMatch[1].trim();
+    
+    // Si le titre commence par un moteur de jeu connu suivi de " - ", enlever cette partie
+    // Liste des moteurs connus sur F95Zone
+    const knownEngines = ['Ren\'Py', 'RenPy', 'RPGM', 'Unity', 'Unreal Engine', 'HTML', 'Flash', 'QSP', 'Others', 'Other', 'WebGL', 'Java', 'ADRIFT'];
+    
+    for (const engine of knownEngines) {
+      const enginePattern = new RegExp(`^${engine}\\s+-\\s+`, 'i');
+      if (enginePattern.test(extractedTitle)) {
+        extractedTitle = extractedTitle.replace(enginePattern, '').trim();
+        break;
+      }
     }
+    
+    parsedTitle = extractedTitle;
     parsedVersion = structuredMatch[2].trim();
     parsedDeveloper = structuredMatch[3].trim();
   } else {
-    // Fallback : extraire version et développeur séparément
+    // Fallback : si pas de format [Version] [Developer], essayer d'extraire ce qu'on peut
+    // Extraire la version (premier crochet)
     const versionFallback = rawTitleText.match(/\[([^\]]+)\]/);
-    const developerFallback = rawTitleText.match(/\[([^\]]+)\]\s*$/);
-
     if (versionFallback) {
       parsedVersion = versionFallback[1].trim();
     }
 
+    // Extraire le développeur (dernier crochet)
+    const developerFallback = rawTitleText.match(/\[([^\]]+)\]\s*$/);
     if (developerFallback) {
       parsedDeveloper = developerFallback[1].trim();
     }
 
-    // Si on n'a pas encore de titre, extraire depuis rawTitleText et retirer "Ren'Py"
+    // Extraire le titre en enlevant tous les crochets
     if (!parsedTitle) {
       let extractedTitle = rawTitleText.replace(/\s*\[[^\]]+\]\s*/g, ' ').trim();
-      // Retirer "Ren'Py" ou "RenPy" du début si présent
-      extractedTitle = extractedTitle.replace(/^Ren['']?Py\s+/i, '').trim();
+      
+      // Si le titre commence par un moteur de jeu connu suivi de " - ", enlever cette partie
+      const knownEngines = ['Ren\'Py', 'RenPy', 'RPGM', 'Unity', 'Unreal Engine', 'HTML', 'Flash', 'QSP', 'Others', 'Other', 'WebGL', 'Java', 'ADRIFT'];
+      
+      for (const engine of knownEngines) {
+        const enginePattern = new RegExp(`^${engine}\\s+-\\s+`, 'i');
+        if (enginePattern.test(extractedTitle)) {
+          extractedTitle = extractedTitle.replace(enginePattern, '').trim();
+          break;
+        }
+      }
+      
       parsedTitle = extractedTitle || fullTitle.trim();
     }
   }
@@ -435,6 +451,10 @@ function parseF95ZoneGameData(html) {
   const normalizedDeveloper = parsedDeveloper || '';
 
   // Log pour debug
+  console.log(`  📝 Titre extrait: "${normalizedTitle}"`);
+  if (normalizedVersion) {
+    console.log(`  🔢 Version extraite: "${normalizedVersion}"`);
+  }
   if (normalizedDeveloper) {
     console.log(`  👤 Développeur extrait: "${normalizedDeveloper}"`);
   }

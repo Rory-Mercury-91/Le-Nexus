@@ -1,6 +1,7 @@
 import { ReactNode, useMemo, useState } from 'react';
 import BackToBottomButton from '../../components/collections/BackToBottomButton';
 import BackToTopButton from '../../components/collections/BackToTopButton';
+import SubTabs from '../../components/common/SubTabs';
 import ApiKeyGuideModal from '../../components/modals/settings/ApiKeyGuideModal';
 import MergeEntitiesModal, { MergePreviewData } from '../../components/modals/settings/MergeEntitiesModal';
 import { useSettings } from '../../hooks/settings/useSettings';
@@ -600,49 +601,19 @@ export default function Settings() {
         </h1>
 
         {/* Barre d'onglets principaux */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid var(--border)',
-          gap: '0'
-        }}>
-          {tabGroups.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                // Si pas de sous-onglet actif pour cet onglet, définir le premier par défaut
-                if (!activeSubTab[tab.id]) {
-                  setActiveSubTab(prev => ({ ...prev, [tab.id]: tab.sections[0].id }));
-                }
-              }}
-              style={{
-                padding: '12px 24px',
-                border: 'none',
-                background: 'transparent',
-                borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
-                color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                fontWeight: activeTab === tab.id ? '600' : '400',
-                cursor: 'pointer',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                top: '1px'
-              }}
-              onMouseEnter={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--text)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--text-secondary)';
-                }
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <SubTabs
+          tabs={tabGroups.map(tab => ({ id: tab.id, label: tab.label }))}
+          activeTabId={activeTab}
+          onTabChange={(tabId) => {
+            setActiveTab(tabId);
+            // Si pas de sous-onglet actif pour cet onglet, définir le premier par défaut
+            const tab = tabGroups.find(t => t.id === tabId);
+            if (tab && !activeSubTab[tabId]) {
+              setActiveSubTab(prev => ({ ...prev, [tabId]: tab.sections[0].id }));
+            }
+          }}
+          marginBottom="0px"
+        />
 
         {/* Barre de sous-onglets */}
         {(() => {
@@ -652,49 +623,15 @@ export default function Settings() {
           const currentSubTab = activeSubTab[activeTab] || currentTab.sections[0].id;
 
           return (
-            <div style={{
-              display: 'flex',
-              marginBottom: '24px',
-              gap: '8px',
-              flexWrap: 'wrap'
-            }}>
-              {currentTab.sections.map((subTab) => (
-                <button
-                  key={subTab.id}
-                  onClick={() => setActiveSubTab(prev => ({ ...prev, [activeTab]: subTab.id }))}
-                  style={{
-                    padding: '10px 20px',
-                    border: 'none',
-                    background: currentSubTab === subTab.id ? 'var(--surface-light)' : 'transparent',
-                    borderBottom: currentSubTab === subTab.id ? '2px solid var(--primary)' : '2px solid transparent',
-                    color: currentSubTab === subTab.id ? 'var(--primary)' : 'var(--text-secondary)',
-                    fontWeight: currentSubTab === subTab.id ? '600' : '400',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    transition: 'all 0.2s ease',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentSubTab !== subTab.id) {
-                      e.currentTarget.style.color = 'var(--text)';
-                      e.currentTarget.style.background = 'var(--surface-light)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentSubTab !== subTab.id) {
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                      e.currentTarget.style.background = 'transparent';
-                    }
-                  }}
-                >
-                  <span>{subTab.icon}</span>
-                  {subTab.label}
-                </button>
-              ))}
-            </div>
+            <SubTabs
+              tabs={currentTab.sections.map(section => ({
+                id: section.id,
+                icon: section.icon,
+                label: section.label
+              }))}
+              activeTabId={currentSubTab}
+              onTabChange={(subTabId) => setActiveSubTab(prev => ({ ...prev, [activeTab]: subTabId }))}
+            />
           );
         })()}
 

@@ -1,6 +1,6 @@
 {
   "name": "le-nexus",
-  "version": "1.0.8",
+  "version": "1.0.8-Fix2",
   "description": "Application de gestion de collections multimédias (Mangas, Animés, Jeux Adultes)",
   "author": "Nexus Team",
   "main": "electron/main.js",

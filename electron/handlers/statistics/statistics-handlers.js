@@ -76,17 +76,12 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
       `).all();
 
       manga_tomes.forEach(tome => {
-        // Calculer le total Mihon (gain)
-        if (tome.mihon === 1) {
-          stats.totalMihon = (stats.totalMihon || 0) + tome.prix;
-          return; // Exclure les manga_tomes Mihon du coût global
-        }
-
         // Récupérer les propriétaires de ce tome
         const proprietaires = db.prepare(`
           SELECT user_id FROM manga_manga_tomes_proprietaires WHERE tome_id = ?
         `).all(tome.id);
 
+        // Si le tome a des propriétaires, le coût est attribué aux propriétaires (priorité sur Mihon)
         if (proprietaires.length > 0) {
           // Diviser le coût entre tous les propriétaires
           const coutParProprietaire = tome.prix / proprietaires.length;
@@ -116,6 +111,9 @@ function registerStatisticsHandlers(ipcMain, getDb, store) {
               stats.coutsMangasParProprietaire[prop.user_id] = (stats.coutsMangasParProprietaire[prop.user_id] || 0) + coutParProprietaire;
             }
           });
+        } else if (tome.mihon === 1) {
+          // Seulement si le tome n'a PAS de propriétaire, calculer le total Mihon (gain)
+          stats.totalMihon = (stats.totalMihon || 0) + tome.prix;
         }
       });
 

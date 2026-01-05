@@ -5,6 +5,28 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.8-Fix2] - 2026-01-05
+
+### 🎨 Amélioré
+- **Harmonisation des sous-onglets** : Refonte complète du système de sous-onglets dans toute l'application
+  - Création de composants réutilisables `SubNavigationTabs` (avec navigation) et `SubTabs` (sans navigation)
+  - Style d'onglet classique avec coins arrondis en haut et bordure active en bas
+  - Application aux collections : Jeux, Vidéos, Lectures
+  - Application aux Paramètres avec gestion de 2 niveaux d'onglets
+  - Suppression de ~540 lignes de code dupliqué dans `LectureCollectionPage`
+  - Espacement réduit entre les niveaux d'onglets dans les Paramètres pour plus de compacité
+
+### 🐛 Corrigé
+- **Scraping jeux adultes F95Zone** : Correction de l'extraction des titres incomplets
+  - Les titres comme "Actual Roommates 2 - Sorority Crash" n'étaient extraits que partiellement ("Sorority Crash")
+  - Extraction maintenant basée sur les nœuds texte uniquement (TEXT_NODE) pour ignorer les labels HTML
+  - Regex améliorée pour capturer les titres avec plusieurs tirets
+  - Logique robuste pour gérer les formats : `[Version] [Developer]` et suppression intelligente des préfixes moteur
+- **Tampermonkey LewdCorner** : Correction similaire pour l'extraction des titres depuis LewdCorner
+  - Même problème d'extraction partielle résolu
+  - Logique de parsing alignée avec le backend F95Zone
+  - Version du script mise à jour : 2.0.8 → 2.1.0
+
 ## [1.0.8-Fix1] - 2026-01-05
 
 ### 🐛 Corrigé
