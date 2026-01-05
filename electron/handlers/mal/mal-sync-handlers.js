@@ -264,6 +264,9 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null, ge
   ipcMain.handle('mal-set-auto-sync', (event, enabled, intervalHours = 6) => {
     try {
       const { restartScheduler } = require('../../services/schedulers/mal-sync-scheduler');
+      const previousEnabled = store.get('mal_auto_sync_enabled', false);
+      const previousInterval = store.get('mal_auto_sync_interval', 6);
+      
       store.set('mal_auto_sync_enabled', enabled);
       store.set('mal_auto_sync_interval', intervalHours);
       
@@ -281,7 +284,12 @@ function registerMalSyncHandlers(ipcMain, getDb, store, getMainWindow = null, ge
         });
       }
       
-      console.log(`✅ Sync auto MAL ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h)`);
+      // Log détaillé selon le type de changement
+      if (previousEnabled !== enabled) {
+        console.log(`✅ Sync auto MAL ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h)`);
+      } else if (previousInterval !== intervalHours) {
+        console.log(`✅ Intervalle sync auto MAL modifié: ${previousInterval}h → ${intervalHours}h`);
+      }
       
       return { success: true };
     } catch (error) {

@@ -38,6 +38,11 @@ export function useTraductionSettings() {
         return;
       }
       await window.electronAPI.traductionSetAutoSyncInterval(intervalHours);
+      showToast({
+        title: 'Intervalle modifié',
+        message: `Synchronisation traductions toutes les ${intervalHours}h`,
+        type: 'success'
+      });
     } catch (error: any) {
       setTraductionAutoSyncInterval(previousInterval);
       const message = error?.message || 'Impossible de modifier la fréquence';

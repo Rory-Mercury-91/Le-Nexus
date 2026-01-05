@@ -647,6 +647,11 @@ export function useMalSettings() {
     setMalAutoSyncInterval(intervalHours);
     try {
       await window.electronAPI.malSetAutoSync(malAutoSyncEnabled, intervalHours);
+      showToast({
+        title: 'Intervalle modifié',
+        message: `Synchronisation MAL toutes les ${intervalHours}h`,
+        type: 'success'
+      });
     } catch (error: any) {
       setMalAutoSyncInterval(previousInterval);
       const message = error?.message || 'Impossible de modifier la fréquence';

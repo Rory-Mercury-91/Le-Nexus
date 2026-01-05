@@ -40,6 +40,10 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
   ipcMain.handle('nautiljon-set-auto-sync', (event, enabled, intervalHours = 6, includeTomes = false) => {
     try {
       const { restartScheduler } = require('../../services/schedulers/nautiljon-sync-scheduler');
+      const previousEnabled = store.get('nautiljon_auto_sync_enabled', false);
+      const previousInterval = store.get('nautiljon_auto_sync_interval', 6);
+      const previousIncludeTomes = store.get('nautiljon_auto_sync_include_tomes', false);
+      
       store.set('nautiljon_auto_sync_enabled', enabled);
       store.set('nautiljon_auto_sync_interval', intervalHours);
       store.set('nautiljon_auto_sync_include_tomes', includeTomes);
@@ -59,7 +63,14 @@ function registerMangaSeriesNautiljonHandlers(ipcMain, getDb, getPathManager, st
         });
       }
       
-      console.log(`✅ Sync auto Nautiljon ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h, tomes: ${includeTomes ? 'oui' : 'non'})`);
+      // Log détaillé selon le type de changement
+      if (previousEnabled !== enabled) {
+        console.log(`✅ Sync auto Nautiljon ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h, tomes: ${includeTomes ? 'oui' : 'non'})`);
+      } else if (previousInterval !== intervalHours) {
+        console.log(`✅ Intervalle sync auto Nautiljon modifié: ${previousInterval}h → ${intervalHours}h`);
+      } else if (previousIncludeTomes !== includeTomes) {
+        console.log(`✅ Option tomes Nautiljon modifiée: ${includeTomes ? 'inclus' : 'exclus'}`);
+      }
       
       return { success: true };
     } catch (error) {

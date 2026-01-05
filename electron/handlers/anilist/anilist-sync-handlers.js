@@ -228,6 +228,9 @@ function registerAniListSyncHandlers(ipcMain, getDb, store, getMainWindow = null
   ipcMain.handle('anilist-set-auto-sync', (event, enabled, intervalHours = 6) => {
     try {
       const { restartScheduler } = require('../../services/schedulers/anilist-sync-scheduler');
+      const previousEnabled = store.get('anilist_auto_sync_enabled', false);
+      const previousInterval = store.get('anilist_auto_sync_interval', 6);
+      
       store.set('anilist_auto_sync_enabled', enabled);
       store.set('anilist_auto_sync_interval', intervalHours);
 
@@ -236,7 +239,23 @@ function registerAniListSyncHandlers(ipcMain, getDb, store, getMainWindow = null
         restartScheduler(getDb(), store, getMainWindow(), getDb, getPathManager);
       }
 
-      console.log(`✅ Sync auto AniList ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h)`);
+      // Réinitialiser le notification scheduler si nécessaire
+      const notificationScheduler = require('../../services/schedulers/notification-scheduler');
+      const notificationConfig = store.get('notificationConfig', {});
+      if (notificationConfig && notificationConfig.enabled) {
+        notificationScheduler.init(notificationConfig, getDb(), store, {
+          getDb,
+          getMainWindow,
+          getPathManager
+        });
+      }
+
+      // Log détaillé selon le type de changement
+      if (previousEnabled !== enabled) {
+        console.log(`✅ Sync auto AniList ${enabled ? 'activée' : 'désactivée'} (intervalle: ${intervalHours}h)`);
+      } else if (previousInterval !== intervalHours) {
+        console.log(`✅ Intervalle sync auto AniList modifié: ${previousInterval}h → ${intervalHours}h`);
+      }
 
       return { success: true };
     } catch (error) {

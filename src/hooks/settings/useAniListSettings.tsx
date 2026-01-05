@@ -311,6 +311,11 @@ export function useAniListSettings() {
     setAnilistAutoSyncInterval(intervalHours);
     try {
       await window.electronAPI.anilistSetAutoSync(anilistAutoSyncEnabled, intervalHours);
+      showToast({
+        title: 'Intervalle modifié',
+        message: `Synchronisation AniList toutes les ${intervalHours}h`,
+        type: 'success'
+      });
     } catch (error: any) {
       setAnilistAutoSyncInterval(previousInterval);
       const message = error?.message || 'Impossible de modifier la fréquence';

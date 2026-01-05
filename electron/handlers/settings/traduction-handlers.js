@@ -48,6 +48,8 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
   // Sauvegarder la configuration des traducteurs
   ipcMain.handle('save-traduction-config', async (event, config) => {
     try {
+      const previousConfig = store.get('traductionConfig', { enabled: false, syncFrequency: 6 });
+      
       const sanitizedConfig = {
         ...config,
         discordWebhookUrl: (config.discordWebhookUrl || '').trim(),
@@ -67,8 +69,19 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
       const db = getDb();
       if (db && sanitizedConfig.enabled) {
         traductionSync.initScheduler(sanitizedConfig, getDb, store, getPathManager);
+        
+        // Log si changement d'état
+        if (!previousConfig.enabled) {
+          const interval = typeof sanitizedConfig.syncFrequency === 'number' ? sanitizedConfig.syncFrequency : 6;
+          console.log(`✅ Sync auto traductions activée (intervalle: ${interval}h)`);
+        }
       } else if (!sanitizedConfig.enabled) {
         traductionSync.stopScheduler();
+        
+        // Log si changement d'état
+        if (previousConfig.enabled) {
+          console.log(`⏸️ Sync auto traductions désactivée`);
+        }
       }
       
       return { success: true };
@@ -94,6 +107,8 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
         discordNotifyTranslationUpdates: true
       });
 
+      const previousInterval = typeof config.syncFrequency === 'number' ? config.syncFrequency : 6;
+
       // Mettre à jour la fréquence (accepte maintenant des nombres)
       config.syncFrequency = intervalHours;
       store.set('traductionConfig', config);
@@ -105,7 +120,22 @@ function registerTraductionHandlers(ipcMain, getDb, store, getPathManager) {
         restartScheduler(config, getDb, store, getPathManager);
       }
 
-      console.log(`✅ Intervalle traductions mis à jour: ${intervalHours}h`);
+      // Réinitialiser le notification scheduler si nécessaire
+      const notificationScheduler = require('../../services/schedulers/notification-scheduler');
+      const notificationConfig = store.get('notificationConfig', {});
+      if (notificationConfig && notificationConfig.enabled) {
+        notificationScheduler.init(notificationConfig, getDb(), store, {
+          getDb,
+          getMainWindow: getPathManager ? (() => null) : undefined,
+          getPathManager
+        });
+      }
+
+      // Log détaillé du changement
+      if (previousInterval !== intervalHours) {
+        console.log(`✅ Intervalle sync traductions modifié: ${previousInterval}h → ${intervalHours}h`);
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur modification intervalle traductions:', error);

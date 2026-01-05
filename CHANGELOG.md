@@ -5,6 +5,21 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.8-Fix3] - 2026-01-05
+
+### 🎨 Amélioré
+- **Notifications de synchronisation** : Amélioration complète du système de notifications pour toutes les synchronisations
+  - Ajout de logs console détaillés dans tous les handlers backend (MAL, AniList, Nautiljon, Traductions)
+  - Logs différenciés pour activation/désactivation et changement d'intervalle
+  - Ajout de toasts de confirmation dans l'interface lors du changement d'intervalle (MAL, AniList, Traductions)
+  - Réinitialisation automatique du notification scheduler lors des changements de configuration
+  - Format des logs : `"✅ Sync auto X activée (intervalle: Yh)"` ou `"✅ Intervalle sync auto X modifié: Yh → Zh"`
+
+### 🐛 Corrigé
+- **Notifications manquantes** : Les changements d'intervalle de synchronisation n'affichaient pas de notification utilisateur
+  - Ajout de toasts de succès pour MAL, AniList et Traductions lors du changement d'intervalle
+  - Les logs backend sont maintenant toujours affichés, même si aucun changement n'est effectué
+
 ## [1.0.8-Fix2] - 2026-01-05
 
 ### 🎨 Amélioré
