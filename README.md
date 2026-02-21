@@ -147,9 +147,18 @@ Le fichier .exe sera disponible dans le dossier `dist/`.
 Le projet inclut un workflow GitHub Actions qui :
 - Se déclenche automatiquement lors du push d'un tag (format `v*.*.*`)
 - Met à jour automatiquement la version dans `package.json` depuis le tag
+- Génère automatiquement `secrets.js` depuis les GitHub Secrets
 - Build l'application Windows
 - Crée une release GitHub avec les fichiers de build
 - Envoie une notification Discord automatique
+
+**Configuration des secrets GitHub :**
+
+Le workflow nécessite 2 secrets configurés dans GitHub (Settings > Secrets and variables > Actions) :
+- `GOOGLE_SHEETS_API_KEY` : Clé API Google Sheets
+- `MAL_CLIENT_ID` : Client ID MyAnimeList OAuth
+
+> 📖 **Guide détaillé** : Consultez [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md) pour les instructions complètes
 
 **Utilisation :**
 ```bash
@@ -162,7 +171,7 @@ git push origin v1.2.3
 ```
 
 **Icône de l'application :**
-- L'icône est située dans `assets/icon.ico`
+- L'icône est située dans `build-assets/icon.ico`
 - Elle s'affiche dans la barre des tâches, le fichier .exe et l'installateur
 - Vous pouvez la remplacer par votre propre icône (format .ico)
 
@@ -246,7 +255,15 @@ Le Nexus/
    - Exemple : `C:\Users\VotreNom\Proton Drive\...\Le Nexus`
 4. L'application créera automatiquement la structure
 
-## 🔗 Scripts Tampermonkey
+## � Ports & serveur de streaming local
+- **Comportement** : Le serveur de streaming vidéo démarre automatiquement et tente d'utiliser le port configuré dans `electron/config/constants.js` (`PORTS.STREAMING_SERVER`). S'il est occupé, le serveur teste des ports adjacents (jusqu'à 200 tentatives) et choisit le premier port libre.
+- **Évitement explicite** : Le serveur **n'utilisera pas** le port réservé `PORTS.IMPORT_SERVER` (par défaut `40000`).
+- **Logs** : Si le port initial est occupé, un message clair est écrit dans les logs (ex: `Port 40001 occupé → serveur de streaming démarré sur http://127.0.0.1:40002`).
+- **Forcer un port** : pour imposer un port précis, modifiez `electron/config/constants.js` :
+  - Exemple : `PORTS.STREAMING_SERVER = 40001` → redémarrer l'application.
+- **Frontend** : la détection de l'URL de streaming dans l'UI accepte désormais n'importe quelle URL `http://localhost:<port>` pour fonctionner quel que soit le port choisi automatiquement.
+
+## �🔗 Scripts Tampermonkey
 
 Les scripts sont disponibles dans le dossier `tampermonkey/`.
 

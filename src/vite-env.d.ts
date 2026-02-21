@@ -180,7 +180,6 @@ interface ElectronAPI {
   deleteAdulteGameGame: (id: number) => Promise<{ success: boolean }>;
   getAdulteGameTagPreferences: (userId: number) => Promise<Record<string, 'liked' | 'disliked' | 'neutral'>>;
   toggleAdulteGameTagPreference: (userId: number, tag: string) => Promise<{ preference: 'liked' | 'disliked' | 'neutral' }>;
-  updateAdulteGameNotes: (gameId: number, notes: string) => Promise<{ success: boolean }>;
   updateAdulteGameGame: (id: number, gameData: Record<string, unknown>) => Promise<{ success: boolean }>;
   selectAdulteGameExecutable: () => Promise<{ success: boolean; path?: string }>;
   scanAdulteGameExecutables: () => Promise<{
@@ -570,7 +569,7 @@ interface ElectronAPI {
   removeAdulteGameLabel: (gameId: number, label: string) => Promise<{ success: boolean }>;
 
   // JEUX ADULTES Tags
-  getAllTags: () => Promise<string[]>;
+  // (voir ligne 181-182 pour les types de préférences de tags)
 
   // JEUX ADULTES Favorites
   toggleAdulteGameFavorite: (gameId: number) => Promise<{ success: boolean; isFavorite: boolean }>;
@@ -647,7 +646,6 @@ interface ElectronAPI {
   connectF95?: () => Promise<{ success: boolean; error?: string }>;
   disconnectF95?: () => Promise<{ success: boolean; error?: string }>;
   createAdulteGameGame: (gameData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
-  importAdulteGameFromJson: (jsonData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   selectAdulteGameCoverImage: () => Promise<{ success: boolean; path?: string; error?: string }>;
   searchRawgGames: (query: string, page?: number) => Promise<{
     results: Array<{
@@ -1009,8 +1007,6 @@ interface ElectronAPI {
   serieMarkAsOwned: (payload: { serieId: number; prixTotal: number; dateAchat?: string | null; partageAvec?: number[] }) => Promise<{ success: boolean; error?: string; tomesUpdated?: number }>;
 
   // MyAnimeList (MAL)
-  getMalCredentials?: () => Promise<{ clientId: string; redirectUri: string }>;
-  setMalCredentials?: (credentials: { clientId?: string; redirectUri?: string }) => Promise<{ success: boolean }>;
   malGetStatus: () => Promise<{
     connected: boolean;
     user: { name?: string; picture?: string } | null;

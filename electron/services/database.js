@@ -106,6 +106,8 @@ function initDatabase(dbPath) {
       anilist_id INTEGER UNIQUE,
       titre_romaji TEXT,
       titre_natif TEXT,
+      -- Ajout colonne titre_original pour compatibilité des schémas
+      titre_original TEXT,
       titre_anglais TEXT,
       titres_alternatifs TEXT,
       nb_volumes INTEGER,

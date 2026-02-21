@@ -628,7 +628,8 @@ export default function SeriesDetail() {
 
     // Vérifier si c'est un fichier local (manga://) ou une URL de streaming (serveur local)
     const isLocalFile = video.url.startsWith('manga://');
-    const isStreamingUrl = video.url.startsWith('http://127.0.0.1:8766') || video.url.startsWith('http://localhost:8766');
+    // Considérer comme URL de streaming n'importe quelle URL sur localhost (tient compte du port dynamique)
+    const isStreamingUrl = video.url.startsWith('http://127.0.0.1') || video.url.startsWith('http://localhost');
 
     // Les vidéos locales et de streaming s'ouvrent dans le player intégré
     if ((isLocalFile || isStreamingUrl) && video.url) {

@@ -125,6 +125,8 @@ function migrateDatabaseSchema(db) {
   ensureColumn(db, 'manga_series', 'anilist_id', 'INTEGER UNIQUE');
   ensureColumn(db, 'manga_series', 'titre_romaji', 'TEXT');
   ensureColumn(db, 'manga_series', 'titre_natif', 'TEXT');
+  // Ajout migration automatique pour compatibilité avec anciennes bases
+  ensureColumn(db, 'manga_series', 'titre_original', 'TEXT');
   ensureColumn(db, 'manga_series', 'titre_anglais', 'TEXT');
   ensureColumn(db, 'manga_series', 'titres_alternatifs', 'TEXT');
   ensureColumn(db, 'manga_series', 'nb_volumes', 'INTEGER');
@@ -822,6 +824,18 @@ function migrateAllDatabases(databasesPath) {
 
         // Appliquer toutes les migrations
         migrateDatabaseSchema(db);
+
+        // Vérifier que la colonne titre_original est bien présente (indication supplémentaire)
+        try {
+          const hasTitreOriginal = columnExists(db, 'manga_series', 'titre_original');
+          if (hasTitreOriginal) {
+            console.log(`ℹ️ colonne 'titre_original' présente dans ${dbFile}`);
+          } else {
+            console.warn(`⚠️ colonne 'titre_original' absente après migration dans ${dbFile}`);
+          }
+        } catch (e) {
+          console.warn(`⚠️ Impossible de vérifier titre_original dans ${dbFile}:`, e.message);
+        }
 
         // Synchroniser les relations existantes
         try {

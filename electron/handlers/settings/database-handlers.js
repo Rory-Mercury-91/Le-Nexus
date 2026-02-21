@@ -314,21 +314,32 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
                 const sourceTitles = extractAllTitlesNormalized(serie);
 
                 if (sourceTitles.length > 0) {
-                  // Chercher dans toutes les séries de la base cible
-                  const allTargetSeries = targetDb.prepare('SELECT id, titre, titre_alternatif, titre_original FROM manga_series').all();
+                    // Chercher dans toutes les séries de la base cible (sélectionner uniquement les colonnes existantes)
+                    const searchCols = ['id', 'titre'];
+                    if (hasTitreAlternatif) searchCols.push('titre_alternatif');
+                    if (hasTitreOriginal) searchCols.push('titre_original');
 
-                  for (const targetSerie of allTargetSeries) {
-                    const targetTitles = extractAllTitlesNormalized(targetSerie);
-                    // Vérifier si au moins un titre normalisé correspond exactement
-                    const hasMatch = sourceTitles.some(sourceTitle =>
-                      targetTitles.some(targetTitle => sourceTitle === targetTitle)
-                    );
-                    if (hasMatch) {
-                      existing = { id: targetSerie.id };
-                      break;
+                    let allTargetSeries = [];
+                    try {
+                      const selectCols = searchCols.map(c => `"${c}"`).join(', ');
+                      allTargetSeries = targetDb.prepare(`SELECT ${selectCols} FROM manga_series`).all();
+                    } catch (selError) {
+                      console.warn(`    ⚠️ Erreur sélection séries cible lors de la détection de doublons:`, selError.message);
+                      allTargetSeries = [];
+                    }
+
+                    for (const targetSerie of allTargetSeries) {
+                      const targetTitles = extractAllTitlesNormalized(targetSerie);
+                      // Vérifier si au moins un titre normalisé correspond exactement
+                      const hasMatch = sourceTitles.some(sourceTitle =>
+                        targetTitles.some(targetTitle => sourceTitle === targetTitle)
+                      );
+                      if (hasMatch) {
+                        existing = { id: targetSerie.id };
+                        break;
+                      }
                     }
                   }
-                }
               }
 
               if (existing) {
@@ -444,6 +455,16 @@ function registerDatabaseHandlers(ipcMain, dialog, getMainWindow, getDb, store, 
               if (insertError.message.includes('values for') && insertError.message.includes('columns')) {
                 console.warn(`    → Colonnes communes: ${commonColumns.length}, Valeurs extraites: ${commonColumns.map(col => serie[col] !== undefined ? '✓' : '✗').join(' ')}`);
                 console.warn(`    → Colonnes: ${commonColumns.join(', ')}`);
+              }
+
+              // Si la colonne est manquante (ex: 'no such column: titre_original'), afficher la liste des colonnes de la table cible
+              if (insertError.message.includes('no such column')) {
+                try {
+                  const destCols = targetDb.pragma('table_info(manga_series)').map(c => c.name);
+                  console.warn(`    → Colonnes table cible: ${destCols.join(', ')}`);
+                } catch (dErr) {
+                  console.warn('    → Impossible de lister les colonnes de la table cible:', dErr.message);
+                }
               }
             }
           });

@@ -196,41 +196,6 @@ function registerLaunchHandlers(ipcMain, getDb, store) {
       };
     }
   });
-  
-  // NOTES - Mise à jour des notes privées
-  ipcMain.handle('update-adulte-game-notes', async (event, gameId, notes) => {
-    try {
-      const db = getDb();
-      const currentUser = store.get('currentUser', '');
-
-      if (!currentUser) throw new Error('Utilisateur non connecté');
-
-      const { getUserIdByName } = require('./adulte-game-helpers');
-      const userId = getUserIdByName(db, currentUser);
-      if (!userId) {
-        throw new Error('Utilisateur non trouvé');
-      }
-
-      const updateResult = db.prepare(`
-        UPDATE adulte_game_user_data 
-        SET notes_privees = ?,
-            updated_at = datetime('now')
-        WHERE game_id = ? AND user_id = ?
-      `).run(notes, gameId, userId);
-      
-      if (updateResult.changes === 0) {
-        db.prepare(`
-          INSERT INTO adulte_game_user_data (game_id, user_id, notes_privees, created_at, updated_at)
-          VALUES (?, ?, ?, datetime('now'), datetime('now'))
-        `).run(gameId, userId, notes);
-      }
-
-      return { success: true };
-    } catch (error) {
-      console.error('❌ Erreur update-adulte-game-notes:', error);
-      throw error;
-    }
-  });
 
   // Toggle favori pour un jeu adulte
   ipcMain.handle('toggle-adulte-game-favorite', async (event, gameId) => {

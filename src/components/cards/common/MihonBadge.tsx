@@ -1,4 +1,4 @@
-import logoMihon from '../../../../assets/logo-128px.png';
+import logoMihon from '../../../../build-assets/mihon.png';
 
 interface MihonBadgeProps {
   show: boolean;

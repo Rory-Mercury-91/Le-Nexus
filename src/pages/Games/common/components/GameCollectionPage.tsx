@@ -927,21 +927,22 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
                       const isSelected = selectedTags.includes(tag);
                       const preference = tagPreferences[tag] || 'neutral';
 
-                      let tagColor = '#f59e0b';
+                      // Couleurs selon préférence (comme dans AdulteGameInfoCard)
+                      let tagColor = '#f59e0b'; // Orange = neutral
                       let borderColor = '#f59e0b';
                       if (preference === 'liked') {
-                        tagColor = '#ef4444';
-                        borderColor = '#ef4444';
+                        tagColor = '#10b981'; // Vert = liked
+                        borderColor = '#10b981';
                       } else if (preference === 'disliked') {
-                        tagColor = '#1f2937';
-                        borderColor = '#1f2937';
+                        tagColor = '#ef4444'; // Rouge = disliked
+                        borderColor = '#ef4444';
                       }
 
                       return (
                         <button
                           key={tag}
                           onClick={() => handleTagToggle(tag)}
-                          title={`État: ${preference === 'liked' ? 'Favori' : preference === 'disliked' ? 'Non apprécié' : 'Neutre'} (Modifier depuis la page de détail)`}
+                          title={`${preference === 'liked' ? '❤️ J\'aime' : preference === 'disliked' ? '💔 J\'aime pas' : '⚪ Neutre'} - Cliquez pour ${isSelected ? 'désélectionner' : 'filtrer'}`}
                           style={{
                             padding: '6px 14px',
                             borderRadius: '20px',
@@ -952,9 +953,11 @@ export default function GameCollectionPage({ config }: GameCollectionPageProps) 
                             color: 'white',
                             border: isSelected ? '2px solid var(--primary)' : `2px solid ${borderColor}`,
                             fontWeight: isSelected ? '600' : preference !== 'neutral' ? '600' : '500',
-                            opacity: preference === 'disliked' && !isSelected ? 0.8 : 1
+                            opacity: isSelected ? 1 : 0.9
                           }}
                         >
+                          {preference === 'liked'}
+                          {preference === 'disliked'}
                           {translateAdulteGameTag(tag)}
                         </button>
                       );

@@ -173,7 +173,7 @@ const mergeConfigs = {
       { key: 'statut_traduction', label: 'Statut traduction', type: 'text' },
       { key: 'type_traduction', label: 'Type traduction', type: 'text' },
       { key: 'traduction_fr_disponible', label: 'Traduction fr dispo', type: 'boolean' },
-      { key: 'version_traduite', label: 'Version traduite', type: 'text' },
+      { key: 'version_traduite', label: 'version traduction', type: 'text' },
       { key: 'lien_traduction', label: 'Lien traduction', type: 'link' },
       { key: 'traducteur', label: 'Traducteur', type: 'text' },
       { key: 'derniere_sync_trad', label: 'Dernière sync trad', type: 'date' },

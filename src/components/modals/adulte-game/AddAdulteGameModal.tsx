@@ -193,7 +193,16 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         lien_f95: data.thread_url || data.link || null
       };
 
-      await window.electronAPI.createAdulteGameGame(gameDataToSend);
+      const createResult = await window.electronAPI.createAdulteGameGame(gameDataToSend);
+
+      if (!createResult.success) {
+        showToast({
+          title: 'Erreur',
+          message: createResult.error || 'Impossible d\'ajouter le jeu',
+          type: 'error'
+        });
+        return;
+      }
 
       showToast({
         title: 'Jeu ajouté',
@@ -280,7 +289,16 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         lien_f95: data.thread_url || data.link || null
       };
 
-      await window.electronAPI.createAdulteGameGame(gameDataToSend);
+      const createResult = await window.electronAPI.createAdulteGameGame(gameDataToSend);
+
+      if (!createResult.success) {
+        showToast({
+          title: 'Erreur',
+          message: createResult.error || 'Impossible d\'ajouter le jeu',
+          type: 'error'
+        });
+        return;
+      }
 
       showToast({
         title: 'Jeu ajouté',
@@ -408,7 +426,7 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
       }
 
       // Créer le jeu
-      await window.electronAPI.createAdulteGameGame({
+      const createResult = await window.electronAPI.createAdulteGameGame({
         titre: jsonData.name,
         version: jsonData.version || null,
         statut_jeu: statutValue,
@@ -420,6 +438,15 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         plateforme: plateforme,
         lien_f95: lienF95
       });
+
+      if (!createResult.success) {
+        showToast({
+          title: 'Erreur',
+          message: createResult.error || 'Impossible d\'ajouter le jeu',
+          type: 'error'
+        });
+        return;
+      }
 
       showToast({
         title: 'Jeu ajouté',
@@ -481,7 +508,7 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
-      await window.electronAPI.createAdulteGameGame({
+      const createResult = await window.electronAPI.createAdulteGameGame({
         titre,
         lien_f95: lienF95 || null,
         version,
@@ -495,6 +522,15 @@ export default function AddAdulteGameModal({ onClose, onSuccess, initialSearchId
         traducteur: traducteur || null,
         lien_traduction: lienTraduction || null
       });
+
+      if (!createResult.success) {
+        showToast({
+          title: 'Erreur',
+          message: createResult.error || 'Impossible d\'ajouter le jeu',
+          type: 'error'
+        });
+        return;
+      }
 
       showToast({
         title: 'Jeu ajouté',

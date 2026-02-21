@@ -15,10 +15,10 @@ const getLogos = () => ({
   groq: getAssetPath('/assets/Groq_logo.svg'),
   tmdb: getAssetPath('/assets/Tmdb.new.logo.svg')
 });
-// Fichiers dans assets/ (imports directs - fichiers spécifiques à l'application)
-import f95Logo from '../../../../assets/F95logo.png';
-import googleLogo from '../../../../assets/google-wordmarks-2x.webp';
-import googleSheetsLogo from '../../../../assets/google-sheets.webp';
+// Fichiers dans build-assets/ (imports directs - fichiers spécifiques à l'application)
+import f95Logo from '../../../../build-assets/F95logo.png';
+import googleLogo from '../../../../build-assets/google-wordmarks-2x.webp';
+import googleSheetsLogo from '../../../../build-assets/google-sheets.webp';
 
 // Fonction pour créer les crédits avec les logos dynamiques
 const createSourceCredits = () => {

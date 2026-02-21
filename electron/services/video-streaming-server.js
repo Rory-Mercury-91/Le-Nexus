@@ -57,9 +57,25 @@ function resolveFfmpegPath() {
 
 const ffmpeg = require('fluent-ffmpeg');
 const { PORTS } = require('../config/constants');
+const net = require('net');
 
 let streamingServer = null;
-let streamingPort = PORTS.STREAMING_SERVER; // Port pour le serveur de streaming
+let streamingPort = PORTS.STREAMING_SERVER; // Port initial pour le serveur de streaming
+
+// Vérifie si un port est libre sur l'interface donnée
+function isPortFree(port, host = '127.0.0.1') {
+  return new Promise((resolve) => {
+    const tester = net.createServer()
+      .once('error', (err) => {
+        // EADDRINUSE -> occupé
+        resolve(false);
+      })
+      .once('listening', () => {
+        tester.close(() => resolve(true));
+      })
+      .listen(port, host);
+  });
+}
 
 /**
  * Obtenir les métadonnées d'une vidéo (durée, etc.) en utilisant FFmpeg directement
@@ -516,19 +532,45 @@ function startStreamingServer() {
     }
   });
 
-  streamingServer.listen(streamingPort, '127.0.0.1', () => {
-    console.log(`✅ Serveur de streaming vidéo démarré sur http://127.0.0.1:${streamingPort}`);
-  });
+  // Trouver un port libre en évitant explicitement le port du serveur d'import
+  (async () => {
+    const maxAttempts = 200; // Plage d'exploration
+    let attempt = 0;
+    let candidate = streamingPort;
 
-  streamingServer.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.warn(`⚠️ Port ${streamingPort} déjà utilisé, tentative avec le port suivant...`);
-      streamingPort++;
-      streamingServer.listen(streamingPort, '127.0.0.1');
-    } else {
-      console.error('❌ Erreur serveur de streaming:', err);
+    while (attempt < maxAttempts) {
+      // Ne pas utiliser le port réservé IMPORT_SERVER
+      if (candidate === PORTS.IMPORT_SERVER) {
+        console.warn(`⚠️ Port ${candidate} réservé pour le serveur d'import: saut vers ${candidate + 1}`);
+        candidate++;
+        attempt++;
+        continue;
+      }
+
+      const free = await isPortFree(candidate, '127.0.0.1');
+      if (free) break;
+
+      candidate++;
+      attempt++;
     }
-  });
+
+    if (attempt >= maxAttempts) {
+      console.error('❌ Impossible de trouver un port libre pour le streaming (plage atteinte)');
+    } else {
+      streamingPort = candidate;
+      streamingServer.listen(streamingPort, '127.0.0.1', () => {
+        if (streamingPort !== PORTS.STREAMING_SERVER) {
+          console.warn(`⚠️ Port ${PORTS.STREAMING_SERVER} occupé → serveur de streaming démarré sur http://127.0.0.1:${streamingPort}`);
+        } else {
+          console.log(`✅ Serveur de streaming vidéo démarré sur http://127.0.0.1:${streamingPort}`);
+        }
+      });
+
+      streamingServer.on('error', (err) => {
+        console.error('❌ Erreur serveur de streaming:', err);
+      });
+    }
+  })();
 
   return streamingServer;
 }

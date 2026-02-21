@@ -27,7 +27,10 @@ export default function AdulteGameDetail() {
     loadGame,
     navigate,
     ToastContainer,
-    ConfirmDialog
+    ConfirmDialog,
+    currentUser,
+    tagPreferences,
+    handleTagClick
   } = useAdulteGameDetail();
 
 
@@ -132,6 +135,9 @@ export default function AdulteGameDetail() {
               lien_f95={game.lien_f95}
               Lewdcorner_thread_id={game.Lewdcorner_thread_id}
               lien_lewdcorner={game.lien_lewdcorner}
+              currentUserId={currentUser?.id}
+              tagPreferences={tagPreferences}
+              onTagClick={handleTagClick}
             />
 
             {/* Colonne 2 : Traduction + Paramètres personnels */}

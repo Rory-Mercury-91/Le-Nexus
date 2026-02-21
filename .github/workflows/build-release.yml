@@ -69,13 +69,19 @@ jobs:
            */
           
           module.exports = {
-            GOOGLE_SHEETS_API_KEY: '${{ secrets.GOOGLE_SHEETS_API_KEY }}'
+            // Clé API Google Sheets (partagée pour tous les utilisateurs - accès lecture seule à une sheet publique)
+            GOOGLE_SHEETS_API_KEY: '${{ secrets.GOOGLE_SHEETS_API_KEY }}',
+            
+            // MyAnimeList OAuth Client ID (partagé pour tous les utilisateurs - OAuth public avec PKCE)
+            MAL_CLIENT_ID: '${{ secrets.MAL_CLIENT_ID }}'
           };
           "@
           
           $secretsPath = "electron/config/secrets.js"
           $secretsContent | Out-File -FilePath $secretsPath -Encoding utf8 -NoNewline
           Write-Host "✅ Fichier secrets.js créé depuis GitHub Secrets"
+          Write-Host "   - GOOGLE_SHEETS_API_KEY: $(if ('${{ secrets.GOOGLE_SHEETS_API_KEY }}') { '✅ Configuré' } else { '❌ Manquant' })"
+          Write-Host "   - MAL_CLIENT_ID: $(if ('${{ secrets.MAL_CLIENT_ID }}') { '✅ Configuré' } else { '❌ Manquant' })"
       
       - name: Build application
         run: npm run build:win:clean

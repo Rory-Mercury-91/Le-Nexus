@@ -88,8 +88,8 @@ let importServer;
 function createTray() {
   // En production, les assets sont dans app.asar.unpacked grâce à asarUnpack
   const iconPath = isDev
-    ? path.join(__dirname, '..', 'assets', 'icon.ico')
-    : path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'icon.ico');
+    ? path.join(__dirname, '..', 'build-assets', 'icon.ico')
+    : path.join(process.resourcesPath, 'app.asar.unpacked', 'build-assets', 'icon.ico');
 
   console.log('🖼️ Chemin icône tray:', iconPath);
   console.log('🖼️ Existe?', fs.existsSync(iconPath));

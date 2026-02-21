@@ -5,6 +5,142 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
+## [1.0.9] - Date non définie
+
+### 🔒 Sécurité
+- **Clés API** : Déplacement de toutes les clés API sensibles vers le fichier `secrets.js` (non versionné)
+  - Déplacement du Client ID MAL depuis `constants.js` vers `secrets.js`
+  - Toutes les clés API sont maintenant chargées depuis `secrets.js` ou les variables d'environnement
+  - Le fichier `secrets.js` est dans `.gitignore` et n'est jamais versionné dans Git
+  - Template `secrets.js.example` mis à jour avec tous les secrets nécessaires
+  - **⚠️ IMPORTANT** : Si vous utilisez le projet, pensez à régénérer vos propres clés API
+
+### ✨ Nouveau
+- **MyAnimeList OAuth** : Simplification de l'authentification MAL
+  - Suppression de l'interface de configuration manuelle du Client ID
+  - Le Client ID MAL est maintenant partagé et géré automatiquement via `secrets.js` ou variables d'environnement
+  - Authentification simplifiée : cliquez simplement sur "Connexion" pour démarrer le flow OAuth
+  - Protocole OAuth 2.0 avec PKCE : sécurité maximale sans configuration utilisateur
+  - Mise à jour du guide MAL pour refléter la nouvelle simplicité
+
+- **Serveur de streaming vidéo** : port dynamique / fallback automatique
+  - Le serveur de streaming choisit automatiquement un port libre (jusqu'à 200 tentatives) et **évite explicitement** le port réservé `IMPORT_SERVER` (`40000`).
+  - Le port par défaut a été mis à **40001** pour réduire les conflits avec d'autres outils.
+  - Le frontend détecte désormais les URLs de streaming sur `localhost` quel que soit le port, rendant la fonctionnalité transparente pour l'utilisateur.
+  - **Fichiers modifiés** : `electron/services/video-streaming-server.js`, `electron/config/constants.js` (STREAMING_SERVER → `40001`), `src/pages/Series/SeriesDetail.tsx` (détection générique de `localhost`).
+
+### 🧹 Nettoyage de Code
+- **APIs** : Nettoyage exhaustif de tous les modules API avec suppression du code mort
+  - Suppression de ~363 lignes de code inutilisé
+  - `tmdb.js` : Suppression de 5 fonctions inutilisées (`searchMulti`, `getTvEpisode`, `getTrending`, `discoverMovies`, `discoverTv`)
+  - `tvmaze.js` : Suppression de 6 fonctions inutilisées (`searchShows`, `getShow`, `getEpisodes`, `getSchedule`, `getWebSchedule`, `getShowEpisodeByDate`)
+  - `open-library.js` : Suppression de `getBookById()` (jamais utilisée)
+  - `rawg.js` : Suppression de `getGamesByIds()` (jamais utilisée)
+  - `unified-search.js` : Suppression complète du fichier (187 lignes, jamais utilisé)
+  - Retrait des exports inutiles : `requestTmdb`, `requestTvMaze`, `requestRawg`, `frenchToEnglishKeywords`
+  - `anilist-oauth.js` : Retrait de `getConfiguredRedirectUri` des exports (utilisée uniquement en interne)
+  - `myanimelist-oauth.js` : Simplification complète avec suppression de la configuration manuelle utilisateur
+- **Frontend** : Suppression de l'UI de configuration MAL inutile
+  - Suppression de tous les états et handlers liés à la configuration manuelle du Client ID MAL
+  - Suppression des handlers IPC `getMalCredentials` et `setMalCredentials`
+  - Nettoyage des types TypeScript dans `vite-env.d.ts`
+  - Réduction de ~100 lignes de code dans `IntegrationsSettings.tsx`
+- **Scripts** : Suppression des scripts utilitaires redondants
+  - Suppression de `electron/scripts/update-database.js` (545 lignes) - Redondant avec le système de migrations automatiques
+  - Suppression de `electron/scripts/diagnose-migration.js` (102 lignes) - Outil de debug obsolète
+  - Suppression du dossier `electron/scripts/` devenu vide
+  - Le système de migrations dans `database-migrations.js` gère déjà toutes les mises à jour de schéma
+  - Réduction de ~650 lignes de code de maintenance
+- **Handlers IPC** : Nettoyage des handlers inutilisés (7/46 traités + 1 réactivé)
+  - `adulte-game-create-handlers.js` : Suppression de `import-adulte-game-from-json` (183 lignes)
+    - Handler redondant : la modal JSON utilise déjà le handler générique `create-adulte-game-game`
+    - Suppression du type TypeScript `importAdulteGameFromJson` dans `vite-env.d.ts`
+  - `adulte-game-search-handlers.js` : Suppression de `search-adulte-game-by-lewdcorner-id` (18 lignes)
+    - Handler désactivé qui retournait toujours une erreur 403 Forbidden
+    - Remplacé par l'import JSON via Tampermonkey et la synchronisation Google Sheets
+    - Suppression de l'exposition IPC `searchAdulteGameByLewdCornerId` dans `preload.js`
+  - `f95-connection-handlers.js` : Suppression de `diagnose-f95-cookies` (64 lignes)
+    - Outil de diagnostic pour DevTools jamais utilisé (même en développement)
+    - Les handlers `check-f95-connection`, `connect-f95`, et `disconnect-f95` suffisent amplement
+    - Suppression de l'exposition IPC `diagnoseF95Cookies` dans `preload.js`
+  - `launch-handlers.js` : Suppression de `update-adulte-game-notes` (33 lignes)
+    - Fonctionnalité de notes privées jamais implémentée dans l'UI
+    - Remplacée par le système de labels personnalisés plus flexible
+    - Le handler `update-adulte-game-game` gère déjà `notes_privees` si besoin futur
+    - Suppression du type TypeScript `updateAdulteGameNotes` dans `vite-env.d.ts`
+  - `rawg-handlers.js` : Suppression de `games-get-rawg-details` (47 lignes)
+    - Handler doublon de `get-rawg-game-detail` qui EST activement utilisé
+    - Retournait seulement les données API brutes vs données enrichies depuis la base locale
+    - Suppression de l'exposition IPC `getRawgGameDetails` dans `preload.js`
+  - `rawg-handlers.js` : Suppression de `games-enrich-from-rawg` (16 lignes)
+    - Handler jamais utilisé dans le frontend
+    - Fonctionnalité d'enrichissement gérée par d'autres mécanismes
+    - Suppression de l'exposition IPC `enrichGameFromRawg` dans `preload.js`
+    - Suppression de l'import inutilisé `enrichGameFromRawg` du service
+  - `tags-handlers.js` : Suppression de `get-all-tags` (20 lignes)
+    - Handler jamais utilisé : les tags sont récupérés directement depuis les jeux
+    - Suppression de l'exposition IPC `getAllTags` dans `preload.js`
+    - Suppression du type TypeScript `getAllTags` dans `vite-env.d.ts`
+
+### ✨ Nouveau
+- **Système de préférences de tags pour jeux adultes** : Réimplémentation complète du système de clic sur les tags
+  - Les tags dans la page de détail sont maintenant cliquables
+  - Cycle de préférences : neutre (orange) → liked (vert) → disliked (rouge) → neutre
+  - Animation au survol des tags
+  - Sauvegarde automatique des préférences par utilisateur
+  - Les préférences sont utilisées pour le filtrage dans la collection
+  - Handler `toggle-adulte-game-tag-preference` réactivé et fonctionnel
+  - **Section de filtrage améliorée** :
+    - Tags triés par préférence : ❤️ J'aime (vert) en haut, ⚪ Neutre (orange) au milieu, 💔 J'aime pas (rouge) en bas
+    - Émojis visuels pour identifier rapidement les préférences
+    - Couleurs cohérentes avec la page de détail
+- **Chargement des préférences de tags** : Fix du chargement au démarrage de la page de détail
+  - Utilisation de `useCallback` pour stabiliser les références de `loadTagPreferences` et `handleTagClick`
+  - Correction des dépendances du `useEffect` pour assurer le chargement automatique
+  - Déplacement des fonctions `loadTagPreferences` et `handleTagClick` avant les `useEffect` pour respecter l'ordre de déclaration JavaScript
+  - FIX : Les couleurs des tags s'affichent maintenant correctement au chargement de la page de détail (synchronisation avec la page de collection)
+  - FIX : Correction de l'erreur `ReferenceError: Cannot access 'loadTagPreferences' before initialization`
+- **Tri des tags dans la collection** : Fix de l'ordre d'affichage des tags
+  - Les tags "liked" (vert, ❤️) s'affichent maintenant en haut de la liste
+  - Les tags "neutral" (orange, ⚪) s'affichent au milieu
+  - Les tags "disliked" (rouge, 💔) s'affichent en bas
+  - FIX : Suppression du tri redondant dans le composant qui ignorait le tri du hook
+  - FIX : Suppression du `useEffect` dupliqué qui ne mettait pas `tagsSorted=true`
+  - Le tri est maintenant géré uniquement par le hook `useAdulteGameCollection`
+- **Préférences de tags** : Fix critique du stockage des préférences
+  - **PROBLÈME MAJEUR** : Les tags étaient traduits en français AVANT d'être stockés ("Gros fessier" au lieu de "big ass")
+  - Les préférences utilisent maintenant les **tags originaux en anglais** (noms de la base de données)
+  - La traduction est appliquée uniquement pour l'affichage visuel
+  - FIX : Les couleurs des préférences s'affichent maintenant correctement dans la collection
+  - **⚠️ NOTE** : Les anciennes préférences en français ne seront pas reconnues (à nettoyer manuellement si besoin)
+
+### 🐛 Corrigé
+- **OAuth MAL/AniList** : Correction du bouton "Fermer cette fenêtre" non fonctionnel
+  - Les boutons avec `window.close()` ne fonctionnaient pas (bloqués par les navigateurs modernes pour raisons de sécurité)
+  - Remplacement par un message clair invitant l'utilisateur à fermer l'onglet manuellement
+  - Amélioration de l'UX : message transparent au lieu d'un bouton qui ne fonctionne pas
+- **Gestion des doublons de jeux adultes** : Messages d'erreur clairs et compréhensibles
+  - Vérification de l'existence du jeu **avant** l'insertion en base de données
+  - Remplacement de l'erreur SQL brute (`UNIQUE constraint failed`) par un message clair : `"Ce jeu existe déjà : [titre]"`
+  - Le handler retourne maintenant `{ success: false, error: "..." }` au lieu de lever une exception
+  - Correction de 4 occurrences dans `AddAdulteGameModal.tsx` pour afficher correctement les messages d'erreur personnalisés
+  - Le hook `useAdulteGameCollection.tsx` gère déjà correctement les erreurs
+
+### 🎨 Amélioré
+- **Organisation des assets** : Renommage et restructuration du dossier des ressources
+  - Renommage `assets/` → `build-assets/` pour plus de clarté (ressources build Electron)
+  - Distinction claire entre `build-assets/` (ressources build) et `public/assets/` (ressources runtime)
+  - Renommage `logo-128px.png` → `mihon.png` pour plus de clarté
+  - Mise à jour de toutes les références dans le code et la configuration
+- **Images publiques** : Nettoyage des images redondantes
+  - Suppression de `Xbox_one_logo.svg` (doublon de `xbox-one-logo-svgrepo-com.svg`)
+  - Suppression de `hbomax.svg` (doublon inutilisé de `hbo-max.svg`)
+  - Unification des références Xbox dans le code
+- **Qualité du code** : Tous les modules API atteignent maintenant 100% d'utilisation
+  - Meilleure maintenabilité et lisibilité du code
+  - Réduction de la surface d'attaque (moins de code = moins de bugs potentiels)
+  - Base de code plus propre et professionnelle
+
 ## [1.0.8-Fix3] - 2026-01-05
 
 ### 🎨 Amélioré
@@ -347,7 +483,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - Suppression de l'encadré séparé qui affichait ces informations de manière redondante
 
 - **Affichage des cartes de jeux RAWG**
-  - Masquage des informations de version (Version actuelle, Version traduite, Dernière version jouée) pour les jeux RAWG
+  - Masquage des informations de version (Version actuelle, version traduction, Dernière version jouée) pour les jeux RAWG
   - Seul le titre du jeu est affiché pour les jeux venant de RAWG, cohérent avec le fait que les jeux vidéo n'ont pas de versions comme les jeux adultes
 
 - **Bouton de traduction dans les modales d'édition**

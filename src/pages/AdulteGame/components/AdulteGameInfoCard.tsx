@@ -1,6 +1,6 @@
-import { Activity, Code, Download, ExternalLink, Tag } from 'lucide-react';
+import { Code, Download, ExternalLink, Tag } from 'lucide-react';
 import React from 'react';
-import { translateAdulteGameTags } from '../../../utils/translations';
+import { translateAdulteGameTag } from '../../../utils/translations';
 
 interface AdulteGameInfoCardProps {
   titre?: string | null;
@@ -14,6 +14,9 @@ interface AdulteGameInfoCardProps {
   lien_f95?: string | null;
   Lewdcorner_thread_id?: number | null;
   lien_lewdcorner?: string | null;
+  currentUserId?: number | null;
+  tagPreferences?: Record<string, 'liked' | 'disliked' | 'neutral'>;
+  onTagClick?: (tag: string) => void;
 }
 
 // Dictionnaire des statuts de jeu avec émoticônes
@@ -28,6 +31,9 @@ const AdulteGameInfoCard: React.FC<AdulteGameInfoCardProps> = ({
   statut_jeu,
   moteur,
   developpeur,
+  currentUserId,
+  tagPreferences = {},
+  onTagClick,
   plateforme,
   version,
   tags,
@@ -72,11 +78,9 @@ const AdulteGameInfoCard: React.FC<AdulteGameInfoCardProps> = ({
   };
 
   const rawTagsList = parseTags();
-  
-  // Traduire les tags et les dédupliquer
-  const tagsList = rawTagsList.length > 0
-    ? translateAdulteGameTags(rawTagsList).split(',').map(t => t.trim()).filter(t => t)
-    : [];
+
+  // Garder les tags originaux (en anglais) pour les préférences
+  const tagsList = rawTagsList;
 
   // Fonction helper pour déterminer le nom du site dynamiquement
   const getThreadLink = () => {
@@ -85,29 +89,29 @@ const AdulteGameInfoCard: React.FC<AdulteGameInfoCardProps> = ({
     if (Lewdcorner_thread_id) {
       return `https://lewdcorner.com/threads/${Lewdcorner_thread_id}/`;
     }
-    
+
     // Puis liens F95Zone
     if (lien_f95) return lien_f95;
     if (f95_thread_id) {
       return `https://f95zone.to/threads/${f95_thread_id}/`;
     }
-    
+
     return null;
   };
 
   const getSiteName = (link: string | null): string => {
     if (!link) return 'Lien du jeu';
-    
+
     // Vérifier F95Zone
     if (link.includes('f95zone.to')) {
       return 'F95Zone';
     }
-    
+
     // Vérifier LewdCorner
     if (link.includes('lewdcorner.com')) {
       return 'LewdCorner';
     }
-    
+
     // Autres liens
     return 'Lien du jeu';
   };
@@ -228,7 +232,7 @@ const AdulteGameInfoCard: React.FC<AdulteGameInfoCardProps> = ({
                 color: 'var(--text)'
               }}
             >
-              {version || 'Non connue'}
+              {version || 'Indisponible'}
             </div>
           </div>
         )}
@@ -312,23 +316,52 @@ const AdulteGameInfoCard: React.FC<AdulteGameInfoCardProps> = ({
                 gap: '10px'
               }}
             >
-              {tagsList.map((tag, index) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    fontSize: '13px',
-                    textTransform: 'lowercase',
-                    background: '#f59e0b',
-                    color: 'white',
-                    border: '2px solid #f59e0b',
-                    fontWeight: '500'
-                  }}
-                >
-                  {tag}
-                </div>
-              ))}
+              {tagsList.map((tag, index) => {
+                const preference = tagPreferences[tag] || 'neutral';
+                const colors = {
+                  liked: { bg: '#10b981', border: '#10b981' },     // Vert
+                  disliked: { bg: '#ef4444', border: '#ef4444' },  // Rouge
+                  neutral: { bg: '#f59e0b', border: '#f59e0b' }    // Orange (défaut)
+                };
+                const color = colors[preference];
+
+                // Traduire le tag pour l'affichage uniquement
+                const translatedTag = translateAdulteGameTag(tag);
+
+                return (
+                  <div
+                    key={index}
+                    onClick={() => onTagClick?.(tag)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      fontSize: '13px',
+                      textTransform: 'lowercase',
+                      background: color.bg,
+                      color: 'white',
+                      border: `2px solid ${color.border}`,
+                      fontWeight: '500',
+                      cursor: onTagClick ? 'pointer' : 'default',
+                      transition: 'all 0.2s ease',
+                      opacity: onTagClick ? 1 : 0.9
+                    }}
+                    onMouseEnter={(e) => {
+                      if (onTagClick) {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (onTagClick) {
+                        e.currentTarget.style.transform = 'scale(1)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }
+                    }}
+                  >
+                    {translatedTag}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

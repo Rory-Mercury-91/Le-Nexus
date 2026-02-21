@@ -121,26 +121,6 @@ function registerAdulteGameSearchHandlers(ipcMain, getDb, store, getPathManager)
       };
     }
   });
-  
-  // Rechercher un jeu par ID LewdCorner
-  ipcMain.handle('search-adulte-game-by-lewdcorner-id', async (event, lewdcornerId) => {
-    try {
-      console.log(`🔍 Recherche jeu LewdCorner ID: ${lewdcornerId}`);
-      
-      // DÉSACTIVER SCRAPING LEWDCORNER (erreur 403)
-      return {
-        success: false,
-        error: 'Le scraping LewdCorner est désactivé (403 Forbidden). Utilisez l\'import JSON pour ajouter/mettre à jour les jeux LewdCorner.'
-      };
-      
-    } catch (error) {
-      console.error('❌ Erreur recherche LewdCorner:', error.message);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  });
 }
 
 module.exports = { registerAdulteGameSearchHandlers };

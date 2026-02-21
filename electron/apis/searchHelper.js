@@ -14,7 +14,7 @@ const frenchToEnglishKeywords = {
   'huitième': ['eighth', '8th', '8'],
   'neuvième': ['ninth', '9th', '9'],
   'dixième': ['tenth', '10th', '10'],
-  
+
   // Mots communs dans les titres
   'fils': ['son'],
   'fille': ['daughter'],
@@ -44,22 +44,22 @@ const frenchToEnglishKeywords = {
 // Générer des variantes de recherche pour un titre français
 function generateSearchVariants(query) {
   const variants = [query]; // Toujours inclure la recherche originale
-  
+
   let normalized = query.toLowerCase().trim();
-  
+
   // Enlever les articles français
   const withoutArticles = normalized
     .replace(/^(le|la|les|l'|l')\s+/i, '')
     .trim();
-  
+
   if (withoutArticles !== normalized) {
     variants.push(withoutArticles);
   }
-  
+
   // Générer des variantes avec traductions
   const words = normalized.split(/\s+/);
   const translatedVariants = [];
-  
+
   for (const word of words) {
     const cleanWord = word.replace(/['']/g, '');
     if (frenchToEnglishKeywords[cleanWord]) {
@@ -68,7 +68,7 @@ function generateSearchVariants(query) {
       for (const translation of translations) {
         const variant = normalized.replace(new RegExp(`\\b${word}\\b`, 'i'), translation);
         translatedVariants.push(variant);
-        
+
         // Aussi sans article
         const variantNoArticle = variant.replace(/^(le|la|les|l'|l')\s+/i, '').trim();
         if (variantNoArticle !== variant) {
@@ -77,9 +77,9 @@ function generateSearchVariants(query) {
       }
     }
   }
-  
+
   variants.push(...translatedVariants);
-  
+
   // Enlever les doublons et retourner
   return [...new Set(variants)].slice(0, 5); // Max 5 variantes pour ne pas surcharger
 }
@@ -92,12 +92,11 @@ function isFrenchQuery(query) {
     /ère\b/i,
     /ème\b/i
   ];
-  
+
   return frenchIndicators.some(pattern => pattern.test(query));
 }
 
 module.exports = {
-  frenchToEnglishKeywords,
   generateSearchVariants,
   isFrenchQuery
 };

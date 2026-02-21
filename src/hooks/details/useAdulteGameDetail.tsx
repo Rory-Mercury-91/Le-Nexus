@@ -24,12 +24,44 @@ export function useAdulteGameDetail() {
   const [users, setUsers] = useState<Array<{ id: number; name: string; color: string; emoji: string }>>([]);
   const [currentUser, setCurrentUser] = useState<{ id: number; name: string; color: string; emoji: string } | null>(null);
   const [profileImages, setProfileImages] = useState<Record<string, string | null>>({});
+  const [tagPreferences, setTagPreferences] = useState<Record<string, 'liked' | 'disliked' | 'neutral'>>({});
+
+  // Fonction de chargement des préférences de tags (définie avant les useEffect)
+  const loadTagPreferences = useCallback(async () => {
+    if (!currentUser?.id) return;
+    try {
+      const preferences = await window.electronAPI.getAdulteGameTagPreferences(currentUser.id);
+      setTagPreferences(preferences);
+    } catch (error) {
+      console.error('Erreur chargement préférences tags:', error);
+    }
+  }, [currentUser?.id]);
+
+  // Fonction de toggle des préférences de tags (définie avant les useEffect)
+  const handleTagClick = useCallback(async (tag: string) => {
+    if (!currentUser?.id) return;
+    try {
+      const result = await window.electronAPI.toggleAdulteGameTagPreference(currentUser.id, tag);
+      setTagPreferences(prev => ({
+        ...prev,
+        [tag]: result.preference
+      }));
+    } catch (error) {
+      console.error('Erreur toggle préférence tag:', error);
+    }
+  }, [currentUser?.id]);
 
   useEffect(() => {
     loadGame();
     loadUsers();
     loadCurrentUser();
   }, [id]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      loadTagPreferences();
+    }
+  }, [currentUser?.id, loadTagPreferences]);
 
   // Charger les utilisateurs
   useEffect(() => {
@@ -454,6 +486,7 @@ export function useAdulteGameDetail() {
     profileImages,
     costsByUser,
     totalPrix,
+    tagPreferences,
 
     // États UI
     isUpdating,
@@ -469,6 +502,7 @@ export function useAdulteGameDetail() {
     handleDelete,
     handleStatusChange,
     handleNotesChange,
+    handleTagClick,
     loadGame,
     loadOwners,
 

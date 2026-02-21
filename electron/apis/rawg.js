@@ -98,27 +98,7 @@ async function getGameDetails(rawgId, options = {}) {
   });
 }
 
-/**
- * Récupère les jeux par ID (pour plusieurs jeux)
- * @param {number[]} rawgIds - Liste d'IDs RAWG
- * @param {Object} options - Options
- * @param {string} options.apiKey - Clé API RAWG
- * @returns {Promise<Object[]>} Liste des jeux
- */
-async function getGamesByIds(rawgIds, options = {}) {
-  // RAWG ne supporte pas la récupération multiple, on fait des requêtes parallèles
-  const promises = rawgIds.map(id => getGameDetails(id, options).catch(err => {
-    console.error(`Erreur récupération jeu RAWG ${id}:`, err.message);
-    return null;
-  }));
-  
-  const results = await Promise.all(promises);
-  return results.filter(Boolean);
-}
-
 module.exports = {
-  requestRawg,
   searchGames,
-  getGameDetails,
-  getGamesByIds
+  getGameDetails
 };

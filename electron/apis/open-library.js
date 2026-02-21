@@ -36,7 +36,7 @@ async function searchBooks(query, options = {}) {
         res.on('end', () => {
           try {
             const response = JSON.parse(data);
-            
+
             if (response.error) {
               console.error('[Open Library] API Error:', response.error);
               reject(new Error(response.error || 'Erreur API Open Library'));
@@ -116,74 +116,6 @@ async function searchBooks(query, options = {}) {
   }
 }
 
-/**
- * Récupère les détails d'un livre par son ID Open Library
- * @param {string} workId - ID Open Library (work ID)
- * @returns {Promise<Object>} - Détails du livre
- */
-async function getBookById(workId) {
-  if (!workId) {
-    throw new Error('ID Open Library requis');
-  }
-
-  try {
-    // Nettoyer l'ID si nécessaire
-    const cleanId = workId.replace('/works/', '').replace('OL', 'OL');
-    const url = `https://openlibrary.org/works/${cleanId}.json`;
-
-    return new Promise((resolve, reject) => {
-      https.get(url, (res) => {
-        let data = '';
-
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-
-        res.on('end', () => {
-          try {
-            const doc = JSON.parse(data);
-            
-            if (doc.error) {
-              reject(new Error(doc.error || 'Livre non trouvé'));
-              return;
-            }
-
-            // Pour obtenir plus de détails, on peut aussi chercher les éditions
-            const authors = (doc.authors || []).map(author => {
-              if (typeof author === 'object' && author.author) {
-                return author.author.key?.replace('/authors/', '') || '';
-              }
-              return author;
-            });
-
-            resolve({
-              openLibraryId: cleanId,
-              title: doc.title || '',
-              originalTitle: doc.title || '',
-              subtitle: doc.subtitle || null,
-              authors: authors,
-              mainAuthor: authors[0] || '',
-              description: doc.description ? (typeof doc.description === 'string' ? doc.description : doc.description.value || '') : null,
-              subjects: doc.subjects || [],
-              infoLink: `https://openlibrary.org/works/${cleanId}`
-            });
-          } catch (error) {
-            console.error('[Open Library] Parse error:', error);
-            reject(new Error('Erreur lors du parsing de la réponse'));
-          }
-        });
-      }).on('error', (error) => {
-        console.error('[Open Library] Request error:', error);
-        reject(new Error(`Erreur réseau: ${error.message}`));
-      });
-    });
-  } catch (error) {
-    console.error('[Open Library] Get book error:', error);
-    throw error;
-  }
-}
-
 module.exports = {
-  searchBooks,
-  getBookById
+  searchBooks
 };

@@ -245,7 +245,7 @@ export default function AdulteGameCard({
             flexDirection: 'column',
             gap: '3px'
           }}>
-            {/* Ligne 1 : Version actuelle et Version traduite côte à côte */}
+            {/* Ligne 1 : Version actuelle et version traduction côte à côte */}
             <div style={{
               display: 'flex',
               gap: '12px',
@@ -255,11 +255,11 @@ export default function AdulteGameCard({
               <span>
                 <span style={{ color: 'var(--text-secondary)' }}>Version actuelle : </span>
                 <span style={{ color: 'var(--text)', fontWeight: 600 }}>
-                  {game.version || 'Non connue'}
+                  {game.version || 'Indisponible'}
                 </span>
               </span>
               <span>
-                <span style={{ color: 'var(--text-secondary)' }}>Version traduite : </span>
+                <span style={{ color: 'var(--text-secondary)' }}>version traduction : </span>
                 <span style={{
                   color: (() => {
                     if (!game.version_traduite) {
@@ -277,7 +277,7 @@ export default function AdulteGameCard({
                   })(),
                   fontWeight: 600
                 }}>
-                  {game.version_traduite || 'Non connue'}
+                  {game.version_traduite || 'Indisponible'}
                 </span>
               </span>
             </div>

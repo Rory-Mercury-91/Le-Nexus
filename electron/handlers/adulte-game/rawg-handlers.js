@@ -1,5 +1,5 @@
 const { searchGames, getGameDetails } = require('../../apis/rawg');
-const { syncGameFromRawg, enrichGameFromRawg } = require('../../services/adulte-game/game-enrichment-service');
+const { syncGameFromRawg } = require('../../services/adulte-game/game-enrichment-service');
 const { registerRawgGameGalleryHandlers } = require('./rawg-game-gallery-handlers');
 const { registerRawgGameVideoHandlers } = require('./rawg-game-video-handlers');
 
@@ -61,57 +61,6 @@ function registerRawgHandlers(ipcMain, getDb, store, dialog, getMainWindow, getP
     } catch (error) {
       console.error('[RAWG] games-search error:', error);
       throw new Error(error?.message || 'Impossible de rechercher sur RAWG.');
-    }
-  });
-
-  /**
-   * Récupère les détails d'un jeu depuis RAWG
-   */
-  ipcMain.handle('games-get-rawg-details', async (event, rawgId) => {
-    if (!rawgId) {
-      throw new Error('rawgId est requis');
-    }
-
-    try {
-      const apiKey = store.get('rawg.apiKey', process.env.RAWG_API_KEY || '');
-      if (!apiKey) {
-        throw new Error('Aucune clé API RAWG définie. Configurez-la dans les paramètres.');
-      }
-
-      const game = await getGameDetails(rawgId, { apiKey });
-
-      if (!game) {
-        throw new Error(`Jeu RAWG ${rawgId} introuvable`);
-      }
-
-      return {
-        rawgId: game.id,
-        name: game.name || 'Sans titre',
-        description: game.description || null,
-        released: game.released || null,
-        backgroundImage: game.background_image || null,
-        website: game.website || null,
-        rating: game.rating ? parseFloat(game.rating) : null,
-        metacritic: game.metacritic || null,
-        platforms: game.platforms?.map(p => ({
-          id: p.platform?.id || p.id,
-          name: p.platform?.name || p.name
-        })).filter(Boolean) || [],
-        genres: game.genres?.map(g => ({
-          id: g.id,
-          name: g.name
-        })) || [],
-        tags: game.tags?.map(t => ({
-          id: t.id,
-          name: t.name
-        })) || [],
-        developers: game.developers?.map(d => d.name).filter(Boolean) || [],
-        publishers: game.publishers?.map(p => p.name).filter(Boolean) || [],
-        screenshots: game.short_screenshots?.map(s => s.image).filter(Boolean) || []
-      };
-    } catch (error) {
-      console.error('[RAWG] games-get-details error:', error);
-      throw new Error(error?.message || 'Impossible de récupérer les détails du jeu.');
     }
   });
 
@@ -286,26 +235,6 @@ function registerRawgHandlers(ipcMain, getDb, store, dialog, getMainWindow, getP
     return await syncGameFromRawg({
       rawgId,
       gameId,
-      db,
-      store,
-      enableTranslation: autoTranslate ?? autoTranslateSetting
-    });
-  });
-
-  /**
-   * Enrichit un jeu existant avec les données RAWG
-   */
-  ipcMain.handle('games-enrich-from-rawg', async (event, { gameId, rawgId, autoTranslate = true }) => {
-    if (!gameId) {
-      throw new Error('gameId est requis');
-    }
-
-    const db = getDb();
-    const autoTranslateSetting = store.get('media.autoTranslate', true);
-
-    return await enrichGameFromRawg({
-      gameId,
-      rawgId,
       db,
       store,
       enableTranslation: autoTranslate ?? autoTranslateSetting

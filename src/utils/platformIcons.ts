@@ -93,10 +93,10 @@ const platformIconMap: Record<string, string> = {
   'xbox one x': '/assets/xbox-one-logo-svgrepo-com.svg',
   'xbox one s': '/assets/xbox-one-logo-svgrepo-com.svg',
   // Xbox - Générique (fallback)
-  'xbox': '/assets/Xbox_one_logo.svg',
-  'xbox store': '/assets/Xbox_one_logo.svg',
-  'microsoft store': '/assets/Xbox_one_logo.svg',
-  'microsoft': '/assets/Xbox_one_logo.svg',
+  'xbox': '/assets/xbox-one-logo-svgrepo-com.svg',
+  'xbox store': '/assets/xbox-one-logo-svgrepo-com.svg',
+  'microsoft store': '/assets/xbox-one-logo-svgrepo-com.svg',
+  'microsoft': '/assets/xbox-one-logo-svgrepo-com.svg',
 };
 
 /**
@@ -172,7 +172,7 @@ export function getPlatformIcon(platformName: string | null | undefined): string
   // PC
   if (lower === 'pc' || lower.includes('windows') || (lower.includes('pc') && !lower.includes('playstation'))) return getAssetPath('/assets/PC_logo.svg');
   // Xbox - Générique (fallback, doit être en dernier)
-  if (lower.includes('xbox') || lower.includes('microsoft')) return getAssetPath('/assets/Xbox_one_logo.svg');
+  if (lower.includes('xbox') || lower.includes('microsoft')) return getAssetPath('/assets/xbox-one-logo-svgrepo-com.svg');
   
   return null;
 }

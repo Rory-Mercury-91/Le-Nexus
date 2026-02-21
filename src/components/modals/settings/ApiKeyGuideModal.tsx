@@ -34,31 +34,22 @@ const PROVIDERS: ProviderConfig[] = [
     name: 'MyAnimeList',
     icon: '📺',
     accent: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-    url: 'https://myanimelist.net/apiconfig',
-    urlLabel: 'Portail développeur MAL',
-    summary: 'Requis pour la synchronisation et l’enrichissement de votre collection anime/manga.',
+    url: 'https://myanimelist.net',
+    urlLabel: 'Site MyAnimeList',
+    summary: 'La connexion à MyAnimeList est entièrement simplifiée : cliquez simplement sur "Connexion" dans les paramètres MAL de Nexus pour démarrer l\'authentification OAuth.',
     recommendedName: 'Nexus (usage personnel)',
     steps: [
-      'Cliquez sur le bouton « Portail développeur MAL » (ci-dessus) : MyAnimeList vous demandera de vous connecter si nécessaire.',
-      'Cliquez sur « Create ID ».',
-      {
-        text: 'Pour vous simplifier la vie, voici nos suggestions pour chaque champ obligatoire :',
-        bullets: [
-          'App Name * : indiquez un nom explicite, par exemple « Nexus (usage personnel) ».',
-          'App Type * : choisissez « Other ».',
-          'App Description * : précisez « Synchronisation et consultation privée de ma collection dans Nexus » (ou formulation équivalente).',
-          { text: 'App Redirect URL * : utilisez le bouton « Copier » pour coller l\'URL.', copyValue: 'http://localhost:8888/callback' },
-          'Homepage URL * : vous pouvez indiquer https://github.com/Rory-Mercury-91/le-nexus (ou votre page personnelle).',
-          'Commercial / Non-Commercial * : sélectionnez « Non-commercial ».',
-          'Name / Company Name * : renseignez votre nom/pseudo (ou « Usage personnel »).',
-          'Purpose of Use * : choisissez « Hobbyist » (usage passion).'
-        ]
-      },
-      'Validez la création, puis utilisez le bouton de retour à la liste et ouvrez l’ID en cliquant sur « Edit » pour afficher le Client ID : copiez-le et collez-le dans les paramètres MAL de Nexus.'
+      'Allez dans les paramètres de Nexus, section MyAnimeList.',
+      'Cliquez sur le bouton « Connexion ».',
+      'Votre navigateur s\'ouvre automatiquement sur la page d\'autorisation MyAnimeList.',
+      'Connectez-vous avec votre compte MyAnimeList si nécessaire.',
+      'Cliquez sur « Allow » pour autoriser Nexus à accéder à votre liste.',
+      'Vous serez automatiquement redirigé vers Nexus : la connexion est établie !'
     ],
     notes: [
-      'Ne partagez pas votre Client ID publiquement.',
-      'Chaque utilisateur doit générer son propre Client ID : MyAnimeList limite les quotas par compte et exige un OAuth personnel.'
+      '✅ Aucune configuration de clé API n\'est nécessaire : tout est géré automatiquement.',
+      'L\'authentification utilise le protocole OAuth 2.0 avec PKCE pour une sécurité maximale.',
+      'Vous pouvez révoquer l\'accès à tout moment depuis les paramètres de votre compte MyAnimeList.'
     ]
   },
   {

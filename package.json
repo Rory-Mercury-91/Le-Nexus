@@ -26,20 +26,20 @@
       "electron/**/*",
       "node_modules/**/*",
       "package.json",
-      "assets/**/*",
+      "build-assets/**/*",
       "tampermonkey/**/*"
     ],
     "asarUnpack": [
-      "assets/**/*",
+      "build-assets/**/*",
       "tampermonkey/**/*",
       "node_modules/@ffmpeg-installer/**/*"
     ],
     "directories": {
-      "buildResources": "assets"
+      "buildResources": "build-assets"
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico",
+      "icon": "build-assets/icon.ico",
       "sign": null,
       "signingHashAlgorithms": []
     },

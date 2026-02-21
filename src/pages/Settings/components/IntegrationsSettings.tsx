@@ -14,7 +14,6 @@ const tooltipTexts = {
   imageSource: "Choisit la source prioritaire utilisée pour compléter les visuels quand MyAnimeList manque d'images.",
   groqKey: "Collez ici votre clé API Groq (affichée une seule fois). Elle reste stockée localement et chiffrée.",
   groqAutoTranslate: "Traduire automatiquement les synopsis indisponibles en français via Groq lors de l'enrichissement.",
-  malClientId: "Identifiant client généré sur le portail développeur MAL (OAuth).",
   malAutoSync: "Met à jour vos progressions MAL automatiquement à l'intervalle défini.",
   nautiljonAutoSync: "Actualise en arrière-plan les fiches Nautiljon liées aux séries suivies.",
   nautiljonTomes: "Inclut les tomes/volumes Nautiljon dans la synchronisation automatique.",
@@ -98,11 +97,6 @@ export default function IntegrationsSettings({
   showToast,
   animeImportResult,
 }: IntegrationsSettingsProps) {
-  const [malClientId, setMalClientId] = useState('');
-  const [credentialsLoaded, setCredentialsLoaded] = useState(false);
-  const [isSavingCredentials, setIsSavingCredentials] = useState(false);
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const redirectUriRef = useRef<string>(DEFAULT_MAL_REDIRECT_URI);
 
   const [anilistClientId, setAnilistClientId] = useState('');
   const [anilistClientSecret, setAnilistClientSecret] = useState('');
@@ -120,7 +114,6 @@ export default function IntegrationsSettings({
   const [groqTesting, setGroqTesting] = useState(false);
   const [groqTestResult, setGroqTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [groqKeyVisible, setGroqKeyVisible] = useState(false);
-  const [malClientVisible, setMalClientVisible] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<TooltipId | null>(null);
   const [importingMihon, setImportingMihon] = useState(false);
   const [mihonImportProgress, setMihonImportProgress] = useState<{ step?: string; message?: string; progress?: number; total?: number; current?: number } | null>(null);
@@ -321,31 +314,6 @@ export default function IntegrationsSettings({
     }
   }, [showToast]);
 
-  useEffect(() => {
-    const loadCredentials = async () => {
-      try {
-        const creds = await window.electronAPI.getMalCredentials?.();
-        if (creds) {
-          setMalClientId(creds.clientId || '');
-          redirectUriRef.current = creds.redirectUri || DEFAULT_MAL_REDIRECT_URI;
-        } else {
-          redirectUriRef.current = DEFAULT_MAL_REDIRECT_URI;
-        }
-      } catch (error) {
-        console.error('Erreur chargement identifiants MAL:', error);
-      } finally {
-        setCredentialsLoaded(true);
-      }
-    };
-
-    loadCredentials();
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const loadAnilistCredentials = async () => {
@@ -411,32 +379,6 @@ export default function IntegrationsSettings({
     };
   }, [groqApiKey]);
 
-  const scheduleCredentialSave = (nextClientId: string) => {
-    if (!credentialsLoaded || !window.electronAPI.setMalCredentials) {
-      return;
-    }
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    const trimmedClientId = nextClientId.trim();
-
-    saveTimeoutRef.current = setTimeout(async () => {
-      setIsSavingCredentials(true);
-      try {
-        await window.electronAPI.setMalCredentials?.({
-          clientId: trimmedClientId,
-          redirectUri: redirectUriRef.current || DEFAULT_MAL_REDIRECT_URI,
-        });
-      } catch (error) {
-        console.error('Erreur sauvegarde identifiants MAL:', error);
-      } finally {
-        setIsSavingCredentials(false);
-        saveTimeoutRef.current = null;
-      }
-    }, 600);
-  };
 
   const scheduleGroqApiKeySave = useCallback(
     (nextKey: string) => {
@@ -1535,85 +1477,6 @@ export default function IntegrationsSettings({
                 gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               }}
             >
-              <div
-                style={{
-                  padding: '18px 20px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface)',
-                  boxShadow: 'var(--card-shadow)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <label style={{ fontWeight: 600, color: 'var(--text)', fontSize: '14px' }}>Client ID MyAnimeList</label>
-                    <TooltipIcon id="malClientId" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onOpenGuide('mal');
-                    }}
-                    className="btn btn-outline"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      fontSize: '12px',
-                    }}
-                  >
-                    <Info size={14} />
-                    Guide MAL
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <input
-                    type={malClientVisible ? 'text' : 'password'}
-                    value={malClientId}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setMalClientId(value);
-                      scheduleCredentialSave(value);
-                    }}
-                    placeholder="Clé client générée dans le portail MAL"
-                    className="input"
-                    style={{
-                      flex: 1,
-                      letterSpacing: malClientVisible ? '0.4px' : '0.6px'
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setMalClientVisible((prev) => !prev)}
-                    style={{
-                      border: '1px solid var(--border)',
-                      background: 'var(--background)',
-                      borderRadius: '8px',
-                      width: '42px',
-                      height: '42px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      color: 'var(--text-secondary)'
-                    }}
-                    aria-label={malClientVisible ? 'Masquer le Client ID' : 'Afficher le Client ID'}
-                  >
-                    {malClientVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                {isSavingCredentials && (
-                  <span style={{ fontSize: '12px', color: 'var(--primary-light)' }}>
-                    Sauvegarde en cours…
-                  </span>
-                )}
-              </div>
-
               {renderMalStatus()}
             </div>
 

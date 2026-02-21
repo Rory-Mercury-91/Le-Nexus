@@ -1,5 +1,5 @@
 const { getTvDetails, getTvSeason } = require('../../apis/tmdb');
-const { lookupShow, getShow, getEpisodes: getTvMazeEpisodes } = require('../../apis/tvmaze');
+const { lookupShow } = require('../../apis/tvmaze');
 const { translateText } = require('../../apis/groq');
 
 function toJson(value) {

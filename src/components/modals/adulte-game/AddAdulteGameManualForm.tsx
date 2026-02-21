@@ -313,7 +313,7 @@ export default function AddAdulteGameManualForm({
               }}>
                 {/* Ligne 1 : Version de la traduction | Type de traduction */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  {/* Version traduite */}
+                  {/* version traduction */}
                   <div>
                     <label htmlFor="version_traduite" className="label">
                       Version de la traduction

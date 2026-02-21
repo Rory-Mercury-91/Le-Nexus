@@ -628,9 +628,9 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
           if (!hasAnyLabel) return false;
         }
 
-        // Filtre : version traduite non à jour
+        // Filtre : version traduction non à jour
         if (showOutdatedTranslation) {
-          // Vérifier si la version traduite existe et est différente de la version actuelle
+          // Vérifier si la version traduction existe et est différente de la version actuelle
           // Ignorer si c'est "intégré" car ce n'est pas une vraie version
           if (game.version && game.version_traduite) {
             const isIntegrated = game.version_traduite.toLowerCase().includes('intégré');
@@ -638,7 +638,7 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
               return false; // Exclure si intégré ou si à jour
             }
           } else {
-            return false; // Exclure si pas de version ou version traduite
+            return false; // Exclure si pas de version ou version traduction
           }
         }
 
@@ -1117,17 +1117,11 @@ export function useAdulteGameCollection(_options: UseAdulteGameCollectionOptions
 
   useEffect(() => {
     if (currentUserId) {
-      loadTagPreferences();
-    }
-  }, [currentUserId, loadTagPreferences]);
-
-  useEffect(() => {
-    if (currentUserId) {
       loadTagPreferences().then(() => {
         setTagsSorted(true);
       });
     }
-  }, [location.pathname, currentUserId, loadTagPreferences]);
+  }, [currentUserId, loadTagPreferences]);
 
   return {
     games,

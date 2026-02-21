@@ -294,7 +294,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAdulteGameGames: (filters) => ipcRenderer.invoke('get-adulte-game-games', filters),
   getAdulteGameGame: (id) => ipcRenderer.invoke('get-adulte-game-game', id),
   createAdulteGameGame: (gameData) => ipcRenderer.invoke('create-adulte-game-game', gameData),
-  importAdulteGameFromJson: (jsonData) => ipcRenderer.invoke('import-adulte-game-from-json', jsonData),
   updateAdulteGameGame: (id, gameData) => ipcRenderer.invoke('update-adulte-game-game', id, gameData),
   deleteAdulteGameGame: (id) => ipcRenderer.invoke('delete-adulte-game-game', id),
   toggleAdulteGameFavorite: (gameId) => ipcRenderer.invoke('toggle-adulte-game-favorite', gameId),
@@ -328,7 +327,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   oneTimePurchasesUpdate: (id, purchaseData) => ipcRenderer.invoke('one-time-purchases-update', id, purchaseData),
   oneTimePurchasesDelete: (id) => ipcRenderer.invoke('one-time-purchases-delete', id),
 
-  getAllTags: () => ipcRenderer.invoke('get-all-tags'),
   getAdulteGameTagPreferences: (userId) => ipcRenderer.invoke('get-adulte-game-tag-preferences', userId),
   toggleAdulteGameTagPreference: (userId, tag) => ipcRenderer.invoke('toggle-adulte-game-tag-preference', userId, tag),
 
@@ -349,11 +347,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkF95Connection: () => ipcRenderer.invoke('check-f95-connection'),
   connectF95: () => ipcRenderer.invoke('connect-f95'),
   disconnectF95: () => ipcRenderer.invoke('disconnect-f95'),
-  diagnoseF95Cookies: () => ipcRenderer.invoke('diagnose-f95-cookies'),
-
-  // Jeux adultes - Notes privées
-  updateAdulteGameNotes: (gameId, notes) => ipcRenderer.invoke('update-adulte-game-notes', gameId, notes),
-  searchAdulteGameByLewdCornerId: (lewdcornerId) => ipcRenderer.invoke('search-adulte-game-by-lewdcorner-id', lewdcornerId),
 
 
   // Sélection de fichiers jeux adultes
@@ -368,9 +361,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ========== RAWG API ==========
   searchRawgGames: (query, page) => ipcRenderer.invoke('games-search-rawg', { query, page }),
-  getRawgGameDetails: (rawgId) => ipcRenderer.invoke('games-get-rawg-details', rawgId),
   syncGameFromRawg: (rawgId, gameId, autoTranslate) => ipcRenderer.invoke('games-sync-from-rawg', { rawgId, gameId, autoTranslate }),
-  enrichGameFromRawg: (gameId, rawgId, autoTranslate) => ipcRenderer.invoke('games-enrich-from-rawg', { gameId, rawgId, autoTranslate }),
   createGameFromRawg: (rawgId, autoTranslate) => ipcRenderer.invoke('create-game-from-rawg', { rawgId, autoTranslate }),
   getRawgGameDetail: (gameId) => ipcRenderer.invoke('get-rawg-game-detail', gameId),
 
@@ -432,8 +423,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   translateText: (text, targetLang) => ipcRenderer.invoke('translate-text', text, targetLang),
 
   // MyAnimeList Sync
-  getMalCredentials: () => ipcRenderer.invoke('mal-get-credentials'),
-  setMalCredentials: (credentials) => ipcRenderer.invoke('mal-set-credentials', credentials),
   malConnect: () => ipcRenderer.invoke('mal-connect'),
   malDisconnect: () => ipcRenderer.invoke('mal-disconnect'),
   malGetStatus: () => ipcRenderer.invoke('mal-get-status'),

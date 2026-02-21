@@ -46,10 +46,6 @@ async function requestTvMaze(path, { params = {}, method = 'GET', body = null } 
   return await response.json();
 }
 
-async function searchShows(query) {
-  return requestTvMaze('/search/shows', { params: { q: query } });
-}
-
 async function lookupShow({ imdb, thetvdb, tvmaze }) {
   if (tvmaze) {
     return requestTvMaze(`/shows/${tvmaze}`);
@@ -63,46 +59,6 @@ async function lookupShow({ imdb, thetvdb, tvmaze }) {
   throw new Error('Missing lookup identifiers for TV Maze');
 }
 
-async function getShow(showId) {
-  return requestTvMaze(`/shows/${showId}`, {
-    params: { embed: 'nextepisode' }
-  });
-}
-
-async function getEpisodes(showId, { includeSpecials = true } = {}) {
-  return requestTvMaze(`/shows/${showId}/episodes`, {
-    params: includeSpecials ? {} : { specials: 0 }
-  });
-}
-
-async function getSchedule({ country = 'US', date } = {}) {
-  return requestTvMaze('/schedule', {
-    params: {
-      country,
-      date
-    }
-  });
-}
-
-async function getWebSchedule({ date } = {}) {
-  return requestTvMaze('/schedule/web', {
-    params: { date }
-  });
-}
-
-async function getShowEpisodeByDate(showId, airdate) {
-  return requestTvMaze(`/shows/${showId}/episodesbydate`, {
-    params: { date: airdate }
-  });
-}
-
 module.exports = {
-  requestTvMaze,
-  searchShows,
-  lookupShow,
-  getShow,
-  getEpisodes,
-  getSchedule,
-  getWebSchedule,
-  getShowEpisodeByDate
+  lookupShow
 };

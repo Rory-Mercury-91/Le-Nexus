@@ -8,28 +8,6 @@ const { parseTags } = require('./adulte-game-helpers');
  */
 function registerTagsHandlers(ipcMain, getDb) {
   
-  // Récupérer tous les tags uniques existants
-  ipcMain.handle('get-all-tags', async () => {
-    try {
-      const db = getDb();
-      
-      const games = db.prepare('SELECT tags FROM adulte_game_games WHERE tags IS NOT NULL').all();
-      
-      const allTags = new Set();
-      games.forEach(game => {
-        const tags = parseTags(game.tags);
-        if (Array.isArray(tags)) {
-          tags.forEach(tag => allTags.add(tag));
-        }
-      });
-      
-      return Array.from(allTags).sort();
-    } catch (error) {
-      console.error('❌ Erreur get-all-tags:', error);
-      throw error;
-    }
-  });
-
   // Récupérer les préférences de tags pour un utilisateur
   ipcMain.handle('get-adulte-game-tag-preferences', async (_event, userId) => {
     try {

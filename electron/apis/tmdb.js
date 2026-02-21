@@ -68,17 +68,6 @@ async function requestTmdb(path, {
   return await response.json();
 }
 
-async function searchMulti(query, options = {}) {
-  return requestTmdb('/search/multi', {
-    ...options,
-    params: {
-      include_adult: false,
-      query,
-      page: options.page || 1
-    }
-  });
-}
-
 async function searchMovies(query, options = {}) {
   return requestTmdb('/search/movie', {
     ...options,
@@ -164,48 +153,11 @@ async function getTvSeason(tmdbId, seasonNumber, options = {}) {
   });
 }
 
-async function getTvEpisode(tmdbId, seasonNumber, episodeNumber, options = {}) {
-  return requestTmdb(`/tv/${tmdbId}/season/${seasonNumber}/episode/${episodeNumber}`, {
-    ...options,
-    params: {
-      append_to_response: [
-        'translations',
-        'credits',
-        'images'
-      ].join(',')
-    }
-  });
-}
-
-async function getTrending(mediaType = 'all', timeWindow = 'week', options = {}) {
-  return requestTmdb(`/trending/${mediaType}/${timeWindow}`, options);
-}
-
-async function discoverMovies(params = {}, options = {}) {
-  return requestTmdb('/discover/movie', {
-    ...options,
-    params
-  });
-}
-
-async function discoverTv(params = {}, options = {}) {
-  return requestTmdb('/discover/tv', {
-    ...options,
-    params
-  });
-}
-
 module.exports = {
-  requestTmdb,
-  searchMulti,
   searchMovies,
   searchTv,
   getConfiguration,
   getMovieDetails,
   getTvDetails,
-  getTvSeason,
-  getTvEpisode,
-  getTrending,
-  discoverMovies,
-  discoverTv
+  getTvSeason
 };

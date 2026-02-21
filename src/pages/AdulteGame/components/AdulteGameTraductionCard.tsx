@@ -25,7 +25,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
   lien_traduction,
   traductions_multiples
 }) => {
-  
+
   // Parser les traductions multiples
   let traductions: Traduction[] = [];
   try {
@@ -35,10 +35,10 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
   } catch (e) {
     console.error('Erreur parsing traductions_multiples:', e);
   }
-  
+
   // Si plusieurs traductions, afficher la liste complète
   const hasMultipleTraductions = traductions.length > 1;
-  
+
   return (
     <div className="card">
       {hasMultipleTraductions ? (
@@ -46,7 +46,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
         (() => {
           // Prendre les 2 premières traductions
           const displayTranslations = traductions.slice(0, 2);
-          const hasSameTranslator = displayTranslations.length === 2 && 
+          const hasSameTranslator = displayTranslations.length === 2 &&
             displayTranslations[0].traducteur === displayTranslations[1].traducteur;
 
           return (
@@ -127,7 +127,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                     }}
                   >
                     <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                    Version traduite
+                    version traduction
                   </div>
                   <div
                     style={{
@@ -242,7 +242,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                         }}
                       >
                         <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                        Version traduite
+                        version traduction
                       </div>
                       <div
                         style={{
@@ -305,7 +305,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
             gap: '20px 24px'
           }}
         >
-          {/* Ligne : Traducteur | Type de traduction | Version traduite | Patch de traduction */}
+          {/* Ligne : Traducteur | Type de traduction | version traduction | Patch de traduction */}
           {traducteur && (
             <div>
               <div
@@ -368,7 +368,7 @@ const AdulteGameTraductionCard: React.FC<AdulteGameTraductionCardProps> = ({
                 }}
               >
                 <Download size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                Version traduite
+                version traduction
               </div>
               <div
                 style={{

@@ -89,22 +89,22 @@ function startOAuthFlow(onSuccess, onError, storeInstance = null) {
       return { server: null, state: null };
     }
 
-  // Créer un serveur local temporaire pour recevoir le callback
-  let callbackReceived = false;
-  const server = http.createServer(async (req, res) => {
-    if (callbackReceived) return;
+    // Créer un serveur local temporaire pour recevoir le callback
+    let callbackReceived = false;
+    const server = http.createServer(async (req, res) => {
+      if (callbackReceived) return;
 
-    const url = new URL(req.url, `http://localhost:${PORTS.OAUTH_CALLBACK}`);
+      const url = new URL(req.url, `http://localhost:${PORTS.OAUTH_CALLBACK}`);
 
-    if (url.pathname === '/anilist-callback') {
-      callbackReceived = true;
+      if (url.pathname === '/anilist-callback') {
+        callbackReceived = true;
 
-      const code = url.searchParams.get('code');
-      const returnedState = url.searchParams.get('state');
-      const error = url.searchParams.get('error');
+        const code = url.searchParams.get('code');
+        const returnedState = url.searchParams.get('state');
+        const error = url.searchParams.get('error');
 
-      // Page HTML de réponse
-      const htmlSuccess = `
+        // Page HTML de réponse
+        const htmlSuccess = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -113,20 +113,19 @@ function startOAuthFlow(onSuccess, onError, storeInstance = null) {
             <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #1a1a2e; color: #eee; }
               .success { color: #10b981; font-size: 24px; margin-bottom: 20px; }
-              .message { font-size: 16px; color: #aaa; }
-              .close-btn { margin-top: 30px; padding: 12px 24px; background: #02a9ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+              .message { font-size: 16px; color: #aaa; margin-bottom: 10px; }
+              .info { font-size: 14px; color: #888; font-style: italic; }
             </style>
           </head>
           <body>
             <div class="success">✅ Connexion réussie !</div>
-            <div class="message">Vous pouvez fermer cette fenêtre et retourner à l'application.</div>
-            <button class="close-btn" onclick="window.close()">Fermer cette fenêtre</button>
-            <script>setTimeout(() => window.close(), 3000);</script>
+            <div class="message">Vous pouvez retourner à l'application.</div>
+            <div class="info">Vous pouvez fermer cet onglet en toute sécurité.</div>
           </body>
         </html>
       `;
 
-      const htmlError = `
+        const htmlError = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -135,82 +134,83 @@ function startOAuthFlow(onSuccess, onError, storeInstance = null) {
             <style>
               body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #1a1a2e; color: #eee; }
               .error { color: #ef4444; font-size: 24px; margin-bottom: 20px; }
-              .message { font-size: 16px; color: #aaa; }
+              .message { font-size: 16px; color: #aaa; margin-bottom: 10px; }
+              .info { font-size: 14px; color: #888; font-style: italic; }
             </style>
           </head>
           <body>
             <div class="error">❌ Erreur de connexion</div>
             <div class="message">Veuillez réessayer dans l'application.</div>
-            <script>setTimeout(() => window.close(), 3000);</script>
+            <div class="info">Vous pouvez fermer cet onglet en toute sécurité.</div>
           </body>
         </html>
       `;
 
-      if (error) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlError);
-        server.close();
-        onError(new Error(`OAuth error: ${error}`));
-        return;
-      }
+        if (error) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(htmlError);
+          server.close();
+          onError(new Error(`OAuth error: ${error}`));
+          return;
+        }
 
-      if (!code || returnedState !== state) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlError);
-        server.close();
-        onError(new Error('Invalid state or missing code'));
-        return;
-      }
+        if (!code || returnedState !== state) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(htmlError);
+          server.close();
+          onError(new Error('Invalid state or missing code'));
+          return;
+        }
 
-      // Échanger le code contre des tokens
+        // Échanger le code contre des tokens
+        try {
+          const tokens = await exchangeCodeForTokens(code, clientId, redirectUri, actualStore);
+
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(htmlSuccess);
+
+          server.close();
+          onSuccess(tokens);
+        } catch (err) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(htmlError);
+          server.close();
+          onError(err);
+        }
+      }
+    });
+
+    // Démarrer le serveur sur le même port que MAL (le path est différent)
+    server.on('error', (err) => {
+      console.error('❌ Erreur serveur OAuth AniList:', err);
+      if (err.code === 'EADDRINUSE') {
+        onError(new Error(`Le port ${PORTS.OAUTH_CALLBACK} est déjà utilisé. Fermez les autres applications qui l'utilisent.`));
+      } else {
+        onError(new Error(`Erreur serveur OAuth: ${err.message || err.toString()}`));
+      }
+    });
+
+    server.listen(PORTS.OAUTH_CALLBACK, () => {
+      console.log(`🔐 Serveur OAuth callback AniList démarré sur http://localhost:${PORTS.OAUTH_CALLBACK}`);
+
       try {
-        const tokens = await exchangeCodeForTokens(code, clientId, redirectUri, actualStore);
+        // Construire l'URL d'autorisation
+        const authUrl = new URL(ANILIST_AUTH_URL);
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('state', state);
 
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlSuccess);
+        console.log('📋 URL d\'autorisation OAuth AniList:');
+        console.log(authUrl.toString());
 
-        server.close();
-        onSuccess(tokens);
+        shell.openExternal(authUrl.toString());
       } catch (err) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(htmlError);
+        console.error('❌ Erreur ouverture URL OAuth AniList:', err);
         server.close();
-        onError(err);
+        onError(new Error(`Erreur ouverture navigateur: ${err.message || err.toString()}`));
       }
-    }
-  });
-
-  // Démarrer le serveur sur le même port que MAL (le path est différent)
-  server.on('error', (err) => {
-    console.error('❌ Erreur serveur OAuth AniList:', err);
-    if (err.code === 'EADDRINUSE') {
-      onError(new Error(`Le port ${PORTS.OAUTH_CALLBACK} est déjà utilisé. Fermez les autres applications qui l'utilisent.`));
-    } else {
-      onError(new Error(`Erreur serveur OAuth: ${err.message || err.toString()}`));
-    }
-  });
-
-  server.listen(PORTS.OAUTH_CALLBACK, () => {
-    console.log(`🔐 Serveur OAuth callback AniList démarré sur http://localhost:${PORTS.OAUTH_CALLBACK}`);
-
-    try {
-      // Construire l'URL d'autorisation
-      const authUrl = new URL(ANILIST_AUTH_URL);
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('state', state);
-
-      console.log('📋 URL d\'autorisation OAuth AniList:');
-      console.log(authUrl.toString());
-
-      shell.openExternal(authUrl.toString());
-    } catch (err) {
-      console.error('❌ Erreur ouverture URL OAuth AniList:', err);
-      server.close();
-      onError(new Error(`Erreur ouverture navigateur: ${err.message || err.toString()}`));
-    }
-  });
+    });
 
     // Timeout de 5 minutes
     setTimeout(() => {
@@ -371,6 +371,5 @@ module.exports = {
   refreshAccessToken,
   getUserInfo,
   getConfiguredAniListClientId,
-  getConfiguredAniListClientSecret,
-  getConfiguredRedirectUri
+  getConfiguredAniListClientSecret
 };
